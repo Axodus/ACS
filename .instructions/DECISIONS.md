@@ -227,6 +227,54 @@ CONFIRMED
 
 ---
 
+## RedHat MCP Safe Contract
+
+Decision:
+ACS defines an initial safe RedHat Dev MCP adapter with read/plan methods only:
+- `listSkills()`
+- `describeSkill(skillId)`
+- `planTask(task)`
+
+Boundary:
+The adapter reads local RedHat Dev skill metadata and creates bounded plans. It does not execute commands, mutate files, call MCP tools, invoke OpenClaw agents, or perform deployment actions.
+
+Future:
+`executeGuardedTask(task)` may be added only after explicit risk gates, command classification, telemetry, receipts, and permission boundaries are implemented.
+
+Status:
+CONFIRMED
+
+---
+
+## Workflow Registry
+
+Decision:
+ACS workflows are named and versioned under `src/workflows/`.
+
+Initial workflows:
+- `dev-coordination`
+- `security-review`
+- `governance-alignment`
+- `implementation-plan`
+
+Status:
+CONFIRMED
+
+---
+
+## Persistent Telemetry
+
+Decision:
+ACS persists telemetry events as append-only JSONL records at `.acs/telemetry/events.jsonl` by default.
+
+Rationale:
+Receipts summarize executions; telemetry preserves operational event history for local replay, inspection, and future observability.
+
+Status:
+CONFIRMED
+
+---
+
 # Pending Decisions
 
 ## Provider Verification Model

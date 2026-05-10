@@ -187,10 +187,24 @@ Current implementation baseline:
 - `src/receipts.ts` provides in-memory and append-only JSONL receipt stores.
 - `src/openclaw.ts` discovers local OpenClaw agents by reading directories/manifests only.
 - `src/openclaw.ts` classifies known agents by CORE/product/client boundary and normalizes `main` into canonical `trinity`.
-- `src/runtime.ts` bootstraps local ACS with OpenClaw discovery, default policy, telemetry, local provider registration, and `.acs/receipts/execution.jsonl` persistence.
-- `src/workflows.ts` defines named local workflows with stable `workflowRunId` values.
+- `src/runtime.ts` bootstraps local ACS with OpenClaw discovery, default policy, persistent telemetry, local provider registration, and `.acs/receipts/execution.jsonl` persistence.
+- `src/workflows/` defines named/versioned local workflows with stable `workflowRunId` values.
 - `scripts/acs.mjs` exposes local operational commands for agents, providers, workflows, receipts, and bounded workflow execution.
 - Runtime execution is idempotent by default: an existing receipt for a `workflowRunId` is returned unless forced.
+- `src/telemetry.ts` provides append-only JSONL telemetry persistence at `.acs/telemetry/events.jsonl`.
+- `src/redhat-mcp.ts` defines the safe RedHat Dev MCP contract for listing skills, describing skills, and planning tasks without command execution.
+
+Current workflow registry:
+- `dev-coordination`
+- `security-review`
+- `governance-alignment`
+- `implementation-plan`
+
+RedHat MCP boundary:
+- `listSkills()` reads local skill metadata.
+- `describeSkill(skillId)` reads a local skill manifest.
+- `planTask(task)` creates a bounded plan from local skill metadata.
+- No RedHat MCP method currently executes commands, mutates files, calls MCP tools, or runs OpenClaw agents.
 
 ---
 

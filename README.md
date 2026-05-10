@@ -24,7 +24,13 @@ npm test
 npm run acs -- help
 npm run acs -- agents
 npm run acs -- receipts
+npm run acs -- telemetry
+npm run acs -- redhat skills
+npm run acs -- redhat plan "create implementation plan"
 npm run acs -- workflow dev-coordination
+npm run acs -- workflow security-review
+npm run acs -- workflow governance-alignment
+npm run acs -- workflow implementation-plan
 npm run smoke:openclaw
 npm run smoke:runtime
 ```
@@ -45,6 +51,7 @@ Default bootstrap wires:
 - local agent registry
 - default bounded governance policy
 - in-memory telemetry sink
+- persistent telemetry at `.acs/telemetry/events.jsonl`
 - append-only receipt store at `.acs/receipts/execution.jsonl`
 - local coordination provider for visible capability routing
 
@@ -81,6 +88,10 @@ Known agent boundaries:
 - `--agent <id>`
 - `--status <completed|failed|rejected>`
 
+`npm run acs -- telemetry` lists persisted telemetry events from `.acs/telemetry/events.jsonl`.
+
+`npm run acs -- redhat skills`, `redhat describe <skillId>`, and `redhat plan <task>` use the safe RedHat adapter. The adapter reads local skill metadata only; it does not execute commands, mutate files, call MCP tools, or run OpenClaw agents.
+
 `npm run smoke:openclaw` lists discovered OpenClaw agents, mapped permissions, local providers, and the configured receipt path.
 
 `npm run smoke:runtime` executes a coordination workflow using RedHat Dev, Morpheus, and Agent Smith. It writes the execution receipt to `.acs/receipts/execution.jsonl`.
@@ -88,6 +99,15 @@ Known agent boundaries:
 ## Idempotency
 
 Every workflow should carry a stable `workflowRunId`. `AcsRuntime.execute` checks the receipt store before executing and returns the existing receipt for duplicate run ids. Use `force: true` or CLI `--force` only when a deliberate replay is needed.
+
+## Workflow Registry
+
+Named workflows live under `src/workflows/` and expose name, version, description, and factory:
+
+- `dev-coordination`
+- `security-review`
+- `governance-alignment`
+- `implementation-plan`
 
 ## Current Runtime Boundary
 

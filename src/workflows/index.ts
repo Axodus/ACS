@@ -31,7 +31,7 @@ export function createWorkflowByName(name: string, workflowRunId?: string) {
     throw new Error(`unknown ACS workflow: ${name}`);
   }
 
-  return workflow.create({ workflowRunId });
+  return workflow.create(workflowRunId ? { workflowRunId } : {});
 }
 
 export function createDevelopmentCoordinationWorkflow(workflowRunId = "dev-coordination:local") {

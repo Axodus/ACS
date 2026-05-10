@@ -14,6 +14,8 @@
 - [x] add smoke workflow commands
 - [x] add replay/idempotency strategy
 - [x] add local ACS CLI
+- [x] add named workflow registry
+- [x] add versioned workflows
 
 ---
 
@@ -28,7 +30,10 @@
 ---
 
 ## MCP
-- define protocol boundaries
+- [x] define initial RedHat MCP safe adapter boundary
+- [x] add RedHat skill listing contract
+- [x] add RedHat skill description contract
+- [x] add RedHat planning contract
 - define transport abstraction
 - define interoperability interfaces
 - define runtime coordination flows
@@ -83,6 +88,7 @@
 
 ## Telemetry
 - [x] define initial execution telemetry events
+- [x] persist telemetry events as JSONL
 - define workflow telemetry
 - define inference telemetry
 - define cost visibility

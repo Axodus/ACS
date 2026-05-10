@@ -35,6 +35,8 @@ test("bootstraps ACS runtime with OpenClaw discovery, default policy, telemetry,
     assert.equal(receipt.steps.length, 3);
     assert.equal(runtime.receipts.list().length, 1);
     assert.equal(runtime.receiptPath, join(workspace, ".acs", "receipts", "execution.jsonl"));
+    assert.equal(runtime.telemetryPath, join(workspace, ".acs", "telemetry", "events.jsonl"));
+    assert.ok(runtime.telemetry.list().some((event) => event.type === "workflow.completed"));
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
