@@ -234,12 +234,39 @@ ACS defines an initial safe RedHat Dev MCP adapter with read/plan methods only:
 - `listSkills()`
 - `describeSkill(skillId)`
 - `planTask(task)`
+- `executeGuardedTask(task)` as a blocked contract/risk gate only
 
 Boundary:
 The adapter reads local RedHat Dev skill metadata and creates bounded plans. It does not execute commands, mutate files, call MCP tools, invoke OpenClaw agents, or perform deployment actions.
 
 Future:
-`executeGuardedTask(task)` may be added only after explicit risk gates, command classification, telemetry, receipts, and permission boundaries are implemented.
+Actual guarded execution may be enabled only after explicit command allowlists, approval gates, sandbox boundaries, telemetry, receipts, and permission checks are implemented.
+
+Status:
+CONFIRMED
+
+---
+
+## Command Execution Policy
+
+Decision:
+ACS models command execution through `ExecutionPolicy` before any real execution adapter exists.
+
+Policy decisions expose:
+- risk assessment
+- allowlist match
+- approval state
+- sandbox boundary
+- execution enablement
+- blocking reasons
+
+Default posture:
+- execution disabled
+- sandbox blocked
+- no network
+- no filesystem writes
+- no allowlisted actions
+- no approval tokens
 
 Status:
 CONFIRMED

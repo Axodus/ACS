@@ -27,6 +27,7 @@ npm run acs -- receipts
 npm run acs -- telemetry
 npm run acs -- redhat skills
 npm run acs -- redhat plan "create implementation plan"
+npm run acs -- redhat guarded "run tests"
 npm run acs -- workflow dev-coordination
 npm run acs -- workflow security-review
 npm run acs -- workflow governance-alignment
@@ -90,7 +91,31 @@ Known agent boundaries:
 
 `npm run acs -- telemetry` lists persisted telemetry events from `.acs/telemetry/events.jsonl`.
 
-`npm run acs -- redhat skills`, `redhat describe <skillId>`, and `redhat plan <task>` use the safe RedHat adapter. The adapter reads local skill metadata only; it does not execute commands, mutate files, call MCP tools, or run OpenClaw agents.
+`npm run acs -- redhat skills`, `redhat describe <skillId>`, `redhat plan <task>`, and `redhat guarded <task>` use the safe RedHat adapter. The adapter reads local skill metadata only; it does not execute commands, mutate files, call MCP tools, or run OpenClaw agents.
+
+`redhat guarded <task>` classifies risk and emits a blocked guarded-task result. It is the contract shape for a future `executeGuardedTask(task)` implementation, not an execution path.
+
+## Execution Policy
+
+Command execution is modeled but disabled by default.
+
+`DefaultExecutionPolicy` evaluates:
+
+- command/task risk
+- requested action allowlist
+- approval token state
+- sandbox boundary
+- global execution enablement
+
+Default behavior:
+
+- `executionEnabled: false`
+- sandbox mode: `blocked`
+- no allowlisted actions
+- no approval tokens
+- critical tasks are blocked under the default policy
+
+This keeps `executeGuardedTask(task)` as a risk-gated contract until a future execution adapter is explicitly designed.
 
 `npm run smoke:openclaw` lists discovered OpenClaw agents, mapped permissions, local providers, and the configured receipt path.
 

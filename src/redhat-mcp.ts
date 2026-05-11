@@ -1,8 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { DefaultExecutionPolicy, type CommandPolicyDecision, type CommandRiskAssessment, type ExecutionPolicy } from "./execution-policy.js";
+import type { TelemetrySink } from "./telemetry.js";
 
 export interface RedHatMcpAdapterOptions {
   readonly redHatRoot: string;
+  readonly telemetry?: TelemetrySink;
+  readonly executionPolicy?: ExecutionPolicy;
 }
 
 export interface RedHatSkillSummary {
@@ -30,11 +34,39 @@ export interface RedHatTaskPlan {
   readonly boundary: string;
 }
 
+export type RedHatGuardedTaskStatus = "blocked";
+
+export interface RedHatExecuteGuardedTaskInput {
+  readonly task: string;
+  readonly requestedAction?: string;
+  readonly preferredSkillIds?: readonly string[];
+  readonly approvalToken?: string;
+  readonly dryRun?: boolean;
+}
+
+export interface RedHatGuardedTaskResult {
+  readonly task: string;
+  readonly requestedAction: string;
+  readonly status: RedHatGuardedTaskStatus;
+  readonly executionAllowed: false;
+  readonly dryRun: true;
+  readonly risk: CommandRiskAssessment;
+  readonly allowlistMatched: boolean;
+  readonly policy: CommandPolicyDecision;
+  readonly plan: RedHatTaskPlan;
+  readonly telemetryId?: string;
+  readonly boundary: string;
+}
+
 export class RedHatMcpAdapter {
   readonly #skillsRoot: string;
+  readonly #telemetry: TelemetrySink | undefined;
+  readonly #executionPolicy: ExecutionPolicy;
 
   constructor(options: RedHatMcpAdapterOptions) {
     this.#skillsRoot = join(options.redHatRoot, "skills");
+    this.#telemetry = options.telemetry;
+    this.#executionPolicy = options.executionPolicy ?? new DefaultExecutionPolicy();
   }
 
   listSkills(): readonly RedHatSkillSummary[] {
@@ -77,6 +109,46 @@ export class RedHatMcpAdapter {
         "Require an explicit future execution adapter before running commands or mutating files through MCP.",
       ],
       boundary: "This adapter only reads RedHat Dev skill metadata and plans work. It does not execute commands, mutate files, call MCP tools, or run OpenClaw agents.",
+    };
+  }
+
+  executeGuardedTask(input: RedHatExecuteGuardedTaskInput): RedHatGuardedTaskResult {
+    const requestedAction = input.requestedAction ?? "redhat.executeGuardedTask";
+    const policy = this.#executionPolicy.evaluate({
+      task: input.task,
+      requestedAction,
+      ...(input.approvalToken ? { approvalToken: input.approvalToken } : {}),
+    });
+    const plan = this.planTask({
+      task: input.task,
+      ...(input.preferredSkillIds ? { preferredSkillIds: input.preferredSkillIds } : {}),
+    });
+
+    const event = this.#telemetry?.record("redhat.task.blocked", requestedAction, {
+      task: input.task,
+      requestedAction,
+      riskLevel: policy.risk.level,
+      riskReasons: policy.risk.reasons,
+      allowlistMatched: policy.allowlistMatched,
+      approvalState: policy.approvalState,
+      policyReasons: policy.reasons,
+      sandbox: policy.sandbox,
+      dryRun: true,
+      reason: "guarded execution is blocked by execution policy",
+    });
+
+    return {
+      task: input.task,
+      requestedAction,
+      status: "blocked",
+      executionAllowed: false,
+      dryRun: true,
+      risk: policy.risk,
+      allowlistMatched: policy.allowlistMatched,
+      policy,
+      plan,
+      ...(event ? { telemetryId: event.id } : {}),
+      boundary: "executeGuardedTask is currently a contract and risk gate only. It never executes commands, mutates files, calls MCP tools, or runs OpenClaw agents.",
     };
   }
 

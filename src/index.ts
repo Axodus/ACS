@@ -1,5 +1,6 @@
 export * from "./agents.js";
 export * from "./errors.js";
+export * from "./execution-policy.js";
 export * from "./orchestrator.js";
 export * from "./openclaw.js";
 export * from "./policy.js";

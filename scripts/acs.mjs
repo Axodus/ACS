@@ -94,7 +94,10 @@ try {
 
 function runRedHatCommand(redHatArgs) {
   const subcommand = redHatArgs[0] ?? "help";
-  const adapter = new RedHatMcpAdapter({ redHatRoot: `${process.env.HOME}/.openclaw/agents/redhat` });
+  const adapter = new RedHatMcpAdapter({
+    redHatRoot: `${process.env.HOME}/.openclaw/agents/redhat`,
+    telemetry: runtime.telemetry,
+  });
 
   switch (subcommand) {
     case "skills":
@@ -114,6 +117,15 @@ function runRedHatCommand(redHatArgs) {
         throw new Error("task text is required");
       }
       printJson({ plan: adapter.planTask({ task }) });
+      break;
+    }
+
+    case "guarded": {
+      const task = redHatArgs.slice(1).join(" ").trim();
+      if (!task) {
+        throw new Error("task text is required");
+      }
+      printJson({ result: adapter.executeGuardedTask({ task }) });
       break;
     }
 
@@ -206,6 +218,7 @@ Commands:
   redhat skills                  List RedHat Dev skills safely
   redhat describe <skillId>      Describe a RedHat Dev skill safely
   redhat plan <task>             Plan a task through the safe RedHat adapter
+  redhat guarded <task>          Classify and block a guarded task contract
 
 Receipt filters:
   --workflow-run <id>
@@ -222,6 +235,7 @@ Commands:
   redhat skills
   redhat describe <skillId>
   redhat plan <task>
+  redhat guarded <task>
 
 Boundary:
   Reads local RedHat Dev skill metadata only. Does not execute commands,

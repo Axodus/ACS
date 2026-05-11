@@ -17,7 +17,9 @@ export type TelemetryEventType =
   | "workflow.rejected"
   | "workflow.started"
   | "workflow.completed"
-  | "workflow.failed";
+  | "workflow.failed"
+  | "redhat.task.planned"
+  | "redhat.task.blocked";
 
 export interface PermissionScope {
   readonly name: string;

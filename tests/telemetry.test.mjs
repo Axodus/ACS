@@ -15,8 +15,9 @@ test("persists telemetry events as local JSONL records", () => {
     const first = telemetry.record("agent.registered", "redhat", { name: "RedHat Dev" });
     const second = telemetry.record("workflow.started", "dev-coordination");
 
-    assert.equal(first.id, "tel_000001");
-    assert.equal(second.id, "tel_000002");
+    assert.match(first.id, /^tel_/);
+    assert.match(second.id, /^tel_/);
+    assert.notEqual(first.id, second.id);
     assert.equal(telemetry.list().length, 2);
     assert.equal(telemetry.list()[0].subjectId, "redhat");
   } finally {

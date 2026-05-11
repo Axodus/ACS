@@ -37,9 +37,7 @@ export class InMemoryTelemetrySink implements TelemetrySink {
 export class JsonlTelemetrySink implements TelemetrySink {
   #sequence = 0;
 
-  constructor(private readonly filePath: string) {
-    this.#sequence = this.#readLastSequence();
-  }
+  constructor(private readonly filePath: string) {}
 
   record(type: TelemetryEventType, subjectId: string, data: Readonly<Record<string, unknown>> = {}): TelemetryEvent {
     const event: TelemetryEvent = {
@@ -68,16 +66,6 @@ export class JsonlTelemetrySink implements TelemetrySink {
 
   #nextId(): TelemetryId {
     this.#sequence += 1;
-    return `tel_${this.#sequence.toString().padStart(6, "0")}`;
-  }
-
-  #readLastSequence(): number {
-    const lastEvent = this.list().at(-1);
-    if (!lastEvent) {
-      return 0;
-    }
-
-    const sequence = Number.parseInt(lastEvent.id.replace(/^tel_/, ""), 10);
-    return Number.isFinite(sequence) ? sequence : 0;
+    return `tel_${Date.now().toString(36)}_${process.pid}_${this.#sequence.toString().padStart(6, "0")}`;
   }
 }

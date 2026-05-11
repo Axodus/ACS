@@ -16,6 +16,28 @@ Security takes priority over automation speed.
 
 # Critical Security Areas
 
+## Command Execution
+Command execution is disabled by default.
+
+Any future execution path must pass:
+- risk classification
+- explicit requested-action allowlist
+- approval-token validation for risky tasks
+- sandbox boundary validation
+- telemetry emission
+- execution receipt generation
+
+Default policy:
+- no execution
+- no network
+- no filesystem writes
+- blocked sandbox
+- no accepted approval tokens
+
+`executeGuardedTask(task)` is currently a blocked contract/risk gate only.
+
+---
+
 ## Orchestration
 Highest operational priority.
 

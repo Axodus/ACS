@@ -193,6 +193,7 @@ Current implementation baseline:
 - Runtime execution is idempotent by default: an existing receipt for a `workflowRunId` is returned unless forced.
 - `src/telemetry.ts` provides append-only JSONL telemetry persistence at `.acs/telemetry/events.jsonl`.
 - `src/redhat-mcp.ts` defines the safe RedHat Dev MCP contract for listing skills, describing skills, and planning tasks without command execution.
+- `src/execution-policy.ts` defines `ExecutionPolicy`, `DefaultExecutionPolicy`, command risk assessment, action allowlists, approval state, and sandbox boundaries.
 
 Current workflow registry:
 - `dev-coordination`
@@ -204,7 +205,16 @@ RedHat MCP boundary:
 - `listSkills()` reads local skill metadata.
 - `describeSkill(skillId)` reads a local skill manifest.
 - `planTask(task)` creates a bounded plan from local skill metadata.
+- `executeGuardedTask(task)` is currently a blocked contract/risk gate only.
 - No RedHat MCP method currently executes commands, mutates files, calls MCP tools, or runs OpenClaw agents.
+
+Execution policy model:
+- command execution is disabled by default
+- default sandbox mode is `blocked`
+- requested actions must match explicit allowlists
+- risky commands require approval tokens
+- critical risk remains blocked under the default policy
+- policy decisions expose reasons, risk assessment, approval state, and sandbox boundaries
 
 ---
 

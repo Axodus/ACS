@@ -34,6 +34,11 @@
 - [x] add RedHat skill listing contract
 - [x] add RedHat skill description contract
 - [x] add RedHat planning contract
+- [x] add blocked RedHat guarded execution contract
+- [x] add command/execution policy model
+- [x] add action allowlist model
+- [x] add approval state model
+- [x] add sandbox boundary model
 - define transport abstraction
 - define interoperability interfaces
 - define runtime coordination flows
