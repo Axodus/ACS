@@ -20,8 +20,11 @@
 - [x] implement operational state machine
 - [x] implement readiness checklist contract
 - [x] implement mock license validator
-- [ ] implement mock API safety validator
-- [ ] implement risk preset schema
+- [x] implement mock API safety validator
+- [x] add UI recommendations for disabled withdrawals and IP permission
+- [x] implement risk preset schema
+- [x] implement conservative default preset
+- [x] implement risk limit evaluator
 - [ ] implement emergency stop workflow
 
 ---

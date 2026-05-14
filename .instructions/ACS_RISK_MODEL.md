@@ -29,12 +29,19 @@ Capital preservation and operational discipline take priority over speed, yield,
 Exchange API keys must:
 
 - never allow withdrawals
+- never allow transfer or universal transfer permissions
 - use restricted permissions
+- use IP permission/allowlist whenever the exchange supports it
 - enable futures only when required and approved
 - be stored securely
 - never appear in frontend logs
 - never appear in browser storage
 - never appear in plaintext backend logs
+
+User-facing API setup must explicitly recommend:
+- disable withdrawal permissions
+- enable IP permission/allowlist
+- grant only the minimum permissions required by the selected ACS preset
 
 ---
 
@@ -43,6 +50,14 @@ Exchange API keys must:
 Public users default to conservative operation.
 
 Any higher-risk preset requires explicit governance and risk clearance.
+
+Current preset contract:
+- `src/risk-preset.ts` defines `conservative`, `balanced`, and `experimental`.
+- `conservative` is the public default.
+- conservative limits: max $100 capital, max 1x leverage, max 2% daily loss, max 5% drawdown, max 1 open position, no futures, no margin.
+- `balanced` requires governance approval and internal validation before public use.
+- `experimental` is internal-only.
+- preset activation must pass both preset-selection policy and risk-limit evaluation.
 
 ---
 
@@ -68,4 +83,3 @@ ACS must track:
 - configuration preset
 
 Marketing and user communication must rely on documented operation, not promises.
-

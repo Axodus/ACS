@@ -27,6 +27,12 @@ API key storage must be encrypted before real exchange integration.
 
 Until encrypted storage is implemented, use mocks or local development fixtures only when clearly marked as mock.
 
+Current API safety contract:
+- `src/api-safety.ts` blocks withdrawal and transfer permissions.
+- UI must tell users to disable withdrawal permissions before connecting an API key.
+- UI must recommend IP permission/allowlist and explain that only approved execution IPs should be allowed.
+- UI must tell users never to expose API secrets in browser storage, frontend logs, or plaintext logs.
+
 ---
 
 # Execution Safety
@@ -54,4 +60,3 @@ Emergency stop must be available to:
 - risk engine
 
 Emergency stop must block new strategy activation and preserve audit records.
-

@@ -21,6 +21,8 @@ It provides deterministic primitives for:
 - Operational State and ACS Policy Matrix contracts
 - Operational State transition telemetry and receipts
 - Readiness checklist and mock license validation contracts
+- Mock exchange API safety validation with withdrawal blocking and IP allowlist recommendations
+- Risk preset schema with conservative public default and limit evaluation
 
 This package does not execute real inference, access wallets, settle treasury flows, or route production compute. Provider execution is represented as capability matching until the provider verification, pricing, memory, and billing decisions are finalized.
 
@@ -151,6 +153,10 @@ Strategy activation requires `READY`. `EMERGENCY_STOP`, `SUSPENDED`, and `REVOKE
 The ACS Policy Matrix defines initial authorities for critical Trading Ignition capabilities. `withdraw.funds` is never allowed for user via ACS, ACS, governance, or risk engine.
 
 State transitions can be applied with `OperationalStateMachine`, which records accepted/rejected transition telemetry and state-change receipts. The current readiness and license contracts are intentionally local/mock-friendly so AxodusAPP can build against stable shapes before real Marketplace and exchange integrations exist.
+
+`validateMockExchangeApiSafety()` blocks withdrawal/transfer permissions, unsafe secret handling, and returns UI recommendations to disable withdrawals, use IP permission/allowlist, and grant only minimum required trading permissions.
+
+`risk-preset` exports `conservative`, `balanced`, and `experimental` presets. Public users default to `conservative`: max $100 capital, max 1x leverage, spot-only, no futures, no margin. Higher-risk presets require governance/internal validation gates before use.
 
 `npm run smoke:openclaw` lists discovered OpenClaw agents, mapped permissions, local providers, and the configured receipt path.
 

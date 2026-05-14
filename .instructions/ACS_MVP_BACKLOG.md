@@ -21,6 +21,10 @@
 - [x] Add operational state machine.
 - [x] Add readiness checklist contract.
 - [x] Add mock license validator.
+- [x] Add mock API safety validator.
+- [x] Add risk preset schema.
+- [x] Add conservative default preset.
+- [x] Add risk limit evaluator.
 
 ---
 
@@ -35,18 +39,19 @@
 
 # Phase 3 - API Safety
 
-- [ ] Define exchange API safety contract.
-- [ ] Add mock API permission validator.
-- [ ] Reject withdrawal-enabled API scopes.
+- [x] Define exchange API safety contract.
+- [x] Add mock API permission validator.
+- [x] Reject withdrawal-enabled API scopes.
+- [x] Add UI recommendations for disabling withdrawals and using IP permission.
 - [ ] Define encrypted secret storage requirement before real integration.
 
 ---
 
 # Phase 4 - Risk and Trading Ignition
 
-- [ ] Define risk preset schema.
-- [ ] Add conservative default preset.
-- [ ] Add risk limit evaluator.
+- [x] Define risk preset schema.
+- [x] Add conservative default preset.
+- [x] Add risk limit evaluator.
 - [ ] Add emergency stop workflow.
 - [ ] Add performance record schema.
 

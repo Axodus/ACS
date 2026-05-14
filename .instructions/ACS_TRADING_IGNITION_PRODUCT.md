@@ -32,6 +32,7 @@ It helps a certified and licensed Axodus user configure a restricted trading bot
 - API setup guidance
 - exchange API connection test
 - withdrawal permission rejection
+- IP permission/allowlist recommendation in the UI
 - basic risk profile selection
 - guided bot preset configuration
 - emergency stop
@@ -42,9 +43,9 @@ It helps a certified and licensed Axodus user configure a restricted trading bot
 
 # Initial Presets
 
-- Conservative: public default.
-- Balanced: only if governance and risk settings allow it.
-- Experimental: internal validation only until explicitly approved.
+- Conservative: public default; spot-only, no margin, no futures, max $100 capital, max 1x leverage.
+- Balanced: only if governance, risk settings, and internal validation allow it.
+- Experimental: internal validation only; not available to public users.
 
 ---
 
@@ -58,4 +59,3 @@ It helps a certified and licensed Axodus user configure a restricted trading bot
 - multi-exchange orchestration
 - unlimited capital
 - aggressive leverage
-
