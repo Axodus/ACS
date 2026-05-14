@@ -13,6 +13,9 @@ export type WorkflowStatus = "accepted" | "rejected" | "running" | "completed" |
 export type TelemetryEventType =
   | "agent.registered"
   | "provider.registered"
+  | "operational.state.transition.accepted"
+  | "operational.state.transition.rejected"
+  | "operational.state.changed"
   | "workflow.accepted"
   | "workflow.rejected"
   | "workflow.started"

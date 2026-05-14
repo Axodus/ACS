@@ -47,7 +47,7 @@ const DEFAULT_BLOCKED_ACTIONS = [
 
 export function createAcsRuntime(options: AcsRuntimeOptions = {}): AcsRuntime {
   const workspaceRoot = options.workspaceRoot ?? process.cwd();
-  const openClawRoot = options.openClawRoot ?? join(homedir(), ".openclaw", "agents");
+  const openClawRoot = options.openClawRoot ?? process.env.ACS_OPENCLAW_AGENTS_ROOT ?? join(homedir(), ".openclaw", "agents");
   const receiptPath = options.receiptPath ?? join(workspaceRoot, ".acs", "receipts", "execution.jsonl");
   const telemetryPath = options.telemetryPath ?? join(workspaceRoot, ".acs", "telemetry", "events.jsonl");
 

@@ -2,6 +2,12 @@
 
 ACS Core is the initial runtime package for Axodus Cognitive Systems.
 
+Current planning reset:
+
+- ACS is the Autonomous Coordination System for Trading Ignition first.
+- Operational States, the ACS Policy Matrix, and What ACS Is Not are mandatory before new product features.
+- ACS must not custody funds, withdraw funds, promise profit, or activate strategies outside policy.
+
 It provides deterministic primitives for:
 
 - bounded agent registration
@@ -12,6 +18,9 @@ It provides deterministic primitives for:
 - execution receipts
 - local JSONL receipt persistence
 - OpenClaw agent discovery without code execution
+- Operational State and ACS Policy Matrix contracts
+- Operational State transition telemetry and receipts
+- Readiness checklist and mock license validation contracts
 
 This package does not execute real inference, access wallets, settle treasury flows, or route production compute. Provider execution is represented as capability matching until the provider verification, pricing, memory, and billing decisions are finalized.
 
@@ -48,7 +57,7 @@ const runtime = createAcsRuntime({
 
 Default bootstrap wires:
 
-- OpenClaw discovery from `~/.openclaw/agents`
+- OpenClaw discovery from `ACS_OPENCLAW_AGENTS_ROOT` or `~/.openclaw/agents`
 - local agent registry
 - default bounded governance policy
 - in-memory telemetry sink
@@ -67,6 +76,8 @@ const agents = discoverOpenClawAgents({
 ```
 
 Discovery only reads local agent directories and manifests. It does not execute agent code, does not mutate OpenClaw state, and grants only bounded default permissions.
+
+ACS does not vendor `.openclaw` as a submodule. `.openclaw` is treated as a local operational runtime with mutable state, memory, logs, credentials, and environment files. If ACS needs versioned OpenClaw contracts later, use a sanitized schema/adapter package instead of submoduling the runtime.
 
 Known agent boundaries:
 
@@ -116,6 +127,30 @@ Default behavior:
 - critical tasks are blocked under the default policy
 
 This keeps `executeGuardedTask(task)` as a risk-gated contract until a future execution adapter is explicitly designed.
+
+## Operational States and Policy Matrix
+
+Canonical operational states:
+
+- `UNINITIALIZED`
+- `LEARNING`
+- `CERTIFIED`
+- `LICENSED`
+- `API_PENDING`
+- `API_VALIDATED`
+- `RISK_RESTRICTED`
+- `READY`
+- `ACTIVE`
+- `PAUSED`
+- `EMERGENCY_STOP`
+- `SUSPENDED`
+- `REVOKED`
+
+Strategy activation requires `READY`. `EMERGENCY_STOP`, `SUSPENDED`, and `REVOKED` block activation.
+
+The ACS Policy Matrix defines initial authorities for critical Trading Ignition capabilities. `withdraw.funds` is never allowed for user via ACS, ACS, governance, or risk engine.
+
+State transitions can be applied with `OperationalStateMachine`, which records accepted/rejected transition telemetry and state-change receipts. The current readiness and license contracts are intentionally local/mock-friendly so AxodusAPP can build against stable shapes before real Marketplace and exchange integrations exist.
 
 `npm run smoke:openclaw` lists discovered OpenClaw agents, mapped permissions, local providers, and the configured receipt path.
 

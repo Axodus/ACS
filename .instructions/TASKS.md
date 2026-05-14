@@ -2,6 +2,30 @@
 
 # Active Tasks
 
+## Planning Reset
+- [x] define Operational States
+- [x] define ACS Policy Matrix
+- [x] define What ACS Is Not
+- [x] document Trading Ignition Product boundary
+- [x] document License and Access Model
+- [x] document Risk Model
+- [x] document Internal Validation Plan
+- [x] document Security Requirements
+- [x] add initial TypeScript OperationalState contract
+- [x] add initial TypeScript ACS Policy Matrix contract
+- [x] test activation-blocking states
+- [x] test withdrawal is never allowed
+- [x] add state-change telemetry event types
+- [x] add state-change receipt model
+- [x] implement operational state machine
+- [x] implement readiness checklist contract
+- [x] implement mock license validator
+- [ ] implement mock API safety validator
+- [ ] implement risk preset schema
+- [ ] implement emergency stop workflow
+
+---
+
 ## Orchestration
 - [x] define initial orchestration runtime
 - [x] define initial workflow execution model

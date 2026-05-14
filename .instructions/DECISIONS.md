@@ -2,6 +2,62 @@
 
 # Active Decisions
 
+## ACS Planning Reset
+
+Decision:
+ACS is reset around the Autonomous Coordination System direction. The first MVP target is Trading Ignition, with Operational States, ACS Policy Matrix, and What ACS Is Not as mandatory foundations before new features.
+
+Status:
+CONFIRMED
+
+---
+
+## Operational States
+
+Decision:
+ACS uses canonical operational states as the control backbone:
+`UNINITIALIZED`, `LEARNING`, `CERTIFIED`, `LICENSED`, `API_PENDING`, `API_VALIDATED`, `RISK_RESTRICTED`, `READY`, `ACTIVE`, `PAUSED`, `EMERGENCY_STOP`, `SUSPENDED`, `REVOKED`.
+
+`READY` is required for strategy activation. `EMERGENCY_STOP`, `SUSPENDED`, and `REVOKED` block activation.
+
+Status:
+CONFIRMED
+
+---
+
+## ACS Policy Matrix
+
+Decision:
+Every ACS capability must be represented in the ACS Policy Matrix before implementation. Withdraw funds is never allowed for user via ACS, ACS, governance, or risk engine.
+
+Status:
+CONFIRMED
+
+---
+
+## What ACS Is Not
+
+Decision:
+ACS is not an autonomous hedge fund, profit promise system, custodian, unrestricted execution engine, governance bypass, or public product before internal validation.
+
+Status:
+CONFIRMED
+
+---
+
+## OpenClaw Workspace Boundary
+
+Decision:
+ACS will not add `.openclaw` as a submodule now. ACS uses the local configurable OpenClaw agents path, defaulting to `~/.openclaw/agents` or `ACS_OPENCLAW_AGENTS_ROOT`.
+
+Rationale:
+`.openclaw` is an operational runtime with memory, logs, local state, credentials, environment files, and live changes. If ACS needs versioned OpenClaw contracts later, create a sanitized schema/adapter package instead of submoduling the runtime.
+
+Status:
+CONFIRMED
+
+---
+
 ## ACS Direction
 
 Decision:

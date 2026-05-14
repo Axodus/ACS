@@ -1,5 +1,16 @@
 # ACS Security
 
+Trading Ignition security reset:
+- no withdrawal-enabled exchange API keys
+- no custody of user funds
+- no plaintext API secrets
+- no hidden strategy activation
+- no activation outside `READY`
+- no activation from `EMERGENCY_STOP`, `SUSPENDED`, or `REVOKED`
+- no profit promises
+
+See `ACS_SECURITY_REQUIREMENTS.md`, `ACS_POLICY_MATRIX.md`, and `ACS_IS_NOT.md`.
+
 # Security Philosophy
 
 ACS security protects:

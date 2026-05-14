@@ -94,8 +94,9 @@ try {
 
 function runRedHatCommand(redHatArgs) {
   const subcommand = redHatArgs[0] ?? "help";
+  const openClawAgentsRoot = process.env.ACS_OPENCLAW_AGENTS_ROOT ?? runtime.openClawRoot;
   const adapter = new RedHatMcpAdapter({
-    redHatRoot: `${process.env.HOME}/.openclaw/agents/redhat`,
+    redHatRoot: `${openClawAgentsRoot}/redhat`,
     telemetry: runtime.telemetry,
   });
 

@@ -1,24 +1,35 @@
-# ACS — AI Cognitive Systems
+# ACS - Autonomous Coordination System
 
 # Purpose
 
-ACS is the cognitive infrastructure layer of the Axodus ecosystem.
+ACS is the operational intelligence layer of the Axodus ecosystem.
 
-This workspace coordinates:
-- AI agents
-- orchestration systems
-- memory systems
-- distributed inference
-- compute federation
-- workflow automation
-- telemetry
-- execution coordination
-- enterprise AI deployments
-- cognitive runtime systems
+The current planning reset makes the Trading Ignition Product the first ACS focus.
 
-ACS is not a chatbot layer.
+ACS coordinates:
+- user readiness
+- Academy and Proof of Knowledge progression
+- NFT license access
+- safe exchange API setup
+- guided strategy configuration
+- risk controls
+- emergency stops
+- performance documentation
+- agent coordination
+- governance-defined operational rules
 
-ACS is sovereign cognitive infrastructure.
+ACS is not a profit promise system, custody system, or unrestricted execution engine.
+
+Before any new feature, follow:
+- `ACS_OPERATIONAL_STATES.md`
+- `ACS_POLICY_MATRIX.md`
+- `ACS_IS_NOT.md`
+- `ACS_TRADING_IGNITION_PRODUCT.md`
+- `ACS_LICENSE_AND_ACCESS_MODEL.md`
+- `ACS_RISK_MODEL.md`
+- `ACS_SECURITY_REQUIREMENTS.md`
+- `ACS_INTERNAL_VALIDATION_PLAN.md`
+- `ACS_MVP_BACKLOG.md`
 
 ---
 
@@ -206,18 +217,25 @@ Enterprise deployments may include:
 
 # Current Priority
 
-1. ACS architecture definition
-2. orchestration model
-3. memory architecture
-4. compute federation architecture
-5. provider model
-6. billing model
-7. enterprise deployment model
-8. governance boundaries
+1. Operational States
+2. ACS Policy Matrix
+3. What ACS Is Not
+4. Trading Ignition Product planning
+5. License and access model
+6. API safety model
+7. Risk model
+8. Internal validation plan
 
 ---
 
 # Non-Negotiables
+
+- no profit promises
+- no custody of user funds
+- no withdrawal-enabled API keys
+- no hidden execution
+- no strategy activation outside `READY`
+- no public release before internal validation
 
 - bounded autonomy
 - auditable execution
