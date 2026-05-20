@@ -3,10 +3,16 @@ import {
   createAcsRuntime,
   createWorkflowByName,
   inspectCapabilities,
+  inspectAuditReceipts,
+  inspectEmergencyStops,
+  inspectObservabilityStatus,
+  inspectPerformanceRecords,
   inspectPolicyCheck,
   inspectPolicyMatrix,
   inspectProductAccess,
+  inspectSecretStorageStatus,
   inspectTenantServices,
+  inspectUserStatus,
   listWorkflows,
   RedHatMcpAdapter,
 } from "../dist/index.js";
@@ -40,7 +46,36 @@ try {
       printJson(inspectPolicyCheck({
         capabilityId: requiredOption(args.slice(1), "--capability"),
         tenantId: readOption(args.slice(1), "--tenant"),
+        wallet: readOption(args.slice(1), "--wallet"),
       }));
+      break;
+
+    case "user-status":
+      printJson(inspectUserStatus({
+        wallet: requiredOption(args.slice(1), "--wallet"),
+        tenantId: readOption(args.slice(1), "--tenant"),
+        productId: readOption(args.slice(1), "--product"),
+      }));
+      break;
+
+    case "performance-records":
+      printJson(inspectPerformanceRecords());
+      break;
+
+    case "audit-receipts":
+      printJson(inspectAuditReceipts());
+      break;
+
+    case "emergency-stops":
+      printJson(inspectEmergencyStops());
+      break;
+
+    case "secret-storage-status":
+      printJson(inspectSecretStorageStatus());
+      break;
+
+    case "observability-status":
+      printJson(inspectObservabilityStatus());
       break;
 
     case "agents":
@@ -258,6 +293,12 @@ function printHelp() {
 Commands:
   agents                         List discovered OpenClaw agents
   capabilities [--level level]   Inspect ACS capabilities
+  user-status --wallet wallet    Inspect summarized user/product status
+  performance-records            Inspect mock/internal-validation performance records
+  audit-receipts                  Inspect ACS policy/status audit receipt previews
+  emergency-stops                 Inspect active mock emergency stop records
+  secret-storage-status           Inspect secret storage contract status
+  observability-status            Inspect HTTP/runtime observability contract status
   tenant-services [filters]      Inspect tenant service access
   product-access [filters]       Inspect product access rules
   policy-matrix                  Inspect ACS policy matrix
@@ -284,7 +325,8 @@ Inspection filters:
   tenant-services --tenant <tenantId>
   product-access --wallet <walletAddress>
   product-access --product <productId>
-  policy-check --capability <capabilityId> [--tenant <tenantId>]
+  policy-check --capability <capabilityId> [--tenant <tenantId>] [--wallet <walletAddress>]
+  user-status --wallet <walletAddress> [--tenant <tenantId>] [--product <productId>]
 `);
 }
 

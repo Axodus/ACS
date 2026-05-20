@@ -7,10 +7,16 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   inspectCapabilities,
+  inspectAuditReceipts,
+  inspectEmergencyStops,
+  inspectObservabilityStatus,
+  inspectPerformanceRecords,
   inspectPolicyCheck,
   inspectPolicyMatrix,
   inspectProductAccess,
+  inspectSecretStorageStatus,
   inspectTenantServices,
+  inspectUserStatus,
 } from "../dist/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -68,6 +74,13 @@ test("policy-check returns governance and automation metadata", () => {
   });
 
   assert.equal(result.capabilityId, "product.trading-ignition");
+  assert.deepEqual(result.policyContext, {
+    capabilityId: "product.trading-ignition",
+    tenantId: "dao-alpha",
+    source: "capability-registry",
+    decisionSurface: "inspection",
+    executionTriggered: false,
+  });
   assert.equal(result.automationLevel, "manual_approval");
   assert.equal(result.requiresGovernanceApproval, true);
   assert.equal(result.telemetryRequired, true);
@@ -83,6 +96,43 @@ test("policy matrix inspection exposes automation metadata", () => {
   assert.equal(withdraw.receiptsRequired, true);
 });
 
+test("hardening inspection exposes user status, performance records, and audit receipts", () => {
+  const userStatus = inspectUserStatus({
+    wallet: "0xexpired",
+    tenantId: "dao-alpha",
+    productId: "product.trading-ignition",
+  });
+  const performanceRecords = inspectPerformanceRecords();
+  const auditReceipts = inspectAuditReceipts();
+  const emergencyStops = inspectEmergencyStops();
+  const secretStorage = inspectSecretStorageStatus();
+  const observability = inspectObservabilityStatus();
+
+  assert.equal(userStatus.userStatus.policy.allowed, false);
+  assert.equal(userStatus.userStatus.policy.blockedReason, "license_expired");
+  assert.equal(performanceRecords.records[0].capabilityId, "product.trading-ignition");
+  assert.equal(auditReceipts.receipts[0].consumptionLevel, "product");
+  assert.ok(auditReceipts.receipts[0].correlationId);
+  assert.ok(emergencyStops.stops.some((stop) => stop.active && stop.wallet === "0xstopped"));
+  assert.equal(secretStorage.plaintextStorageAllowed, false);
+  assert.equal(secretStorage.frontendSecretExposureAllowed, false);
+  assert.equal(observability.correlationId.enabled, true);
+  assert.equal(observability.telemetry.externalExporterEnabled, false);
+});
+
+test("policy-check inspection can include wallet emergency stop context", () => {
+  const result = inspectPolicyCheck({
+    capabilityId: "product.trading-ignition",
+    wallet: "0xstopped",
+  });
+
+  assert.equal(result.allowed, false);
+  assert.equal(result.blockedReason, "emergency_stop_active");
+  assert.equal(result.policyContext.source, "emergency-stop");
+  assert.equal(result.policyContext.wallet, "0xstopped");
+  assert.equal(result.policyContext.executionTriggered, false);
+});
+
 test("inspection CLI commands return valid JSON without runtime side effects", () => {
   const workspace = mkdtempSync(join(tmpdir(), "acs-inspection-cli-"));
 
@@ -95,6 +145,13 @@ test("inspection CLI commands return valid JSON without runtime side effects", (
       ["product-access", "--wallet", "0xlicensed", "--product", "product.trading-ignition"],
       ["policy-matrix"],
       ["policy-check", "--capability", "product.trading-ignition", "--tenant", "dao-alpha"],
+      ["policy-check", "--capability", "product.trading-ignition", "--wallet", "0xstopped"],
+      ["user-status", "--wallet", "0xexpired", "--tenant", "dao-alpha", "--product", "product.trading-ignition"],
+      ["performance-records"],
+      ["audit-receipts"],
+      ["emergency-stops"],
+      ["secret-storage-status"],
+      ["observability-status"],
     ];
 
     for (const command of commands) {
@@ -110,4 +167,3 @@ test("inspection CLI commands return valid JSON without runtime side effects", (
     rmSync(workspace, { recursive: true, force: true });
   }
 });
-

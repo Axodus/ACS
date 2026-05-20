@@ -2,21 +2,31 @@ import { isConsumptionLevel } from "../../consumption-levels.js";
 import type { AcsConsumptionLevel } from "../../consumption-levels.js";
 import { AcsCapabilityRegistry } from "../../capability-registry.js";
 import {
+  inspectAuditReceipts,
   inspectCapabilities,
+  inspectEmergencyStops,
+  inspectObservabilityStatus,
+  inspectPerformanceRecords,
   inspectPolicyCheck,
   inspectPolicyMatrix,
   inspectProductAccess,
+  inspectSecretStorageStatus,
   inspectTenantServices,
+  inspectUserStatus,
 } from "../../inspection.js";
 import { fail, ok } from "../responses.js";
-import { getMockUserStatusSummary } from "../../user-status.js";
+import {
+  AcsHttpValidationError,
+  assertAllowedQueryParams,
+  readOptionalQuery,
+  readPathSegment,
+  readRequiredQuery,
+} from "../validation.js";
 import {
   getMockOperationalState,
   getMockOperationalStatus,
   getMockReadiness,
 } from "../services/operational-status-service.js";
-import { createAcsReceipt } from "../../acs-receipts.js";
-import { getMockTradingIgnitionPerformanceRecords } from "../../performance-record.js";
 
 export interface AcsRouteOptions {
   readonly correlationId?: string;
@@ -33,6 +43,7 @@ export function routeAcsRequest(requestUrl: string, options: AcsRouteOptions = {
 
   try {
     if (path === "/acs/health") {
+      assertAllowedQueryParams(url, []);
       return {
         status: 200,
         body: ok({
@@ -46,18 +57,20 @@ export function routeAcsRequest(requestUrl: string, options: AcsRouteOptions = {
             schemaValidation: "placeholder",
             rateLimit: "placeholder",
             tenantAuth: "placeholder",
-            observability: "placeholder",
+            observability: "contract-only",
           },
         }, [], options.correlationId),
       };
     }
 
     if (path === "/acs/version") {
+      assertAllowedQueryParams(url, []);
       return { status: 200, body: ok({ name: "@axodus/acs-core", version: "0.1.0" }, [], options.correlationId) };
     }
 
     if (path === "/acs/capabilities") {
-      const levelParam = url.searchParams.get("level");
+      assertAllowedQueryParams(url, ["level"]);
+      const levelParam = readOptionalQuery(url, "level");
       if (levelParam && !isConsumptionLevel(levelParam)) {
         return fail(`invalid consumption level: ${levelParam}`, 400, "invalid_query", options.correlationId);
       }
@@ -70,108 +83,117 @@ export function routeAcsRequest(requestUrl: string, options: AcsRouteOptions = {
     }
 
     if (path === "/acs/tenant-services") {
+      assertAllowedQueryParams(url, []);
       return { status: 200, body: ok(inspectTenantServices(), [], options.correlationId) };
     }
 
     if (segments[1] === "tenant-services" && segments[2]) {
-      return { status: 200, body: ok(inspectTenantServices({ tenantId: decodeURIComponent(segments[2]) }), [], options.correlationId) };
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(inspectTenantServices({ tenantId: readPathSegment(segments, 2, "tenantId") }), [], options.correlationId) };
     }
 
     if (path === "/acs/product-access") {
+      assertAllowedQueryParams(url, []);
       return { status: 200, body: ok(inspectProductAccess(), [], options.correlationId) };
     }
 
     if (segments[1] === "product-access" && segments[2]) {
-      assertKnownCapability(segments[3]);
-      return {
-        status: 200,
-        body: ok(inspectProductAccess({
-          walletAddress: decodeURIComponent(segments[2]),
-          ...(segments[3] ? { productId: decodeURIComponent(segments[3]) } : {}),
-        }), [], options.correlationId),
-      };
-    }
-
-    if (path === "/acs/policy-matrix") {
-      return { status: 200, body: ok(inspectPolicyMatrix(), [], options.correlationId) };
-    }
-
-    if (path === "/acs/policy-check") {
-      const capabilityId = url.searchParams.get("capabilityId");
-      if (!capabilityId) {
-        return fail("capabilityId query parameter is required", 400, "invalid_query", options.correlationId);
-      }
-
-      return {
-        status: 200,
-        body: ok(inspectPolicyCheck({
-          capabilityId,
-          ...(url.searchParams.get("tenantId") ? { tenantId: url.searchParams.get("tenantId") ?? "" } : {}),
-          ...(url.searchParams.get("wallet") ? { wallet: url.searchParams.get("wallet") ?? "" } : {}),
-        }), [], options.correlationId),
-      };
-    }
-
-    if (segments[1] === "status" && segments[2]) {
-      return { status: 200, body: ok(getMockOperationalStatus(decodeURIComponent(segments[2])), [], options.correlationId) };
-    }
-
-    if (segments[1] === "readiness" && segments[2]) {
-      return { status: 200, body: ok(getMockReadiness(decodeURIComponent(segments[2])), [], options.correlationId) };
-    }
-
-    if (segments[1] === "operational-state" && segments[2]) {
-      return { status: 200, body: ok(getMockOperationalState(decodeURIComponent(segments[2])), [], options.correlationId) };
-    }
-
-    if (segments[1] === "user-status" && segments[2]) {
-      const productId = url.searchParams.get("productId") ?? undefined;
+      assertAllowedQueryParams(url, []);
+      const walletAddress = readPathSegment(segments, 2, "wallet");
+      const productId = segments[3] ? readPathSegment(segments, 3, "productId") : undefined;
       assertKnownCapability(productId);
       return {
         status: 200,
-        body: ok(getMockUserStatusSummary({
-          wallet: decodeURIComponent(segments[2]),
-          ...(url.searchParams.get("tenantId") ? { tenantId: url.searchParams.get("tenantId") ?? "" } : {}),
+        body: ok(inspectProductAccess({
+          walletAddress,
           ...(productId ? { productId } : {}),
         }), [], options.correlationId),
       };
     }
 
+    if (path === "/acs/policy-matrix") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(inspectPolicyMatrix(), [], options.correlationId) };
+    }
+
+    if (path === "/acs/policy-check") {
+      assertAllowedQueryParams(url, ["capabilityId", "tenantId", "wallet"]);
+      const capabilityId = readRequiredQuery(url, "capabilityId");
+      const tenantId = readOptionalQuery(url, "tenantId");
+      const wallet = readOptionalQuery(url, "wallet");
+
+      return {
+        status: 200,
+        body: ok(inspectPolicyCheck({
+          capabilityId,
+          ...(tenantId ? { tenantId } : {}),
+          ...(wallet ? { wallet } : {}),
+        }), [], options.correlationId),
+      };
+    }
+
+    if (segments[1] === "status" && segments[2]) {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(getMockOperationalStatus(readPathSegment(segments, 2, "wallet")), [], options.correlationId) };
+    }
+
+    if (segments[1] === "readiness" && segments[2]) {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(getMockReadiness(readPathSegment(segments, 2, "wallet")), [], options.correlationId) };
+    }
+
+    if (segments[1] === "operational-state" && segments[2]) {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(getMockOperationalState(readPathSegment(segments, 2, "wallet")), [], options.correlationId) };
+    }
+
+    if (segments[1] === "user-status" && segments[2]) {
+      assertAllowedQueryParams(url, ["tenantId", "productId"]);
+      const wallet = readPathSegment(segments, 2, "wallet");
+      const tenantId = readOptionalQuery(url, "tenantId");
+      const productId = readOptionalQuery(url, "productId");
+      assertKnownCapability(productId);
+      return {
+        status: 200,
+        body: ok(inspectUserStatus({
+          wallet,
+          ...(tenantId ? { tenantId } : {}),
+          ...(productId ? { productId } : {}),
+        }).userStatus, [], options.correlationId),
+      };
+    }
+
     if (path === "/acs/performance-records") {
-      return { status: 200, body: ok({ records: getMockTradingIgnitionPerformanceRecords() }, [], options.correlationId) };
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(inspectPerformanceRecords(), [], options.correlationId) };
     }
 
     if (path === "/acs/receipts") {
-      return {
-        status: 200,
-        body: ok({
-          receipts: [
-            createAcsReceipt({
-              receiptId: "receipt_mock_policy_check_001",
-              correlationId: options.correlationId ?? "corr_mock_policy_check_001",
-              tenantId: "dao-alpha",
-              wallet: "0xlicensed",
-              consumptionLevel: "product",
-              capabilityId: "product.trading-ignition",
-              actionType: "policy_check",
-              actor: { type: "system", id: "acs.inspection" },
-              policyDecision: {
-                allowed: true,
-                automationLevel: "manual_approval",
-                requiresGovernanceApproval: true,
-                requiresUserLicense: true,
-              },
-              operationalState: "READY",
-              telemetry: { warnings: ["mock audit preview only"], riskFlags: [] },
-              createdAt: "2026-01-01T00:00:00.000Z",
-            }),
-          ],
-        }, [], options.correlationId),
-      };
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(inspectAuditReceipts(), [], options.correlationId) };
+    }
+
+    if (path === "/acs/emergency-stops") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(inspectEmergencyStops(), [], options.correlationId) };
+    }
+
+    if (path === "/acs/secret-storage/status") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(inspectSecretStorageStatus(), [], options.correlationId) };
+    }
+
+    if (path === "/acs/observability/status") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(inspectObservabilityStatus(), [], options.correlationId) };
     }
 
     return fail("route not found", 404, "not_found", options.correlationId);
   } catch (error) {
+    if (error instanceof AcsHttpValidationError) {
+      return fail(error.message, 400, error.code, options.correlationId, error.details);
+    }
+
     return fail(error instanceof Error ? error.message : "unknown ACS HTTP error", 400, "bad_request", options.correlationId);
   }
 }

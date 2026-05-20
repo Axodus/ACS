@@ -107,6 +107,15 @@ Trading execution remains mock/restricted.
 - [x] Add mock encrypted secret storage contract.
 - [x] Add HTTP response envelope with correlation id and structured errors.
 - [x] Add HTTP hardening placeholders for schema validation, rate limit, tenant auth and observability.
+- [x] Add CLI inspection for user status.
+- [x] Add CLI inspection for mock performance records.
+- [x] Add CLI inspection for ACS audit receipt previews.
+- [x] Add wallet-aware policy-check inspection for emergency stop context.
+- [x] Add read-only emergency stop inspection endpoint and CLI command.
+- [x] Add read-only secret storage contract status endpoint and CLI command.
+- [x] Add read-only observability contract status endpoint and CLI command.
+- [x] Add policy decision context metadata to policy-check responses.
+- [x] Add HTTP query/path schema validation foundation.
 
 ---
 

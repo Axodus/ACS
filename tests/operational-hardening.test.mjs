@@ -188,6 +188,9 @@ test("mock secret storage returns references without echoing raw secrets", async
 test("HTTP hardening envelope includes correlation id, structured errors, and user status", () => {
   const health = routeAcsRequest("/acs/health", { correlationId: "corr-test" });
   const status = routeAcsRequest("/acs/user-status/0xexpired?productId=product.trading-ignition");
+  const emergencyStops = routeAcsRequest("/acs/emergency-stops");
+  const secretStorage = routeAcsRequest("/acs/secret-storage/status");
+  const observability = routeAcsRequest("/acs/observability/status", { correlationId: "corr-observe" });
   const invalid = routeAcsRequest("/acs/capabilities?level=unknown");
   const unknownProduct = routeAcsRequest("/acs/product-access/0xlicensed/product.unknown");
   const policyStop = routeAcsRequest("/acs/policy-check?capabilityId=product.trading-ignition&wallet=0xstopped");
@@ -195,6 +198,10 @@ test("HTTP hardening envelope includes correlation id, structured errors, and us
   assert.equal(health.body.correlationId, "corr-test");
   assert.equal(health.body.data.hardening.responseEnvelope, "enabled");
   assert.equal(status.body.data.policy.blockedReason, "license_expired");
+  assert.equal(emergencyStops.body.data.stops[0].active, true);
+  assert.equal(secretStorage.body.data.frontendSecretExposureAllowed, false);
+  assert.equal(observability.body.correlationId, "corr-observe");
+  assert.equal(observability.body.data.responseEnvelope.enabled, true);
   assert.equal(invalid.body.error.code, "invalid_query");
   assert.match(invalid.body.error.message, /invalid consumption level/);
   assert.equal(unknownProduct.status, 400);

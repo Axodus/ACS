@@ -51,16 +51,27 @@ test("policy-check endpoint requires capabilityId", () => {
 
 test("HTTP inspection endpoints reject invalid filters without side effects", () => {
   const invalidLevel = routeAcsRequest("/acs/capabilities?level=unknown");
+  const unsupportedQuery = routeAcsRequest("/acs/capabilities?level=product&tenantId=dao-alpha");
   const invalidTenant = routeAcsRequest("/acs/tenant-services/unknown-tenant");
+  const invalidWallet = routeAcsRequest("/acs/user-status/not a wallet?productId=product.trading-ignition");
   const missingRoute = routeAcsRequest("/acs/not-found");
 
   assert.equal(invalidLevel.status, 400);
   assert.equal(invalidLevel.body.success, false);
   assert.match(invalidLevel.body.blockedReason, /invalid consumption level/);
 
+  assert.equal(unsupportedQuery.status, 400);
+  assert.equal(unsupportedQuery.body.error.code, "invalid_query");
+  assert.match(unsupportedQuery.body.error.message, /unsupported query parameter/);
+  assert.deepEqual(unsupportedQuery.body.error.details.allowed, ["level"]);
+
   assert.equal(invalidTenant.status, 400);
   assert.equal(invalidTenant.body.success, false);
   assert.match(invalidTenant.body.blockedReason, /unknown tenant/);
+
+  assert.equal(invalidWallet.status, 400);
+  assert.equal(invalidWallet.body.error.code, "invalid_query");
+  assert.match(invalidWallet.body.error.message, /unsupported characters/);
 
   assert.equal(missingRoute.status, 404);
   assert.equal(missingRoute.body.success, false);

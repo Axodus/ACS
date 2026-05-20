@@ -26,6 +26,12 @@ It provides deterministic primitives for:
 - Risk preset schema with conservative public default and limit evaluation
 - Core/Service/Product consumption-level contracts
 - tenant context, capability registry, tenant service access, and product access contracts
+- tenant/product user status summary
+- ACS audit receipt contract with secret redaction
+- emergency stop records and policy-check blocking
+- performance record schema for mock/internal-validation visibility
+- encrypted secret storage contract with mock `secretRef` adapter
+- HTTP response envelope with correlation id and structured errors
 
 This package does not execute real inference, access wallets, settle treasury flows, or route production compute. Provider execution is represented as capability matching until the provider verification, pricing, memory, and billing decisions are finalized.
 
@@ -179,6 +185,13 @@ npm run acs -- product-access --wallet 0xlicensed
 npm run acs -- product-access --product product.trading-ignition
 npm run acs -- policy-matrix
 npm run acs -- policy-check --capability product.trading-ignition --tenant dao-alpha
+npm run acs -- policy-check --capability product.trading-ignition --wallet 0xstopped
+npm run acs -- user-status --wallet 0xexpired --tenant dao-alpha --product product.trading-ignition
+npm run acs -- performance-records
+npm run acs -- audit-receipts
+npm run acs -- emergency-stops
+npm run acs -- secret-storage-status
+npm run acs -- observability-status
 ```
 
 Inspection commands return JSON and do not initialize runtime telemetry/receipt persistence.
@@ -209,11 +222,27 @@ Endpoints include:
 - `GET /acs/product-access/:wallet/:productId`
 - `GET /acs/policy-matrix`
 - `GET /acs/policy-check?capabilityId=product.trading-ignition&tenantId=dao-alpha`
+- `GET /acs/policy-check?capabilityId=product.trading-ignition&wallet=0xstopped`
 - `GET /acs/status/:wallet`
 - `GET /acs/readiness/:wallet`
 - `GET /acs/operational-state/:wallet`
+- `GET /acs/user-status/:wallet`
+- `GET /acs/performance-records`
+- `GET /acs/receipts`
+- `GET /acs/emergency-stops`
+- `GET /acs/secret-storage/status`
+- `GET /acs/observability/status`
 
 The API is GET-only and inspection-only. It must not trigger automation, trading, CEX calls, tenant state mutation, or license mutation.
+
+Every HTTP response uses the ACS envelope:
+
+- `success`
+- `version`
+- `correlationId`
+- `timestamp`
+- `data` or structured `error`
+- optional `warnings`
 
 `npm run smoke:openclaw` lists discovered OpenClaw agents, mapped permissions, local providers, and the configured receipt path.
 
