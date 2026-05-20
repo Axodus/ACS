@@ -1,5 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
+import type { AcsConsumptionLevel } from "./consumption-levels.js";
 import type { TelemetrySink } from "./telemetry.js";
 import type { TelemetryId } from "./types.js";
 import {
@@ -12,6 +13,8 @@ export type OperationalStateTransitionStatus = "accepted" | "rejected";
 
 export interface OperationalStateTransitionInput {
   readonly subjectId: string;
+  readonly consumptionLevel?: AcsConsumptionLevel;
+  readonly tenantId?: string;
   readonly from: OperationalState;
   readonly to: OperationalState;
   readonly actor: OperationalActor;
@@ -22,6 +25,8 @@ export interface OperationalStateTransitionInput {
 export interface OperationalStateTransitionReceipt {
   readonly id: string;
   readonly subjectId: string;
+  readonly consumptionLevel?: AcsConsumptionLevel;
+  readonly tenantId?: string;
   readonly from: OperationalState;
   readonly to: OperationalState;
   readonly actor: OperationalActor;
@@ -106,6 +111,8 @@ export class OperationalStateMachine {
       from: input.from,
       to: input.to,
       actor: input.actor,
+      consumptionLevel: input.consumptionLevel,
+      tenantId: input.tenantId,
       reason: input.reason,
       policyRef: input.policyRef,
     });
@@ -113,6 +120,8 @@ export class OperationalStateMachine {
       previousState: input.from,
       nextState: input.to,
       actor: input.actor,
+      consumptionLevel: input.consumptionLevel,
+      tenantId: input.tenantId,
       reason: input.reason,
       policyRef: input.policyRef,
     });
@@ -120,6 +129,8 @@ export class OperationalStateMachine {
     return this.#save({
       id: this.#nextReceiptId(),
       subjectId: input.subjectId,
+      ...(input.consumptionLevel ? { consumptionLevel: input.consumptionLevel } : {}),
+      ...(input.tenantId ? { tenantId: input.tenantId } : {}),
       from: input.from,
       to: input.to,
       actor: input.actor,
@@ -136,6 +147,8 @@ export class OperationalStateMachine {
       from: input.from,
       to: input.to,
       actor: input.actor,
+      consumptionLevel: input.consumptionLevel,
+      tenantId: input.tenantId,
       reason: input.reason,
       policyRef: input.policyRef,
       rejectionReason,
@@ -144,6 +157,8 @@ export class OperationalStateMachine {
     return this.#save({
       id: this.#nextReceiptId(),
       subjectId: input.subjectId,
+      ...(input.consumptionLevel ? { consumptionLevel: input.consumptionLevel } : {}),
+      ...(input.tenantId ? { tenantId: input.tenantId } : {}),
       from: input.from,
       to: input.to,
       actor: input.actor,
@@ -216,6 +231,8 @@ function normalizeOperationalStateReceipt(
   return {
     id: receipt.id,
     subjectId: receipt.subjectId,
+    ...(receipt.consumptionLevel ? { consumptionLevel: receipt.consumptionLevel } : {}),
+    ...(receipt.tenantId ? { tenantId: receipt.tenantId } : {}),
     from: receipt.from,
     to: receipt.to,
     actor: receipt.actor,
@@ -227,4 +244,3 @@ function normalizeOperationalStateReceipt(
     ...(receipt.rejectionReason ? { rejectionReason: receipt.rejectionReason } : {}),
   };
 }
-

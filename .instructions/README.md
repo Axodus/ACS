@@ -2,9 +2,9 @@
 
 # Purpose
 
-ACS is the operational intelligence layer of the Axodus ecosystem.
+ACS is the tenant-aware operational intelligence layer of the Axodus ecosystem.
 
-The current planning reset makes the Trading Ignition Product the first ACS focus.
+The current planning reset makes ACS Tenant-Aware Core the first MVP target. Trading Ignition remains an important Product/Service use case, not the entire ACS identity.
 
 ACS coordinates:
 - user readiness
@@ -17,10 +17,17 @@ ACS coordinates:
 - performance documentation
 - agent coordination
 - governance-defined operational rules
+- Core/Service/Product consumption levels
+- tenant-aware service contexts
 
 ACS is not a profit promise system, custody system, or unrestricted execution engine.
 
 Before any new feature, follow:
+- `ACS_CONSUMPTION_MODEL.md`
+- `ACS_TENANT_SERVICE_MODEL.md`
+- `ACS_CORE_OPERATIONS.md`
+- `ACS_PRODUCT_LAYER.md`
+- `ACS_AGENT_ROLES.md`
 - `ACS_OPERATIONAL_STATES.md`
 - `ACS_POLICY_MATRIX.md`
 - `ACS_IS_NOT.md`

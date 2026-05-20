@@ -1,8 +1,15 @@
 # ACS Trading Ignition Product
 
-# Purpose
+# Classification
 
-Trading Ignition is the first ACS planning focus.
+Trading Ignition is:
+- an ACS Product for end-user bot access
+- an ACS Service when offered by an enabled DAO Tenant
+- an ACS Core monitoring target for risk standards and governance policy
+
+Trading Ignition is not the entire ACS identity.
+
+# Purpose
 
 It helps a certified and licensed Axodus user configure a restricted trading bot with small capital exposure, safe exchange API permissions, guided presets, risk controls, telemetry, and auditable performance records.
 

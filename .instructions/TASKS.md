@@ -2,6 +2,24 @@
 
 # Active Tasks
 
+## Tenant-Aware Core MVP
+- [x] define Core/Service/Product consumption model
+- [x] define tenant context model
+- [x] define ACS capability registry
+- [x] define tenant service mock registry
+- [x] define product access mock registry
+- [x] extend policy matrix with consumption and automation metadata
+- [x] map Trading Ignition as ACS capability
+- [x] scope operational state telemetry and receipts by tenant/level
+- [x] test tenant isolation
+- [x] test service/product access decisions
+- [x] add tenant-aware CLI inspection commands
+- [x] ensure inspection CLI commands do not initialize runtime side effects
+- [x] add read-only HTTP inspection API for AxodusAPP
+- [ ] add tenant-scoped workflow receipt model
+
+---
+
 ## Planning Reset
 - [x] define Operational States
 - [x] define ACS Policy Matrix

@@ -2,6 +2,30 @@
 
 # Active Decisions
 
+## Tenant-Aware Consumption Model
+
+Decision:
+ACS is a tenant-aware operational intelligence layer with Core, Service, and Product consumption levels.
+
+Trading Ignition remains an important use case, but it is classified as an ACS Product for end users, an ACS Service when offered by enabled DAO Tenants, and an ACS Core monitoring/policy target.
+
+Status:
+CONFIRMED
+
+---
+
+## Automation Maturity Boundary
+
+Decision:
+Full autonomous execution is not allowed yet. Current ACS may monitor, validate, recommend, guide, simulate, prepare workflows, emit telemetry, generate receipts, and require manual approval.
+
+Autonomous tenant-critical actions depend on future Governance maturity.
+
+Status:
+CONFIRMED
+
+---
+
 ## ACS Planning Reset
 
 Decision:

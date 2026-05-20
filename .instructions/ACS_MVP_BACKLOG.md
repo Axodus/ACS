@@ -1,4 +1,44 @@
-# ACS MVP Backlog
+# ACS Tenant-Aware Core MVP Backlog
+
+# Current MVP Target
+
+ACS Tenant-Aware Core MVP:
+- Core/Service/Product consumption model
+- tenant-aware context model
+- capability registry
+- policy matrix extension
+- agent role alignment
+- tenant service mock registry
+- product access mock registry
+- Trading Ignition mapped as ACS capability
+- telemetry/receipts scoped by tenant and level
+- tests for tenant isolation and policy decisions
+
+Trading execution remains mock/restricted.
+
+---
+
+# Phase -1 - Tenant-Aware Alignment
+
+- [x] Add ACS Consumption Model.
+- [x] Add Tenant Service Model.
+- [x] Add Core Operations model.
+- [x] Add Product Layer model.
+- [x] Add ACS Agent Roles by level.
+- [x] Add consumption-level types.
+- [x] Add tenant context model.
+- [x] Add capability registry.
+- [x] Add tenant service access evaluator.
+- [x] Add product access evaluator.
+- [x] Map Trading Ignition as ACS capability.
+- [x] Add tenant/level telemetry and receipt metadata.
+- [x] Add tests for tenant isolation and consumption policy.
+- [x] Add read-only tenant-aware inspection layer.
+- [x] Add CLI command: `capabilities`.
+- [x] Add CLI command: `tenant-services`.
+- [x] Add CLI command: `product-access`.
+- [x] Add CLI command: `policy-matrix`.
+- [x] Add CLI command: `policy-check`.
 
 # Phase 0 - Planning Reset
 

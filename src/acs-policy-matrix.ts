@@ -1,3 +1,4 @@
+import type { AcsAutomationLevel, AcsConsumptionLevel } from "./consumption-levels.js";
 import type { OperationalActor, OperationalState } from "./operational-state.js";
 import { evaluateStrategyActivation, TERMINAL_RESTRICTED_STATES } from "./operational-state.js";
 import type { PolicyDecision } from "./types.js";
@@ -26,6 +27,12 @@ export interface AcsPolicyMatrixEntry {
   readonly governance: AcsPolicyPermission;
   readonly riskEngine: AcsPolicyPermission;
   readonly allowedStates: readonly OperationalState[];
+  readonly consumableBy: readonly AcsConsumptionLevel[];
+  readonly coreOnly: boolean;
+  readonly tenantAccessAllowed: boolean;
+  readonly productAccessAllowed: boolean;
+  readonly automationLevel: AcsAutomationLevel;
+  readonly governanceApprovalRequired: boolean;
   readonly receiptRequired: boolean;
   readonly telemetryRequired: boolean;
   readonly notes: string;
@@ -40,6 +47,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "yes",
     riskEngine: "yes",
     allowedStates: ["READY", "PAUSED"],
+    consumableBy: ["product"],
+    coreOnly: false,
+    tenantAccessAllowed: false,
+    productAccessAllowed: true,
+    automationLevel: "manual_approval",
+    governanceApprovalRequired: true,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "User may request changes only inside governance-approved and risk-approved bounds.",
@@ -52,6 +65,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "yes",
     riskEngine: "yes",
     allowedStates: ["READY"],
+    consumableBy: ["product"],
+    coreOnly: false,
+    tenantAccessAllowed: false,
+    productAccessAllowed: true,
+    automationLevel: "manual_approval",
+    governanceApprovalRequired: true,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "Activation requires user confirmation and current READY state.",
@@ -64,6 +83,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "yes",
     riskEngine: "yes",
     allowedStates: ["ACTIVE", "READY", "RISK_RESTRICTED"],
+    consumableBy: ["core", "service", "product"],
+    coreOnly: false,
+    tenantAccessAllowed: true,
+    productAccessAllowed: true,
+    automationLevel: "manual_approval",
+    governanceApprovalRequired: false,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "Pause is a protective action and may be initiated by any authority.",
@@ -76,6 +101,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "yes",
     riskEngine: "yes",
     allowedStates: ["API_VALIDATED", "RISK_RESTRICTED", "READY", "ACTIVE", "PAUSED"],
+    consumableBy: ["core", "service", "product"],
+    coreOnly: false,
+    tenantAccessAllowed: true,
+    productAccessAllowed: true,
+    automationLevel: "manual_approval",
+    governanceApprovalRequired: false,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "Emergency stop must be fast, auditable, and never blocked by convenience logic.",
@@ -88,6 +119,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "yes",
     riskEngine: "no",
     allowedStates: ["CERTIFIED", "LICENSED", "API_PENDING", "API_VALIDATED", "READY", "ACTIVE", "PAUSED"],
+    consumableBy: ["product"],
+    coreOnly: false,
+    tenantAccessAllowed: false,
+    productAccessAllowed: true,
+    automationLevel: "assisted",
+    governanceApprovalRequired: true,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "ACS may validate ownership and status; governance defines license rules.",
@@ -100,6 +137,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "yes",
     riskEngine: "yes",
     allowedStates: ["LICENSED", "API_PENDING", "API_VALIDATED", "RISK_RESTRICTED", "READY", "PAUSED"],
+    consumableBy: ["product"],
+    coreOnly: false,
+    tenantAccessAllowed: false,
+    productAccessAllowed: true,
+    automationLevel: "assisted",
+    governanceApprovalRequired: true,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "API validation must reject withdrawal permissions and unsafe access.",
@@ -112,6 +155,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "yes",
     riskEngine: "yes",
     allowedStates: ["API_VALIDATED", "RISK_RESTRICTED", "READY", "PAUSED"],
+    consumableBy: ["product"],
+    coreOnly: false,
+    tenantAccessAllowed: false,
+    productAccessAllowed: true,
+    automationLevel: "manual_approval",
+    governanceApprovalRequired: true,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "Public users default to conservative presets unless governance and risk policy allow otherwise.",
@@ -124,6 +173,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "yes",
     riskEngine: "yes",
     allowedStates: ["API_VALIDATED", "RISK_RESTRICTED", "READY", "ACTIVE", "PAUSED", "EMERGENCY_STOP"],
+    consumableBy: ["core", "service"],
+    coreOnly: false,
+    tenantAccessAllowed: true,
+    productAccessAllowed: false,
+    automationLevel: "manual_approval",
+    governanceApprovalRequired: true,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "Suspension requires documented policy, risk, or governance basis.",
@@ -149,6 +204,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
       "EMERGENCY_STOP",
       "SUSPENDED",
     ],
+    consumableBy: ["core"],
+    coreOnly: true,
+    tenantAccessAllowed: false,
+    productAccessAllowed: false,
+    automationLevel: "manual_approval",
+    governanceApprovalRequired: true,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "Revocation is a governance/license authority action, with risk engine evidence allowed.",
@@ -161,6 +222,12 @@ export const ACS_POLICY_MATRIX: readonly AcsPolicyMatrixEntry[] = [
     governance: "never",
     riskEngine: "never",
     allowedStates: [],
+    consumableBy: [],
+    coreOnly: false,
+    tenantAccessAllowed: false,
+    productAccessAllowed: false,
+    automationLevel: "blocked",
+    governanceApprovalRequired: false,
     receiptRequired: true,
     telemetryRequired: true,
     notes: "ACS never withdraws funds and must reject any withdrawal capability.",
@@ -180,6 +247,7 @@ export function evaluateCapabilityPolicy(
   capability: AcsCapabilityId,
   state: OperationalState,
   actor: OperationalActor,
+  consumptionLevel?: AcsConsumptionLevel,
 ): PolicyDecision {
   const entry = getPolicyMatrixEntry(capability);
   const permission = getAuthorityPermission(entry, actor);
@@ -200,6 +268,14 @@ export function evaluateCapabilityPolicy(
     return { allowed: false, reason: `${entry.label} is not allowed from ${state}` };
   }
 
+  if (consumptionLevel && !entry.consumableBy.includes(consumptionLevel)) {
+    return { allowed: false, reason: `${entry.label} is not consumable at ${consumptionLevel} level` };
+  }
+
+  if (entry.automationLevel === "blocked" || entry.automationLevel === "autonomous") {
+    return { allowed: false, reason: `${entry.label} automation level is ${entry.automationLevel}` };
+  }
+
   if (capability === "activate.strategy") {
     return evaluateStrategyActivation(state);
   }
@@ -218,4 +294,3 @@ function getAuthorityPermission(entry: AcsPolicyMatrixEntry, actor: OperationalA
 
   return entry[actor];
 }
-

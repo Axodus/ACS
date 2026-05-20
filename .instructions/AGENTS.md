@@ -1,5 +1,9 @@
 # ACS Agents
 
+This file is legacy-compatible. Current level-based agent roles are defined in `ACS_AGENT_ROLES.md`.
+
+ACS agents must now be interpreted through Core, Service, and Product consumption levels.
+
 # Purpose
 
 Agents are bounded operational cognitive systems.

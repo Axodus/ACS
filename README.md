@@ -4,7 +4,8 @@ ACS Core is the initial runtime package for Axodus Cognitive Systems.
 
 Current planning reset:
 
-- ACS is the Autonomous Coordination System for Trading Ignition first.
+- ACS is the tenant-aware Autonomous Coordination System for Core, Service, and Product consumption.
+- Trading Ignition is a mapped ACS Product/Service use case, not the entire ACS identity.
 - Operational States, the ACS Policy Matrix, and What ACS Is Not are mandatory before new product features.
 - ACS must not custody funds, withdraw funds, promise profit, or activate strategies outside policy.
 
@@ -23,6 +24,8 @@ It provides deterministic primitives for:
 - Readiness checklist and mock license validation contracts
 - Mock exchange API safety validation with withdrawal blocking and IP allowlist recommendations
 - Risk preset schema with conservative public default and limit evaluation
+- Core/Service/Product consumption-level contracts
+- tenant context, capability registry, tenant service access, and product access contracts
 
 This package does not execute real inference, access wallets, settle treasury flows, or route production compute. Provider execution is represented as capability matching until the provider verification, pricing, memory, and billing decisions are finalized.
 
@@ -157,6 +160,60 @@ State transitions can be applied with `OperationalStateMachine`, which records a
 `validateMockExchangeApiSafety()` blocks withdrawal/transfer permissions, unsafe secret handling, and returns UI recommendations to disable withdrawals, use IP permission/allowlist, and grant only minimum required trading permissions.
 
 `risk-preset` exports `conservative`, `balanced`, and `experimental` presets. Public users default to `conservative`: max $100 capital, max 1x leverage, spot-only, no futures, no margin. Higher-risk presets require governance/internal validation gates before use.
+
+The tenant-aware layer exports `AcsCapabilityRegistry`, `AcsTenantContext`, `evaluateTenantServiceAccess`, and `evaluateProductAccess`. Operational state receipts and telemetry can include `consumptionLevel` and `tenantId` for tenant-scoped auditability.
+
+## Tenant-Aware Inspection
+
+Read-only inspection commands expose ACS capability and access policy without triggering automation:
+
+```bash
+npm run acs -- capabilities
+npm run acs -- capabilities --level core
+npm run acs -- capabilities --level service
+npm run acs -- capabilities --level product
+npm run acs -- tenant-services
+npm run acs -- tenant-services --tenant dao-alpha
+npm run acs -- product-access
+npm run acs -- product-access --wallet 0xlicensed
+npm run acs -- product-access --product product.trading-ignition
+npm run acs -- policy-matrix
+npm run acs -- policy-check --capability product.trading-ignition --tenant dao-alpha
+```
+
+Inspection commands return JSON and do not initialize runtime telemetry/receipt persistence.
+
+## HTTP Inspection API
+
+ACS exposes the same read-only inspection layer through a JSON HTTP API:
+
+```bash
+npm run http
+```
+
+Default local base URL:
+
+```text
+http://127.0.0.1:8788/acs
+```
+
+Endpoints include:
+
+- `GET /acs/health`
+- `GET /acs/version`
+- `GET /acs/capabilities`
+- `GET /acs/capabilities?level=product`
+- `GET /acs/tenant-services`
+- `GET /acs/tenant-services/:tenantId`
+- `GET /acs/product-access/:wallet`
+- `GET /acs/product-access/:wallet/:productId`
+- `GET /acs/policy-matrix`
+- `GET /acs/policy-check?capabilityId=product.trading-ignition&tenantId=dao-alpha`
+- `GET /acs/status/:wallet`
+- `GET /acs/readiness/:wallet`
+- `GET /acs/operational-state/:wallet`
+
+The API is GET-only and inspection-only. It must not trigger automation, trading, CEX calls, tenant state mutation, or license mutation.
 
 `npm run smoke:openclaw` lists discovered OpenClaw agents, mapped permissions, local providers, and the configured receipt path.
 
