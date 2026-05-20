@@ -1,9 +1,13 @@
 import { ACS_POLICY_MATRIX, getPolicyMatrixEntry, type AcsCapabilityId } from "./acs-policy-matrix.js";
-import { createAcsReceipt } from "./acs-receipts.js";
 import { AcsCapabilityRegistry, type AcsServiceCapability } from "./capability-registry.js";
 import type { AcsConsumptionLevel } from "./consumption-levels.js";
-import type { EmergencyStopRecord } from "./emergency-stop.js";
-import { getMockTradingIgnitionPerformanceRecords } from "./performance-record.js";
+import {
+  ACS_FIXTURE_IDS,
+  createAcsTenantFixtures,
+  createSampleAcsReceiptFixture,
+  createSampleEmergencyStopFixtures,
+  createSamplePerformanceRecordFixtures,
+} from "./fixtures/acs-fixtures.js";
 import { evaluateProductAccess, type AcsProductAccessContext } from "./product-access-registry.js";
 import type { AcsTenantContext } from "./tenant-context.js";
 import { evaluateTenantServiceAccess } from "./tenant-service-registry.js";
@@ -49,41 +53,16 @@ export interface AcsPolicyInspectionContext {
   readonly executionTriggered: false;
 }
 
-const MOCK_TENANTS: readonly AcsTenantContext[] = [
-  {
-    tenantId: "axodus-core",
-    tenantType: "root",
-    governanceStatus: "active",
-    federationTier: "core",
-    enabledServices: ["core.tenant-health-monitoring", "core.governance-alignment"],
-    restrictions: [],
-  },
-  {
-    tenantId: "dao-alpha",
-    tenantType: "dao",
-    governanceStatus: "active",
-    federationTier: "standard",
-    enabledServices: ["service.risk-analysis", "service.content-validation", "product.trading-ignition"],
-    restrictions: [],
-  },
-  {
-    tenantId: "dao-disabled",
-    tenantType: "dao",
-    governanceStatus: "suspended",
-    federationTier: "standard",
-    enabledServices: [],
-    restrictions: ["acs.services.suspended"],
-  },
-];
+const MOCK_TENANTS: readonly AcsTenantContext[] = createAcsTenantFixtures();
 
 function defaultProductAccess(walletAddress?: string): AcsProductAccessContext {
   return {
     ...(walletAddress ? { walletAddress } : {}),
     subscriptionActive: false,
-    nftLicenseValid: walletAddress === "0xlicensed",
+    nftLicenseValid: walletAddress === ACS_FIXTURE_IDS.licensedWallet,
     marketplacePurchaseValid: false,
     governancePermission: true,
-    userReadinessState: walletAddress === "0xlicensed" ? "READY" : "UNINITIALIZED",
+    userReadinessState: walletAddress === ACS_FIXTURE_IDS.licensedWallet ? "READY" : "UNINITIALIZED",
   };
 }
 
@@ -183,65 +162,21 @@ export function inspectUserStatus(filter: UserStatusInspectionFilter) {
 
 export function inspectPerformanceRecords() {
   return {
-    records: getMockTradingIgnitionPerformanceRecords(),
+    records: createSamplePerformanceRecordFixtures(),
   };
 }
 
 export function inspectAuditReceipts() {
   return {
-    receipts: [
-      createAcsReceipt({
-        receiptId: "receipt_mock_policy_check_001",
-        correlationId: "corr_mock_policy_check_001",
-        tenantId: "dao-alpha",
-        wallet: "0xlicensed",
-        consumptionLevel: "product",
-        capabilityId: "product.trading-ignition",
-        actionType: "policy_check",
-        actor: { type: "system", id: "acs.inspection" },
-        policyDecision: {
-          allowed: true,
-          automationLevel: "manual_approval",
-          requiresGovernanceApproval: true,
-          requiresUserLicense: true,
-        },
-        operationalState: "READY",
-        telemetry: { warnings: ["mock audit preview only"], riskFlags: [] },
-        createdAt: "2026-01-01T00:00:00.000Z",
-      }),
-    ],
+    receipts: [createSampleAcsReceiptFixture()],
   };
 }
 
 export function inspectEmergencyStops() {
-  const stops: readonly EmergencyStopRecord[] = [
-    {
-      stopId: "stop_mock_user_001",
-      scope: "user",
-      source: "user",
-      wallet: "0xstopped",
-      capabilityId: "product.trading-ignition",
-      reason: "mock user emergency stop for inspection",
-      severity: "critical",
-      active: true,
-      createdAt: "2026-01-01T00:00:00.000Z",
-    },
-    {
-      stopId: "stop_mock_tenant_001",
-      scope: "tenant",
-      source: "tenant-admin",
-      tenantId: "dao-emergency",
-      reason: "mock tenant emergency stop for inspection",
-      severity: "critical",
-      active: true,
-      createdAt: "2026-01-01T00:00:00.000Z",
-    },
-  ];
-
   return {
     mode: "mock",
     executionImpact: "policy_inspection_block_only",
-    stops,
+    stops: createSampleEmergencyStopFixtures(),
     warnings: [
       "Emergency stop inspection is read-only in this phase.",
       "Future execution adapters must fail closed when matching active stops exist.",
@@ -332,8 +267,8 @@ export function inspectPolicyCheck(input: PolicyCheckInput) {
 }
 
 function inspectMockEmergencyStop(input: PolicyCheckInput) {
-  const stoppedWallet = input.wallet?.toLowerCase() === "0xstopped";
-  const stoppedTenant = input.tenantId === "dao-emergency";
+  const stoppedWallet = input.wallet?.toLowerCase() === ACS_FIXTURE_IDS.stoppedWallet;
+  const stoppedTenant = input.tenantId === ACS_FIXTURE_IDS.emergencyTenant;
   const stoppedCapability = input.capabilityId === "product.emergency-blocked";
 
   if (!stoppedWallet && !stoppedTenant && !stoppedCapability) {

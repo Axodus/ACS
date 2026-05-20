@@ -116,6 +116,11 @@ Trading execution remains mock/restricted.
 - [x] Add read-only observability contract status endpoint and CLI command.
 - [x] Add policy decision context metadata to policy-check responses.
 - [x] Add HTTP query/path schema validation foundation.
+- [x] Add auth placeholder context and response metadata.
+- [x] Add rate-limit placeholder context and mock exceeded response.
+- [x] Add shared ACS fixtures for tenants, receipts, stops, user status, and performance records.
+- [x] Add API examples documentation.
+- [x] Add MVP readiness checklist.
 
 ---
 

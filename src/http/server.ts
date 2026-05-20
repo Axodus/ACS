@@ -1,4 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { parseMockAuthContext } from "./auth.js";
+import { parseMockRateLimitContext } from "./rate-limit.js";
 import { fail } from "./responses.js";
 import { routeAcsRequest } from "./routes/acs-routes.js";
 
@@ -17,11 +19,24 @@ export function createAcsHttpHandler() {
     }
 
     const correlationId = readCorrelationId(request);
+    const auth = parseMockAuthContext(readHeaders(request));
+    const rateLimit = parseMockRateLimitContext(readHeaders(request));
     const result = routeAcsRequest(request.url ?? "/", {
       ...(correlationId ? { correlationId } : {}),
+      auth,
+      rateLimit,
     });
     writeJson(response, result.status, result.body);
   };
+}
+
+function readHeaders(request: IncomingMessage): Readonly<Record<string, string | undefined>> {
+  const headers: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(request.headers)) {
+    headers[key] = Array.isArray(value) ? value[0] : value;
+  }
+
+  return headers;
 }
 
 export function createAcsHttpServer() {

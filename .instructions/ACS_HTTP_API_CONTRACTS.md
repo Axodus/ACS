@@ -26,7 +26,9 @@ Current hardening foundation:
 - errors use structured envelopes;
 - invalid filters fail closed;
 - response envelope is consistent across ACS endpoints;
-- rate limit, tenant auth, schema validation and observability hooks are explicit placeholders.
+- auth and rate-limit contexts are explicit placeholders;
+- query/path schema validation is enabled;
+- observability hooks are explicit contract-only status surfaces.
 
 Endpoints covered:
 - `/acs/health`
@@ -40,6 +42,11 @@ Endpoints covered:
 - `/acs/readiness`
 - `/acs/operational-state`
 - `/acs/user-status`
+- `/acs/emergency-stops`
+- `/acs/secret-storage/status`
+- `/acs/observability/status`
 
 Security rule:
 The HTTP layer must not expose secrets, mutate tenant state, call real exchanges or start autonomous workflows.
+
+Full response examples live in `.instructions/ACS_API_EXAMPLES.md`.
