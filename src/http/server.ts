@@ -1,21 +1,25 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { fail } from "./responses.js";
 import { routeAcsRequest } from "./routes/acs-routes.js";
 
 export function createAcsHttpHandler() {
   return (request: IncomingMessage, response: ServerResponse): void => {
     if (request.method !== "GET") {
-      writeJson(response, 405, {
-        success: false,
-        timestamp: new Date().toISOString(),
-        version: "0.1.0",
-        data: null,
-        blockedReason: "method not allowed",
-        warnings: ["ACS HTTP inspection API is read-only and only supports GET"],
-      });
+      const correlationId = readCorrelationId(request);
+      writeJson(response, 405, fail(
+        "method not allowed",
+        405,
+        "method_not_allowed",
+        correlationId,
+        { allowedMethods: ["GET"] },
+      ).body);
       return;
     }
 
-    const result = routeAcsRequest(request.url ?? "/");
+    const correlationId = readCorrelationId(request);
+    const result = routeAcsRequest(request.url ?? "/", {
+      ...(correlationId ? { correlationId } : {}),
+    });
     writeJson(response, result.status, result.body);
   };
 }
@@ -33,3 +37,11 @@ function writeJson(response: ServerResponse, status: number, body: unknown): voi
   response.end(JSON.stringify(body));
 }
 
+function readCorrelationId(request: IncomingMessage): string | undefined {
+  const value = request.headers["x-correlation-id"] ?? request.headers["x-request-id"];
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+}

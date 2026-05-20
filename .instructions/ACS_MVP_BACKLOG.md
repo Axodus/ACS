@@ -72,8 +72,8 @@ Trading execution remains mock/restricted.
 
 - [x] Define readiness checklist contract.
 - [x] Add mock license validator.
-- [ ] Add license loss handling.
-- [ ] Add user status summary model.
+- [x] Add license loss handling.
+- [x] Add user status summary model.
 
 ---
 
@@ -83,7 +83,7 @@ Trading execution remains mock/restricted.
 - [x] Add mock API permission validator.
 - [x] Reject withdrawal-enabled API scopes.
 - [x] Add UI recommendations for disabling withdrawals and using IP permission.
-- [ ] Define encrypted secret storage requirement before real integration.
+- [x] Define encrypted secret storage requirement before real integration.
 
 ---
 
@@ -92,8 +92,21 @@ Trading execution remains mock/restricted.
 - [x] Define risk preset schema.
 - [x] Add conservative default preset.
 - [x] Add risk limit evaluator.
-- [ ] Add emergency stop workflow.
-- [ ] Add performance record schema.
+- [x] Add emergency stop workflow.
+- [x] Add performance record schema.
+
+# Phase 5 - Operational Hardening Foundation
+
+- [x] Add tenant-scoped ACS receipt contract.
+- [x] Add receipt metadata redaction for secrets.
+- [x] Add emergency stop records, telemetry and receipts.
+- [x] Add emergency stop policy-check blocking.
+- [x] Add performance record schema and Trading Ignition mock records.
+- [x] Add user status summary endpoint.
+- [x] Add license loss blocked reasons.
+- [x] Add mock encrypted secret storage contract.
+- [x] Add HTTP response envelope with correlation id and structured errors.
+- [x] Add HTTP hardening placeholders for schema validation, rate limit, tenant auth and observability.
 
 ---
 

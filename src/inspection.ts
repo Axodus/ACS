@@ -21,6 +21,7 @@ export interface ProductAccessInspectionFilter {
 export interface PolicyCheckInput {
   readonly capabilityId: string;
   readonly tenantId?: string;
+  readonly wallet?: string;
 }
 
 export interface InspectionDecision {
@@ -156,6 +157,11 @@ export function inspectPolicyMatrix() {
 }
 
 export function inspectPolicyCheck(input: PolicyCheckInput) {
+  const emergencyStopDecision = inspectMockEmergencyStop(input);
+  if (emergencyStopDecision) {
+    return emergencyStopDecision;
+  }
+
   const registry = new AcsCapabilityRegistry();
   const capability = registry.list().find((candidate) => candidate.id === input.capabilityId);
 
@@ -172,6 +178,30 @@ export function inspectPolicyCheck(input: PolicyCheckInput) {
     telemetryRequired: matrixEntry.telemetryRequired,
     receiptsRequired: matrixEntry.receiptRequired,
     ...toInspectionDecision(matrixEntry.automationLevel !== "blocked", matrixEntry.automationLevel === "blocked" ? "automation is blocked" : undefined),
+  };
+}
+
+function inspectMockEmergencyStop(input: PolicyCheckInput) {
+  const stoppedWallet = input.wallet?.toLowerCase() === "0xstopped";
+  const stoppedTenant = input.tenantId === "dao-emergency";
+  const stoppedCapability = input.capabilityId === "product.emergency-blocked";
+
+  if (!stoppedWallet && !stoppedTenant && !stoppedCapability) {
+    return undefined;
+  }
+
+  return {
+    ...(input.tenantId ? { tenantId: input.tenantId } : {}),
+    ...(input.wallet ? { wallet: input.wallet } : {}),
+    capabilityId: input.capabilityId,
+    consumptionLevel: "product",
+    automationLevel: "blocked",
+    requiresGovernanceApproval: true,
+    telemetryRequired: true,
+    receiptsRequired: true,
+    allowed: false,
+    blockedReason: "emergency_stop_active",
+    warnings: ["emergency stop active for requested policy context"],
   };
 }
 
