@@ -1,0 +1,50 @@
+schemaVersion: 1
+forbiddenListId: acs.trading.hummingbot.sandbox.forbidden_paths
+defaultDecision: deny
+forbiddenRoots:
+  - /mnt/d/Rede/Github/Axodus/tradingbot
+  - /mnt/d/Rede/Github/Axodus/hummingbot-api
+  - /mnt/d/Rede/Github/Axodus/mcp/hummingbot_mcp
+  - /mnt/d/Rede/Github/Axodus/condor/mcp_servers/hummingbot_api
+  - /mnt/d/Rede/Github/Axodus/quants-lab/conf
+forbiddenMarkers:
+  - conf/connectors
+  - hummingbot/connector
+  - hummingbot/core/gateway
+  - hummingbot/user
+  - database
+  - logs
+  - runtime
+  - state
+  - wallet
+  - account
+  - credential
+  - secret
+  - private
+  - token
+  - password
+  - api_key
+  - api_secret
+forbiddenExtensions:
+  - .env
+  - .db
+  - .sqlite
+forbiddenFilenames:
+  - Dockerfile
+  - docker-compose.yml
+  - docker-compose.yaml
+  - conf_client.yml
+forbiddenActions:
+  - read_api_key
+  - read_api_secret
+  - read_connector_config
+  - write_live_strategy
+  - mutate_runtime
+  - restart_bot
+  - run_backtest
+  - call_hummingbot_api
+  - call_hummingbot_mcp
+  - access_network
+  - paper_trade
+  - live_trade
+  - treasury_operation

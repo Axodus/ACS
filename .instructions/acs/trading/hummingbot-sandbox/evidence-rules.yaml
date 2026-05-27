@@ -1,0 +1,23 @@
+schemaVersion: 1
+rulesetId: acs.trading.hummingbot.sandbox.evidence_rules
+evidenceRequired: true
+requiredArtifacts:
+  - sidecar_json
+  - proof_report
+  - console_snapshot
+  - policy_decision_summary
+  - blocked_actions_summary
+  - hash_report
+  - rollback_record
+forbiddenEvidenceContent:
+  - api_key
+  - api_secret
+  - private_key
+  - seed_phrase
+  - connector_config_body
+  - wallet_secret
+  - account_password
+  - token
+  - live_runtime_state
+retentionMode: planning_contract
+evidenceMustBeSerializable: true

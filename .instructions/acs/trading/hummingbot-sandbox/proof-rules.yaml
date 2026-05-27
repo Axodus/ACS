@@ -1,0 +1,31 @@
+schemaVersion: 1
+rulesetId: acs.trading.hummingbot.sandbox.proof_rules
+hashAlgorithm: sha256
+proofRequired: true
+requiredFields:
+  - artifactId
+  - requestId
+  - capabilityId
+  - acsDecision
+  - sandboxPath
+  - sourceReference
+  - contentSha256
+  - createdAt
+  - createdBy
+  - reasonCodes
+  - forbiddenActionStatement
+forbiddenInProof:
+  - apiKey
+  - apiSecret
+  - privateKey
+  - seedPhrase
+  - connectorConfigBody
+  - liveRuntimeState
+  - accessToken
+statements:
+  - no_network_access
+  - no_mcp_call
+  - no_hummingbot_runtime_call
+  - no_connector_config_access
+  - no_secret_access
+  - no_live_file_mutation

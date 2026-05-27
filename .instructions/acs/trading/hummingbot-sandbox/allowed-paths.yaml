@@ -1,0 +1,51 @@
+schemaVersion: 1
+allowlistId: acs.trading.hummingbot.sandbox.allowed_paths
+root: .instructions/acs/trading/hummingbot-sandbox
+writeAuthorityEnabled: false
+allowedRoots:
+  - path: .instructions/acs/trading/hummingbot-sandbox/strategies
+    artifactTypes:
+      - sandbox_strategy_source
+    requiresExecutionTicket: true
+    requiresProof: true
+    requiresRollback: true
+  - path: .instructions/acs/trading/hummingbot-sandbox/proposals
+    artifactTypes:
+      - diff_proposal
+      - rationale
+      - risk_assessment
+      - sidecar_json
+    requiresExecutionTicket: false
+    requiresProof: true
+    requiresRollback: false
+  - path: .instructions/acs/trading/hummingbot-sandbox/proofs
+    artifactTypes:
+      - proof_report
+      - hash_report
+    requiresExecutionTicket: false
+    requiresProof: true
+    requiresRollback: false
+  - path: .instructions/acs/trading/hummingbot-sandbox/rollback
+    artifactTypes:
+      - rollback_note
+      - rollback_manifest
+      - snapshot_reference
+    requiresExecutionTicket: true
+    requiresProof: true
+    requiresRollback: true
+  - path: .instructions/acs/trading/hummingbot-sandbox/console
+    artifactTypes:
+      - console_snapshot
+    requiresExecutionTicket: false
+    requiresProof: true
+    requiresRollback: false
+allowedExtensions:
+  - .py
+  - .md
+  - .json
+  - .yaml
+  - .yml
+  - .txt
+pathTraversalAllowed: false
+symlinksAllowed: false
+absoluteLiveRuntimePathsAllowed: false

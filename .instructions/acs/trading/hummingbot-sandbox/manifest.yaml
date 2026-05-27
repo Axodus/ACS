@@ -1,0 +1,53 @@
+schemaVersion: 1
+workspaceId: acs.trading.hummingbot.sandbox
+status: defined_not_runtime
+root: .instructions/acs/trading/hummingbot-sandbox
+createdBySprint: 74
+runtimeAuthority: false
+liveHummingbotMounted: false
+networkAllowed: false
+shellAllowed: false
+mcpAllowed: false
+hummingbotApiAllowed: false
+hummingbotRuntimeAllowed: false
+backtestAllowed: false
+paperTradingAllowed: false
+liveTradingAllowed: false
+secretStorageAllowed: false
+connectorConfigAllowed: false
+apiKeysAllowed: false
+botRestartAllowed: false
+hashRequired: true
+proofRequired: true
+rollbackRequired: true
+evidenceRequired: true
+directories:
+  strategies:
+    path: .instructions/acs/trading/hummingbot-sandbox/strategies
+    purpose: future sandbox strategy files only
+    currentWriteAuthority: false
+  proposals:
+    path: .instructions/acs/trading/hummingbot-sandbox/proposals
+    purpose: future diff proposal artifacts
+    currentWriteAuthority: false
+  proofs:
+    path: .instructions/acs/trading/hummingbot-sandbox/proofs
+    purpose: future proof and hash reports
+    currentWriteAuthority: false
+  rollback:
+    path: .instructions/acs/trading/hummingbot-sandbox/rollback
+    purpose: future rollback records
+    currentWriteAuthority: false
+  console:
+    path: .instructions/acs/trading/hummingbot-sandbox/console
+    purpose: future console snapshots
+    currentWriteAuthority: false
+requiredBeforeWrites:
+  - ACS policy decision
+  - explicit capability match
+  - path allowlist pass
+  - forbidden path scan pass
+  - no secret scan pass
+  - execution ticket for sandbox mutation
+  - proof hash plan
+  - rollback record plan

@@ -1,0 +1,21 @@
+schemaVersion: 1
+rulesetId: acs.trading.hummingbot.sandbox.rollback_rules
+rollbackRequiredFor:
+  - sandbox_strategy_source
+  - sandbox_strategy_edit
+  - sandbox_strategy_disable
+  - sandbox_strategy_remove
+requiredFields:
+  - rollbackId
+  - artifactId
+  - requestId
+  - previousArtifactRef
+  - restoreProcedure
+  - contentSha256Before
+  - contentSha256After
+  - createdAt
+  - humanReviewRequired
+liveRollbackTargetAllowed: false
+removeRequiresHumanReview: true
+removeRequiresSnapshot: true
+rollbackMayTouchLiveRuntime: false

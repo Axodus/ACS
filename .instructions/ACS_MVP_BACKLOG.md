@@ -194,6 +194,19 @@ Trading execution remains mock/restricted.
 - [x] Deny secret/API key/connector access attempts.
 - [x] Keep real Hummingbot files, runtime, backtest, shell, network, MCP, paper trading and live trading untouched.
 
+# Sprint 74 - Hummingbot Strategy Sandbox Workspace
+
+- [x] Add Hummingbot sandbox workspace documentation.
+- [x] Define local sandbox structure under `.instructions/acs/trading/hummingbot-sandbox`.
+- [x] Add sandbox manifest.
+- [x] Add allowed paths rules.
+- [x] Add forbidden paths rules.
+- [x] Add proof rules.
+- [x] Add rollback rules.
+- [x] Add evidence rules.
+- [x] Keep sandbox disconnected from real Hummingbot runtime, API, MCP, network, connector configs and secrets.
+- [x] Add tests validating sandbox structure and safety rules.
+
 ---
 
 # Deferred
