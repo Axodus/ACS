@@ -248,6 +248,18 @@ Trading execution remains mock/restricted.
 - [x] Add tests proving valid sandbox strategy passes.
 - [x] Add tests proving secret, direct exchange, network/shell and live flag cases fail.
 
+# Sprint 78 - Trinity Telegram Response Contract
+
+- [x] Add Trinity Telegram response contract documentation.
+- [x] Add response template module.
+- [x] Add response fixtures.
+- [x] Add templates for research allowed, artifact pending, pending approval, artifact created, diff proposal, blocked, human review and default deny.
+- [x] Ensure templates include ACS decision, allowed mode, blocked actions and next step.
+- [x] Ensure output/evidence/proof/rollback refs can be included when present.
+- [x] Ensure templates do not claim unauthorized writes, patch application, execution, runtime, backtest or trading.
+- [x] Ensure sensitive refs are sanitized.
+- [x] Add tests validating response safety and coverage.
+
 ---
 
 # Deferred
