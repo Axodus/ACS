@@ -1,0 +1,75 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: ACS Trading Intent Classifier
+type: object
+additionalProperties: false
+required:
+  - requestId
+  - source
+  - requesterRef
+  - message
+  - rawUserPromptRef
+properties:
+  requestId:
+    type: string
+    minLength: 1
+  source:
+    type: string
+    enum:
+      - telegram_dm
+      - telegram_group
+      - cli
+      - acs_console
+  requesterRef:
+    type: string
+    minLength: 1
+  message:
+    type: string
+    minLength: 1
+  rawUserPromptRef:
+    type: string
+    minLength: 1
+definitions:
+  classification:
+    type: string
+    enum:
+      - research_only
+      - artifact_request
+      - strategy_diff_proposal
+      - strategy_sandbox_write
+      - strategy_disable_request
+      - strategy_remove_request
+      - backtest_design
+      - backtest_dry_run
+      - paper_trading_request
+      - live_trading_request
+      - secret_access_request
+      - treasury_request
+  decision:
+    type: string
+    enum:
+      - allow_report_only
+      - route_to_acs_artifact_flow
+      - allow_after_gate
+      - pending_approval
+      - high_risk_pending_approval
+      - future_caution
+      - no_go
+  reasonCode:
+    type: string
+    enum:
+      - trinity_must_route_to_acs
+      - report_only_allowed
+      - artifact_flow_required
+      - strategy_diff_gate_required
+      - strategy_sandbox_write_pending_approval
+      - strategy_disable_pending_approval
+      - strategy_remove_high_risk_pending_approval
+      - backtest_design_report_only
+      - backtest_dry_run_future_caution
+      - paper_trading_no_go_current_phase
+      - live_trading_no_go
+      - secret_access_no_go
+      - treasury_no_go
+      - hummingbot_runtime_no_go
+      - api_keys_out_of_context
+      - no_strategy_mutation_this_sprint

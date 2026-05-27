@@ -1,0 +1,131 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://axodus.local/acs/schemas/trinity-acs-roundtrip.schema.yaml"
+title: Trinity ACS Roundtrip Protocol
+type: object
+additionalProperties: false
+required:
+  - acsDecision
+  - trinityUserResponse
+properties:
+  acsDecision:
+    $ref: "#/$defs/ACSDecision"
+  trinityUserResponse:
+    $ref: "#/$defs/TrinityUserResponse"
+$defs:
+  ACSDecision:
+    type: object
+    additionalProperties: false
+    required:
+      - requestId
+      - decision
+      - agentId
+      - nucleus
+      - allowedModes
+      - blockedActions
+      - reasonCodes
+      - executionTicketRequired
+      - auditRequired
+      - evidenceRequired
+    properties:
+      requestId:
+        type: string
+        minLength: 1
+      decision:
+        type: string
+        enum:
+          - allow_report_only
+          - route_to_artifact_flow
+          - allow_diff_only
+          - pending_approval
+          - deny
+          - blocked_by_policy
+          - blocked_by_freeze
+          - requires_human_review
+      agentId:
+        const: trinity
+      nucleus:
+        const: trading
+      allowedModes:
+        type: array
+        items:
+          type: string
+      blockedActions:
+        type: array
+        items:
+          type: string
+      reasonCodes:
+        type: array
+        items:
+          type: string
+      requiredNextStep:
+        type: string
+      executionTicketRequired:
+        type: boolean
+      auditRequired:
+        type: boolean
+      evidenceRequired:
+        type: boolean
+  TrinityUserResponse:
+    type: object
+    additionalProperties: false
+    required:
+      - requestId
+      - agentId
+      - nucleus
+      - channel
+      - requesterRef
+      - responseType
+      - decision
+      - message
+      - allowedModes
+      - blockedActions
+      - reasonCodes
+      - executionTicketRequired
+      - executionTicketPresent
+      - canExecute
+    properties:
+      requestId:
+        type: string
+      agentId:
+        const: trinity
+      nucleus:
+        const: trading
+      channel:
+        type: string
+        enum:
+          - telegram_dm
+          - telegram_group
+          - cli
+          - acs_console
+      requesterRef:
+        type: string
+      responseType:
+        type: string
+        enum:
+          - decision
+          - plan
+          - block
+      decision:
+        type: string
+      message:
+        type: string
+      allowedModes:
+        type: array
+        items:
+          type: string
+      blockedActions:
+        type: array
+        items:
+          type: string
+      reasonCodes:
+        type: array
+        items:
+          type: string
+      requiredNextStep:
+        type: string
+      executionTicketRequired:
+        type: boolean
+      executionTicketPresent:
+        type: boolean
+      canExecute:
+        const: false

@@ -122,6 +122,39 @@ Trading execution remains mock/restricted.
 - [x] Add API examples documentation.
 - [x] Add MVP readiness checklist.
 
+# Sprint 68 - Trinity ACS Intake Boundary
+
+- [x] Document Trinity Telegram intake boundary.
+- [x] Add `TrinityIntentCapture` schema.
+- [x] Add `ACSIntentRequest` schema.
+- [x] Add Telegram request to allowed response mode matrix.
+- [x] Add side-effect No-Go reason codes.
+- [x] Block direct file/runtime/Hummingbot/backtest/MCP/shell/network/provider/exchange/secret actions from Telegram by contract.
+- [x] Add tests for ACS-routed Hummingbot mutation intents.
+
+# Sprint 69 - ACS Trading Intent Classifier
+
+- [x] Add trading intent classifier documentation.
+- [x] Add `trading-intent-classifier.schema.yaml`.
+- [x] Add Telegram trading request fixtures.
+- [x] Add classifications for research, artifact, strategy mutation, backtest, trading execution, secrets, and treasury.
+- [x] Add decision matrix and reason codes.
+- [x] Ensure live trading, treasury, API keys, Hummingbot runtime, and strategy mutation remain blocked.
+- [x] Add tests proving Trinity does not decide alone.
+
+# Sprint 70 - Trinity ACS Roundtrip Protocol
+
+- [x] Document Trinity ↔ ACS roundtrip protocol.
+- [x] Add `ACSDecision` schema.
+- [x] Add `TrinityUserResponse` schema.
+- [x] Add roundtrip fixtures.
+- [x] Add roundtrip reason code table.
+- [x] Implement default deny when ACS response is missing.
+- [x] Implement default deny when mandatory decision fields are missing.
+- [x] Ensure Telegram never becomes direct execution channel.
+- [x] Require ACS execution ticket for execution-capable modes.
+- [x] Keep real file writes, Hummingbot mutation, runtime mutation, shell, MCP, network, provider, API key, trading, and treasury actions disabled.
+
 ---
 
 # Deferred
