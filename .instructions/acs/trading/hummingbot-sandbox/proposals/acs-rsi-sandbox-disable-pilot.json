@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "pilotId": "acs-rsi-sandbox-disable-pilot",
+  "artifactId": "acs-rsi-sandbox-pilot",
+  "requestId": "synthetic-sprint76-hb-disable-001",
+  "capabilityId": "trading.hummingbot.strategy.disable_sandboxed",
+  "fromState": "created",
+  "toState": "disabled",
+  "preferredOverRemove": true,
+  "strategyPath": ".instructions/acs/trading/hummingbot-sandbox/strategies/acs_rsi_sandbox_pilot.py",
+  "physicalFileDeleted": false,
+  "realRuntimeTouched": false,
+  "evidencePreserved": true,
+  "createdAt": "2026-05-27T12:30:00.000Z"
+}

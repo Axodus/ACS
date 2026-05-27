@@ -1,0 +1,48 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://axodus.local/acs/schemas/hummingbot-sandbox-lifecycle.schema.yaml"
+title: Hummingbot Sandbox Strategy Lifecycle
+type: object
+additionalProperties: false
+required:
+  - schemaVersion
+  - artifactId
+  - lifecycle
+  - rules
+properties:
+  schemaVersion:
+    const: 1
+  artifactId:
+    type: string
+  lifecycle:
+    type: array
+    items:
+      type: string
+      enum:
+        - proposed
+        - approved_for_sandbox
+        - created
+        - edited
+        - disabled
+        - removed
+        - rolled_back
+        - archived
+  rules:
+    type: object
+    additionalProperties: false
+    required:
+      - disablePreferredToRemove
+      - removeRequiresHighRisk
+      - removeRequiresRollbackPlan
+      - removePreservesAuditEvidence
+      - removeTouchesRealRuntime
+    properties:
+      disablePreferredToRemove:
+        const: true
+      removeRequiresHighRisk:
+        const: true
+      removeRequiresRollbackPlan:
+        const: true
+      removePreservesAuditEvidence:
+        const: true
+      removeTouchesRealRuntime:
+        const: false

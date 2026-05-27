@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "verificationId": "rollback-verification-acs-rsi-sandbox-remove",
+  "artifactId": "acs-rsi-sandbox-pilot",
+  "removePilotId": "acs-rsi-sandbox-remove-pilot",
+  "fromState": "removed",
+  "toState": "rolled_back",
+  "rollbackWorks": true,
+  "rollbackMode": "lifecycle_state_restore",
+  "strategyFileStillPresent": true,
+  "evidenceStillPresent": true,
+  "liveRollbackTargetAllowed": false,
+  "realRuntimeTouched": false,
+  "verifiedEvidenceFiles": [
+    ".instructions/acs/trading/hummingbot-sandbox/proposals/acs-rsi-sandbox-pilot-sidecar.json",
+    ".instructions/acs/trading/hummingbot-sandbox/proofs/acs-rsi-sandbox-pilot-proof.md",
+    ".instructions/acs/trading/hummingbot-sandbox/proofs/acs-rsi-sandbox-pilot-evidence-index.json"
+  ],
+  "verifiedAt": "2026-05-27T12:40:00.000Z"
+}

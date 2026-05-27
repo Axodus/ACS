@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "pilotId": "acs-rsi-sandbox-remove-pilot",
+  "artifactId": "acs-rsi-sandbox-pilot",
+  "requestId": "synthetic-sprint76-hb-remove-001",
+  "capabilityId": "trading.hummingbot.strategy.remove_sandboxed",
+  "fromState": "disabled",
+  "toState": "removed",
+  "removeMode": "logical_tombstone",
+  "riskLevel": "high",
+  "rollbackPlanRequired": true,
+  "rollbackPlanPresent": true,
+  "auditEvidencePreserved": true,
+  "physicalFileDeleted": false,
+  "realRuntimeTouched": false,
+  "evidenceFilesPreserved": [
+    ".instructions/acs/trading/hummingbot-sandbox/proposals/acs-rsi-sandbox-pilot-sidecar.json",
+    ".instructions/acs/trading/hummingbot-sandbox/proofs/acs-rsi-sandbox-pilot-proof.md",
+    ".instructions/acs/trading/hummingbot-sandbox/proofs/acs-rsi-sandbox-pilot-evidence-index.json",
+    ".instructions/acs/trading/hummingbot-sandbox/rollback/acs-rsi-sandbox-pilot-rollback.json",
+    ".instructions/acs/trading/hummingbot-sandbox/console/acs-rsi-sandbox-pilot-console.txt"
+  ],
+  "createdAt": "2026-05-27T12:35:00.000Z"
+}

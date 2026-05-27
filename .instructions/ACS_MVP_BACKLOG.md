@@ -221,6 +221,20 @@ Trading execution remains mock/restricted.
 - [x] Verify no No-Go area was violated.
 - [x] Add tests validating sandbox-only pilot artifacts.
 
+# Sprint 76 - Hummingbot Strategy Remove/Disable Sandbox Lifecycle
+
+- [x] Add Hummingbot sandbox remove/disable lifecycle documentation.
+- [x] Add lifecycle schema.
+- [x] Add lifecycle fixtures.
+- [x] Model lifecycle states from `proposed` through `archived`.
+- [x] Prefer disable before remove.
+- [x] Require high risk, rollback plan and evidence preservation for remove.
+- [x] Add sandbox disable pilot artifact.
+- [x] Add sandbox remove pilot artifact.
+- [x] Add rollback verification.
+- [x] Ensure sandbox remove does not delete evidence or touch real runtime.
+- [x] Add tests for lifecycle decisions and sandbox artifacts.
+
 ---
 
 # Deferred
