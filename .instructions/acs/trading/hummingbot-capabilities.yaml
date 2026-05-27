@@ -1,0 +1,230 @@
+schemaVersion: 1
+registryId: acs.trading.hummingbot.capabilities
+status: planning_contract
+executionEnabled: false
+runtimeMutationEnabled: false
+secretAccessEnabled: false
+connectorConfigAccessEnabled: false
+owner: acs
+nucleus: trading
+executorCandidates:
+  - agentId: trinity
+    role: conditional_executor
+    requiresAcsDecision: true
+    requiresExecutionTicketForMutation: true
+    mayExecuteWithoutTicket: false
+capabilities:
+  - id: trading.hummingbot.strategy.research
+    name: Hummingbot Strategy Research
+    status: go
+    consumptionLevel: service
+    automationLevel: assisted
+    risk: low_medium
+    trinityMode: report_only
+    requiresApproval: false
+    requiresExecutionTicket: false
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions:
+      - classify_intent
+      - analyze_strategy_request
+      - produce_report_only_response
+    blockedActions:
+      - write_file
+      - mutate_runtime
+      - call_hummingbot
+      - run_backtest
+      - paper_trade
+      - live_trade
+      - access_secret
+      - access_connector_config
+
+  - id: trading.hummingbot.strategy.diff_proposal
+    name: Hummingbot Strategy Diff Proposal
+    status: limited_go
+    consumptionLevel: service
+    automationLevel: manual_approval
+    risk: low_medium
+    trinityMode: diff_only
+    requiresApproval: false
+    requiresExecutionTicket: false
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions:
+      - produce_no_write_diff
+      - explain_risk
+      - recommend_next_gate
+    blockedActions:
+      - write_file
+      - mutate_runtime
+      - call_hummingbot
+      - run_backtest
+      - paper_trade
+      - live_trade
+      - access_secret
+      - access_connector_config
+
+  - id: trading.hummingbot.strategy.create_sandboxed
+    name: Hummingbot Strategy Create Sandboxed
+    status: pending_approval
+    consumptionLevel: service
+    automationLevel: manual_approval
+    risk: medium
+    trinityMode: conditional_executor
+    requiresApproval: true
+    requiresExecutionTicket: true
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions: []
+    blockedActions:
+      - write_file_without_sandbox
+      - write_live_strategy
+      - mutate_runtime
+      - call_hummingbot
+      - access_secret
+      - access_connector_config
+
+  - id: trading.hummingbot.strategy.edit_sandboxed
+    name: Hummingbot Strategy Edit Sandboxed
+    status: pending_approval
+    consumptionLevel: service
+    automationLevel: manual_approval
+    risk: medium
+    trinityMode: conditional_executor
+    requiresApproval: true
+    requiresExecutionTicket: true
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions: []
+    blockedActions:
+      - edit_without_sandbox
+      - edit_live_strategy
+      - mutate_runtime
+      - call_hummingbot
+      - access_secret
+      - access_connector_config
+
+  - id: trading.hummingbot.strategy.disable_sandboxed
+    name: Hummingbot Strategy Disable Sandboxed
+    status: pending_approval
+    consumptionLevel: service
+    automationLevel: manual_approval
+    risk: medium
+    trinityMode: conditional_executor
+    requiresApproval: true
+    requiresExecutionTicket: true
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions: []
+    blockedActions:
+      - disable_live_strategy
+      - mutate_runtime
+      - call_hummingbot
+      - access_secret
+      - access_connector_config
+
+  - id: trading.hummingbot.strategy.remove_sandboxed
+    name: Hummingbot Strategy Remove Sandboxed
+    status: high_risk_pending_approval
+    consumptionLevel: service
+    automationLevel: manual_approval
+    risk: medium_high
+    trinityMode: conditional_executor
+    requiresApproval: true
+    requiresHumanReview: true
+    requiresRollbackPlan: true
+    requiresExecutionTicket: true
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions: []
+    blockedActions:
+      - remove_without_snapshot
+      - remove_live_strategy
+      - mutate_runtime
+      - call_hummingbot
+      - access_secret
+      - access_connector_config
+
+  - id: trading.hummingbot.strategy.backtest_design
+    name: Hummingbot Strategy Backtest Design
+    status: go
+    consumptionLevel: service
+    automationLevel: assisted
+    risk: low_medium
+    trinityMode: report_only
+    requiresApproval: false
+    requiresExecutionTicket: false
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions:
+      - design_backtest_plan
+      - document_required_data
+      - document_risk_metrics
+    blockedActions:
+      - run_backtest
+      - access_network
+      - mutate_runtime
+      - call_hummingbot
+      - access_secret
+      - access_connector_config
+
+  - id: trading.hummingbot.strategy.backtest_dry_run
+    name: Hummingbot Strategy Backtest Dry Run
+    status: caution
+    consumptionLevel: service
+    automationLevel: manual_approval
+    risk: high
+    trinityMode: human_review_only
+    requiresApproval: true
+    requiresHumanReview: true
+    requiresExecutionTicket: true
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions: []
+    blockedActions:
+      - run_backtest_now
+      - access_network
+      - mutate_runtime
+      - call_hummingbot
+      - access_secret
+      - access_connector_config
+
+  - id: trading.hummingbot.strategy.paper_trade
+    name: Hummingbot Strategy Paper Trade
+    status: no_go
+    consumptionLevel: service
+    automationLevel: blocked
+    risk: high
+    trinityMode: no_execution
+    requiresApproval: true
+    requiresExecutionTicket: true
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions: []
+    blockedActions:
+      - paper_trade
+      - start_bot
+      - call_hummingbot
+      - access_connector_config
+      - access_secret
+
+  - id: trading.hummingbot.strategy.live_trade
+    name: Hummingbot Strategy Live Trade
+    status: no_go
+    consumptionLevel: service
+    automationLevel: blocked
+    risk: critical
+    trinityMode: no_execution
+    requiresApproval: true
+    requiresExecutionTicket: true
+    auditRequired: true
+    evidenceRequired: true
+    allowedActions: []
+    blockedActions:
+      - live_trade
+      - place_order
+      - start_bot
+      - call_hummingbot
+      - access_connector_config
+      - access_secret
+      - treasury_operation

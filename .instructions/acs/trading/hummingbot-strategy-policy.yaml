@@ -1,0 +1,224 @@
+schemaVersion: 1
+policyId: acs.trading.hummingbot.strategy.policy
+status: planning_contract
+executionEnabled: false
+liveTradingEnabled: false
+paperTradingEnabled: false
+secretAccessEnabled: false
+connectorConfigAccessEnabled: false
+runtimeMutationEnabled: false
+defaultDecision: deny
+defaultReasonCodes:
+  - acs_default_deny
+  - hummingbot_policy_required
+executorRegistry:
+  - agentId: trinity
+    role: conditional_executor
+    nucleus: trading
+    mayCaptureIntent: true
+    mayClassifyIntent: true
+    mayRespondToRequester: true
+    mayProduceReportOnly: true
+    mayProduceDiffOnly: true
+    mayMutateSandboxWithoutTicket: false
+    mayMutateLiveRuntime: false
+    mayAccessSecrets: false
+    mayAccessConnectorConfigs: false
+    mayPaperTrade: false
+    mayLiveTrade: false
+    requiresAcsDecision: true
+    requiresExecutionTicketForMutation: true
+policyRules:
+  - capabilityId: trading.hummingbot.strategy.research
+    decision: allow_report_only
+    status: go
+    allowedModes:
+      - report_only
+    automationLevel: assisted
+    requiresApproval: false
+    requiresExecutionTicket: false
+    requiresHumanReview: false
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - report_only_allowed
+      - hummingbot_runtime_no_go
+
+  - capabilityId: trading.hummingbot.strategy.diff_proposal
+    decision: allow_diff_only
+    status: limited_go
+    allowedModes:
+      - diff_only
+    automationLevel: manual_approval
+    requiresApproval: false
+    requiresExecutionTicket: false
+    requiresHumanReview: false
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - diff_only_allowed
+      - no_write_mode_required
+      - hummingbot_runtime_no_go
+
+  - capabilityId: trading.hummingbot.strategy.create_sandboxed
+    decision: pending_approval
+    status: pending_approval
+    allowedModes:
+      - approval_required
+    automationLevel: manual_approval
+    requiresApproval: true
+    requiresExecutionTicket: true
+    requiresHumanReview: false
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - sandbox_path_required
+      - approval_required
+      - execution_ticket_required
+      - no_live_strategy_mutation
+
+  - capabilityId: trading.hummingbot.strategy.edit_sandboxed
+    decision: pending_approval
+    status: pending_approval
+    allowedModes:
+      - approval_required
+    automationLevel: manual_approval
+    requiresApproval: true
+    requiresExecutionTicket: true
+    requiresHumanReview: false
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - sandbox_path_required
+      - approval_required
+      - execution_ticket_required
+      - no_live_strategy_mutation
+
+  - capabilityId: trading.hummingbot.strategy.disable_sandboxed
+    decision: pending_approval
+    status: pending_approval
+    allowedModes:
+      - approval_required
+    automationLevel: manual_approval
+    requiresApproval: true
+    requiresExecutionTicket: true
+    requiresHumanReview: false
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - sandbox_path_required
+      - approval_required
+      - execution_ticket_required
+      - no_runtime_disable
+
+  - capabilityId: trading.hummingbot.strategy.remove_sandboxed
+    decision: requires_human_review
+    status: high_risk_pending_approval
+    allowedModes:
+      - human_review_only
+    automationLevel: manual_approval
+    requiresApproval: true
+    requiresExecutionTicket: true
+    requiresHumanReview: true
+    requiresRollbackPlan: true
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - high_risk_delete_path
+      - human_review_required
+      - rollback_plan_required
+      - execution_ticket_required
+
+  - capabilityId: trading.hummingbot.strategy.backtest_design
+    decision: allow_report_only
+    status: go
+    allowedModes:
+      - report_only
+    automationLevel: assisted
+    requiresApproval: false
+    requiresExecutionTicket: false
+    requiresHumanReview: false
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - backtest_design_report_only
+      - no_backtest_execution
+
+  - capabilityId: trading.hummingbot.strategy.backtest_dry_run
+    decision: requires_human_review
+    status: caution
+    allowedModes:
+      - human_review_only
+    automationLevel: manual_approval
+    requiresApproval: true
+    requiresExecutionTicket: true
+    requiresHumanReview: true
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - backtest_dry_run_future_caution
+      - no_backtest_execution
+      - execution_ticket_required
+
+  - capabilityId: trading.hummingbot.strategy.paper_trade
+    decision: blocked_by_policy
+    status: no_go
+    allowedModes: []
+    automationLevel: blocked
+    requiresApproval: true
+    requiresExecutionTicket: true
+    requiresHumanReview: true
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - paper_trading_no_go_current_phase
+      - policy_denied
+      - hummingbot_runtime_no_go
+
+  - capabilityId: trading.hummingbot.strategy.live_trade
+    decision: blocked_by_policy
+    status: no_go
+    allowedModes: []
+    automationLevel: blocked
+    requiresApproval: true
+    requiresExecutionTicket: true
+    requiresHumanReview: true
+    auditRequired: true
+    evidenceRequired: true
+    reasonCodes:
+      - live_trading_no_go
+      - policy_denied
+      - place_order_no_go
+      - treasury_no_go
+forbiddenActions:
+  - paper_trade
+  - live_trade
+  - place_order
+  - access_secret
+  - access_connector_config
+  - mutate_live_strategy
+  - mutate_runtime
+  - call_hummingbot_runtime
+  - call_hummingbot_api
+  - call_hummingbot_mcp
+  - call_shell
+  - access_network
+  - treasury_operation
+forbiddenPathClasses:
+  - connector_configs
+  - api_keys
+  - secrets
+  - accounts
+  - wallets
+  - gateway
+  - runtime_state
+  - databases
+  - logs
+  - docker_compose
+  - live_configs
+candidatePathClasses:
+  - strategy_scripts_readonly
+  - strategy_controllers_readonly
+  - templates_readonly
+  - quants_lab_controllers_readonly
+  - future_acs_sandbox_root

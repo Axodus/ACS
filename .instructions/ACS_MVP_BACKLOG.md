@@ -167,6 +167,20 @@ Trading execution remains mock/restricted.
 - [x] Mark connectors, credentials, API keys, accounts, wallets, runtime state and databases as forbidden.
 - [x] Keep Hummingbot bot/backtest/API/MCP/network execution blocked.
 
+# Sprint 72 - Hummingbot Strategy Policy and Capability Registry
+
+- [x] Add Hummingbot strategy policy documentation.
+- [x] Add Hummingbot capability registry YAML.
+- [x] Add Hummingbot strategy policy YAML.
+- [x] Register research and backtest design as report-only Go.
+- [x] Register diff proposal as limited no-write Go.
+- [x] Register sandboxed create/edit/disable as pending approval with ticket required.
+- [x] Register sandboxed remove as high risk with human review, rollback and ticket required.
+- [x] Keep paper trading and live trading as No-Go.
+- [x] Keep secrets and connector configs blocked.
+- [x] Register Trinity as conditional executor only.
+- [x] Add tests validating policy files and dangerous-action blocks.
+
 ---
 
 # Deferred
