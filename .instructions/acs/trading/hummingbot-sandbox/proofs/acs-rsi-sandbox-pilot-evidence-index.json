@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "evidenceIndexId": "evidence-acs-rsi-sandbox-pilot",
+  "requestId": "synthetic-sprint75-hb-create-001",
+  "artifactId": "acs-rsi-sandbox-pilot",
+  "capabilityId": "trading.hummingbot.strategy.create_sandboxed",
+  "sandboxRoot": ".instructions/acs/trading/hummingbot-sandbox",
+  "strategyFilesCreatedOrEdited": [
+    ".instructions/acs/trading/hummingbot-sandbox/strategies/acs_rsi_sandbox_pilot.py"
+  ],
+  "strategyFileCount": 1,
+  "evidenceFiles": {
+    "sidecar": ".instructions/acs/trading/hummingbot-sandbox/proposals/acs-rsi-sandbox-pilot-sidecar.json",
+    "proof": ".instructions/acs/trading/hummingbot-sandbox/proofs/acs-rsi-sandbox-pilot-proof.md",
+    "rollback": ".instructions/acs/trading/hummingbot-sandbox/rollback/acs-rsi-sandbox-pilot-rollback.json",
+    "console": ".instructions/acs/trading/hummingbot-sandbox/console/acs-rsi-sandbox-pilot-console.txt"
+  },
+  "hashes": {
+    "strategySha256": "4757a96ee1bd6163fc332592bd8a255aa7c656fcd53b2705fe92289971fe2ed6"
+  },
+  "noGoChecks": {
+    "realHummingbotTouched": false,
+    "runtimeTouched": false,
+    "connectorConfigAccessed": false,
+    "apiKeysAccessed": false,
+    "secretsAccessed": false,
+    "shellWorkflowExecuted": false,
+    "networkAccessed": false,
+    "mcpAccessed": false,
+    "packageInstallExecuted": false,
+    "serviceRestartExecuted": false,
+    "deployExecuted": false,
+    "paperTradingExecuted": false,
+    "liveTradingExecuted": false
+  },
+  "createdAt": "2026-05-27T12:00:00.000Z"
+}

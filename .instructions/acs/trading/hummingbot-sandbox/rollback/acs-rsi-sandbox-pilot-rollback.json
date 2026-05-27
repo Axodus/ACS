@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "rollbackId": "rollback-acs-rsi-sandbox-pilot",
+  "artifactId": "acs-rsi-sandbox-pilot",
+  "requestId": "synthetic-sprint75-hb-create-001",
+  "operation": "delete_new_sandbox_file",
+  "previousArtifactRef": "new_file",
+  "sandboxTargetPath": ".instructions/acs/trading/hummingbot-sandbox/strategies/acs_rsi_sandbox_pilot.py",
+  "liveRollbackTargetAllowed": false,
+  "rollbackMayTouchLiveRuntime": false,
+  "humanReviewRequired": false,
+  "removeRequiresSnapshot": false,
+  "contentSha256Before": null,
+  "contentSha256After": "4757a96ee1bd6163fc332592bd8a255aa7c656fcd53b2705fe92289971fe2ed6",
+  "restoreProcedure": [
+    "Delete only the sandbox file .instructions/acs/trading/hummingbot-sandbox/strategies/acs_rsi_sandbox_pilot.py.",
+    "Do not touch live Hummingbot, Hummingbot API, connector config, database, runtime or strategy paths.",
+    "Retain sidecar, proof, evidence index and rollback manifest unless governance authorizes archival."
+  ],
+  "createdAt": "2026-05-27T12:00:00.000Z"
+}

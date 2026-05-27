@@ -207,6 +207,20 @@ Trading execution remains mock/restricted.
 - [x] Keep sandbox disconnected from real Hummingbot runtime, API, MCP, network, connector configs and secrets.
 - [x] Add tests validating sandbox structure and safety rules.
 
+# Sprint 75 - Trinity Strategy Create/Edit Sandbox Pilot
+
+- [x] Confirm Sprints 71-74 are complete before pilot.
+- [x] Add Trinity strategy sandbox pilot documentation.
+- [x] Create exactly one sandbox strategy artifact.
+- [x] Add sidecar JSON.
+- [x] Add proof report.
+- [x] Add rollback manifest.
+- [x] Add evidence index.
+- [x] Add console snapshot.
+- [x] Verify proof confirms real runtime was not touched.
+- [x] Verify no No-Go area was violated.
+- [x] Add tests validating sandbox-only pilot artifacts.
+
 ---
 
 # Deferred
