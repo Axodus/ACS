@@ -1,0 +1,65 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://axodus.local/acs/schemas/hummingbot-strategy-validation-gate.schema.yaml"
+title: Hummingbot Strategy Validation Gate Report
+type: object
+additionalProperties: false
+required:
+  - schemaVersion
+  - artifactId
+  - strategyPath
+  - valid
+  - contentSha256
+  - passedChecks
+  - failedChecks
+  - promotionAllowed
+  - realRuntimeTouched
+  - createdAt
+properties:
+  schemaVersion:
+    const: 1
+  artifactId:
+    type: string
+  strategyPath:
+    type: string
+  valid:
+    type: boolean
+  contentSha256:
+    type: string
+  passedChecks:
+    type: array
+    items:
+      type: string
+      enum:
+        - schema_validation
+        - static_safety_checks
+        - no_secrets
+        - no_connector_keys
+        - no_direct_exchange_calls
+        - no_network_calls
+        - no_shell_calls
+        - no_filesystem_escape
+        - no_live_trading_flags
+        - risk_metadata_present
+        - strategy_config_explicit
+        - rollback_plan_present
+  failedChecks:
+    type: array
+    items:
+      type: object
+      required:
+        - check
+        - code
+        - message
+      properties:
+        check:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+  promotionAllowed:
+    const: false
+  realRuntimeTouched:
+    const: false
+  createdAt:
+    type: string

@@ -235,6 +235,19 @@ Trading execution remains mock/restricted.
 - [x] Ensure sandbox remove does not delete evidence or touch real runtime.
 - [x] Add tests for lifecycle decisions and sandbox artifacts.
 
+# Sprint 77 - Hummingbot Strategy Validation Gate
+
+- [x] Add Hummingbot strategy validation gate documentation.
+- [x] Add validation gate module.
+- [x] Add valid and invalid validation fixtures.
+- [x] Add validation report schema.
+- [x] Add JSON and Markdown validation reports.
+- [x] Add validation evidence record.
+- [x] Validate schema/static safety, no secrets, no connector keys, no direct exchange calls, no network calls, no shell calls and no filesystem escape.
+- [x] Validate no live trading flags, risk metadata, explicit strategy config and rollback plan.
+- [x] Add tests proving valid sandbox strategy passes.
+- [x] Add tests proving secret, direct exchange, network/shell and live flag cases fail.
+
 ---
 
 # Deferred

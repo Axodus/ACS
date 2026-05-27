@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "evidenceId": "evidence-acs-rsi-sandbox-validation",
+  "artifactId": "acs-rsi-sandbox-pilot",
+  "requestId": "synthetic-sprint77-hb-validation-001",
+  "capabilityId": "trading.hummingbot.strategy.create_sandboxed",
+  "validationGate": "hummingbot_strategy_validation_gate",
+  "reportJson": ".instructions/acs/trading/hummingbot-sandbox/proofs/acs-rsi-sandbox-validation-report.json",
+  "reportMarkdown": ".instructions/acs/trading/hummingbot-sandbox/proofs/acs-rsi-sandbox-validation-report.md",
+  "strategyPath": ".instructions/acs/trading/hummingbot-sandbox/strategies/acs_rsi_sandbox_pilot.py",
+  "strategySha256": "4757a96ee1bd6163fc332592bd8a255aa7c656fcd53b2705fe92289971fe2ed6",
+  "valid": true,
+  "promotionAllowed": false,
+  "realRuntimeTouched": false,
+  "noGoChecks": {
+    "secretsDetected": false,
+    "connectorKeysDetected": false,
+    "directExchangeCallsDetected": false,
+    "networkCallsDetected": false,
+    "shellCallsDetected": false,
+    "filesystemEscapeDetected": false,
+    "liveTradingFlagsDetected": false,
+    "rollbackPlanMissing": false
+  },
+  "createdAt": "2026-05-27T13:00:00.000Z"
+}
