@@ -155,6 +155,18 @@ Trading execution remains mock/restricted.
 - [x] Require ACS execution ticket for execution-capable modes.
 - [x] Keep real file writes, Hummingbot mutation, runtime mutation, shell, MCP, network, provider, API key, trading, and treasury actions disabled.
 
+# Sprint 71 - Hummingbot Strategy Control Surface Inventory
+
+- [x] Map Hummingbot strategy control surface without mutation.
+- [x] Add strategy source, script, controller, config, backtest, logs, credential, connector, runtime, database, Docker/compose, API and MCP surfaces.
+- [x] Add path matrix.
+- [x] Add operation matrix.
+- [x] Add risk matrix.
+- [x] Add forbidden paths.
+- [x] Add allowed candidate paths.
+- [x] Mark connectors, credentials, API keys, accounts, wallets, runtime state and databases as forbidden.
+- [x] Keep Hummingbot bot/backtest/API/MCP/network execution blocked.
+
 ---
 
 # Deferred
