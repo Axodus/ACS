@@ -260,6 +260,19 @@ Trading execution remains mock/restricted.
 - [x] Ensure sensitive refs are sanitized.
 - [x] Add tests validating response safety and coverage.
 
+# Sprint 79 - Trinity ACS/Hummingbot Readiness Review
+
+- [x] Consolidate Sprints 68-78 into a readiness review.
+- [x] Add explicit decision matrix for Trinity and Hummingbot capabilities.
+- [x] Reference evidence from intake, classifier, roundtrip, control surface, policy, diff-only, sandbox, lifecycle, validation and response contract work.
+- [x] Approve repeated diff-only proposals.
+- [x] Approve repeated sandbox create/edit only inside ACS sandbox with ACS approval/ticket, proof, rollback and validation gate.
+- [x] Approve repeated sandbox disable/remove only inside ACS sandbox with high-risk/evidence-preserving controls.
+- [x] Approve backtest dry-run design only as report-only design.
+- [x] Keep Hummingbot real runtime mutation, paper trading, live trading, MCP, network, secrets and production as No-Go.
+- [x] Recommend next block focused on backtest dry-run design contracts and safety validation.
+- [x] Add tests validating readiness decisions and preserved No-Go boundaries.
+
 ---
 
 # Deferred
