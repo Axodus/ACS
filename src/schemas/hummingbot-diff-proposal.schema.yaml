@@ -1,0 +1,121 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://axodus.local/acs/schemas/hummingbot-diff-proposal.schema.yaml"
+title: Trinity Hummingbot Diff-Only Proposal
+type: object
+additionalProperties: false
+required:
+  - proposalId
+  - requestId
+  - status
+  - diffText
+  - rationale
+  - riskAssessment
+  - rollbackNotes
+  - sidecar
+  - proofReport
+  - consoleSnapshot
+  - auditEvidence
+properties:
+  proposalId:
+    type: string
+    minLength: 1
+  requestId:
+    type: string
+    minLength: 1
+  status:
+    const: created
+  diffText:
+    type: string
+    minLength: 1
+  rationale:
+    type: array
+    items:
+      type: string
+  riskAssessment:
+    type: array
+    items:
+      type: string
+  rollbackNotes:
+    type: array
+    items:
+      type: string
+  sidecar:
+    type: object
+    additionalProperties: false
+    required:
+      - schemaVersion
+      - proposalId
+      - requestId
+      - requesterRef
+      - capabilityId
+      - status
+      - mode
+      - sourceStrategyPath
+      - targetStrategyPath
+      - realFileMutationAllowed
+      - applyPatchAllowed
+      - secretsAccessAllowed
+      - connectorAccessAllowed
+      - hummingbotRuntimeAllowed
+      - backtestAllowed
+      - networkAllowed
+      - mcpAllowed
+      - auditRequired
+      - evidenceRequired
+      - reasonCodes
+      - createdAt
+    properties:
+      schemaVersion:
+        const: 1
+      proposalId:
+        type: string
+      requestId:
+        type: string
+      tenantId:
+        type: string
+      requesterRef:
+        type: string
+      capabilityId:
+        const: trading.hummingbot.strategy.diff_proposal
+      status:
+        const: created
+      mode:
+        const: diff_only
+      sourceStrategyPath:
+        type: string
+      targetStrategyPath:
+        type: string
+      realFileMutationAllowed:
+        const: false
+      applyPatchAllowed:
+        const: false
+      secretsAccessAllowed:
+        const: false
+      connectorAccessAllowed:
+        const: false
+      hummingbotRuntimeAllowed:
+        const: false
+      backtestAllowed:
+        const: false
+      networkAllowed:
+        const: false
+      mcpAllowed:
+        const: false
+      auditRequired:
+        const: true
+      evidenceRequired:
+        const: true
+      reasonCodes:
+        type: array
+        items:
+          type: string
+      createdAt:
+        type: string
+  proofReport:
+    type: string
+  consoleSnapshot:
+    type: string
+  auditEvidence:
+    type: array
+    items:
+      type: string

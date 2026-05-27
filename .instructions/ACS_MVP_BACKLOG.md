@@ -181,6 +181,19 @@ Trading execution remains mock/restricted.
 - [x] Register Trinity as conditional executor only.
 - [x] Add tests validating policy files and dangerous-action blocks.
 
+# Sprint 73 - Trinity Hummingbot Diff-Only Proposal Flow
+
+- [x] Add Trinity Hummingbot diff-only flow documentation.
+- [x] Add diff proposal schema.
+- [x] Add diff proposal fixture.
+- [x] Add ACS output allowlist for diff proposal artifacts.
+- [x] Generate textual diff, rationale, risk assessment and rollback notes.
+- [x] Save proposal markdown, sidecar JSON, proof report and console snapshot.
+- [x] Add audit/evidence metadata.
+- [x] Deny apply patch attempts.
+- [x] Deny secret/API key/connector access attempts.
+- [x] Keep real Hummingbot files, runtime, backtest, shell, network, MCP, paper trading and live trading untouched.
+
 ---
 
 # Deferred
