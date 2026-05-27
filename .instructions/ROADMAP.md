@@ -1,5 +1,29 @@
 # ACS Roadmap
 
+# Phase -1 - Planning Reset
+
+Status: IN PROGRESS
+
+Objectives:
+- formalize Operational States
+- formalize ACS Policy Matrix
+- formalize What ACS Is Not
+- define Trading Ignition Product boundary
+- define license, API safety, risk, and internal validation requirements
+
+Deliverables:
+- `ACS_OPERATIONAL_STATES.md`
+- `ACS_POLICY_MATRIX.md`
+- `ACS_IS_NOT.md`
+- `ACS_TRADING_IGNITION_PRODUCT.md`
+- `ACS_LICENSE_AND_ACCESS_MODEL.md`
+- `ACS_RISK_MODEL.md`
+- `ACS_INTERNAL_VALIDATION_PLAN.md`
+- `ACS_SECURITY_REQUIREMENTS.md`
+- `ACS_MVP_BACKLOG.md`
+
+---
+
 # Phase 0 — Cognitive Architecture
 
 Status: IN PROGRESS

@@ -1,5 +1,21 @@
 # ACS Architecture
 
+Planning reset:
+ACS is currently scoped as a tenant-aware Autonomous Coordination System with Core, Service, and Product consumption levels. Trading Ignition is one mapped ACS Product/Service use case.
+
+The first architectural authorities are:
+- `ACS_CONSUMPTION_MODEL.md`
+- `ACS_TENANT_SERVICE_MODEL.md`
+- `ACS_CORE_OPERATIONS.md`
+- `ACS_PRODUCT_LAYER.md`
+- `ACS_OPERATIONAL_STATES.md`
+- `ACS_POLICY_MATRIX.md`
+- `ACS_IS_NOT.md`
+- `ACS_TRADING_IGNITION_PRODUCT.md`
+- `ACS_LICENSE_AND_ACCESS_MODEL.md`
+- `ACS_RISK_MODEL.md`
+- `ACS_SECURITY_REQUIREMENTS.md`
+
 # Architectural Mission
 
 ACS provides the cognitive infrastructure of the Axodus ecosystem.
@@ -194,6 +210,23 @@ Current implementation baseline:
 - `src/telemetry.ts` provides append-only JSONL telemetry persistence at `.acs/telemetry/events.jsonl`.
 - `src/redhat-mcp.ts` defines the safe RedHat Dev MCP contract for listing skills, describing skills, and planning tasks without command execution.
 - `src/execution-policy.ts` defines `ExecutionPolicy`, `DefaultExecutionPolicy`, command risk assessment, action allowlists, approval state, and sandbox boundaries.
+- `src/operational-state.ts` defines the canonical ACS operational states and allowed transitions.
+- `src/acs-policy-matrix.ts` defines the initial capability authority matrix for Trading Ignition.
+- `src/operational-state-machine.ts` applies operational state transitions, emits telemetry, and writes transition receipts.
+- `src/readiness.ts` defines the MVP readiness checklist contract.
+- `src/license.ts` defines the replaceable mock license validation contract.
+- `src/consumption-levels.ts` defines Core, Service, and Product consumption levels plus automation levels.
+- `src/tenant-context.ts` defines tenant-aware context and isolation helpers.
+- `src/capability-registry.ts` defines initial ACS capabilities, including Trading Ignition.
+- `src/tenant-service-registry.ts` evaluates tenant service access.
+- `src/product-access-registry.ts` evaluates user/product access.
+
+Trading Ignition baseline:
+- Operational state is the central gate for user progress and strategy activation.
+- `READY` is required before strategy activation.
+- `EMERGENCY_STOP`, `SUSPENDED`, and `REVOKED` block strategy activation.
+- Withdraw funds is never an ACS capability.
+- Operational state changes must emit telemetry and receipts.
 
 Current workflow registry:
 - `dev-coordination`

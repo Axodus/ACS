@@ -2,19 +2,85 @@ import {
   assertRequiredAgents,
   createAcsRuntime,
   createWorkflowByName,
+  inspectCapabilities,
+  inspectAuditReceipts,
+  inspectEmergencyStops,
+  inspectObservabilityStatus,
+  inspectPerformanceRecords,
+  inspectPolicyCheck,
+  inspectPolicyMatrix,
+  inspectProductAccess,
+  inspectSecretStorageStatus,
+  inspectTenantServices,
+  inspectUserStatus,
   listWorkflows,
   RedHatMcpAdapter,
 } from "../dist/index.js";
 
 const args = process.argv.slice(2);
 const command = args[0] ?? "help";
-const runtime = createAcsRuntime({ workspaceRoot: process.cwd() });
+let runtime;
 
 try {
   switch (command) {
+    case "capabilities":
+      printJson(inspectCapabilities({ level: readOption(args.slice(1), "--level") }));
+      break;
+
+    case "tenant-services":
+      printJson(inspectTenantServices({ tenantId: readOption(args.slice(1), "--tenant") }));
+      break;
+
+    case "product-access":
+      printJson(inspectProductAccess({
+        walletAddress: readOption(args.slice(1), "--wallet"),
+        productId: readOption(args.slice(1), "--product"),
+      }));
+      break;
+
+    case "policy-matrix":
+      printJson(inspectPolicyMatrix());
+      break;
+
+    case "policy-check":
+      printJson(inspectPolicyCheck({
+        capabilityId: requiredOption(args.slice(1), "--capability"),
+        tenantId: readOption(args.slice(1), "--tenant"),
+        wallet: readOption(args.slice(1), "--wallet"),
+      }));
+      break;
+
+    case "user-status":
+      printJson(inspectUserStatus({
+        wallet: requiredOption(args.slice(1), "--wallet"),
+        tenantId: readOption(args.slice(1), "--tenant"),
+        productId: readOption(args.slice(1), "--product"),
+      }));
+      break;
+
+    case "performance-records":
+      printJson(inspectPerformanceRecords());
+      break;
+
+    case "audit-receipts":
+      printJson(inspectAuditReceipts());
+      break;
+
+    case "emergency-stops":
+      printJson(inspectEmergencyStops());
+      break;
+
+    case "secret-storage-status":
+      printJson(inspectSecretStorageStatus());
+      break;
+
+    case "observability-status":
+      printJson(inspectObservabilityStatus());
+      break;
+
     case "agents":
       printJson({
-        agents: runtime.agents.list().map((agent) => ({
+        agents: getRuntime().agents.list().map((agent) => ({
           id: agent.id,
           sourceIds: agent.sourceIds,
           name: agent.name,
@@ -32,7 +98,7 @@ try {
 
     case "providers":
       printJson({
-        providers: runtime.providers.list().map((provider) => ({
+        providers: getRuntime().providers.list().map((provider) => ({
           id: provider.id,
           name: provider.name,
           status: provider.status,
@@ -43,15 +109,15 @@ try {
 
     case "receipts":
       printJson({
-        receiptPath: runtime.receiptPath,
-        receipts: runtime.receipts.query(parseReceiptFilter(args.slice(1))).map(toReceiptSummary),
+        receiptPath: getRuntime().receiptPath,
+        receipts: getRuntime().receipts.query(parseReceiptFilter(args.slice(1))).map(toReceiptSummary),
       });
       break;
 
     case "telemetry":
       printJson({
-        telemetryPath: runtime.telemetryPath,
-        events: runtime.telemetry.list(),
+        telemetryPath: getRuntime().telemetryPath,
+        events: getRuntime().telemetry.list(),
       });
       break;
 
@@ -94,8 +160,10 @@ try {
 
 function runRedHatCommand(redHatArgs) {
   const subcommand = redHatArgs[0] ?? "help";
+  const runtime = getRuntime();
+  const openClawAgentsRoot = process.env.ACS_OPENCLAW_AGENTS_ROOT ?? runtime.openClawRoot;
   const adapter = new RedHatMcpAdapter({
-    redHatRoot: `${process.env.HOME}/.openclaw/agents/redhat`,
+    redHatRoot: `${openClawAgentsRoot}/redhat`,
     telemetry: runtime.telemetry,
   });
 
@@ -145,6 +213,7 @@ function executeWorkflow(name, workflowArgs) {
     throw new Error("workflow name is required");
   }
 
+  const runtime = getRuntime();
   assertRequiredAgents(runtime.agents.list(), ["redhat", "morpheus", "agentsmith"]);
 
   const workflowRunId = readOption(workflowArgs, "--run-id");
@@ -162,6 +231,11 @@ function executeWorkflow(name, workflowArgs) {
   if (receipt.status !== "completed") {
     process.exitCode = 1;
   }
+}
+
+function getRuntime() {
+  runtime ??= createAcsRuntime({ workspaceRoot: process.cwd() });
+  return runtime;
 }
 
 function parseReceiptFilter(receiptArgs) {
@@ -182,6 +256,15 @@ function readOption(values, optionName) {
   const value = values[index + 1];
   if (!value || value.startsWith("--")) {
     throw new Error(`missing value for ${optionName}`);
+  }
+
+  return value;
+}
+
+function requiredOption(values, optionName) {
+  const value = readOption(values, optionName);
+  if (!value) {
+    throw new Error(`${optionName} is required`);
   }
 
   return value;
@@ -209,6 +292,17 @@ function printHelp() {
 
 Commands:
   agents                         List discovered OpenClaw agents
+  capabilities [--level level]   Inspect ACS capabilities
+  user-status --wallet wallet    Inspect summarized user/product status
+  performance-records            Inspect mock/internal-validation performance records
+  audit-receipts                  Inspect ACS policy/status audit receipt previews
+  emergency-stops                 Inspect active mock emergency stop records
+  secret-storage-status           Inspect secret storage contract status
+  observability-status            Inspect HTTP/runtime observability contract status
+  tenant-services [filters]      Inspect tenant service access
+  product-access [filters]       Inspect product access rules
+  policy-matrix                  Inspect ACS policy matrix
+  policy-check --capability id   Inspect a capability policy decision
   providers                      List local providers
   workflows                      List registered workflow names
   telemetry                      List persisted telemetry events
@@ -225,6 +319,14 @@ Receipt filters:
   --workflow <id>
   --agent <id>
   --status <completed|failed|rejected>
+
+Inspection filters:
+  capabilities --level <core|service|product>
+  tenant-services --tenant <tenantId>
+  product-access --wallet <walletAddress>
+  product-access --product <productId>
+  policy-check --capability <capabilityId> [--tenant <tenantId>] [--wallet <walletAddress>]
+  user-status --wallet <walletAddress> [--tenant <tenantId>] [--product <productId>]
 `);
 }
 

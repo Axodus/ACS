@@ -13,6 +13,12 @@ export type WorkflowStatus = "accepted" | "rejected" | "running" | "completed" |
 export type TelemetryEventType =
   | "agent.registered"
   | "provider.registered"
+  | "operational.state.transition.accepted"
+  | "operational.state.transition.rejected"
+  | "operational.state.changed"
+  | "acs.receipt.created"
+  | "emergency.stop.created"
+  | "emergency.stop.resolved"
   | "workflow.accepted"
   | "workflow.rejected"
   | "workflow.started"

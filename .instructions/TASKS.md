@@ -2,6 +2,51 @@
 
 # Active Tasks
 
+## Tenant-Aware Core MVP
+- [x] define Core/Service/Product consumption model
+- [x] define tenant context model
+- [x] define ACS capability registry
+- [x] define tenant service mock registry
+- [x] define product access mock registry
+- [x] extend policy matrix with consumption and automation metadata
+- [x] map Trading Ignition as ACS capability
+- [x] scope operational state telemetry and receipts by tenant/level
+- [x] test tenant isolation
+- [x] test service/product access decisions
+- [x] add tenant-aware CLI inspection commands
+- [x] ensure inspection CLI commands do not initialize runtime side effects
+- [x] add read-only HTTP inspection API for AxodusAPP
+- [ ] add tenant-scoped workflow receipt model
+
+---
+
+## Planning Reset
+- [x] define Operational States
+- [x] define ACS Policy Matrix
+- [x] define What ACS Is Not
+- [x] document Trading Ignition Product boundary
+- [x] document License and Access Model
+- [x] document Risk Model
+- [x] document Internal Validation Plan
+- [x] document Security Requirements
+- [x] add initial TypeScript OperationalState contract
+- [x] add initial TypeScript ACS Policy Matrix contract
+- [x] test activation-blocking states
+- [x] test withdrawal is never allowed
+- [x] add state-change telemetry event types
+- [x] add state-change receipt model
+- [x] implement operational state machine
+- [x] implement readiness checklist contract
+- [x] implement mock license validator
+- [x] implement mock API safety validator
+- [x] add UI recommendations for disabled withdrawals and IP permission
+- [x] implement risk preset schema
+- [x] implement conservative default preset
+- [x] implement risk limit evaluator
+- [ ] implement emergency stop workflow
+
+---
+
 ## Orchestration
 - [x] define initial orchestration runtime
 - [x] define initial workflow execution model

@@ -11,6 +11,7 @@
     "test": "npm run build && node --test tests/*.test.mjs",
     "check": "npm run test",
     "acs": "npm run build && node scripts/acs.mjs",
+    "http": "npm run build && node scripts/acs-http.mjs",
     "smoke:openclaw": "npm run build && node scripts/smoke-openclaw.mjs",
     "smoke:runtime": "npm run build && node scripts/smoke-runtime.mjs"
   },

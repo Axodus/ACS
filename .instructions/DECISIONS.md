@@ -2,6 +2,86 @@
 
 # Active Decisions
 
+## Tenant-Aware Consumption Model
+
+Decision:
+ACS is a tenant-aware operational intelligence layer with Core, Service, and Product consumption levels.
+
+Trading Ignition remains an important use case, but it is classified as an ACS Product for end users, an ACS Service when offered by enabled DAO Tenants, and an ACS Core monitoring/policy target.
+
+Status:
+CONFIRMED
+
+---
+
+## Automation Maturity Boundary
+
+Decision:
+Full autonomous execution is not allowed yet. Current ACS may monitor, validate, recommend, guide, simulate, prepare workflows, emit telemetry, generate receipts, and require manual approval.
+
+Autonomous tenant-critical actions depend on future Governance maturity.
+
+Status:
+CONFIRMED
+
+---
+
+## ACS Planning Reset
+
+Decision:
+ACS is reset around the Autonomous Coordination System direction. The first MVP target is Trading Ignition, with Operational States, ACS Policy Matrix, and What ACS Is Not as mandatory foundations before new features.
+
+Status:
+CONFIRMED
+
+---
+
+## Operational States
+
+Decision:
+ACS uses canonical operational states as the control backbone:
+`UNINITIALIZED`, `LEARNING`, `CERTIFIED`, `LICENSED`, `API_PENDING`, `API_VALIDATED`, `RISK_RESTRICTED`, `READY`, `ACTIVE`, `PAUSED`, `EMERGENCY_STOP`, `SUSPENDED`, `REVOKED`.
+
+`READY` is required for strategy activation. `EMERGENCY_STOP`, `SUSPENDED`, and `REVOKED` block activation.
+
+Status:
+CONFIRMED
+
+---
+
+## ACS Policy Matrix
+
+Decision:
+Every ACS capability must be represented in the ACS Policy Matrix before implementation. Withdraw funds is never allowed for user via ACS, ACS, governance, or risk engine.
+
+Status:
+CONFIRMED
+
+---
+
+## What ACS Is Not
+
+Decision:
+ACS is not an autonomous hedge fund, profit promise system, custodian, unrestricted execution engine, governance bypass, or public product before internal validation.
+
+Status:
+CONFIRMED
+
+---
+
+## OpenClaw Workspace Boundary
+
+Decision:
+ACS will not add `.openclaw` as a submodule now. ACS uses the local configurable OpenClaw agents path, defaulting to `~/.openclaw/agents` or `ACS_OPENCLAW_AGENTS_ROOT`.
+
+Rationale:
+`.openclaw` is an operational runtime with memory, logs, local state, credentials, environment files, and live changes. If ACS needs versioned OpenClaw contracts later, create a sanitized schema/adapter package instead of submoduling the runtime.
+
+Status:
+CONFIRMED
+
+---
+
 ## ACS Direction
 
 Decision:
