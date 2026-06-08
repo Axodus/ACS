@@ -37,3 +37,14 @@ Result:
 Remaining validation:
 
 - Keep ACS under HOLD gates. Product validation passing does not authorize Hummingbot runtime, secrets, trading, withdrawals or autonomous execution.
+
+PORTFOLIO-REQ-02 command:
+
+```bash
+npm run check
+```
+
+PORTFOLIO-REQ-02 result:
+
+- Build and tests: PASS, 152 tests
+- Maturity decision: KEEP_L3_CANDIDATE pending explicit L4 candidate approval/gate review

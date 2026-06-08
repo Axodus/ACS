@@ -30,10 +30,18 @@ Resolution path: Keep sandbox-only gates until a separate approved execution req
 
 Severity: MEDIUM
 
-Status: OPEN
+Status: RESOLVED
 
 Description: Current cycle normalized status but did not initially rerun the full ACS validation suite.
 
 Impact: Maturity remains L3 candidate.
 
-Resolution path: Run `npm test`/`npm run check` in an ACS validation request if dependencies are present.
+Resolution path: PORTFOLIO-REQ-02 ran `npm run check` successfully with 152 tests passing.
+
+## PORTFOLIO-REQ-02 Blocker Review
+
+| Blocker | Status |
+|---|---|
+| Execution authority not approved | ACTIVE |
+| Hummingbot runtime blocked | ACTIVE |
+| Validation refresh required | RESOLVED |
