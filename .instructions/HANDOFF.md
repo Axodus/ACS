@@ -6,11 +6,11 @@ Date: 2026-06-08
 
 State: HOLD_WITH_VALIDATION_GATES
 
-Maturity: L3 candidate
+Maturity: L4 candidate
 
 ## Next Request
 
-ACS-REQ-02 - L4 Candidate Gate Review for Guarded ACS Contracts
+ACS-GATE-02 - Execution Authority and Credential Boundary Review
 
 ## Handoff Notes
 
@@ -19,3 +19,6 @@ ACS-REQ-02 - L4 Candidate Gate Review for Guarded ACS Contracts
 - Do not touch secrets or production credentials.
 - PORTFOLIO-REQ-02 validation passed with `npm run check`.
 - Maturity decision: KEEP_L3_CANDIDATE pending explicit L4 candidate gate review.
+- ACS-GATE-01 evidence review passed.
+- Maturity decision: PROMOTE_TO_L4_CANDIDATE.
+- Keep ACS on HOLD for execution-sensitive work; L4 candidate does not authorize real execution, secrets, Hummingbot runtime, trading, withdrawals or treasury movement.

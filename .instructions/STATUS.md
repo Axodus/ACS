@@ -10,9 +10,9 @@ Normalization result: COMPLETE
 
 ## Current Maturity
 
-Detected level: L3 - Local validation candidate
+Detected level: L4 candidate - Functional integration readiness
 
-Maturity recommendation: DOCUMENTED_AS_L3_CANDIDATE
+Maturity recommendation: PROMOTE_TO_L4_CANDIDATE
 
 Rationale:
 
@@ -87,7 +87,7 @@ Production execution: DISABLED
 
 ## Next Recommended Request
 
-ACS-REQ-01 - Current Local Validation and Guarded Execution Boundary Report
+ACS-GATE-02 - Execution Authority and Credential Boundary Review
 
 ## PORTFOLIO-REQ-02 Validation Refresh
 
@@ -113,3 +113,30 @@ Rationale:
 - ACS local guarded execution evidence is strong and supports future L4 candidate consideration.
 - Promotion is intentionally deferred because ACS is execution-sensitive and remains HOLD-gated by Governance/Core alignment, secrets policy and Hummingbot/trading runtime boundaries.
 - No autonomous execution, secrets, trading, treasury or Hummingbot runtime was enabled.
+
+## ACS-GATE-01 L4 Candidate Evidence Review
+
+Status: COMPLETE
+
+Validation result: PASS
+
+Command:
+
+```bash
+npm run check
+```
+
+Evidence:
+
+- build: PASS
+- tests: PASS, 152 tests
+- failures: 0
+- skipped: 0
+
+Maturity decision: PROMOTE_TO_L4_CANDIDATE
+
+Rationale:
+
+- ACS has validated local functional integration evidence across policy matrix, operational state, HTTP inspection, receipts, telemetry, tenant/service/product access, guarded execution, Hummingbot sandbox boundaries, secret handling guards and Trinity default-deny routing.
+- L4 candidate status does not authorize execution-sensitive behavior.
+- Production execution, secrets, real credentials, Hummingbot runtime, paper/live trading, withdrawals and treasury movement remain blocked.

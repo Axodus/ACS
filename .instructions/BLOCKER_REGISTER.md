@@ -38,6 +38,18 @@ Impact: Maturity remains L3 candidate.
 
 Resolution path: PORTFOLIO-REQ-02 ran `npm run check` successfully with 152 tests passing.
 
+## ACS-BLOCKER-004 - L4 Candidate Gate Review Pending
+
+Severity: MEDIUM
+
+Status: RESOLVED
+
+Description: ACS required explicit evidence review before promotion because it is execution-sensitive.
+
+Impact: Resolved for L4 candidate classification only.
+
+Resolution path: ACS-GATE-01 reviewed validation, product structure, security and governance evidence. Final decision: PROMOTE_TO_L4_CANDIDATE.
+
 ## PORTFOLIO-REQ-02 Blocker Review
 
 | Blocker | Status |
@@ -45,3 +57,16 @@ Resolution path: PORTFOLIO-REQ-02 ran `npm run check` successfully with 152 test
 | Execution authority not approved | ACTIVE |
 | Hummingbot runtime blocked | ACTIVE |
 | Validation refresh required | RESOLVED |
+
+## ACS-GATE-01 Blocker Review
+
+| Blocker | Status |
+|---|---|
+| Execution authority not approved | ACTIVE |
+| Hummingbot runtime blocked | ACTIVE |
+| Production credentials blocked | ACTIVE |
+| Secrets access blocked | ACTIVE |
+| Live/paper trading runtime blocked | ACTIVE |
+| Treasury movement blocked | ACTIVE |
+| Validation refresh required | RESOLVED |
+| L4 candidate gate review pending | RESOLVED |
