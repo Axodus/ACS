@@ -8,7 +8,7 @@ Last updated: 2026-06-22
 
 - [x] `ACS-REQ-01` create ACS current-state baseline from local evidence
 - [x] `ACS-REQ-02` normalize ACS operational instruction set against the baseline
-- [ ] `ACS-REQ-03` create ACS authority boundary matrix
+- [x] `ACS-REQ-03` create ACS authority boundary matrix
 
 ### Sprint 02 - Readiness Registry and Control Plane Foundation
 
@@ -38,7 +38,7 @@ Last updated: 2026-06-22
 
 - [ ] separate L-Level and D-Level with confirmed evidence
 - [ ] replace historical validation claims with current-cycle validation evidence
-- [ ] consolidate authority boundaries into a single ACS-facing matrix
+- [x] consolidate authority boundaries into a single ACS-facing matrix
 - [ ] formalize dedicated readiness registry target shape
 - [ ] formalize dedicated permission state model target shape
 - [ ] formalize centralized operational gate registry target shape
@@ -48,7 +48,7 @@ Last updated: 2026-06-22
 
 ## Explicitly Deferred In This Cycle
 
-- [ ] do not edit source code during `ACS-REQ-02`
-- [ ] do not create new schemas, services, adapters, or tests during `ACS-REQ-02`
-- [ ] do not promote ACS to `L4 Consolidated` during `ACS-REQ-02`
-- [ ] do not update portfolio/global registers during `ACS-REQ-02`
+- [ ] do not edit source code during `ACS-REQ-03`
+- [ ] do not create new schemas, services, adapters, or tests during `ACS-REQ-03`
+- [ ] do not promote ACS to `L4 Consolidated` during `ACS-REQ-03`
+- [ ] do not update portfolio/global registers during `ACS-REQ-03`

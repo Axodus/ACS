@@ -139,4 +139,4 @@ Active blocked areas:
 
 ## Next Recommended Request
 
-`ACS-REQ-03 - ACS Authority Boundary Matrix`
+`ACS-REQ-04 - ACS Readiness Registry Implementation`

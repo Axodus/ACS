@@ -6,9 +6,12 @@ Date: 2026-06-22
 
 - completed `ACS-REQ-01` current-state inspection and evidence baseline
 - completed `ACS-REQ-02` instruction set normalization
+- completed `ACS-REQ-03` authority boundary matrix
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
+- `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
+- `.instructions/reports/ACS_AUTHORITY_BOUNDARY_REPORT.md`
 
 ## Current Recommended State
 
@@ -58,10 +61,10 @@ Do not enable:
 
 ## Next Recommended Request
 
-`ACS-REQ-03 - ACS Authority Boundary Matrix`
+`ACS-REQ-04 - ACS Readiness Registry Implementation`
 
 ## Continuation Guidance
 
 - keep all execution-sensitive no-go areas closed
 - do not treat normalized documentation as maturity promotion
-- do not implement registries before `ACS-REQ-03` defines the boundary model clearly
+- keep registry implementation aligned with `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`

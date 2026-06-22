@@ -99,8 +99,11 @@ Historical evidence:
 
 ## Security Recommendation
 
-Next documentation step:
-- complete `ACS-REQ-03 - ACS Authority Boundary Matrix`
+Authority boundary source:
+- `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
+
+Next documentation-to-implementation step:
+- `ACS-REQ-04 - ACS Readiness Registry Implementation`
 
 Before any maturity discussion beyond `L4 Candidate`:
 - re-run validation in a compatible environment
