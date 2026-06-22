@@ -13,6 +13,8 @@ Date: 2026-06-22
 - completed `ACS-REQ-07` read-only consumer contract
 - completed `ACS-REQ-08` AxodusAPP integration preview
 - completed `ACS-REQ-09` Business and Marketplace alignment contract
+- completed `ACS-REQ-10` boundary enforcement tests
+- completed `ACS-REQ-11` security review and secret safety audit
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -24,6 +26,10 @@ Date: 2026-06-22
 - `.instructions/reports/ACS_READ_ONLY_CONSUMER_CONTRACT_REPORT.md`
 - `.instructions/reports/ACS_AXODUSAPP_INTEGRATION_PREVIEW_REPORT.md`
 - `.instructions/reports/ACS_BUSINESS_MARKETPLACE_ALIGNMENT_REPORT.md`
+- `.instructions/reports/ACS_BOUNDARY_ENFORCEMENT_TESTS_REPORT.md`
+- `.instructions/reports/ACS_SECURITY_REVIEW.md`
+- `.instructions/reports/ACS_SECRET_SAFETY_AUDIT.md`
+- `.instructions/reports/ACS_PRODUCTION_ENDPOINT_AUDIT.md`
 
 ## Current Recommended State
 
@@ -42,11 +48,13 @@ Operational posture:
 - treat the consumer contract as generic, registry-backed, read-only, and non-executive
 - treat the AxodusAPP preview adapter as a local dashboard projection only, without runtime dependency
 - treat the Business/Marketplace alignment contract as local/read-only and non-executive
+- treat boundary enforcement as test evidence only, not as production authority
+- treat the ACS-REQ-11 audit as local inspection evidence only, not as production approval
 
 ## Current Validation State
 
-- `NOT_EXECUTED_ENVIRONMENT_BLOCKER`
-- reason: `node` and `npm` unavailable in the current environment
+- `FAILED_CURRENT_CYCLE_TYPECHECK`
+- reason: `npm test` and `npm run check` fail during build at `src/consumer-contract.ts:314`; tests did not execute
 - historical build/test evidence exists only as historical documentation
 
 ## Active Boundaries
@@ -68,13 +76,13 @@ Do not enable:
 
 - execution authority not approved
 - Hummingbot runtime blocked
-- validation blocked by environment
+- validation blocked by current TypeScript compile failure
 - portfolio/global registers unavailable in the current environment
-- boundary enforcement tests not implemented yet
+- production security controls intentionally unavailable
 
 ## Next Recommended Request
 
-`ACS-REQ-10 - ACS Boundary Enforcement Tests`
+`ACS-REQ-12 - Re-run and document local validation`
 
 ## Continuation Guidance
 
@@ -86,4 +94,4 @@ Do not enable:
 - keep the generic consumer contract read-only and registry-backed
 - keep the AxodusAPP preview adapter local/read-only and free of runtime calls
 - keep the Business/Marketplace alignment contract local/read-only and non-executive
-- move next into explicit boundary enforcement coverage without reopening execution authority
+- move next into local validation remediation and evidence capture without reopening execution authority

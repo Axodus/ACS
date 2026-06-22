@@ -32,20 +32,20 @@ No real trading or bot lifecycle can be executed through ACS.
 Resolution path:
 Preserve sandbox-only and no-go boundaries until a separate approved execution-sensitive request exists.
 
-## ACS-BLOCKER-003 - Current-Cycle Validation Blocked By Environment
+## ACS-BLOCKER-003 - Current-Cycle Validation Fails TypeScript Build
 
 Severity: HIGH
 
 Status: OPEN
 
 Description:
-Current-cycle build/test validation could not be executed because `node` and `npm` are unavailable in the environment.
+Node and npm are available. `npm test` and `npm run check` reach the build step but fail at `src/consumer-contract.ts:314` because an inferred `boolean` is not assignable to the literal type `false`. The test runner does not start.
 
 Impact:
-Current-cycle runtime health, build health, and test pass status remain unconfirmed.
+Current-cycle build health is failed and test pass status remains unconfirmed.
 
 Resolution path:
-Re-run `npm run build`, `npm test`, and `npm run check` in a compatible environment before using validation as maturity evidence.
+Resolve the literal-type failure under `ACS-REQ-12`, then re-run `npm run build`, `npm test`, and `npm run check` before using validation as maturity evidence.
 
 ## ACS-BLOCKER-004 - Dedicated Permission State Model Missing
 
@@ -141,7 +141,7 @@ Use `ACS-REQ-09` for Business/Marketplace alignment without reopening execution 
 
 Severity: MEDIUM
 
-Status: OPEN
+Status: RESOLVED IN `ACS-REQ-10`
 
 Description:
 Read-only registries and consumer-facing contracts now exist for ACS, but explicit Sprint 04 boundary-enforcement coverage has not been added yet.
@@ -151,6 +151,36 @@ Boundary intent is represented in code and docs, but current-cycle enforcement p
 
 Resolution path:
 Use `ACS-REQ-10` to add explicit boundary-enforcement tests without reopening execution authority.
+
+## ACS-BLOCKER-011 - Security Review And Secret Safety Audit Not Implemented Yet
+
+Severity: MEDIUM
+
+Status: RESOLVED IN `ACS-REQ-11`
+
+Description:
+`ACS-REQ-11` completed the local security review, secret safety audit, and production endpoint audit. No real secret, credential leak, production endpoint, production database connection, mutating HTTP route, or external production runtime call was found.
+
+Impact:
+The security posture now has dedicated evidence reports. Production use remains blocked by other active blockers and failed current-cycle validation.
+
+Resolution path:
+Keep the audit reports current and repeat the review if later work adds credentials, public endpoints, databases, providers, or mutation authority.
+
+## ACS-BLOCKER-012 - Production Security Controls Intentionally Unavailable
+
+Severity: HIGH
+
+Status: OPEN
+
+Description:
+The local HTTP surface uses mock/placeholder authentication and rate limiting, emits wildcard CORS, and has no production KMS/Vault-equivalent secret adapter or approved deployment boundary.
+
+Impact:
+ACS must not be exposed or treated as a production service even though its current routes are GET-only and inspection-focused.
+
+Resolution path:
+Keep ACS local and non-production. Any later production proposal requires separately approved identity, authorization, rate limiting, origin restrictions, secret storage, deployment controls, and a renewed security review.
 
 ## Current No-Go Areas
 
@@ -169,4 +199,4 @@ Active blocked areas:
 
 ## Next Recommended Request
 
-`ACS-REQ-10 - ACS Boundary Enforcement Tests`
+`ACS-REQ-12 - Re-run and document local validation`

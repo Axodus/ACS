@@ -24,8 +24,8 @@ Last updated: 2026-06-22
 
 ### Sprint 04 - Security, Validation and Boundary Enforcement
 
-- [ ] `ACS-REQ-10` add explicit boundary enforcement coverage
-- [ ] `ACS-REQ-11` perform security review and secret safety audit update
+- [x] `ACS-REQ-10` add explicit boundary enforcement coverage
+- [x] `ACS-REQ-11` perform security review and secret safety audit update
 - [ ] `ACS-REQ-12` re-run and document local validation in a compatible environment
 
 ### Sprint 05 - L4 Consolidation Assessment and Portfolio Update
@@ -48,7 +48,7 @@ Last updated: 2026-06-22
 
 ## Explicitly Deferred In This Cycle
 
-- [x] do not start boundary enforcement tests during `ACS-REQ-09`
-- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-09`
-- [x] do not update portfolio/global registers during `ACS-REQ-09`
-- [x] do not add Business/Marketplace runtime dependency or production commerce integration during `ACS-REQ-09`
+- [x] do not execute `ACS-REQ-12` remediation during `ACS-REQ-11`
+- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-11`
+- [x] do not update portfolio/global registers during `ACS-REQ-11`
+- [x] do not add production execution authority during `ACS-REQ-11`

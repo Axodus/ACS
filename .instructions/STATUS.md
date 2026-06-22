@@ -4,7 +4,7 @@ Last updated: 2026-06-22
 
 ## Current Request State
 
-Current request: `ACS-REQ-09 - Business and Marketplace ACS Alignment Contract`
+Current request: `ACS-REQ-10 - ACS Boundary Enforcement Tests`
 
 Request status: COMPLETE
 
@@ -19,6 +19,7 @@ Evidence baseline:
 - `.instructions/reports/ACS_READ_ONLY_CONSUMER_CONTRACT_REPORT.md`
 - `.instructions/reports/ACS_AXODUSAPP_INTEGRATION_PREVIEW_REPORT.md`
 - `.instructions/reports/ACS_BUSINESS_MARKETPLACE_ALIGNMENT_REPORT.md`
+- `.instructions/reports/ACS_BOUNDARY_ENFORCEMENT_TESTS_REPORT.md`
 
 ## Current Classification
 
@@ -36,6 +37,7 @@ Status summary:
 - ACS now includes a dedicated local/config-first/read-only consumer contract that aggregates readiness, permission, gate, and blocked-action views for generic consumers.
 - ACS now includes a dedicated local/config-first/read-only AxodusAPP preview adapter built on the generic consumer contract.
 - ACS now includes a dedicated local/config-first/read-only Business and Marketplace alignment contract built on the generic consumer contract.
+- ACS now includes focused boundary enforcement tests covering blocked actions, representational posture checks, read-only inspection surfaces, and non-production contract boundaries.
 - ACS is not `L4 Consolidated`.
 - ACS remains non-production and without mutation authority.
 
@@ -72,6 +74,7 @@ Allowed in current state:
 - read-only consumer contract aggregation
 - AxodusAPP preview projection for dashboard-safe local consumption
 - Business and Marketplace alignment projection for dashboard-safe local consumption
+- focused boundary enforcement test coverage
 - documentation and boundary normalization
 
 Forbidden in current state:
@@ -92,6 +95,7 @@ Forbidden in current state:
 Confirmed local gaps:
 - current-cycle build/test/check execution remains environment-blocked
 - global portfolio registers are not available in the current environment
+- formal security review and secret safety audit are not completed yet
 
 ## Active Blockers
 
@@ -105,4 +109,4 @@ Confirmed local gaps:
 
 ## Next Recommended Request
 
-`ACS-REQ-10 - ACS Boundary Enforcement Tests`
+`ACS-REQ-11 - ACS Security Review and Secret Safety Audit`
