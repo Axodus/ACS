@@ -9,6 +9,7 @@ Date: 2026-06-22
 - completed `ACS-REQ-03` authority boundary matrix
 - completed `ACS-REQ-04` readiness registry implementation
 - completed `ACS-REQ-05` permission state model implementation
+- completed `ACS-REQ-06` operational gate registry implementation
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -16,6 +17,7 @@ Date: 2026-06-22
 - `.instructions/reports/ACS_AUTHORITY_BOUNDARY_REPORT.md`
 - `.instructions/reports/ACS_READINESS_REGISTRY_REPORT.md`
 - `.instructions/reports/ACS_PERMISSION_STATE_MODEL_REPORT.md`
+- `.instructions/reports/ACS_OPERATIONAL_GATE_REGISTRY_REPORT.md`
 
 ## Current Recommended State
 
@@ -30,6 +32,7 @@ Operational posture:
 - treat ACS as local/mock, inspection-first, and non-production
 - treat readiness registry as config-first and read-only
 - treat permission state model as representational and read-only
+- treat operational gate registry as representational and read-only
 
 ## Current Validation State
 
@@ -57,15 +60,12 @@ Do not enable:
 - execution authority not approved
 - Hummingbot runtime blocked
 - validation blocked by environment
-- no centralized operational gate registry yet
-- indirect coverage remains for `wallet.sign`
-- indirect coverage remains for `provider.execute.production`
-- indirect coverage remains for billing, settlement, and provisioning
+- no consumer contracts yet
 - portfolio/global registers unavailable in the current environment
 
 ## Next Recommended Request
 
-`ACS-REQ-06 - ACS Operational Gate Registry`
+`ACS-REQ-07 - ACS Read-Only Consumer Contract`
 
 ## Continuation Guidance
 
@@ -73,4 +73,5 @@ Do not enable:
 - do not treat normalized documentation as maturity promotion
 - keep readiness registry aligned with `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
 - keep permission model aligned with the same boundary matrix
-- keep gate registry explicitly out of scope until its own request
+- keep gate registry aligned with the same boundary matrix
+- keep consumer contracts explicitly out of scope until their own request

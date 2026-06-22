@@ -54,12 +54,14 @@ test("permission state model is representational only", () => {
   assert.ok(entry.blockedActions.includes("permission.enforce.production"));
 });
 
-test("operational gate registry remains placeholder until ACS-REQ-06", () => {
-  const entry = getAcsPermissionStateEntry("acs.operational-gate-registry-placeholder");
+test("operational gate registry is represented as read-only after ACS-REQ-06", () => {
+  const entry = getAcsPermissionStateEntry("acs.operational-gate-registry");
 
   assert.ok(entry);
   assert.equal(entry.domain, "operational-gate-registry");
-  assert.ok(entry.blockers.includes("PLANNED_NOT_IMPLEMENTED_IN_REQ_05"));
+  assert.ok(entry.states.includes("READ_ALLOWED"));
+  assert.ok(entry.states.includes("EXECUTION_BLOCKED"));
+  assert.ok(entry.allowedActions.includes("blocked-action.check"));
 });
 
 test("Trinity, MCP, and Trading permission entries remain execution-gated", () => {

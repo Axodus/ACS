@@ -4,6 +4,7 @@ import type { AcsPerformanceRecord } from "../performance-record.js";
 import { createAcsPerformanceRecord } from "../performance-record.js";
 import type { AcsTenantContext } from "../tenant-context.js";
 import { getMockUserStatusSummary } from "../user-status.js";
+export { createAcsBlockedActionFixtures, createAcsOperationalGateFixtures } from "./acs-operational-gate-fixtures.js";
 export { createAcsPermissionStateFixtures } from "./acs-permission-fixtures.js";
 export { createAcsReadinessRegistryFixtures } from "./acs-readiness-fixtures.js";
 

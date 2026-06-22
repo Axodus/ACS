@@ -3,6 +3,8 @@ import { AcsCapabilityRegistry, type AcsServiceCapability } from "./capability-r
 import type { AcsConsumptionLevel } from "./consumption-levels.js";
 import {
   ACS_FIXTURE_IDS,
+  createAcsBlockedActionFixtures,
+  createAcsOperationalGateFixtures,
   createAcsPermissionStateFixtures,
   createAcsTenantFixtures,
   createAcsReadinessRegistryFixtures,
@@ -10,6 +12,19 @@ import {
   createSampleEmergencyStopFixtures,
   createSamplePerformanceRecordFixtures,
 } from "./fixtures/acs-fixtures.js";
+import {
+  checkAcsBlockedAction,
+  getAcsBlockedAction,
+  getAcsOperationalGate,
+  isAcsOperationalGateDomain,
+  listAcsBlockedActions,
+  listAcsBlockedActionsByDomain,
+  listAcsOperationalGates,
+  listAcsOperationalGatesByDomain,
+  listBlockedOrClosedAcsOperationalGates,
+  summarizeAcsOperationalGates,
+  type AcsOperationalGateDomain,
+} from "./gates.js";
 import {
   checkAcsPermissionAction,
   getAcsPermissionStateEntry,
@@ -72,6 +87,15 @@ export interface PermissionStateInspectionFilter {
   readonly subject?: string;
   readonly domain?: AcsPermissionDomain;
   readonly blockedOnly?: boolean;
+}
+
+export interface OperationalGateInspectionFilter {
+  readonly domain?: AcsOperationalGateDomain;
+  readonly blockedOnly?: boolean;
+}
+
+export interface BlockedActionInspectionFilter {
+  readonly domain?: AcsOperationalGateDomain;
 }
 
 export interface InspectionDecision {
@@ -275,6 +299,66 @@ export function inspectPermissionStateSummary() {
 export function inspectPermissionActionCheck(id: string, action: string) {
   return {
     result: checkAcsPermissionAction(id, action, createAcsPermissionStateFixtures()),
+  };
+}
+
+export function inspectOperationalGateRegistry(filter: OperationalGateInspectionFilter = {}) {
+  let gates = listAcsOperationalGates(createAcsOperationalGateFixtures());
+  let actions = listAcsBlockedActions(createAcsBlockedActionFixtures());
+
+  if (filter.domain) {
+    gates = listAcsOperationalGatesByDomain(filter.domain, gates);
+    actions = listAcsBlockedActionsByDomain(filter.domain, actions);
+  }
+
+  if (filter.blockedOnly) {
+    gates = listBlockedOrClosedAcsOperationalGates(gates);
+  }
+
+  return {
+    filter: {
+      ...(filter.domain ? { domain: filter.domain } : {}),
+      ...(filter.blockedOnly ? { blockedOnly: true } : {}),
+    },
+    gates,
+    summary: summarizeAcsOperationalGates(gates, actions),
+  };
+}
+
+export function inspectOperationalGateEntry(id: string) {
+  return {
+    gate: getAcsOperationalGate(id, createAcsOperationalGateFixtures()),
+  };
+}
+
+export function inspectOperationalGateSummary() {
+  return {
+    summary: summarizeAcsOperationalGates(createAcsOperationalGateFixtures(), createAcsBlockedActionFixtures()),
+  };
+}
+
+export function inspectBlockedActions(filter: BlockedActionInspectionFilter = {}) {
+  const actions = filter.domain
+    ? listAcsBlockedActionsByDomain(filter.domain, createAcsBlockedActionFixtures())
+    : listAcsBlockedActions(createAcsBlockedActionFixtures());
+
+  return {
+    filter: {
+      ...(filter.domain ? { domain: filter.domain } : {}),
+    },
+    actions,
+  };
+}
+
+export function inspectBlockedActionEntry(id: string) {
+  return {
+    action: getAcsBlockedAction(id, createAcsBlockedActionFixtures()),
+  };
+}
+
+export function inspectBlockedActionCheck(id: string) {
+  return {
+    result: checkAcsBlockedAction(id, createAcsBlockedActionFixtures()),
   };
 }
 
@@ -520,4 +604,10 @@ export function isPermissionStateInspectionFilter(input: {
 }): boolean {
   return (input.subject === undefined || typeof input.subject === "string")
     && (input.domain === undefined || isAcsPermissionDomain(input.domain));
+}
+
+export function isOperationalGateInspectionFilter(input: {
+  readonly domain?: string;
+}): boolean {
+  return input.domain === undefined || isAcsOperationalGateDomain(input.domain);
 }

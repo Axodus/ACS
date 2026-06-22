@@ -66,16 +66,16 @@ Keep the permission state model representational and use `ACS-REQ-06` to add the
 
 Severity: MEDIUM
 
-Status: OPEN
+Status: RESOLVED IN `ACS-REQ-06`
 
 Description:
-Blocked actions and gates exist across runtime, execution policy, emergency stop, and boundary modules, but there is no centralized operational gate registry yet.
+Blocked actions and gates previously existed across runtime, execution policy, emergency stop, and boundary modules only. `ACS-REQ-06` added a dedicated local/config-first/read-only operational gate registry and blocked action registry with inspection integration and focused tests.
 
 Impact:
-Critical no-go areas are documented and partially enforced, but not yet unified into a single registry.
+Critical no-go areas are now unified into a single local registry surface without enabling production execution.
 
 Resolution path:
-Address in `ACS-REQ-06` after `ACS-REQ-05` formalizes permission-state requirements.
+Keep the gate registry representational and use later requests for consumer contracts and validation, without reopening execution authority.
 
 ## ACS-BLOCKER-006 - Dedicated Readiness Registry Target Format Missing
 
@@ -96,16 +96,16 @@ Keep the registry read-only and use `ACS-REQ-05` / `ACS-REQ-06` to add adjacent 
 
 Severity: MEDIUM
 
-Status: OPEN
+Status: RESOLVED IN `ACS-REQ-06`
 
 Description:
-Coverage is indirect for `wallet.sign`, `provider.execute.production`, billing, settlement, and provisioning blocking.
+Focused source/test coverage was added for `wallet.sign`, `provider.execute.production`, billing, settlement, and provisioning blocking through the operational gate registry and blocked action registry.
 
 Impact:
-Boundary intent is present, but some no-go areas are not yet backed by direct focused coverage.
+Boundary intent is now backed by direct registry and test definitions, although current-cycle executable confirmation remains blocked by environment.
 
 Resolution path:
-Address in later implementation and validation requests, starting from `ACS-REQ-05`, `ACS-REQ-06`, and Sprint 04 boundary enforcement work.
+Re-run executable validation in a compatible environment and extend boundary-enforcement tests in Sprint 04.
 
 ## ACS-BLOCKER-008 - Portfolio Registers Unavailable In Current Environment
 
@@ -139,4 +139,4 @@ Active blocked areas:
 
 ## Next Recommended Request
 
-`ACS-REQ-06 - ACS Operational Gate Registry`
+`ACS-REQ-07 - ACS Read-Only Consumer Contract`

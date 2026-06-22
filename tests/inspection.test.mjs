@@ -6,10 +6,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
+  inspectBlockedActionCheck,
+  inspectBlockedActionEntry,
+  inspectBlockedActions,
   inspectCapabilities,
   inspectAuditReceipts,
   inspectEmergencyStops,
   inspectObservabilityStatus,
+  inspectOperationalGateEntry,
+  inspectOperationalGateRegistry,
+  inspectOperationalGateSummary,
   inspectPerformanceRecords,
   inspectPermissionActionCheck,
   inspectPermissionStateEntry,
@@ -175,6 +181,28 @@ test("permission state inspection lists entries, filters blocked domains, and re
   assert.equal(summary.summary.productionEnforcementAvailable, false);
   assert.equal(action.result.representedBlocked, true);
   assert.equal(action.result.executionTriggered, false);
+});
+
+test("operational gate inspection exposes gates, blocked actions, and representational block checks read-only", () => {
+  const all = inspectOperationalGateRegistry();
+  const byDomain = inspectOperationalGateRegistry({ domain: "wallet-signing" });
+  const blocked = inspectOperationalGateRegistry({ blockedOnly: true });
+  const gate = inspectOperationalGateEntry("gate.wallet-signing");
+  const summary = inspectOperationalGateSummary();
+  const actions = inspectBlockedActions({ domain: "wallet-signing" });
+  const action = inspectBlockedActionEntry("wallet.sign.real");
+  const check = inspectBlockedActionCheck("wallet.sign.real");
+
+  assert.ok(all.gates.length >= 15);
+  assert.deepEqual(byDomain.gates.map((item) => item.domain), ["wallet-signing"]);
+  assert.ok(blocked.gates.every((item) => ["CLOSED", "BLOCKED", "EXECUTION_GATED"].includes(item.status)));
+  assert.equal(gate.gate?.id, "gate.wallet-signing");
+  assert.equal(summary.summary.nonProduction, true);
+  assert.equal(summary.summary.executionGated, true);
+  assert.equal(actions.actions.length, 2);
+  assert.equal(action.action?.gateId, "gate.wallet-signing");
+  assert.equal(check.result.representedBlocked, true);
+  assert.equal(check.result.executionTriggered, false);
 });
 
 test("inspection CLI commands return valid JSON without runtime side effects", () => {

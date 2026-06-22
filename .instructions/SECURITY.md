@@ -10,6 +10,7 @@ ACS security in the current phase is based on:
 - read-only/mock surfaces where applicable
 - read-only readiness registry representation
 - read-only permission state model representation
+- read-only operational gate registry representation
 - explicit no-go boundaries
 - execution-gated workflows
 - non-production runtime posture
@@ -77,13 +78,7 @@ The following domains remain blocked even if local contracts or documentation re
 
 ## Current Security Gaps
 
-- no centralized operational gate registry yet
-- direct focused coverage is still missing for some blocked areas:
-- `wallet.sign`
-- `provider.execute.production`
-- billing execution
-- settlement
-- provisioning
+- current-cycle executable confirmation of gate coverage remains environment-blocked
 
 ## Validation Constraint
 
@@ -103,7 +98,7 @@ Authority boundary source:
 - `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
 
 Next documentation-to-implementation step:
-- `ACS-REQ-06 - ACS Operational Gate Registry`
+- `ACS-REQ-07 - ACS Read-Only Consumer Contract`
 
 Before any maturity discussion beyond `L4 Candidate`:
 - re-run validation in a compatible environment

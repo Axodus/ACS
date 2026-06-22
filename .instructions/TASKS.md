@@ -14,7 +14,7 @@ Last updated: 2026-06-22
 
 - [x] `ACS-REQ-04` implement dedicated readiness registry
 - [x] `ACS-REQ-05` implement dedicated permission state model
-- [ ] `ACS-REQ-06` implement centralized operational gate registry
+- [x] `ACS-REQ-06` implement centralized operational gate registry
 
 ### Sprint 03 - Integration Contracts and Cross-Nucleus Consumers
 
@@ -41,14 +41,13 @@ Last updated: 2026-06-22
 - [x] consolidate authority boundaries into a single ACS-facing matrix
 - [x] formalize dedicated readiness registry target shape
 - [x] formalize dedicated permission state model target shape
-- [ ] formalize centralized operational gate registry target shape
-- [ ] add explicit coverage for `wallet.sign`
-- [ ] add explicit coverage for `provider.execute.production`
-- [ ] add explicit coverage for billing, settlement, and provisioning gates
+- [x] formalize centralized operational gate registry target shape
+- [x] add explicit coverage for `wallet.sign`
+- [x] add explicit coverage for `provider.execute.production`
+- [x] add explicit coverage for billing, settlement, and provisioning gates
 
 ## Explicitly Deferred In This Cycle
 
-- [x] do not implement centralized operational gate registry during `ACS-REQ-05`
-- [x] do not implement consumer contracts during `ACS-REQ-05`
-- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-05`
-- [x] do not update portfolio/global registers during `ACS-REQ-05`
+- [x] do not implement consumer contracts during `ACS-REQ-06`
+- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-06`
+- [x] do not update portfolio/global registers during `ACS-REQ-06`

@@ -79,7 +79,7 @@ test("ACS core readiness entry is not marked L4 Consolidated", () => {
   assert.equal(entry.lLevel, "L4 Candidate");
 });
 
-test("permission state model is implemented while operational gate registry remains deferred", () => {
+test("permission state model and operational gate registry are implemented as local registries", () => {
   const permissionModel = getAcsReadinessRegistryEntry("acs.permission-state-model");
   const gateRegistry = getAcsReadinessRegistryEntry("acs.operational-gate-registry");
 
@@ -88,8 +88,8 @@ test("permission state model is implemented while operational gate registry rema
   assert.ok(permissionModel.evidence.includes("src/permissions.ts"));
 
   assert.ok(gateRegistry);
-  assert.equal(gateRegistry.status, "HOLD");
-  assert.ok(gateRegistry.blockers.includes("PLANNED_NOT_IMPLEMENTED_IN_REQ_05"));
+  assert.equal(gateRegistry.status, "LOCAL_VALIDATION_CANDIDATE");
+  assert.ok(gateRegistry.evidence.includes("src/gates.ts"));
 });
 
 test("portfolio registers and validation environment are represented as blocked in the current environment", () => {
