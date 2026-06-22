@@ -2,6 +2,15 @@ import { ACS_POLICY_MATRIX, getPolicyMatrixEntry, type AcsCapabilityId } from ".
 import { AcsCapabilityRegistry, type AcsServiceCapability } from "./capability-registry.js";
 import type { AcsConsumptionLevel } from "./consumption-levels.js";
 import {
+  checkAcsConsumerActionPosture,
+  getAcsConsumerBlockedActionView,
+  getAcsConsumerGateView,
+  getAcsConsumerPermissionView,
+  getAcsConsumerReadinessView,
+  getAcsConsumerSnapshot,
+  getAcsConsumerSummary,
+} from "./consumer-contract.js";
+import {
   ACS_FIXTURE_IDS,
   createAcsBlockedActionFixtures,
   createAcsOperationalGateFixtures,
@@ -359,6 +368,48 @@ export function inspectBlockedActionEntry(id: string) {
 export function inspectBlockedActionCheck(id: string) {
   return {
     result: checkAcsBlockedAction(id, createAcsBlockedActionFixtures()),
+  };
+}
+
+export function inspectConsumerContractSnapshot() {
+  return {
+    snapshot: getAcsConsumerSnapshot(),
+  };
+}
+
+export function inspectConsumerContractSummary() {
+  return {
+    summary: getAcsConsumerSummary(),
+  };
+}
+
+export function inspectConsumerReadinessView() {
+  return {
+    readiness: getAcsConsumerReadinessView(),
+  };
+}
+
+export function inspectConsumerPermissionView() {
+  return {
+    permissions: getAcsConsumerPermissionView(),
+  };
+}
+
+export function inspectConsumerGateView() {
+  return {
+    gates: getAcsConsumerGateView(),
+  };
+}
+
+export function inspectConsumerBlockedActionView() {
+  return {
+    blockedActions: getAcsConsumerBlockedActionView(),
+  };
+}
+
+export function inspectConsumerActionPosture(action: string) {
+  return {
+    result: checkAcsConsumerActionPosture(action),
   };
 }
 

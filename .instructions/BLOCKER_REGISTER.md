@@ -122,6 +122,21 @@ Portfolio-level updates cannot be performed or validated locally in the current 
 Resolution path:
 Treat portfolio register updates as environment-dependent and defer them to `ACS-REQ-15` only when the required directory exists.
 
+## ACS-BLOCKER-009 - Consumer-Specific Integration Adapters Not Implemented Yet
+
+Severity: LOW
+
+Status: OPEN
+
+Description:
+`ACS-REQ-07` added a generic read-only consumer contract, but AxodusAPP-specific preview integration and Business/Marketplace-specific alignment contracts remain intentionally out of scope for this request.
+
+Impact:
+Generic consumers can read ACS control-plane state, but downstream nucleus-specific integration shaping still depends on `ACS-REQ-08` and `ACS-REQ-09`.
+
+Resolution path:
+Use `ACS-REQ-08` for AxodusAPP preview integration and `ACS-REQ-09` for Business/Marketplace alignment without reopening execution authority.
+
 ## Current No-Go Areas
 
 Active blocked areas:
@@ -139,4 +154,4 @@ Active blocked areas:
 
 ## Next Recommended Request
 
-`ACS-REQ-07 - ACS Read-Only Consumer Contract`
+`ACS-REQ-08 - AxodusAPP ACS Integration Preview`

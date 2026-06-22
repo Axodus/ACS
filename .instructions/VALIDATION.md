@@ -27,6 +27,10 @@ Documentation / inspection commands used in `ACS-REQ-06`:
 - `git diff -- .`
 - `git status --short`
 
+Documentation / inspection commands used in `ACS-REQ-07`:
+- `git diff -- .`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
@@ -45,6 +49,8 @@ Current-cycle validation evidence:
 - permission state model tests added
 - operational gate registry implementation added in source and fixtures
 - operational gate registry tests added
+- read-only consumer contract aggregation added in source
+- read-only consumer contract tests added
 - documentation diff review performed
 
 ## Historical Validation Evidence
@@ -67,7 +73,7 @@ Constraint:
 ## Validation Interpretation
 
 Current validation status means:
-- readiness, permission, and operational gate registry implementations are complete at source/documentation level
+- readiness, permission, operational gate, and read-only consumer contract implementations are complete at source/documentation level
 - repository runtime health is `NOT_CONFIRMED_LOCAL_EVIDENCE_REQUIRED` for this cycle
 - ACS must remain execution-gated and non-production
 

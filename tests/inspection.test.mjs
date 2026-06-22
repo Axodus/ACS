@@ -6,6 +6,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
+  inspectConsumerActionPosture,
+  inspectConsumerBlockedActionView,
+  inspectConsumerContractSnapshot,
+  inspectConsumerContractSummary,
+  inspectConsumerGateView,
+  inspectConsumerPermissionView,
+  inspectConsumerReadinessView,
   inspectBlockedActionCheck,
   inspectBlockedActionEntry,
   inspectBlockedActions,
@@ -203,6 +210,27 @@ test("operational gate inspection exposes gates, blocked actions, and representa
   assert.equal(action.action?.gateId, "gate.wallet-signing");
   assert.equal(check.result.representedBlocked, true);
   assert.equal(check.result.executionTriggered, false);
+});
+
+test("consumer contract inspection exposes aggregated read-only consumer surfaces", () => {
+  const snapshot = inspectConsumerContractSnapshot();
+  const summary = inspectConsumerContractSummary();
+  const readiness = inspectConsumerReadinessView();
+  const permissions = inspectConsumerPermissionView();
+  const gates = inspectConsumerGateView();
+  const blockedActions = inspectConsumerBlockedActionView();
+  const action = inspectConsumerActionPosture("wallet.sign.real");
+
+  assert.equal(snapshot.snapshot.consumerMode, "READ_ONLY_CONSUMER");
+  assert.equal(snapshot.snapshot.boundaries.readOnly, true);
+  assert.equal(snapshot.snapshot.boundaries.nonProduction, true);
+  assert.equal(summary.summary.recommendedNextReq, "ACS-REQ-08");
+  assert.ok(readiness.readiness.entries.length >= 13);
+  assert.ok(permissions.permissions.entries.length >= 20);
+  assert.ok(gates.gates.gates.length >= 15);
+  assert.ok(blockedActions.blockedActions.actions.length >= 17);
+  assert.equal(action.result.representedBlocked, true);
+  assert.equal(action.result.executionTriggered, false);
 });
 
 test("inspection CLI commands return valid JSON without runtime side effects", () => {

@@ -49,4 +49,10 @@ Endpoints covered:
 Security rule:
 The HTTP layer must not expose secrets, mutate tenant state, call real exchanges or start autonomous workflows.
 
+REQ-07 consumer contract note:
+- `ACS-REQ-07` adds a generic read-only consumer contract at the local registry/inspection layer only.
+- No AxodusAPP-specific adapter is introduced in `ACS-REQ-07`.
+- No Business/Marketplace-specific alignment contract is introduced in `ACS-REQ-07`.
+- No new mutating HTTP endpoints are added in `ACS-REQ-07`.
+
 Full response examples live in `.instructions/ACS_API_EXAMPLES.md`.

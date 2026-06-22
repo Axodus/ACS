@@ -18,7 +18,7 @@ Last updated: 2026-06-22
 
 ### Sprint 03 - Integration Contracts and Cross-Nucleus Consumers
 
-- [ ] `ACS-REQ-07` define read-only consumer contract
+- [x] `ACS-REQ-07` define read-only consumer contract
 - [ ] `ACS-REQ-08` prepare AxodusAPP ACS integration preview
 - [ ] `ACS-REQ-09` define Business and Marketplace alignment contract
 
@@ -48,6 +48,7 @@ Last updated: 2026-06-22
 
 ## Explicitly Deferred In This Cycle
 
-- [x] do not implement consumer contracts during `ACS-REQ-06`
-- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-06`
-- [x] do not update portfolio/global registers during `ACS-REQ-06`
+- [x] do not implement AxodusAPP-specific adapter during `ACS-REQ-07`
+- [x] do not implement Business/Marketplace-specific alignment contract during `ACS-REQ-07`
+- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-07`
+- [x] do not update portfolio/global registers during `ACS-REQ-07`

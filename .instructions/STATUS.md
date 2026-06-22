@@ -4,7 +4,7 @@ Last updated: 2026-06-22
 
 ## Current Request State
 
-Current request: `ACS-REQ-06 - ACS Operational Gate Registry`
+Current request: `ACS-REQ-07 - ACS Read-Only Consumer Contract`
 
 Request status: COMPLETE
 
@@ -16,6 +16,7 @@ Evidence baseline:
 - `.instructions/reports/ACS_READINESS_REGISTRY_REPORT.md`
 - `.instructions/reports/ACS_PERMISSION_STATE_MODEL_REPORT.md`
 - `.instructions/reports/ACS_OPERATIONAL_GATE_REGISTRY_REPORT.md`
+- `.instructions/reports/ACS_READ_ONLY_CONSUMER_CONTRACT_REPORT.md`
 
 ## Current Classification
 
@@ -30,6 +31,7 @@ Status summary:
 - ACS now includes a dedicated local/config-first/read-only readiness registry backed by static fixtures.
 - ACS now includes a dedicated local/config-first/read-only permission state model backed by static fixtures.
 - ACS now includes a dedicated local/config-first/read-only operational gate registry and blocked action registry backed by static fixtures.
+- ACS now includes a dedicated local/config-first/read-only consumer contract that aggregates readiness, permission, gate, and blocked-action views for generic consumers.
 - ACS is not `L4 Consolidated`.
 - ACS remains non-production and without mutation authority.
 
@@ -63,6 +65,7 @@ Allowed in current state:
 - readiness registry representation
 - permission state representation
 - operational gate and blocked action representation
+- read-only consumer contract aggregation
 - documentation and boundary normalization
 
 Forbidden in current state:
@@ -81,7 +84,8 @@ Forbidden in current state:
 ## Current Gaps
 
 Confirmed local gaps:
-- no read-only consumer contracts yet
+- no AxodusAPP-specific preview adapter yet
+- no Business/Marketplace-specific alignment contract yet
 - current-cycle build/test/check execution remains environment-blocked
 - global portfolio registers are not available in the current environment
 
@@ -97,4 +101,4 @@ Confirmed local gaps:
 
 ## Next Recommended Request
 
-`ACS-REQ-07 - ACS Read-Only Consumer Contract`
+`ACS-REQ-08 - AxodusAPP ACS Integration Preview`

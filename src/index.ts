@@ -4,6 +4,7 @@ export * from "./acs-policy-matrix.js";
 export * from "./api-safety.js";
 export * from "./capability-registry.js";
 export * from "./consumption-levels.js";
+export * from "./consumer-contract.js";
 export * from "./errors.js";
 export * from "./execution-policy.js";
 export * from "./inspection.js";
