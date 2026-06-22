@@ -14,12 +14,12 @@ Boundary:
 ## Sprint 01 - Current State, Boundaries and Instruction Normalization
 
 Status:
-- `IN_PROGRESS`
+- `COMPLETE`
 
 Request progress:
 - `ACS-REQ-01` - COMPLETE
 - `ACS-REQ-02` - COMPLETE
-- `ACS-REQ-03` - NEXT
+- `ACS-REQ-03` - COMPLETE
 
 Deliverables in scope:
 - current-state baseline
@@ -34,7 +34,7 @@ Out-of-scope for this sprint:
 ## Sprint 02 - Readiness Registry and Control Plane Foundation
 
 Status:
-- `PLANNED`
+- `COMPLETE`
 
 Requests:
 - `ACS-REQ-04`
@@ -52,7 +52,7 @@ Dependency:
 ## Sprint 03 - Integration Contracts and Cross-Nucleus Consumers
 
 Status:
-- `PLANNED`
+- `COMPLETE`
 
 Requests:
 - `ACS-REQ-07`
@@ -67,7 +67,7 @@ Planned outcomes:
 ## Sprint 04 - Security, Validation and Boundary Enforcement
 
 Status:
-- `PLANNED`
+- `COMPLETE`
 
 Requests:
 - `ACS-REQ-10`
@@ -82,10 +82,10 @@ Planned outcomes:
 ## Sprint 05 - L4 Consolidation Assessment and Portfolio Update
 
 Status:
-- `PLANNED`
+- `IN_PROGRESS`
 
 Requests:
-- `ACS-REQ-13`
+- `ACS-REQ-13` - COMPLETE
 - `ACS-REQ-14`
 - `ACS-REQ-15`
 
@@ -98,7 +98,6 @@ Planned outcomes:
 
 The roadmap remains blocked from execution-sensitive expansion while any of the following remain unresolved:
 - execution authority not approved
-- environment validation unavailable
-- no dedicated permission state model
-- no centralized operational gate registry
-- no readiness registry in the exact target format
+- production security controls intentionally unavailable
+- portfolio/global registers unavailable in the current environment
+- Hummingbot runtime blocked

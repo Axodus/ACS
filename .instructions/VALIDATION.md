@@ -71,6 +71,10 @@ Local validation commands used in `ACS-REQ-12`, in order:
 - `git diff -- .`
 - `git status --short`
 
+Documentation-safe evidence commands used in `ACS-REQ-13`:
+- `git diff -- .instructions`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
@@ -130,4 +134,8 @@ Current validation status means:
 
 ## Next Validation Need
 
-Use the fresh evidence in `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md` as one input to `ACS-REQ-13`. Passing local validation does not itself authorize maturity promotion.
+`ACS-REQ-13` used the fresh evidence in `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md` and did not re-run build/test/check.
+
+Next:
+- use `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md` in `ACS-REQ-14`
+- keep passing local validation as necessary but not sufficient evidence for maturity promotion

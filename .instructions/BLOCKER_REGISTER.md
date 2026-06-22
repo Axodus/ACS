@@ -197,6 +197,10 @@ Active blocked areas:
 - production APIs
 - external providers in production
 
+## ACS-REQ-13 Assessment Note
+
+`ACS-REQ-13` does not close any active execution or production blockers. It recommends `PROMOTE_TO_L4_READINESS`, not `PROMOTE_TO_L4_CONSOLIDATED`, because final handoff and portfolio/global register closure remain pending by scope and environment.
+
 ## Next Recommended Request
 
-`ACS-REQ-13 - Evidence-based L4 consolidation assessment`
+`ACS-REQ-14 - Final ACS EPIC handoff`

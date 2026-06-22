@@ -16,6 +16,7 @@ Date: 2026-06-22
 - completed `ACS-REQ-10` boundary enforcement tests
 - completed `ACS-REQ-11` security review and secret safety audit
 - completed `ACS-REQ-12` local validation suite
+- completed `ACS-REQ-13` L4 consolidation assessment
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -32,14 +33,21 @@ Date: 2026-06-22
 - `.instructions/reports/ACS_SECRET_SAFETY_AUDIT.md`
 - `.instructions/reports/ACS_PRODUCTION_ENDPOINT_AUDIT.md`
 - `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md`
+- `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md`
 
 ## Current Recommended State
 
 L-Level:
 - `L4 Candidate`
 
+Assessed recommendation:
+- `PROMOTE_TO_L4_READINESS`
+
 D-Level:
 - `LOCAL_VALIDATION_CONFIRMED`
+
+Assessed recommendation:
+- `D3+`
 
 Operational posture:
 - hold execution gates closed
@@ -52,6 +60,7 @@ Operational posture:
 - treat the Business/Marketplace alignment contract as local/read-only and non-executive
 - treat boundary enforcement as test evidence only, not as production authority
 - treat the ACS-REQ-11 audit as local inspection evidence only, not as production approval
+- treat the ACS-REQ-13 assessment as a maturity recommendation only, not as automatic promotion
 
 ## Current Validation State
 
@@ -59,6 +68,7 @@ Operational posture:
 - `npm run build`, `npm test`, and `npm run check` pass with fresh ACS-REQ-12 evidence
 - no tests were skipped or removed
 - historical build/test evidence exists only as historical documentation
+- ACS-REQ-13 reused that fresh evidence and did not re-run build/test/check
 
 ## Active Boundaries
 
@@ -81,10 +91,11 @@ Do not enable:
 - Hummingbot runtime blocked
 - portfolio/global registers unavailable in the current environment
 - production security controls intentionally unavailable
+- final ACS EPIC handoff not yet created
 
 ## Next Recommended Request
 
-`ACS-REQ-13 - Evidence-based L4 consolidation assessment`
+`ACS-REQ-14 - Final ACS EPIC handoff`
 
 ## Continuation Guidance
 
@@ -96,4 +107,5 @@ Do not enable:
 - keep the generic consumer contract read-only and registry-backed
 - keep the AxodusAPP preview adapter local/read-only and free of runtime calls
 - keep the Business/Marketplace alignment contract local/read-only and non-executive
-- use fresh validation evidence in ACS-REQ-13 without treating a passing suite as automatic promotion
+- use `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md` as the baseline for ACS-REQ-14
+- preserve the `PROMOTE_TO_L4_READINESS` recommendation unless later scope closes the remaining delivery-state gaps without expanding authority

@@ -30,13 +30,13 @@ Last updated: 2026-06-22
 
 ### Sprint 05 - L4 Consolidation Assessment and Portfolio Update
 
-- [ ] `ACS-REQ-13` perform evidence-based L4 consolidation assessment
+- [x] `ACS-REQ-13` perform evidence-based L4 consolidation assessment
 - [ ] `ACS-REQ-14` create final ACS EPIC handoff
 - [ ] `ACS-REQ-15` update portfolio/global registers when environment is available
 
 ## Current Documentation-Derived Gaps
 
-- [ ] separate L-Level and D-Level with confirmed evidence
+- [x] separate L-Level and D-Level with confirmed evidence
 - [x] replace historical validation claims with current-cycle validation evidence
 - [x] consolidate authority boundaries into a single ACS-facing matrix
 - [x] formalize dedicated readiness registry target shape
@@ -52,3 +52,11 @@ Last updated: 2026-06-22
 - [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-12`
 - [x] do not update portfolio/global registers during `ACS-REQ-12`
 - [x] do not add production execution authority during `ACS-REQ-12`
+
+## ACS-REQ-13 Outcome
+
+- [x] create `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md`
+- [x] recommend `PROMOTE_TO_L4_READINESS`
+- [x] recommend `D3+`
+- [x] confirm ACS remains non-production and without mutation authority
+- [x] defer final handoff and portfolio/global register updates to later requests
