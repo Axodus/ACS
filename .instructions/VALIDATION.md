@@ -79,6 +79,13 @@ Documentation-safe evidence commands used in `ACS-REQ-14`:
 - `git diff -- .instructions`
 - `git status --short`
 
+Documentation/register-safe evidence commands used in `ACS-REQ-15`:
+- `test -d /opt/Axodus/.instructions && echo PORTFOLIO_DIR_AVAILABLE || echo PORTFOLIO_DIR_UNAVAILABLE`
+- `test -w /opt/Axodus/.instructions && echo PORTFOLIO_DIR_WRITABLE || echo PORTFOLIO_DIR_NOT_WRITABLE`
+- expected global-register presence and read-only content inspection with `rg`, `sed`, `tail`, `wc`, `ls`, and `stat`
+- `git diff -- .instructions`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
@@ -138,8 +145,9 @@ Current validation status means:
 
 ## Next Validation Need
 
-`ACS-REQ-14` used the evidence chain already captured in `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md` and did not re-run build/test/check.
+`ACS-REQ-15` used the evidence chain captured by ACS-REQ-12 through ACS-REQ-14 and did not re-run build/test/check.
 
 Next:
-- use `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md` as the handoff baseline for `ACS-REQ-15`
-- keep passing local validation as necessary but not sufficient evidence for maturity promotion
+- retain `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md` as the evidence that the portfolio directory was readable but not writable
+- repeat only the portfolio-register synchronization in an explicitly writable environment
+- keep passing local validation as necessary but not sufficient evidence for maturity promotion or production authority

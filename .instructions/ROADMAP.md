@@ -82,12 +82,12 @@ Planned outcomes:
 ## Sprint 05 - L4 Consolidation Assessment and Portfolio Update
 
 Status:
-- `IN_PROGRESS`
+- `COMPLETE`
 
 Requests:
 - `ACS-REQ-13` - COMPLETE
 - `ACS-REQ-14` - COMPLETE
-- `ACS-REQ-15`
+- `ACS-REQ-15` - COMPLETE WITH `PORTFOLIO_REGISTERS_UNAVAILABLE_IN_CURRENT_ENVIRONMENT`
 
 Planned outcomes:
 - evidence-based maturity assessment
@@ -99,5 +99,5 @@ Planned outcomes:
 The roadmap remains blocked from execution-sensitive expansion while any of the following remain unresolved:
 - execution authority not approved
 - production security controls intentionally unavailable
-- portfolio/global registers unavailable in the current environment
+- portfolio/global registers unavailable for write in the current environment
 - Hummingbot runtime blocked

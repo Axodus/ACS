@@ -32,7 +32,7 @@ Last updated: 2026-06-22
 
 - [x] `ACS-REQ-13` perform evidence-based L4 consolidation assessment
 - [x] `ACS-REQ-14` create final ACS EPIC handoff
-- [ ] `ACS-REQ-15` update portfolio/global registers when environment is available
+- [x] `ACS-REQ-15` check portfolio/global registers and document write unavailability in the current environment
 
 ## Current Documentation-Derived Gaps
 
@@ -67,3 +67,12 @@ Last updated: 2026-06-22
 - [x] carry forward the `PROMOTE_TO_L4_READINESS` recommendation
 - [x] preserve `ACS-REQ-15` as pending
 - [x] confirm ACS remains local-first, config-first, mock/read-only when applicable, integration-ready, execution-gated, and non-production
+
+## ACS-REQ-15 Outcome
+
+- [x] inspect the ACS-REQ-13/14 evidence chain
+- [x] confirm `/opt/Axodus/.instructions/` and all 13 expected register files exist
+- [x] confirm the active environment does not provide write access to the global register directory
+- [x] create `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md`
+- [x] record `PORTFOLIO_REGISTERS_UNAVAILABLE_IN_CURRENT_ENVIRONMENT` without simulating updates
+- [x] preserve `PROMOTE_TO_L4_READINESS`, `D3+`, non-production posture, and closed execution gates

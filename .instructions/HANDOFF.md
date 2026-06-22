@@ -18,6 +18,7 @@ Date: 2026-06-22
 - completed `ACS-REQ-12` local validation suite
 - completed `ACS-REQ-13` L4 consolidation assessment
 - completed `ACS-REQ-14` handoff and operational report
+- completed `ACS-REQ-15` portfolio register environment check and unavailability report
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -36,6 +37,7 @@ Date: 2026-06-22
 - `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md`
 - `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md`
 - `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md`
+- `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md`
 
 ## Current Recommended State
 
@@ -64,6 +66,7 @@ Operational posture:
 - treat the ACS-REQ-11 audit as local inspection evidence only, not as production approval
 - treat the ACS-REQ-13 assessment as a maturity recommendation only, not as automatic promotion
 - treat the ACS-REQ-14 handoff as the final EPIC summary without portfolio or authority updates
+- treat the ACS-REQ-15 report as evidence that global registers were readable but unavailable for write; no global update was simulated
 
 ## Current Validation State
 
@@ -73,6 +76,7 @@ Operational posture:
 - historical build/test evidence exists only as historical documentation
 - ACS-REQ-13 reused that fresh evidence and did not re-run build/test/check
 - ACS-REQ-14 reused the completed assessment and did not re-run build/test/check
+- ACS-REQ-15 did not re-run build/test/check and made documentation-only local updates
 
 ## Active Boundaries
 
@@ -93,13 +97,13 @@ Do not enable:
 
 - execution authority not approved
 - Hummingbot runtime blocked
-- portfolio/global registers unavailable in the current environment
+- portfolio/global registers unavailable for write in the current environment
 - production security controls intentionally unavailable
-- ACS-REQ-15 remains pending
+- global adoption of the L4 Readiness/D3+ recommendation remains pending
 
 ## Next Recommended Request
 
-`ACS-REQ-15 - Portfolio and global register update`
+ACS-EPIC-01 is complete. If a later environment provides explicit write access to `/opt/Axodus/.instructions/`, synchronize the portfolio registers from `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md` without expanding authority.
 
 ## Continuation Guidance
 
@@ -114,3 +118,4 @@ Do not enable:
 - use `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md` as the baseline for ACS-REQ-14
 - preserve the `PROMOTE_TO_L4_READINESS` recommendation unless later scope closes the remaining delivery-state gaps without expanding authority
 - use `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md` as the handoff baseline for ACS-REQ-15
+- use `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md` as the final ACS-EPIC-01 portfolio-sync evidence

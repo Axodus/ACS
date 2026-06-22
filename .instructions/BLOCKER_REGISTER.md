@@ -111,16 +111,16 @@ Re-run executable validation in a compatible environment and extend boundary-enf
 
 Severity: LOW
 
-Status: OPEN
+Status: OPEN - DIRECTORY PRESENT, WRITE ACCESS UNAVAILABLE
 
 Description:
-The expected portfolio/global register path is not available in the inspected environment.
+The expected portfolio/global register path and all 13 expected files are present and readable, but the active workspace filesystem profile does not permit writes under `/opt/Axodus/.instructions/`.
 
 Impact:
-Portfolio-level updates cannot be performed or validated locally in the current cycle.
+Portfolio-level updates cannot be performed or validated as mutations in the current environment. The global registers still contain the pre-ACS-EPIC-01 portfolio snapshot.
 
 Resolution path:
-Treat portfolio register updates as environment-dependent and defer them to `ACS-REQ-15` only when the required directory exists.
+Use `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md` to perform a portfolio-only synchronization in an explicitly writable environment. Do not infer production or execution authority from that synchronization.
 
 ## ACS-BLOCKER-009 - Business And Marketplace Alignment Contract Not Implemented Yet
 
@@ -205,6 +205,10 @@ Active blocked areas:
 
 `ACS-REQ-14` completed the final EPIC handoff without changing authority boundaries, validation results, or blocked capability state.
 
+## ACS-REQ-15 Portfolio Register Note
+
+`ACS-REQ-15` found the global directory and all 13 expected register files, but write access was unavailable under the active filesystem profile. It created `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md`, recorded `PORTFOLIO_REGISTERS_UNAVAILABLE_IN_CURRENT_ENVIRONMENT`, and did not simulate global mutations.
+
 ## Next Recommended Request
 
-`ACS-REQ-15 - Portfolio and global register update`
+ACS-EPIC-01 is complete. Repeat only the portfolio-register synchronization in an explicitly writable environment; keep every execution and production blocker active.

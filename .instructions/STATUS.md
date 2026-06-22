@@ -4,7 +4,7 @@ Last updated: 2026-06-22
 
 ## Current Request State
 
-Current request: `ACS-REQ-14 - ACS Handoff and Operational Report`
+Current request: `ACS-REQ-15 - Portfolio Registers Update for ACS Consolidation`
 
 Request status: COMPLETE
 
@@ -26,6 +26,7 @@ Evidence baseline:
 - `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md`
 - `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md`
 - `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md`
+- `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md`
 
 ## Current Classification
 
@@ -53,6 +54,8 @@ Status summary:
 - ACS now has fresh passing local build, test, and check evidence from `ACS-REQ-12`.
 - ACS now has a formal `ACS-REQ-13` consolidation assessment recommending `PROMOTE_TO_L4_READINESS`, not automatic promotion.
 - ACS now has a final `ACS-REQ-14` handoff and operational report.
+- ACS-REQ-15 confirmed that the portfolio directory and all 13 expected registers exist, but global writes are unavailable under the active filesystem profile.
+- ACS-REQ-15 documented `PORTFOLIO_REGISTERS_UNAVAILABLE_IN_CURRENT_ENVIRONMENT` without simulating global updates.
 - ACS is not `L4 Consolidated`.
 - ACS remains non-production and without mutation authority.
 
@@ -109,10 +112,10 @@ Forbidden in current state:
 ## Current Gaps
 
 Confirmed local gaps:
-- global portfolio registers are not available in the current environment
+- global portfolio registers are readable but unavailable for write in the current environment
 - production security controls remain intentionally unavailable
 - execution authority remains unapproved
-- ACS-REQ-15 remains pending
+- global adoption of the `PROMOTE_TO_L4_READINESS` / `D3+` recommendation remains pending
 
 ## Active Blockers
 
@@ -125,4 +128,4 @@ Confirmed local gaps:
 
 ## Next Recommended Request
 
-`ACS-REQ-15 - Portfolio and global register update`
+ACS-EPIC-01 is complete. A future portfolio-only synchronization may be run in an environment with write access to `/opt/Axodus/.instructions/`; it must not add execution or production authority.
