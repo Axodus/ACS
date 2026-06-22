@@ -220,7 +220,7 @@ export function inferTradingIntentClassification(message: string): AcsTradingInt
     return "secret_access_request";
   }
 
-  if (matchesAny(text, ["live trade", "real trade", "execute trade", "place order", "ordem real", "trade real"])) {
+  if (matchesAny(text, ["live trade", "live trading", "real trade", "execute trade", "place order", "ordem real", "trade real"])) {
     return "live_trading_request";
   }
 

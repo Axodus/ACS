@@ -26,7 +26,7 @@ Last updated: 2026-06-22
 
 - [x] `ACS-REQ-10` add explicit boundary enforcement coverage
 - [x] `ACS-REQ-11` perform security review and secret safety audit update
-- [ ] `ACS-REQ-12` re-run and document local validation in a compatible environment
+- [x] `ACS-REQ-12` re-run and document local validation in a compatible environment
 
 ### Sprint 05 - L4 Consolidation Assessment and Portfolio Update
 
@@ -37,7 +37,7 @@ Last updated: 2026-06-22
 ## Current Documentation-Derived Gaps
 
 - [ ] separate L-Level and D-Level with confirmed evidence
-- [ ] replace historical validation claims with current-cycle validation evidence
+- [x] replace historical validation claims with current-cycle validation evidence
 - [x] consolidate authority boundaries into a single ACS-facing matrix
 - [x] formalize dedicated readiness registry target shape
 - [x] formalize dedicated permission state model target shape
@@ -48,7 +48,7 @@ Last updated: 2026-06-22
 
 ## Explicitly Deferred In This Cycle
 
-- [x] do not execute `ACS-REQ-12` remediation during `ACS-REQ-11`
-- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-11`
-- [x] do not update portfolio/global registers during `ACS-REQ-11`
-- [x] do not add production execution authority during `ACS-REQ-11`
+- [x] do not execute the `ACS-REQ-13` assessment during `ACS-REQ-12`
+- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-12`
+- [x] do not update portfolio/global registers during `ACS-REQ-12`
+- [x] do not add production execution authority during `ACS-REQ-12`

@@ -49,7 +49,7 @@ const REQUIRED_BLOCKED_ACTION_IDS = [
   "permission.enforce.production",
   "state.mutate.production",
   "portfolio.global_registers.mutate",
-] as const;
+];
 
 const PROHIBITED_ACTIONS = new Set(REQUIRED_BLOCKED_ACTION_IDS);
 
@@ -78,7 +78,7 @@ test("permission action checks return representational blocked posture for prohi
     ["acs.provisioning", "acs.provision.real"],
     ["acs.external-provider-production-execution", "provider.external.production.execute"],
     ["acs.permission-state-model", "permission.enforce.production"],
-  ] as const;
+  ];
 
   for (const [entryId, action] of checks) {
     const result = checkAcsPermissionAction(entryId, action);
@@ -104,7 +104,7 @@ test("consumer action posture checks remain representational only for prohibited
     "billing.execute.real",
     "provider.external.production.execute",
     "portfolio.global_registers.mutate",
-  ] as const;
+  ];
 
   for (const action of checks) {
     const result = checkAcsConsumerActionPosture(action);
@@ -187,7 +187,7 @@ test("no fixture marks production DB, production API, or provider production exe
   const allowedActions = permissionEntries.flatMap((entry) => entry.allowedActions);
   const consumer = getAcsConsumerSnapshot();
 
-  assert.equal(allowedActions.some((action) => PROHIBITED_ACTIONS.has(action as (typeof REQUIRED_BLOCKED_ACTION_IDS)[number])), false);
+  assert.equal(allowedActions.some((action) => PROHIBITED_ACTIONS.has(action)), false);
   assert.equal(consumer.boundaries.productionProviderExecutionLayer, false);
   assert.equal(consumer.boundaries.productionPermissionEnforcementAvailable, false);
 });

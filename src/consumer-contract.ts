@@ -284,7 +284,7 @@ export function checkAcsConsumerActionPosture(action: string): AcsConsumerAction
   const blockedAction = checkConsumerBlockedAction(action);
   const permissionSignals = listAcsPermissionStateEntries()
     .filter((entry) => entry.allowedActions.includes(action) || entry.blockedActions.includes(action))
-    .map((entry) => ({
+    .map<AcsPermissionActionCheckResult>((entry) => ({
       entryFound: true,
       entryId: entry.id,
       subject: entry.subject,

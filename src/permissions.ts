@@ -116,11 +116,11 @@ export interface AcsPermissionActionCheckResult {
 }
 
 const BLOCKED_PERMISSION_STATES = new Set<AcsPermissionState>([
-  "EXECUTION_BLOCKED",
   "SIGNING_BLOCKED",
   "TREASURY_BLOCKED",
   "SETTLEMENT_BLOCKED",
   "PROVISIONING_BLOCKED",
+  "EXECUTION_BLOCKED",
 ]);
 
 const ALLOWED_PERMISSION_STATES = new Set<AcsPermissionState>([
@@ -333,7 +333,7 @@ function firstMatchingState(
   candidates: ReadonlySet<AcsPermissionState>,
   fallback: AcsPermissionState,
 ): AcsPermissionState {
-  return states.find((state) => candidates.has(state)) ?? fallback;
+  return [...candidates].find((candidate) => states.includes(candidate)) ?? fallback;
 }
 
 function cloneAcsPermissionStateEntry(entry: AcsPermissionStateEntry): AcsPermissionStateEntry {

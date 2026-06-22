@@ -59,17 +59,30 @@ Security and validation commands used in `ACS-REQ-11`:
 - `git diff -- .`
 - `git status --short`
 
+Local validation commands used in `ACS-REQ-12`, in order:
+- `command -v node`
+- `node --version`
+- `command -v npm`
+- `npm --version`
+- `npm run build`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+- `git diff -- .`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
-- `FAILED_CURRENT_CYCLE_TYPECHECK`
+- `PASS_CURRENT_CYCLE_LOCAL_VALIDATION`
 
-Reason:
-- Node and npm are available.
-- The initial standalone `npm run build` returned success.
-- The build invoked by `npm test` failed at `src/consumer-contract.ts:314`: inferred `boolean` is not assignable to literal type `false`.
-- `npm run check` reproduced the same build failure.
-- The test runner did not execute, so no test success is claimed.
+Result:
+- Node `v24.14.1` and npm `11.11.0` are available.
+- `npm run build`: PASS.
+- `npm test`: PASS.
+- `npm run check`: PASS.
+- no tests were skipped or removed.
+- loopback HTTP and CLI child-process tests were executed outside the restricted sandbox after sandbox-only `EPERM` diagnostics.
 
 Current-cycle validation evidence:
 - baseline report created
@@ -89,6 +102,7 @@ Current-cycle validation evidence:
 - Business/Marketplace alignment tests added
 - boundary enforcement test suite added
 - ACS security review, secret safety audit, and production endpoint audit completed
+- ACS local validation report created
 - documentation diff review performed
 
 ## Historical Validation Evidence
@@ -103,23 +117,17 @@ Constraint:
 
 ## Current Validation Limits
 
-- current clean/repeated build result is failed due to the TypeScript error above
-- test execution did not start because its prerequisite build failed
-- no smoke command executed in this cycle
+- smoke commands were not part of ACS-REQ-12 and were not executed
 - no markdown checker command was found in the repository
+- local validation success is not an L4 consolidation assessment or production-readiness approval
 
 ## Validation Interpretation
 
 Current validation status means:
 - readiness, permission, operational gate, read-only consumer contract, AxodusAPP preview, Business/Marketplace alignment, and focused boundary enforcement test implementations are complete at source/documentation level
-- repository runtime health is `FAILED_CURRENT_CYCLE_TYPECHECK` for this cycle
+- repository local build/test/check health is confirmed for this cycle
 - ACS must remain execution-gated and non-production
 
 ## Next Validation Need
 
-Under `ACS-REQ-12`:
-- resolve the `src/consumer-contract.ts:314` literal-type failure
-- run `npm run build`
-- run `npm test`
-- run `npm run check`
-- record fresh results before any maturity promotion discussion
+Use the fresh evidence in `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md` as one input to `ACS-REQ-13`. Passing local validation does not itself authorize maturity promotion.

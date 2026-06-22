@@ -32,20 +32,20 @@ No real trading or bot lifecycle can be executed through ACS.
 Resolution path:
 Preserve sandbox-only and no-go boundaries until a separate approved execution-sensitive request exists.
 
-## ACS-BLOCKER-003 - Current-Cycle Validation Fails TypeScript Build
+## ACS-BLOCKER-003 - Current-Cycle Local Validation
 
 Severity: HIGH
 
-Status: OPEN
+Status: RESOLVED IN `ACS-REQ-12`
 
 Description:
-Node and npm are available. `npm test` and `npm run check` reach the build step but fail at `src/consumer-contract.ts:314` because an inferred `boolean` is not assignable to the literal type `false`. The test runner does not start.
+`ACS-REQ-12` fixed the literal-type inference error at `src/consumer-contract.ts:314` and the additional validation defects exposed after compilation resumed. Fresh `npm run build`, `npm test`, and `npm run check` runs pass.
 
 Impact:
-Current-cycle build health is failed and test pass status remains unconfirmed.
+Current-cycle local build, test, and check health is confirmed.
 
 Resolution path:
-Resolve the literal-type failure under `ACS-REQ-12`, then re-run `npm run build`, `npm test`, and `npm run check` before using validation as maturity evidence.
+Keep `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md` as the current-cycle evidence. Re-open this blocker if later changes break build, tests, or check.
 
 ## ACS-BLOCKER-004 - Dedicated Permission State Model Missing
 
@@ -199,4 +199,4 @@ Active blocked areas:
 
 ## Next Recommended Request
 
-`ACS-REQ-12 - Re-run and document local validation`
+`ACS-REQ-13 - Evidence-based L4 consolidation assessment`

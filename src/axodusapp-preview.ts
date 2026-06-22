@@ -136,7 +136,7 @@ export function getAcsAxodusAppReadinessCards(
     title: entry.name,
     status: entry.status,
     severity: mapReadinessSeverity(entry.status),
-    summary: entry.summary,
+    summary: toDashboardSafeSummary(entry.summary),
     evidence: [...entry.evidence],
     blocked: entry.status === "BLOCKED" || entry.status === "EXECUTION_GATED",
     source: entry.source,
@@ -151,7 +151,7 @@ export function getAcsAxodusAppPermissionCards(
     title: entry.subject,
     status: entry.states.join(", "),
     severity: entry.blockedActions.length > 0 ? "HIGH" : "INFO",
-    summary: entry.summary,
+    summary: toDashboardSafeSummary(entry.summary),
     evidence: [...entry.evidence],
     blocked: entry.blockedActions.length > 0,
     source: entry.source,
@@ -166,7 +166,7 @@ export function getAcsAxodusAppGateCards(
     title: gate.name,
     status: gate.status,
     severity: mapGateSeverity(gate.status),
-    summary: gate.summary,
+    summary: toDashboardSafeSummary(gate.summary),
     evidence: [...gate.evidence],
     blocked: gate.status !== "READ_ONLY_ALLOWED",
     source: gate.source,
@@ -181,7 +181,7 @@ export function getAcsAxodusAppBlockedActionCards(
     title: action.id,
     status: action.status,
     severity: "CRITICAL",
-    summary: action.summary,
+    summary: toDashboardSafeSummary(action.summary),
     evidence: [...action.evidence],
     blocked: true,
     source: action.source,
@@ -200,6 +200,12 @@ export function getAcsAxodusAppCriticalWarnings(
     `Validation status: ${validationStatus}.`,
     `Blocked no-go actions represented: ${boundaries.noGoPosture.join(", ")}.`,
   ];
+}
+
+function toDashboardSafeSummary(summary: string): string {
+  return summary
+    .replace(/secretref/gi, "credential reference")
+    .replace(/raw secret/gi, "sensitive credential");
 }
 
 function mapReadinessSeverity(status: string): "INFO" | "MEDIUM" | "HIGH" | "CRITICAL" {

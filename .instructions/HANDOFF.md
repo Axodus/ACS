@@ -15,6 +15,7 @@ Date: 2026-06-22
 - completed `ACS-REQ-09` Business and Marketplace alignment contract
 - completed `ACS-REQ-10` boundary enforcement tests
 - completed `ACS-REQ-11` security review and secret safety audit
+- completed `ACS-REQ-12` local validation suite
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -30,6 +31,7 @@ Date: 2026-06-22
 - `.instructions/reports/ACS_SECURITY_REVIEW.md`
 - `.instructions/reports/ACS_SECRET_SAFETY_AUDIT.md`
 - `.instructions/reports/ACS_PRODUCTION_ENDPOINT_AUDIT.md`
+- `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md`
 
 ## Current Recommended State
 
@@ -37,7 +39,7 @@ L-Level:
 - `L4 Candidate`
 
 D-Level:
-- `NOT_CONFIRMED_LOCAL_EVIDENCE_REQUIRED`
+- `LOCAL_VALIDATION_CONFIRMED`
 
 Operational posture:
 - hold execution gates closed
@@ -53,8 +55,9 @@ Operational posture:
 
 ## Current Validation State
 
-- `FAILED_CURRENT_CYCLE_TYPECHECK`
-- reason: `npm test` and `npm run check` fail during build at `src/consumer-contract.ts:314`; tests did not execute
+- `PASS_CURRENT_CYCLE_LOCAL_VALIDATION`
+- `npm run build`, `npm test`, and `npm run check` pass with fresh ACS-REQ-12 evidence
+- no tests were skipped or removed
 - historical build/test evidence exists only as historical documentation
 
 ## Active Boundaries
@@ -76,13 +79,12 @@ Do not enable:
 
 - execution authority not approved
 - Hummingbot runtime blocked
-- validation blocked by current TypeScript compile failure
 - portfolio/global registers unavailable in the current environment
 - production security controls intentionally unavailable
 
 ## Next Recommended Request
 
-`ACS-REQ-12 - Re-run and document local validation`
+`ACS-REQ-13 - Evidence-based L4 consolidation assessment`
 
 ## Continuation Guidance
 
@@ -94,4 +96,4 @@ Do not enable:
 - keep the generic consumer contract read-only and registry-backed
 - keep the AxodusAPP preview adapter local/read-only and free of runtime calls
 - keep the Business/Marketplace alignment contract local/read-only and non-executive
-- move next into local validation remediation and evidence capture without reopening execution authority
+- use fresh validation evidence in ACS-REQ-13 without treating a passing suite as automatic promotion

@@ -30,7 +30,7 @@ const REQUIRED_GATES = [
   "gate.production-permission-enforcement",
   "gate.production-state-mutation",
   "gate.portfolio-global-register-mutation",
-] as const;
+];
 
 const REQUIRED_BLOCKED_ACTIONS = [
   "acs.provision.real",
@@ -50,7 +50,7 @@ const REQUIRED_BLOCKED_ACTIONS = [
   "permission.enforce.production",
   "state.mutate.production",
   "portfolio.global_registers.mutate",
-] as const;
+];
 
 test("all required gates exist", () => {
   const gates = createAcsOperationalGateFixtures();
@@ -71,7 +71,7 @@ test("all required gates exist", () => {
 });
 
 test("all critical gates are closed, blocked, or execution-gated", () => {
-  const gates = createAcsOperationalGateFixtures().filter((gate) => REQUIRED_GATES.includes(gate.id as (typeof REQUIRED_GATES)[number]));
+  const gates = createAcsOperationalGateFixtures().filter((gate) => REQUIRED_GATES.includes(gate.id));
 
   assert.ok(gates.every((gate) => ["CLOSED", "BLOCKED", "EXECUTION_GATED"].includes(gate.status)));
 });
