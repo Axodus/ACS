@@ -51,16 +51,16 @@ Re-run `npm run build`, `npm test`, and `npm run check` in a compatible environm
 
 Severity: MEDIUM
 
-Status: OPEN
+Status: RESOLVED IN `ACS-REQ-05`
 
 Description:
-Permission behavior exists across policy and inspection surfaces, but there is no dedicated permission state model matching `ACS-EPIC-01`.
+Permission behavior previously existed across policy and inspection surfaces only. `ACS-REQ-05` added a dedicated local/config-first/read-only permission state model with fixtures, read functions, inspection integration, and representational action checks.
 
 Impact:
-Permission representation is not yet centralized for cross-nucleus consumption.
+Permission representation is now centralized as a local control-plane surface for ACS without enabling production enforcement.
 
 Resolution path:
-Address in `ACS-REQ-05` after `ACS-REQ-04` establishes the readiness registry.
+Keep the permission state model representational and use `ACS-REQ-06` to add the adjacent operational gate registry without reopening execution authority.
 
 ## ACS-BLOCKER-005 - Centralized Operational Gate Registry Missing
 
@@ -139,4 +139,4 @@ Active blocked areas:
 
 ## Next Recommended Request
 
-`ACS-REQ-05 - ACS Permission State Model`
+`ACS-REQ-06 - ACS Operational Gate Registry`

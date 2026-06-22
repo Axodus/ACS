@@ -11,6 +11,10 @@ import {
   inspectEmergencyStops,
   inspectObservabilityStatus,
   inspectPerformanceRecords,
+  inspectPermissionActionCheck,
+  inspectPermissionStateEntry,
+  inspectPermissionStateModel,
+  inspectPermissionStateSummary,
   inspectPolicyCheck,
   inspectPolicyMatrix,
   inspectProductAccess,
@@ -151,6 +155,26 @@ test("readiness registry inspection lists entries, blocked entries, and summary 
   assert.equal(entry.entry?.id, "acs.core");
   assert.equal(summary.summary.executionGated, true);
   assert.equal(summary.summary.nonProduction, true);
+});
+
+test("permission state inspection lists entries, filters blocked domains, and reports representational action checks", () => {
+  const all = inspectPermissionStateModel();
+  const bySubject = inspectPermissionStateModel({ subject: "acs.permission-state-model" });
+  const byDomain = inspectPermissionStateModel({ domain: "wallet-signing" });
+  const blocked = inspectPermissionStateModel({ blockedOnly: true });
+  const entry = inspectPermissionStateEntry("acs.permission-state-model");
+  const summary = inspectPermissionStateSummary();
+  const action = inspectPermissionActionCheck("acs.wallet-signing", "wallet.sign.real");
+
+  assert.ok(all.entries.length >= 20);
+  assert.deepEqual(bySubject.entries.map((item) => item.subject), ["acs.permission-state-model"]);
+  assert.deepEqual(byDomain.entries.map((item) => item.domain), ["wallet-signing"]);
+  assert.ok(blocked.entries.some((item) => item.id === "acs.wallet-signing"));
+  assert.equal(entry.entry?.id, "acs.permission-state-model");
+  assert.equal(summary.summary.nonProduction, true);
+  assert.equal(summary.summary.productionEnforcementAvailable, false);
+  assert.equal(action.result.representedBlocked, true);
+  assert.equal(action.result.executionTriggered, false);
 });
 
 test("inspection CLI commands return valid JSON without runtime side effects", () => {

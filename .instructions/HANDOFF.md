@@ -8,12 +8,14 @@ Date: 2026-06-22
 - completed `ACS-REQ-02` instruction set normalization
 - completed `ACS-REQ-03` authority boundary matrix
 - completed `ACS-REQ-04` readiness registry implementation
+- completed `ACS-REQ-05` permission state model implementation
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
 - `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
 - `.instructions/reports/ACS_AUTHORITY_BOUNDARY_REPORT.md`
 - `.instructions/reports/ACS_READINESS_REGISTRY_REPORT.md`
+- `.instructions/reports/ACS_PERMISSION_STATE_MODEL_REPORT.md`
 
 ## Current Recommended State
 
@@ -27,6 +29,7 @@ Operational posture:
 - hold execution gates closed
 - treat ACS as local/mock, inspection-first, and non-production
 - treat readiness registry as config-first and read-only
+- treat permission state model as representational and read-only
 
 ## Current Validation State
 
@@ -54,7 +57,6 @@ Do not enable:
 - execution authority not approved
 - Hummingbot runtime blocked
 - validation blocked by environment
-- no dedicated permission state model yet
 - no centralized operational gate registry yet
 - indirect coverage remains for `wallet.sign`
 - indirect coverage remains for `provider.execute.production`
@@ -63,11 +65,12 @@ Do not enable:
 
 ## Next Recommended Request
 
-`ACS-REQ-05 - ACS Permission State Model`
+`ACS-REQ-06 - ACS Operational Gate Registry`
 
 ## Continuation Guidance
 
 - keep all execution-sensitive no-go areas closed
 - do not treat normalized documentation as maturity promotion
 - keep readiness registry aligned with `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
-- keep permission and gate registries explicitly out of scope until their own requests
+- keep permission model aligned with the same boundary matrix
+- keep gate registry explicitly out of scope until its own request

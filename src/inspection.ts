@@ -3,12 +3,24 @@ import { AcsCapabilityRegistry, type AcsServiceCapability } from "./capability-r
 import type { AcsConsumptionLevel } from "./consumption-levels.js";
 import {
   ACS_FIXTURE_IDS,
+  createAcsPermissionStateFixtures,
   createAcsTenantFixtures,
   createAcsReadinessRegistryFixtures,
   createSampleAcsReceiptFixture,
   createSampleEmergencyStopFixtures,
   createSamplePerformanceRecordFixtures,
 } from "./fixtures/acs-fixtures.js";
+import {
+  checkAcsPermissionAction,
+  getAcsPermissionStateEntry,
+  isAcsPermissionDomain,
+  listAcsPermissionStateEntries,
+  listAcsPermissionStateEntriesByDomain,
+  listAcsPermissionStateEntriesBySubject,
+  listBlockedAcsPermissionStateEntries,
+  summarizeAcsPermissionState,
+  type AcsPermissionDomain,
+} from "./permissions.js";
 import {
   getAcsReadinessRegistryEntry,
   isAcsReadinessDomain,
@@ -53,6 +65,12 @@ export interface UserStatusInspectionFilter {
 export interface ReadinessRegistryInspectionFilter {
   readonly domain?: AcsReadinessDomain;
   readonly status?: AcsReadinessStatus;
+  readonly blockedOnly?: boolean;
+}
+
+export interface PermissionStateInspectionFilter {
+  readonly subject?: string;
+  readonly domain?: AcsPermissionDomain;
   readonly blockedOnly?: boolean;
 }
 
@@ -213,6 +231,50 @@ export function inspectReadinessRegistryEntry(id: string) {
 export function inspectReadinessRegistrySummary() {
   return {
     summary: summarizeAcsReadinessRegistry(createAcsReadinessRegistryFixtures()),
+  };
+}
+
+export function inspectPermissionStateModel(filter: PermissionStateInspectionFilter = {}) {
+  let entries = listAcsPermissionStateEntries(createAcsPermissionStateFixtures());
+
+  if (filter.subject) {
+    entries = listAcsPermissionStateEntriesBySubject(filter.subject, entries);
+  }
+
+  if (filter.domain) {
+    entries = listAcsPermissionStateEntriesByDomain(filter.domain, entries);
+  }
+
+  if (filter.blockedOnly) {
+    entries = listBlockedAcsPermissionStateEntries(entries);
+  }
+
+  return {
+    filter: {
+      ...(filter.subject ? { subject: filter.subject } : {}),
+      ...(filter.domain ? { domain: filter.domain } : {}),
+      ...(filter.blockedOnly ? { blockedOnly: true } : {}),
+    },
+    entries,
+    summary: summarizeAcsPermissionState(entries),
+  };
+}
+
+export function inspectPermissionStateEntry(id: string) {
+  return {
+    entry: getAcsPermissionStateEntry(id, createAcsPermissionStateFixtures()),
+  };
+}
+
+export function inspectPermissionStateSummary() {
+  return {
+    summary: summarizeAcsPermissionState(createAcsPermissionStateFixtures()),
+  };
+}
+
+export function inspectPermissionActionCheck(id: string, action: string) {
+  return {
+    result: checkAcsPermissionAction(id, action, createAcsPermissionStateFixtures()),
   };
 }
 
@@ -450,4 +512,12 @@ export function isReadinessRegistryInspectionFilter(input: {
 }): boolean {
   return (input.domain === undefined || isAcsReadinessDomain(input.domain))
     && (input.status === undefined || isAcsReadinessStatus(input.status));
+}
+
+export function isPermissionStateInspectionFilter(input: {
+  readonly subject?: string;
+  readonly domain?: string;
+}): boolean {
+  return (input.subject === undefined || typeof input.subject === "string")
+    && (input.domain === undefined || isAcsPermissionDomain(input.domain));
 }
