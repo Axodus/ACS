@@ -12,6 +12,7 @@ ACS security in the current phase is based on:
 - read-only permission state model representation
 - read-only operational gate registry representation
 - read-only generic consumer contract aggregation
+- read-only AxodusAPP preview adapter projection
 - explicit no-go boundaries
 - execution-gated workflows
 - non-production runtime posture
@@ -80,7 +81,7 @@ The following domains remain blocked even if local contracts or documentation re
 ## Current Security Gaps
 
 - current-cycle executable confirmation of gate coverage remains environment-blocked
-- consumer-specific adapters for AxodusAPP and Business/Marketplace remain intentionally unimplemented in this request
+- Business/Marketplace-specific alignment contract remains intentionally unimplemented in this request
 
 ## Validation Constraint
 
@@ -100,7 +101,7 @@ Authority boundary source:
 - `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
 
 Next documentation-to-implementation step:
-- `ACS-REQ-08 - AxodusAPP ACS Integration Preview`
+- `ACS-REQ-09 - Business and Marketplace ACS Alignment Contract`
 
 Before any maturity discussion beyond `L4 Candidate`:
 - re-run validation in a compatible environment

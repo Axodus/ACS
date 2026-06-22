@@ -6,6 +6,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
+  inspectAxodusAppBlockedActionCards,
+  inspectAxodusAppCriticalWarnings,
+  inspectAxodusAppGateCards,
+  inspectAxodusAppPermissionCards,
+  inspectAxodusAppPreviewSnapshot,
+  inspectAxodusAppPreviewSummary,
+  inspectAxodusAppReadinessCards,
   inspectConsumerActionPosture,
   inspectConsumerBlockedActionView,
   inspectConsumerContractSnapshot,
@@ -231,6 +238,25 @@ test("consumer contract inspection exposes aggregated read-only consumer surface
   assert.ok(blockedActions.blockedActions.actions.length >= 17);
   assert.equal(action.result.representedBlocked, true);
   assert.equal(action.result.executionTriggered, false);
+});
+
+test("AxodusAPP preview inspection exposes dashboard-safe read-only preview surfaces", () => {
+  const snapshot = inspectAxodusAppPreviewSnapshot();
+  const summary = inspectAxodusAppPreviewSummary();
+  const readiness = inspectAxodusAppReadinessCards();
+  const permissions = inspectAxodusAppPermissionCards();
+  const gates = inspectAxodusAppGateCards();
+  const blockedActions = inspectAxodusAppBlockedActionCards();
+  const warnings = inspectAxodusAppCriticalWarnings();
+
+  assert.equal(snapshot.snapshot.adapterMode, "AXODUSAPP_PREVIEW_READ_ONLY");
+  assert.equal(snapshot.snapshot.targetConsumer, "AXODUSAPP_PORTFOLIO_INTELLIGENCE_HUB_PREVIEW");
+  assert.equal(summary.summary.recommendedNextReq, "ACS-REQ-09");
+  assert.ok(readiness.cards.length >= 13);
+  assert.ok(permissions.cards.length >= 20);
+  assert.ok(gates.cards.length >= 15);
+  assert.ok(blockedActions.cards.length >= 17);
+  assert.ok(warnings.warnings.some((warning) => warning.includes("Preview-only adapter")));
 });
 
 test("inspection CLI commands return valid JSON without runtime side effects", () => {

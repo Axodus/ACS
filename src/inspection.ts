@@ -2,6 +2,15 @@ import { ACS_POLICY_MATRIX, getPolicyMatrixEntry, type AcsCapabilityId } from ".
 import { AcsCapabilityRegistry, type AcsServiceCapability } from "./capability-registry.js";
 import type { AcsConsumptionLevel } from "./consumption-levels.js";
 import {
+  getAcsAxodusAppBlockedActionCards,
+  getAcsAxodusAppCriticalWarnings,
+  getAcsAxodusAppGateCards,
+  getAcsAxodusAppPermissionCards,
+  getAcsAxodusAppPreviewSnapshot,
+  getAcsAxodusAppReadinessCards,
+  summarizeAcsAxodusAppPreviewPosture,
+} from "./axodusapp-preview.js";
+import {
   checkAcsConsumerActionPosture,
   getAcsConsumerBlockedActionView,
   getAcsConsumerGateView,
@@ -410,6 +419,48 @@ export function inspectConsumerBlockedActionView() {
 export function inspectConsumerActionPosture(action: string) {
   return {
     result: checkAcsConsumerActionPosture(action),
+  };
+}
+
+export function inspectAxodusAppPreviewSnapshot() {
+  return {
+    snapshot: getAcsAxodusAppPreviewSnapshot(),
+  };
+}
+
+export function inspectAxodusAppPreviewSummary() {
+  return {
+    summary: summarizeAcsAxodusAppPreviewPosture(),
+  };
+}
+
+export function inspectAxodusAppReadinessCards() {
+  return {
+    cards: getAcsAxodusAppReadinessCards(),
+  };
+}
+
+export function inspectAxodusAppPermissionCards() {
+  return {
+    cards: getAcsAxodusAppPermissionCards(),
+  };
+}
+
+export function inspectAxodusAppGateCards() {
+  return {
+    cards: getAcsAxodusAppGateCards(),
+  };
+}
+
+export function inspectAxodusAppBlockedActionCards() {
+  return {
+    cards: getAcsAxodusAppBlockedActionCards(),
+  };
+}
+
+export function inspectAxodusAppCriticalWarnings() {
+  return {
+    warnings: getAcsAxodusAppCriticalWarnings(),
   };
 }
 

@@ -11,6 +11,7 @@ Date: 2026-06-22
 - completed `ACS-REQ-05` permission state model implementation
 - completed `ACS-REQ-06` operational gate registry implementation
 - completed `ACS-REQ-07` read-only consumer contract
+- completed `ACS-REQ-08` AxodusAPP integration preview
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -20,6 +21,7 @@ Date: 2026-06-22
 - `.instructions/reports/ACS_PERMISSION_STATE_MODEL_REPORT.md`
 - `.instructions/reports/ACS_OPERATIONAL_GATE_REGISTRY_REPORT.md`
 - `.instructions/reports/ACS_READ_ONLY_CONSUMER_CONTRACT_REPORT.md`
+- `.instructions/reports/ACS_AXODUSAPP_INTEGRATION_PREVIEW_REPORT.md`
 
 ## Current Recommended State
 
@@ -36,6 +38,7 @@ Operational posture:
 - treat permission state model as representational and read-only
 - treat operational gate registry as representational and read-only
 - treat the consumer contract as generic, registry-backed, read-only, and non-executive
+- treat the AxodusAPP preview adapter as a local dashboard projection only, without runtime dependency
 
 ## Current Validation State
 
@@ -63,13 +66,12 @@ Do not enable:
 - execution authority not approved
 - Hummingbot runtime blocked
 - validation blocked by environment
-- no AxodusAPP preview adapter yet
 - no Business/Marketplace alignment contract yet
 - portfolio/global registers unavailable in the current environment
 
 ## Next Recommended Request
 
-`ACS-REQ-08 - AxodusAPP ACS Integration Preview`
+`ACS-REQ-09 - Business and Marketplace ACS Alignment Contract`
 
 ## Continuation Guidance
 
@@ -79,4 +81,5 @@ Do not enable:
 - keep permission model aligned with the same boundary matrix
 - keep gate registry aligned with the same boundary matrix
 - keep the generic consumer contract read-only and registry-backed
-- keep AxodusAPP-specific and Business/Marketplace-specific contracts out of scope until their own requests
+- keep the AxodusAPP preview adapter local/read-only and free of runtime calls
+- keep Business/Marketplace-specific contracts out of scope until their own request

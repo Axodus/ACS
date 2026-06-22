@@ -55,4 +55,10 @@ REQ-07 consumer contract note:
 - No Business/Marketplace-specific alignment contract is introduced in `ACS-REQ-07`.
 - No new mutating HTTP endpoints are added in `ACS-REQ-07`.
 
+REQ-08 AxodusAPP preview note:
+- `ACS-REQ-08` adds an AxodusAPP preview adapter at the local registry/inspection layer only.
+- The preview adapter is read-only, local/config-first, and dashboard-safe.
+- The preview adapter does not call AxodusAPP and does not require AxodusAPP runtime.
+- No new mutating HTTP endpoints are added in `ACS-REQ-08`.
+
 Full response examples live in `.instructions/ACS_API_EXAMPLES.md`.
