@@ -1,176 +1,54 @@
 # ACS Tasks
 
-# Active Tasks
+Last updated: 2026-06-22
 
-## Tenant-Aware Core MVP
-- [x] define Core/Service/Product consumption model
-- [x] define tenant context model
-- [x] define ACS capability registry
-- [x] define tenant service mock registry
-- [x] define product access mock registry
-- [x] extend policy matrix with consumption and automation metadata
-- [x] map Trading Ignition as ACS capability
-- [x] scope operational state telemetry and receipts by tenant/level
-- [x] test tenant isolation
-- [x] test service/product access decisions
-- [x] add tenant-aware CLI inspection commands
-- [x] ensure inspection CLI commands do not initialize runtime side effects
-- [x] add read-only HTTP inspection API for AxodusAPP
-- [ ] add tenant-scoped workflow receipt model
+## ACS-EPIC-01 Active Tasks
 
----
+### Sprint 01 - Current State, Boundaries and Instruction Normalization
 
-## Planning Reset
-- [x] define Operational States
-- [x] define ACS Policy Matrix
-- [x] define What ACS Is Not
-- [x] document Trading Ignition Product boundary
-- [x] document License and Access Model
-- [x] document Risk Model
-- [x] document Internal Validation Plan
-- [x] document Security Requirements
-- [x] add initial TypeScript OperationalState contract
-- [x] add initial TypeScript ACS Policy Matrix contract
-- [x] test activation-blocking states
-- [x] test withdrawal is never allowed
-- [x] add state-change telemetry event types
-- [x] add state-change receipt model
-- [x] implement operational state machine
-- [x] implement readiness checklist contract
-- [x] implement mock license validator
-- [x] implement mock API safety validator
-- [x] add UI recommendations for disabled withdrawals and IP permission
-- [x] implement risk preset schema
-- [x] implement conservative default preset
-- [x] implement risk limit evaluator
-- [ ] implement emergency stop workflow
+- [x] `ACS-REQ-01` create ACS current-state baseline from local evidence
+- [x] `ACS-REQ-02` normalize ACS operational instruction set against the baseline
+- [ ] `ACS-REQ-03` create ACS authority boundary matrix
 
----
+### Sprint 02 - Readiness Registry and Control Plane Foundation
 
-## Orchestration
-- [x] define initial orchestration runtime
-- [x] define initial workflow execution model
-- [x] define initial multi-agent coordination boundary
-- [x] add local runtime bootstrap
-- [x] define initial bounded autonomy rules
-- [x] define initial execution lifecycle receipts
-- [x] persist execution receipts outside memory
-- [x] add receipt query filters
-- [x] add smoke workflow commands
-- [x] add replay/idempotency strategy
-- [x] add local ACS CLI
-- [x] add named workflow registry
-- [x] add versioned workflows
+- [ ] `ACS-REQ-04` implement dedicated readiness registry
+- [ ] `ACS-REQ-05` implement dedicated permission state model
+- [ ] `ACS-REQ-06` implement centralized operational gate registry
 
----
+### Sprint 03 - Integration Contracts and Cross-Nucleus Consumers
 
-## Agents
-- [x] define initial agent identity structure
-- [x] define initial permission boundaries
-- [x] add local OpenClaw agent discovery adapter
-- [ ] define execution scopes beyond workflow permissions
-- [x] define initial agent telemetry requirement
-- [ ] define agent lifecycle management
+- [ ] `ACS-REQ-07` define read-only consumer contract
+- [ ] `ACS-REQ-08` prepare AxodusAPP ACS integration preview
+- [ ] `ACS-REQ-09` define Business and Marketplace alignment contract
 
----
+### Sprint 04 - Security, Validation and Boundary Enforcement
 
-## MCP
-- [x] define initial RedHat MCP safe adapter boundary
-- [x] add RedHat skill listing contract
-- [x] add RedHat skill description contract
-- [x] add RedHat planning contract
-- [x] add blocked RedHat guarded execution contract
-- [x] add command/execution policy model
-- [x] add action allowlist model
-- [x] add approval state model
-- [x] add sandbox boundary model
-- define transport abstraction
-- define interoperability interfaces
-- define runtime coordination flows
-- define execution routing model
+- [ ] `ACS-REQ-10` add explicit boundary enforcement coverage
+- [ ] `ACS-REQ-11` perform security review and secret safety audit update
+- [ ] `ACS-REQ-12` re-run and document local validation in a compatible environment
 
----
+### Sprint 05 - L4 Consolidation Assessment and Portfolio Update
 
-## Memory
-- define vector memory architecture
-- define memory isolation model
-- define retention policies
-- define contextual persistence
-- define memory telemetry
+- [ ] `ACS-REQ-13` perform evidence-based L4 consolidation assessment
+- [ ] `ACS-REQ-14` create final ACS EPIC handoff
+- [ ] `ACS-REQ-15` update portfolio/global registers when environment is available
 
----
+## Current Documentation-Derived Gaps
 
-## Compute
-- define compute federation model
-- define provider participation rules
-- define inference routing
-- define compute telemetry
-- define compute capability metadata
+- [ ] separate L-Level and D-Level with confirmed evidence
+- [ ] replace historical validation claims with current-cycle validation evidence
+- [ ] consolidate authority boundaries into a single ACS-facing matrix
+- [ ] formalize dedicated readiness registry target shape
+- [ ] formalize dedicated permission state model target shape
+- [ ] formalize centralized operational gate registry target shape
+- [ ] add explicit coverage for `wallet.sign`
+- [ ] add explicit coverage for `provider.execute.production`
+- [ ] add explicit coverage for billing, settlement, and provisioning gates
 
----
+## Explicitly Deferred In This Cycle
 
-## Providers
-- [x] define initial provider registry
-- define provider scoring
-- define provider telemetry
-- [x] define initial provider capability schema
-- define provider lifecycle
-
----
-
-## Billing
-- define token metering
-- define provider compensation
-- define usage accounting
-- define treasury settlement
-- define execution billing
-
----
-
-## Enterprise
-- define dedicated MCP deployment model
-- define isolated orchestration
-- define enterprise memory isolation
-- define enterprise compute pools
-- define enterprise workflow systems
-
----
-
-## Telemetry
-- [x] define initial execution telemetry events
-- [x] persist telemetry events as JSONL
-- define workflow telemetry
-- define inference telemetry
-- define cost visibility
-- define operational dashboards
-
----
-
-# Current Blockers
-
-## Compute
-- provider verification strategy pending
-- execution pricing strategy pending
-
----
-
-## Billing
-- treasury settlement model pending
-- token accounting strategy pending
-
----
-
-## Memory
-- canonical memory persistence strategy pending
-- retention policy strategy pending
-
----
-
-# Future Tasks
-
-- model marketplace
-- autonomous workload routing
-- cognitive economy coordination
-- distributed memory federation
-- decentralized orchestration markets
-- AI-assisted governance execution
+- [ ] do not edit source code during `ACS-REQ-02`
+- [ ] do not create new schemas, services, adapters, or tests during `ACS-REQ-02`
+- [ ] do not promote ACS to `L4 Consolidated` during `ACS-REQ-02`
+- [ ] do not update portfolio/global registers during `ACS-REQ-02`

@@ -1,24 +1,67 @@
 # ACS Portfolio Handoff
 
-Date: 2026-06-08
+Date: 2026-06-22
 
-## Recommended Portfolio State
+## Completed In This Cycle
 
-State: HOLD_WITH_VALIDATION_GATES
+- completed `ACS-REQ-01` current-state inspection and evidence baseline
+- completed `ACS-REQ-02` instruction set normalization
+- created:
+- `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
+- `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
 
-Maturity: L4 candidate
+## Current Recommended State
 
-## Next Request
+L-Level:
+- `L4 Candidate`
 
-ACS-GATE-02 - Execution Authority and Credential Boundary Review
+D-Level:
+- `NOT_CONFIRMED_LOCAL_EVIDENCE_REQUIRED`
 
-## Handoff Notes
+Operational posture:
+- hold execution gates closed
+- treat ACS as local/mock, inspection-first, and non-production
 
-- Keep ACS local/mock, guarded and non-executing.
-- Do not run Hummingbot runtime, exchange API, backtest, paper trading or live trading without explicit approval.
-- Do not touch secrets or production credentials.
-- PORTFOLIO-REQ-02 validation passed with `npm run check`.
-- Maturity decision: KEEP_L3_CANDIDATE pending explicit L4 candidate gate review.
-- ACS-GATE-01 evidence review passed.
-- Maturity decision: PROMOTE_TO_L4_CANDIDATE.
-- Keep ACS on HOLD for execution-sensitive work; L4 candidate does not authorize real execution, secrets, Hummingbot runtime, trading, withdrawals or treasury movement.
+## Current Validation State
+
+- `NOT_EXECUTED_ENVIRONMENT_BLOCKER`
+- reason: `node` and `npm` unavailable in the current environment
+- historical build/test evidence exists only as historical documentation
+
+## Active Boundaries
+
+Do not enable:
+- real ACS provisioning
+- real credentials
+- wallet/signing
+- treasury movement
+- trading execution
+- settlement
+- payouts
+- billing execution
+- production DB
+- production APIs
+- external providers in production
+
+## Remaining Blockers
+
+- execution authority not approved
+- Hummingbot runtime blocked
+- validation blocked by environment
+- no dedicated readiness registry in the target EPIC format yet
+- no dedicated permission state model yet
+- no centralized operational gate registry yet
+- indirect coverage remains for `wallet.sign`
+- indirect coverage remains for `provider.execute.production`
+- indirect coverage remains for billing, settlement, and provisioning
+- portfolio/global registers unavailable in the current environment
+
+## Next Recommended Request
+
+`ACS-REQ-03 - ACS Authority Boundary Matrix`
+
+## Continuation Guidance
+
+- keep all execution-sensitive no-go areas closed
+- do not treat normalized documentation as maturity promotion
+- do not implement registries before `ACS-REQ-03` defines the boundary model clearly

@@ -1,142 +1,100 @@
 # ACS Status
 
-Last updated: 2026-06-08
+Last updated: 2026-06-22
 
-## Portfolio Normalization
+## Current Request State
 
-Request: PORTFOLIO-REQ-01 - Portfolio Status Normalization
+Current request: `ACS-REQ-02 - ACS Instruction Set Normalization`
 
-Normalization result: COMPLETE
+Request status: COMPLETE
 
-## Current Maturity
-
-Detected level: L4 candidate - Functional integration readiness
-
-Maturity recommendation: PROMOTE_TO_L4_CANDIDATE
-
-Rationale:
-
-- `.instructions` is extensive and includes ACS roles, API contracts, policy matrix, risk model, operational states, tenant service model, secret storage requirements and Hummingbot sandbox boundaries.
-- Product source, tests and build scripts exist.
-- Existing evidence describes local/mock receipts, guarded execution contracts, read-only/local APIs, mock license validation and blocked strategy/trading paths.
-- PORTFOLIO-REQ-01 reran `npm test` successfully: build PASS and 152 tests PASS.
-
-ACS is not production-ready and is not authorized for autonomous trading, secrets, treasury, wallet or Hummingbot runtime execution.
-
-## Evidence Used
-
-- `.instructions/ACS_HTTP_API_CONTRACTS.md`
+Evidence baseline:
+- `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/ACS_POLICY_MATRIX.md`
 - `.instructions/ACS_OPERATIONAL_STATES.md`
 - `.instructions/ACS_SECURITY_REQUIREMENTS.md`
-- `.instructions/ACS_HUMMINGBOT_STRATEGY_POLICY.md`
-- `.instructions/ACS_HUMMINGBOT_STRATEGY_VALIDATION_GATE.md`
-- `.instructions/OPENCLAW_ACS_TRINITY_HUMMINGBOT_READINESS_REVIEW.md`
-- `README.md`
-- `package.json`
-- `src/`
-- `tests/`
+- `.instructions/ACS_HTTP_API_CONTRACTS.md`
+- `.instructions/ACS_SECRET_STORAGE_REQUIREMENTS.md`
+- `.instructions/ACS_MATURITY_ASSESSMENT.md`
 
-## Missing Operational Files Before Normalization
+## Current Classification
 
-- `.instructions/STATUS.md`
-- `.instructions/BLOCKER_REGISTER.md`
-- `.instructions/VALIDATION.md`
-- `.instructions/HANDOFF.md`
+L-Level:
+- `L4 Candidate`
 
-## Blockers
+D-Level:
+- `NOT_CONFIRMED_LOCAL_EVIDENCE_REQUIRED`
 
-- Autonomous execution remains blocked.
-- Real Hummingbot runtime, API, connector, network, paper trading and live trading remain blocked.
-- Secrets and production exchange credentials remain blocked.
-- Governance/Core authority alignment is required before any execution-sensitive feature.
-- Execution-sensitive maturity remains HOLD-gated even though local validation passed.
+Status summary:
+- ACS is locally structured, integration-oriented, inspection-first, and execution-gated.
+- ACS is not `L4 Consolidated`.
+- ACS remains non-production and without mutation authority.
 
-## Dependencies
+## Current Validation State
 
-- Governance execution policy.
-- Core authority model.
-- Credential vault decisioning.
-- Sandbox-only validation evidence.
-- Risk/compliance review before any trading-adjacent runtime.
+Current-cycle validation status:
+- `NOT_EXECUTED_ENVIRONMENT_BLOCKER`
 
-## Execution Policy
+Reason:
+- `node` and `npm` are unavailable in the current environment.
 
-Allowed:
+Historical evidence only:
+- local documentation records prior `npm test` / `npm run check` success with `152` tests
+- historical evidence is not treated as current-cycle validation proof
 
-- local/mock ACS contracts;
-- guarded policy evaluation;
-- read-only status/readiness surfaces;
-- sandbox-only documentation and validation.
+## Current Execution Boundary
 
-Forbidden without explicit approval:
+ACS remains:
+- local-first
+- config-first
+- read-only/mock when applicable
+- integration-ready
+- execution-gated
+- non-production
+- without mutation authority
 
-- live trading;
-- paper trading runtime expansion;
-- real Hummingbot API/runtime calls;
-- production exchange credentials;
-- withdrawals/transfers;
-- treasury movement;
-- secrets access.
+Allowed in current state:
+- local/mock contracts
+- read-only inspection
+- policy and readiness representation
+- documentation and boundary normalization
 
-## Production Status
+Forbidden in current state:
+- real ACS provisioning
+- real credentials
+- wallet/signing
+- treasury movement
+- trading execution
+- settlement
+- payouts
+- billing execution
+- production DB
+- production APIs
+- external providers in production
 
-Production readiness: NO
+## Current Gaps
 
-Production execution: DISABLED
+Confirmed local gaps:
+- no dedicated readiness registry in the exact `ACS-EPIC-01` target format yet
+- no dedicated permission state model yet
+- no centralized operational gate registry yet
+- test coverage is indirect for `wallet.sign`
+- test coverage is indirect for `provider.execute.production`
+- test coverage is indirect for billing execution blocking
+- test coverage is indirect for settlement blocking
+- test coverage is indirect for provisioning blocking
+- global portfolio registers are not available in the current environment
+
+## Active Blockers
+
+- execution authority remains blocked
+- Hummingbot runtime remains blocked
+- validation execution is blocked by environment
+- production credentials remain blocked
+- secrets access remains blocked
+- live/paper trading runtime remains blocked
+- treasury movement remains blocked
 
 ## Next Recommended Request
 
-ACS-GATE-02 - Execution Authority and Credential Boundary Review
-
-## PORTFOLIO-REQ-02 Validation Refresh
-
-Status: COMPLETE
-
-Validation result: PASS
-
-Commands:
-
-```bash
-npm run check
-```
-
-Evidence:
-
-- build: PASS
-- tests: PASS, 152 tests
-
-Maturity decision: KEEP_L3_CANDIDATE
-
-Rationale:
-
-- ACS local guarded execution evidence is strong and supports future L4 candidate consideration.
-- Promotion is intentionally deferred because ACS is execution-sensitive and remains HOLD-gated by Governance/Core alignment, secrets policy and Hummingbot/trading runtime boundaries.
-- No autonomous execution, secrets, trading, treasury or Hummingbot runtime was enabled.
-
-## ACS-GATE-01 L4 Candidate Evidence Review
-
-Status: COMPLETE
-
-Validation result: PASS
-
-Command:
-
-```bash
-npm run check
-```
-
-Evidence:
-
-- build: PASS
-- tests: PASS, 152 tests
-- failures: 0
-- skipped: 0
-
-Maturity decision: PROMOTE_TO_L4_CANDIDATE
-
-Rationale:
-
-- ACS has validated local functional integration evidence across policy matrix, operational state, HTTP inspection, receipts, telemetry, tenant/service/product access, guarded execution, Hummingbot sandbox boundaries, secret handling guards and Trinity default-deny routing.
-- L4 candidate status does not authorize execution-sensitive behavior.
-- Production execution, secrets, real credentials, Hummingbot runtime, paper/live trading, withdrawals and treasury movement remain blocked.
+`ACS-REQ-03 - ACS Authority Boundary Matrix`

@@ -1,197 +1,108 @@
 # ACS Security
 
-Trading Ignition security reset:
-- no withdrawal-enabled exchange API keys
-- no custody of user funds
-- no plaintext API secrets
-- no hidden strategy activation
-- no activation outside `READY`
-- no activation from `EMERGENCY_STOP`, `SUSPENDED`, or `REVOKED`
-- no profit promises
+Last updated: 2026-06-22
 
-See `ACS_SECURITY_REQUIREMENTS.md`, `ACS_POLICY_MATRIX.md`, and `ACS_IS_NOT.md`.
+## Security Posture
 
-# Security Philosophy
+ACS security in the current phase is based on:
+- local-first operation
+- config-first behavior
+- read-only/mock surfaces where applicable
+- explicit no-go boundaries
+- execution-gated workflows
+- non-production runtime posture
 
-ACS security protects:
-- orchestration integrity
-- execution visibility
-- memory isolation
-- provider trust boundaries
-- workflow integrity
-- governance compatibility
+ACS does not currently hold mutation authority.
 
-Security takes priority over automation speed.
+## Current Non-Negotiables
 
----
+- no real ACS provisioning
+- no real credentials
+- no wallet/signing
+- no treasury movement
+- no trading execution
+- no settlement
+- no payouts
+- no billing execution
+- no production DB
+- no production APIs
+- no external providers in production
+- no plaintext secrets
+- no secret exposure in frontend, logs, receipts, or telemetry
+- no governance bypass
+- no hidden execution
 
-# Critical Security Areas
+## Current Execution Security
 
-## Command Execution
-Command execution is disabled by default.
+Confirmed local evidence:
+- runtime blocked actions include:
+- `treasury.transfer`
+- `wallet.sign`
+- `provider.execute.production`
+- `permissions.escalate`
+- command execution policy defaults to disabled
+- guarded MCP execution remains blocked by contract
+- Trinity/Telegram direct mutation, shell, network, provider, exchange, and secret access remain blocked
 
-Any future execution path must pass:
-- risk classification
-- explicit requested-action allowlist
-- approval-token validation for risky tasks
-- sandbox boundary validation
-- telemetry emission
-- execution receipt generation
+Constraint:
+- these boundaries must remain closed until later approved requests add explicit evidence and authority
 
-Default policy:
-- no execution
-- no network
-- no filesystem writes
-- blocked sandbox
-- no accepted approval tokens
+## Current Secret Safety
 
-`executeGuardedTask(task)` is currently a blocked contract/risk gate only.
+Confirmed local evidence:
+- mock secret storage returns opaque `secretRef`
+- mock reads return redacted values only
+- receipts redact secret-like fields
+- inspection surfaces expose status, not raw secret values
+- HTTP responses must not expose secrets
 
----
+Production note:
+- any production-grade secret adapter remains out of scope for the current EPIC stage
 
-## Orchestration
-Highest operational priority.
+## Current No-Go Domains
 
-Orchestration systems must:
-- expose execution visibility
-- expose workflow telemetry
-- expose permission boundaries
-- expose execution receipts
+The following domains remain blocked even if local contracts or documentation reference them:
+- provisioning
+- credentials
+- wallet/signing
+- treasury
+- trading runtime
+- settlement
+- billing execution
+- production provider execution
+- production databases
+- production APIs
 
-No hidden orchestration is allowed.
+## Current Security Gaps
 
----
+- no dedicated permission state model yet
+- no centralized operational gate registry yet
+- no dedicated readiness registry in the exact target EPIC format yet
+- direct focused coverage is still missing for some blocked areas:
+- `wallet.sign`
+- `provider.execute.production`
+- billing execution
+- settlement
+- provisioning
 
-## Agents
+## Validation Constraint
 
-Agents must:
-- remain bounded
-- remain observable
-- remain permission-constrained
-- expose execution telemetry
+Current-cycle security validation status:
+- `NOT_EXECUTED_ENVIRONMENT_BLOCKER`
 
-Agents are operational tools, not sovereign authorities.
+Reason:
+- `node` and `npm` are unavailable in the current environment
 
----
+Historical evidence:
+- prior local documents record successful test/build runs
+- historical evidence is not treated as current-cycle proof
 
-## Memory
+## Security Recommendation
 
-Memory systems must:
-- isolate contexts
-- isolate permissions
-- expose access visibility
-- expose retention policies
+Next documentation step:
+- complete `ACS-REQ-03 - ACS Authority Boundary Matrix`
 
-No unrestricted memory access is allowed.
-
----
-
-## Compute
-
-Compute infrastructure must:
-- expose provider identity
-- expose telemetry
-- expose execution metering
-- expose routing visibility
-
-Opaque compute routing is forbidden.
-
----
-
-## Providers
-
-Providers must:
-- expose capabilities
-- expose telemetry
-- expose pricing metadata
-- expose operational state
-
-Provider participation must remain observable.
-
----
-
-## Billing
-
-Billing systems must:
-- remain deterministic
-- expose usage accounting
-- expose settlement visibility
-- expose provider compensation
-
-Billing inconsistencies are critical failures.
-
----
-
-# Non-Negotiables
-
-- no hidden orchestration
-- no unrestricted agents
-- no opaque provider routing
-- no hidden memory access
-- no uncontrolled autonomy
-- no centralized cognitive authority
-
----
-
-# Governance Integration
-
-ACS systems must never bypass:
-- governance permissions
-- constitutional restrictions
-- treasury boundaries
-- execution policies
-
-Governance compatibility is mandatory.
-
----
-
-# Enterprise Security
-
-Enterprise deployments must:
-- isolate orchestration
-- isolate memory
-- isolate compute
-- isolate telemetry
-- isolate workflows
-
-Cross-tenant leakage is forbidden.
-
----
-
-# AI Security
-
-AI systems must remain:
-- bounded
-- observable
-- auditable
-- permissioned
-
-AI systems must never:
-- self-escalate permissions
-- bypass governance
-- bypass treasury controls
-
----
-
-# Upgradeability
-
-Upgradeability must:
-- remain governance-controlled
-- expose deployment manifests
-- expose upgrade history
-- expose execution compatibility
-
-Avoid opaque upgrade authority.
-
----
-
-# Security Reviews
-
-Before production deployment:
-- orchestration review
-- memory review
-- provider review
-- compute review
-- billing review
-- workflow review
-- dependency review
+Before any maturity discussion beyond `L4 Candidate`:
+- re-run validation in a compatible environment
+- centralize the authority model
+- centralize readiness, permission, and gate representations

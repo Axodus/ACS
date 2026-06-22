@@ -1,147 +1,104 @@
 # ACS Roadmap
 
-# Phase -1 - Planning Reset
+Last updated: 2026-06-22
 
-Status: IN PROGRESS
+## Current Track
 
-Objectives:
-- formalize Operational States
-- formalize ACS Policy Matrix
-- formalize What ACS Is Not
-- define Trading Ignition Product boundary
-- define license, API safety, risk, and internal validation requirements
+Current roadmap focus:
+- `ACS-EPIC-01 - ACS L4 Consolidation`
 
-Deliverables:
-- `ACS_OPERATIONAL_STATES.md`
-- `ACS_POLICY_MATRIX.md`
-- `ACS_IS_NOT.md`
-- `ACS_TRADING_IGNITION_PRODUCT.md`
-- `ACS_LICENSE_AND_ACCESS_MODEL.md`
-- `ACS_RISK_MODEL.md`
-- `ACS_INTERNAL_VALIDATION_PLAN.md`
-- `ACS_SECURITY_REQUIREMENTS.md`
-- `ACS_MVP_BACKLOG.md`
+Boundary:
+- roadmap progress must not be interpreted as execution authority
+- ACS remains local/mock, read-only where applicable, and non-production
 
----
+## Sprint 01 - Current State, Boundaries and Instruction Normalization
 
-# Phase 0 — Cognitive Architecture
+Status:
+- `IN_PROGRESS`
 
-Status: IN PROGRESS
+Request progress:
+- `ACS-REQ-01` - COMPLETE
+- `ACS-REQ-02` - COMPLETE
+- `ACS-REQ-03` - NEXT
 
-Objectives:
-- define ACS architecture
-- define orchestration boundaries
-- define memory systems
-- define compute federation
-- define provider model
+Deliverables in scope:
+- current-state baseline
+- normalized operational instruction set
+- authority boundary matrix
 
-Deliverables:
-- ACS architecture specification
-- orchestration boundaries
-- compute participation model
-- memory architecture
-- governance boundaries
+Out-of-scope for this sprint:
+- source-code implementation of new registries
+- promotion to `L4 Consolidated`
+- portfolio/global register updates
 
----
+## Sprint 02 - Readiness Registry and Control Plane Foundation
 
-# Phase 1 — Core Runtime Foundation
+Status:
+- `PLANNED`
 
-Status: PLANNED
+Requests:
+- `ACS-REQ-04`
+- `ACS-REQ-05`
+- `ACS-REQ-06`
 
-Objectives:
-- implement orchestration runtime
-- implement memory systems
-- implement telemetry systems
-- implement execution logging
+Planned outcomes:
+- dedicated readiness registry
+- dedicated permission state model
+- centralized operational gate registry
 
-Deliverables:
-- orchestration runtime
-- memory layer
-- execution telemetry
-- workflow engine
-- agent coordination layer
+Dependency:
+- Sprint 01 authority matrix must be complete first
 
----
+## Sprint 03 - Integration Contracts and Cross-Nucleus Consumers
 
-# Phase 2 — Compute Federation
+Status:
+- `PLANNED`
 
-Status: PLANNED
+Requests:
+- `ACS-REQ-07`
+- `ACS-REQ-08`
+- `ACS-REQ-09`
 
-Objectives:
-- implement decentralized compute participation
+Planned outcomes:
+- read-only consumer contract
+- AxodusAPP preview integration
+- Business and Marketplace alignment contract
 
-Deliverables:
-- provider registry
-- compute routing
-- inference federation
-- provider telemetry
-- usage metering
+## Sprint 04 - Security, Validation and Boundary Enforcement
 
----
+Status:
+- `PLANNED`
 
-# Phase 3 — Billing Infrastructure
+Requests:
+- `ACS-REQ-10`
+- `ACS-REQ-11`
+- `ACS-REQ-12`
 
-Status: PLANNED
+Planned outcomes:
+- explicit boundary enforcement coverage
+- security review update
+- reproducible local validation evidence
 
-Objectives:
-- implement economic coordination layer
+## Sprint 05 - L4 Consolidation Assessment and Portfolio Update
 
-Deliverables:
-- token metering
-- provider compensation
-- compute accounting
-- treasury settlement
-- execution billing
+Status:
+- `PLANNED`
 
----
+Requests:
+- `ACS-REQ-13`
+- `ACS-REQ-14`
+- `ACS-REQ-15`
 
-# Phase 4 — Enterprise Cognitive Systems
+Planned outcomes:
+- evidence-based maturity assessment
+- final handoff
+- portfolio updates only if the required environment is available
 
-Status: PLANNED
+## Hold Conditions
 
-Objectives:
-- support dedicated enterprise MCP deployments
-
-Deliverables:
-- isolated enterprise orchestration
-- isolated enterprise memory
-- dedicated compute pools
-- enterprise workflow systems
-- enterprise telemetry
-
----
-
-# Phase 5 — Governance-aware Cognitive Systems
-
-Status: FUTURE
-
-Objectives:
-- governance-integrated cognitive coordination
-
-Deliverables:
-- governance-aware orchestration
-- bounded autonomous execution
-- DAO-assisted workflows
-- proposal simulations
-- execution recommendations
-
----
-
-# Phase 6 — Autonomous Cognitive Economy
-
-Status: FUTURE
-
-Objectives:
-- decentralized cognitive economy
-
-Deliverables:
-- provider marketplace
-- model marketplace
-- autonomous routing
-- cognitive workload distribution
-- compute federation governance
-
-Autonomous systems must remain:
-- auditable
-- bounded
-- governance-constrained
+The roadmap remains blocked from execution-sensitive expansion while any of the following remain unresolved:
+- execution authority not approved
+- environment validation unavailable
+- no dedicated permission state model
+- no centralized operational gate registry
+- no readiness registry in the exact target format

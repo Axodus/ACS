@@ -1,50 +1,62 @@
 # ACS Validation
 
-Last updated: 2026-06-08
+Last updated: 2026-06-22
 
 ## Known Commands
 
 From `package.json`:
-
 - `npm run build`
 - `npm test`
 - `npm run check`
 - `npm run smoke:openclaw`
 - `npm run smoke:runtime`
 
-## PORTFOLIO-REQ-01 Validation Scope
+Documentation / inspection commands used in `ACS-REQ-02`:
+- `git diff -- .instructions`
+- `git status --short`
 
-Safe documentation checks:
+## Current-Cycle Validation Status
 
-- `.instructions/STATUS.md` exists.
-- `.instructions/ACS_MATURITY_ASSESSMENT.md` exists.
-- blocked execution, secrets, Hummingbot runtime, trading and treasury boundaries remain documented.
+Status:
+- `NOT_EXECUTED_ENVIRONMENT_BLOCKER`
 
-## Current Validation Status
+Reason:
+- `node` and `npm` are unavailable in the current environment
 
-Status: PASS
+Current-cycle validation evidence:
+- baseline report created
+- instruction files normalized
+- documentation diff review performed
+- no source code changes performed
 
-PORTFOLIO-REQ-01 command run:
+## Historical Validation Evidence
 
-```bash
-npm test
-```
+Historical evidence only:
+- prior local documents record `npm test` success
+- prior local documents record `npm run check` success
+- prior local documents record `152` tests passing
 
-Result:
+Constraint:
+- historical evidence must not be treated as current-cycle proof
 
-- Build and tests: PASS, 152 tests
+## Current Validation Limits
 
-Remaining validation:
+- no build executed in this cycle
+- no test suite executed in this cycle
+- no smoke command executed in this cycle
+- no markdown checker command was found in the repository
 
-- Keep ACS under HOLD gates. Product validation passing does not authorize Hummingbot runtime, secrets, trading, withdrawals or autonomous execution.
+## Validation Interpretation
 
-PORTFOLIO-REQ-02 command:
+Current validation status means:
+- documentation normalization is complete
+- repository runtime health is `NOT_CONFIRMED_LOCAL_EVIDENCE_REQUIRED` for this cycle
+- ACS must remain execution-gated and non-production
 
-```bash
-npm run check
-```
+## Next Validation Need
 
-PORTFOLIO-REQ-02 result:
-
-- Build and tests: PASS, 152 tests
-- Maturity decision: KEEP_L3_CANDIDATE pending explicit L4 candidate approval/gate review
+When a compatible environment is available:
+- run `npm run build`
+- run `npm test`
+- run `npm run check`
+- record fresh results before any maturity promotion discussion

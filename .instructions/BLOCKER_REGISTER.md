@@ -1,6 +1,6 @@
 # ACS Blocker Register
 
-Last updated: 2026-06-08
+Last updated: 2026-06-22
 
 ## ACS-BLOCKER-001 - Execution Authority Not Approved
 
@@ -8,11 +8,14 @@ Severity: CRITICAL
 
 Status: OPEN
 
-Description: ACS can model guarded policy and readiness, but autonomous or trading-adjacent execution is not approved.
+Description:
+ACS can model readiness, permissions, inspection, and guarded policy, but it is not approved for autonomous or production execution.
 
-Impact: ACS cannot operate as a production execution layer.
+Impact:
+ACS cannot operate as a production execution layer.
 
-Resolution path: Require Governance/Core approval, risk review, credential vault policy and sandbox validation before execution planning.
+Resolution path:
+Keep execution gates closed until a later approved cycle provides explicit authority, security review, and validation evidence.
 
 ## ACS-BLOCKER-002 - Hummingbot Runtime Blocked
 
@@ -20,53 +23,120 @@ Severity: HIGH
 
 Status: OPEN
 
-Description: Hummingbot strategy/runtime/API/backtest/paper/live paths remain blocked except for sandbox-only report/design work.
+Description:
+Hummingbot strategy/runtime/API/backtest/paper/live paths remain blocked except for sandbox-only and report-only boundaries.
 
-Impact: No real trading or bot lifecycle can be executed.
+Impact:
+No real trading or bot lifecycle can be executed through ACS.
 
-Resolution path: Keep sandbox-only gates until a separate approved execution request exists.
+Resolution path:
+Preserve sandbox-only and no-go boundaries until a separate approved execution-sensitive request exists.
 
-## ACS-BLOCKER-003 - Validation Refresh Required
+## ACS-BLOCKER-003 - Current-Cycle Validation Blocked By Environment
+
+Severity: HIGH
+
+Status: OPEN
+
+Description:
+Current-cycle build/test validation could not be executed because `node` and `npm` are unavailable in the environment.
+
+Impact:
+Current-cycle runtime health, build health, and test pass status remain unconfirmed.
+
+Resolution path:
+Re-run `npm run build`, `npm test`, and `npm run check` in a compatible environment before using validation as maturity evidence.
+
+## ACS-BLOCKER-004 - Dedicated Permission State Model Missing
 
 Severity: MEDIUM
 
-Status: RESOLVED
+Status: OPEN
 
-Description: Current cycle normalized status but did not initially rerun the full ACS validation suite.
+Description:
+Permission behavior exists across policy and inspection surfaces, but there is no dedicated permission state model matching `ACS-EPIC-01`.
 
-Impact: Maturity remains L3 candidate.
+Impact:
+Permission representation is not yet centralized for cross-nucleus consumption.
 
-Resolution path: PORTFOLIO-REQ-02 ran `npm run check` successfully with 152 tests passing.
+Resolution path:
+Address in `ACS-REQ-05` after `ACS-REQ-03` defines the boundary matrix.
 
-## ACS-BLOCKER-004 - L4 Candidate Gate Review Pending
+## ACS-BLOCKER-005 - Centralized Operational Gate Registry Missing
 
 Severity: MEDIUM
 
-Status: RESOLVED
+Status: OPEN
 
-Description: ACS required explicit evidence review before promotion because it is execution-sensitive.
+Description:
+Blocked actions and gates exist across runtime, execution policy, emergency stop, and boundary modules, but there is no centralized operational gate registry yet.
 
-Impact: Resolved for L4 candidate classification only.
+Impact:
+Critical no-go areas are documented and partially enforced, but not yet unified into a single registry.
 
-Resolution path: ACS-GATE-01 reviewed validation, product structure, security and governance evidence. Final decision: PROMOTE_TO_L4_CANDIDATE.
+Resolution path:
+Address in `ACS-REQ-06` after `ACS-REQ-03` defines the boundary model.
 
-## PORTFOLIO-REQ-02 Blocker Review
+## ACS-BLOCKER-006 - Dedicated Readiness Registry Target Format Missing
 
-| Blocker | Status |
-|---|---|
-| Execution authority not approved | ACTIVE |
-| Hummingbot runtime blocked | ACTIVE |
-| Validation refresh required | RESOLVED |
+Severity: MEDIUM
 
-## ACS-GATE-01 Blocker Review
+Status: OPEN
 
-| Blocker | Status |
-|---|---|
-| Execution authority not approved | ACTIVE |
-| Hummingbot runtime blocked | ACTIVE |
-| Production credentials blocked | ACTIVE |
-| Secrets access blocked | ACTIVE |
-| Live/paper trading runtime blocked | ACTIVE |
-| Treasury movement blocked | ACTIVE |
-| Validation refresh required | RESOLVED |
-| L4 candidate gate review pending | RESOLVED |
+Description:
+Readiness exists as a checklist and mock inspection surface, but not yet as the dedicated registry format targeted by `ACS-EPIC-01`.
+
+Impact:
+Readiness is usable locally but not yet normalized as the future control-plane registry.
+
+Resolution path:
+Address in `ACS-REQ-04` after `ACS-REQ-03`.
+
+## ACS-BLOCKER-007 - Coverage Indirect For Some Critical Gates
+
+Severity: MEDIUM
+
+Status: OPEN
+
+Description:
+Coverage is indirect for `wallet.sign`, `provider.execute.production`, billing, settlement, and provisioning blocking.
+
+Impact:
+Boundary intent is present, but some no-go areas are not yet backed by direct focused coverage.
+
+Resolution path:
+Address in later implementation and validation requests, starting from `ACS-REQ-03` scope definition and followed by Sprint 02/04 work.
+
+## ACS-BLOCKER-008 - Portfolio Registers Unavailable In Current Environment
+
+Severity: LOW
+
+Status: OPEN
+
+Description:
+The expected portfolio/global register path is not available in the inspected environment.
+
+Impact:
+Portfolio-level updates cannot be performed or validated locally in the current cycle.
+
+Resolution path:
+Treat portfolio register updates as environment-dependent and defer them to `ACS-REQ-15` only when the required directory exists.
+
+## Current No-Go Areas
+
+Active blocked areas:
+- real ACS provisioning
+- real credentials
+- wallet/signing
+- treasury movement
+- trading execution
+- settlement
+- payouts
+- billing execution
+- production DB
+- production APIs
+- external providers in production
+
+## Next Recommended Request
+
+`ACS-REQ-03 - ACS Authority Boundary Matrix`
