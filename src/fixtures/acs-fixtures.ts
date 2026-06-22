@@ -4,6 +4,7 @@ import type { AcsPerformanceRecord } from "../performance-record.js";
 import { createAcsPerformanceRecord } from "../performance-record.js";
 import type { AcsTenantContext } from "../tenant-context.js";
 import { getMockUserStatusSummary } from "../user-status.js";
+export { createAcsReadinessRegistryFixtures } from "./acs-readiness-fixtures.js";
 
 export const ACS_FIXTURE_IDS = {
   coreTenant: "axodus-core",

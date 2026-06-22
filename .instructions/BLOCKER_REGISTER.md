@@ -60,7 +60,7 @@ Impact:
 Permission representation is not yet centralized for cross-nucleus consumption.
 
 Resolution path:
-Address in `ACS-REQ-05` after `ACS-REQ-03` defines the boundary matrix.
+Address in `ACS-REQ-05` after `ACS-REQ-04` establishes the readiness registry.
 
 ## ACS-BLOCKER-005 - Centralized Operational Gate Registry Missing
 
@@ -75,22 +75,22 @@ Impact:
 Critical no-go areas are documented and partially enforced, but not yet unified into a single registry.
 
 Resolution path:
-Address in `ACS-REQ-06` after `ACS-REQ-03` defines the boundary model.
+Address in `ACS-REQ-06` after `ACS-REQ-05` formalizes permission-state requirements.
 
 ## ACS-BLOCKER-006 - Dedicated Readiness Registry Target Format Missing
 
 Severity: MEDIUM
 
-Status: OPEN
+Status: RESOLVED IN `ACS-REQ-04`
 
 Description:
-Readiness exists as a checklist and mock inspection surface, but not yet as the dedicated registry format targeted by `ACS-EPIC-01`.
+Readiness previously existed as a checklist and mock inspection surface only. `ACS-REQ-04` added a dedicated local/config-first/read-only readiness registry with fixtures, read functions, inspection integration, and tests.
 
 Impact:
-Readiness is usable locally but not yet normalized as the future control-plane registry.
+Readiness is now normalized as a local control-plane registry surface for ACS, while remaining non-executive and non-production.
 
 Resolution path:
-Address in `ACS-REQ-04` after `ACS-REQ-03`.
+Keep the registry read-only and use `ACS-REQ-05` / `ACS-REQ-06` to add adjacent control-plane models without reopening execution authority.
 
 ## ACS-BLOCKER-007 - Coverage Indirect For Some Critical Gates
 
@@ -105,7 +105,7 @@ Impact:
 Boundary intent is present, but some no-go areas are not yet backed by direct focused coverage.
 
 Resolution path:
-Address in later implementation and validation requests, starting from `ACS-REQ-03` scope definition and followed by Sprint 02/04 work.
+Address in later implementation and validation requests, starting from `ACS-REQ-05`, `ACS-REQ-06`, and Sprint 04 boundary enforcement work.
 
 ## ACS-BLOCKER-008 - Portfolio Registers Unavailable In Current Environment
 
@@ -139,4 +139,4 @@ Active blocked areas:
 
 ## Next Recommended Request
 
-`ACS-REQ-04 - ACS Readiness Registry Implementation`
+`ACS-REQ-05 - ACS Permission State Model`

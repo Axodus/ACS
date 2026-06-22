@@ -14,6 +14,9 @@ import {
   inspectPolicyCheck,
   inspectPolicyMatrix,
   inspectProductAccess,
+  inspectReadinessRegistry,
+  inspectReadinessRegistryEntry,
+  inspectReadinessRegistrySummary,
   inspectSecretStorageStatus,
   inspectTenantServices,
   inspectUserStatus,
@@ -131,6 +134,23 @@ test("policy-check inspection can include wallet emergency stop context", () => 
   assert.equal(result.policyContext.source, "emergency-stop");
   assert.equal(result.policyContext.wallet, "0xstopped");
   assert.equal(result.policyContext.executionTriggered, false);
+});
+
+test("readiness registry inspection lists entries, blocked entries, and summary without side effects", () => {
+  const all = inspectReadinessRegistry();
+  const blocked = inspectReadinessRegistry({ blockedOnly: true });
+  const byDomain = inspectReadinessRegistry({ domain: "readiness.registry" });
+  const byStatus = inspectReadinessRegistry({ status: "BLOCKED" });
+  const entry = inspectReadinessRegistryEntry("acs.core");
+  const summary = inspectReadinessRegistrySummary();
+
+  assert.ok(all.entries.length >= 13);
+  assert.ok(blocked.entries.every((item) => item.status === "BLOCKED"));
+  assert.deepEqual(byDomain.entries.map((item) => item.domain), ["readiness.registry"]);
+  assert.ok(byStatus.entries.every((item) => item.status === "BLOCKED"));
+  assert.equal(entry.entry?.id, "acs.core");
+  assert.equal(summary.summary.executionGated, true);
+  assert.equal(summary.summary.nonProduction, true);
 });
 
 test("inspection CLI commands return valid JSON without runtime side effects", () => {

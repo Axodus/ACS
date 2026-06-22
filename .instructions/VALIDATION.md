@@ -15,6 +15,10 @@ Documentation / inspection commands used in `ACS-REQ-02`:
 - `git diff -- .instructions`
 - `git status --short`
 
+Documentation / inspection commands used in `ACS-REQ-04`:
+- `git diff -- .`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
@@ -26,8 +30,10 @@ Reason:
 Current-cycle validation evidence:
 - baseline report created
 - instruction files normalized
+- authority boundary matrix created
+- readiness registry implementation added in source and fixtures
+- readiness registry tests added
 - documentation diff review performed
-- no source code changes performed
 
 ## Historical Validation Evidence
 
@@ -49,7 +55,7 @@ Constraint:
 ## Validation Interpretation
 
 Current validation status means:
-- documentation normalization is complete
+- readiness registry implementation is complete at source/documentation level
 - repository runtime health is `NOT_CONFIRMED_LOCAL_EVIDENCE_REQUIRED` for this cycle
 - ACS must remain execution-gated and non-production
 

@@ -4,18 +4,16 @@ Last updated: 2026-06-22
 
 ## Current Request State
 
-Current request: `ACS-REQ-02 - ACS Instruction Set Normalization`
+Current request: `ACS-REQ-04 - ACS Readiness Registry Implementation`
 
 Request status: COMPLETE
 
 Evidence baseline:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
-- `.instructions/ACS_POLICY_MATRIX.md`
-- `.instructions/ACS_OPERATIONAL_STATES.md`
-- `.instructions/ACS_SECURITY_REQUIREMENTS.md`
-- `.instructions/ACS_HTTP_API_CONTRACTS.md`
-- `.instructions/ACS_SECRET_STORAGE_REQUIREMENTS.md`
-- `.instructions/ACS_MATURITY_ASSESSMENT.md`
+- `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
+- `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
+- `.instructions/reports/ACS_AUTHORITY_BOUNDARY_REPORT.md`
+- `.instructions/reports/ACS_READINESS_REGISTRY_REPORT.md`
 
 ## Current Classification
 
@@ -27,6 +25,7 @@ D-Level:
 
 Status summary:
 - ACS is locally structured, integration-oriented, inspection-first, and execution-gated.
+- ACS now includes a dedicated local/config-first/read-only readiness registry backed by static fixtures.
 - ACS is not `L4 Consolidated`.
 - ACS remains non-production and without mutation authority.
 
@@ -56,7 +55,8 @@ ACS remains:
 Allowed in current state:
 - local/mock contracts
 - read-only inspection
-- policy and readiness representation
+- policy representation
+- readiness registry representation
 - documentation and boundary normalization
 
 Forbidden in current state:
@@ -75,7 +75,6 @@ Forbidden in current state:
 ## Current Gaps
 
 Confirmed local gaps:
-- no dedicated readiness registry in the exact `ACS-EPIC-01` target format yet
 - no dedicated permission state model yet
 - no centralized operational gate registry yet
 - test coverage is indirect for `wallet.sign`
@@ -97,4 +96,4 @@ Confirmed local gaps:
 
 ## Next Recommended Request
 
-`ACS-REQ-03 - ACS Authority Boundary Matrix`
+`ACS-REQ-05 - ACS Permission State Model`

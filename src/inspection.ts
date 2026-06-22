@@ -4,10 +4,22 @@ import type { AcsConsumptionLevel } from "./consumption-levels.js";
 import {
   ACS_FIXTURE_IDS,
   createAcsTenantFixtures,
+  createAcsReadinessRegistryFixtures,
   createSampleAcsReceiptFixture,
   createSampleEmergencyStopFixtures,
   createSamplePerformanceRecordFixtures,
 } from "./fixtures/acs-fixtures.js";
+import {
+  getAcsReadinessRegistryEntry,
+  isAcsReadinessDomain,
+  isAcsReadinessStatus,
+  listAcsReadinessRegistryEntries,
+  listAcsReadinessRegistryEntriesByDomain,
+  listBlockedAcsReadinessRegistryEntries,
+  summarizeAcsReadinessRegistry,
+  type AcsReadinessDomain,
+  type AcsReadinessStatus,
+} from "./readiness.js";
 import { evaluateProductAccess, type AcsProductAccessContext } from "./product-access-registry.js";
 import type { AcsTenantContext } from "./tenant-context.js";
 import { evaluateTenantServiceAccess } from "./tenant-service-registry.js";
@@ -36,6 +48,12 @@ export interface UserStatusInspectionFilter {
   readonly wallet: string;
   readonly tenantId?: string;
   readonly productId?: string;
+}
+
+export interface ReadinessRegistryInspectionFilter {
+  readonly domain?: AcsReadinessDomain;
+  readonly status?: AcsReadinessStatus;
+  readonly blockedOnly?: boolean;
 }
 
 export interface InspectionDecision {
@@ -157,6 +175,44 @@ export function inspectPolicyMatrix() {
 export function inspectUserStatus(filter: UserStatusInspectionFilter) {
   return {
     userStatus: getMockUserStatusSummary(filter),
+  };
+}
+
+export function inspectReadinessRegistry(filter: ReadinessRegistryInspectionFilter = {}) {
+  let entries = listAcsReadinessRegistryEntries(createAcsReadinessRegistryFixtures());
+
+  if (filter.domain) {
+    entries = listAcsReadinessRegistryEntriesByDomain(filter.domain, entries);
+  }
+
+  if (filter.status) {
+    entries = entries.filter((entry) => entry.status === filter.status);
+  }
+
+  if (filter.blockedOnly) {
+    entries = listBlockedAcsReadinessRegistryEntries(entries);
+  }
+
+  return {
+    filter: {
+      ...(filter.domain ? { domain: filter.domain } : {}),
+      ...(filter.status ? { status: filter.status } : {}),
+      ...(filter.blockedOnly ? { blockedOnly: true } : {}),
+    },
+    entries,
+    summary: summarizeAcsReadinessRegistry(entries),
+  };
+}
+
+export function inspectReadinessRegistryEntry(id: string) {
+  return {
+    entry: getAcsReadinessRegistryEntry(id, createAcsReadinessRegistryFixtures()),
+  };
+}
+
+export function inspectReadinessRegistrySummary() {
+  return {
+    summary: summarizeAcsReadinessRegistry(createAcsReadinessRegistryFixtures()),
   };
 }
 
@@ -386,4 +442,12 @@ function requireTenant(tenantId: string): AcsTenantContext {
   }
 
   return tenant;
+}
+
+export function isReadinessRegistryInspectionFilter(input: {
+  readonly domain?: string;
+  readonly status?: string;
+}): boolean {
+  return (input.domain === undefined || isAcsReadinessDomain(input.domain))
+    && (input.status === undefined || isAcsReadinessStatus(input.status));
 }

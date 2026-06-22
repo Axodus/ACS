@@ -8,6 +8,7 @@ ACS security in the current phase is based on:
 - local-first operation
 - config-first behavior
 - read-only/mock surfaces where applicable
+- read-only readiness registry representation
 - explicit no-go boundaries
 - execution-gated workflows
 - non-production runtime posture
@@ -77,7 +78,6 @@ The following domains remain blocked even if local contracts or documentation re
 
 - no dedicated permission state model yet
 - no centralized operational gate registry yet
-- no dedicated readiness registry in the exact target EPIC format yet
 - direct focused coverage is still missing for some blocked areas:
 - `wallet.sign`
 - `provider.execute.production`
@@ -103,9 +103,9 @@ Authority boundary source:
 - `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
 
 Next documentation-to-implementation step:
-- `ACS-REQ-04 - ACS Readiness Registry Implementation`
+- `ACS-REQ-05 - ACS Permission State Model`
 
 Before any maturity discussion beyond `L4 Candidate`:
 - re-run validation in a compatible environment
-- centralize the authority model
-- centralize readiness, permission, and gate representations
+- preserve the authority model
+- centralize permission and gate representations

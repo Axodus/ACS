@@ -12,7 +12,7 @@ Last updated: 2026-06-22
 
 ### Sprint 02 - Readiness Registry and Control Plane Foundation
 
-- [ ] `ACS-REQ-04` implement dedicated readiness registry
+- [x] `ACS-REQ-04` implement dedicated readiness registry
 - [ ] `ACS-REQ-05` implement dedicated permission state model
 - [ ] `ACS-REQ-06` implement centralized operational gate registry
 
@@ -39,7 +39,7 @@ Last updated: 2026-06-22
 - [ ] separate L-Level and D-Level with confirmed evidence
 - [ ] replace historical validation claims with current-cycle validation evidence
 - [x] consolidate authority boundaries into a single ACS-facing matrix
-- [ ] formalize dedicated readiness registry target shape
+- [x] formalize dedicated readiness registry target shape
 - [ ] formalize dedicated permission state model target shape
 - [ ] formalize centralized operational gate registry target shape
 - [ ] add explicit coverage for `wallet.sign`
@@ -48,7 +48,8 @@ Last updated: 2026-06-22
 
 ## Explicitly Deferred In This Cycle
 
-- [ ] do not edit source code during `ACS-REQ-03`
-- [ ] do not create new schemas, services, adapters, or tests during `ACS-REQ-03`
-- [ ] do not promote ACS to `L4 Consolidated` during `ACS-REQ-03`
-- [ ] do not update portfolio/global registers during `ACS-REQ-03`
+- [x] do not implement permission state model during `ACS-REQ-04`
+- [x] do not implement centralized operational gate registry during `ACS-REQ-04`
+- [x] do not implement consumer contracts during `ACS-REQ-04`
+- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-04`
+- [x] do not update portfolio/global registers during `ACS-REQ-04`
