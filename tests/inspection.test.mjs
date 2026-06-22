@@ -6,6 +6,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
+  inspectBusinessAlignmentSnapshot,
+  inspectBusinessCommerceActionPosture,
+  inspectBusinessCommerceBlockedActions,
+  inspectBusinessCriticalWarnings,
+  inspectBusinessMarketplaceAlignmentSummary,
   inspectAxodusAppBlockedActionCards,
   inspectAxodusAppCriticalWarnings,
   inspectAxodusAppGateCards,
@@ -13,6 +18,10 @@ import {
   inspectAxodusAppPreviewSnapshot,
   inspectAxodusAppPreviewSummary,
   inspectAxodusAppReadinessCards,
+  inspectMarketplaceAlignmentSnapshot,
+  inspectMarketplaceCommerceActionPosture,
+  inspectMarketplaceCommerceBlockedActions,
+  inspectMarketplaceCriticalWarnings,
   inspectConsumerActionPosture,
   inspectConsumerBlockedActionView,
   inspectConsumerContractSnapshot,
@@ -257,6 +266,28 @@ test("AxodusAPP preview inspection exposes dashboard-safe read-only preview surf
   assert.ok(gates.cards.length >= 15);
   assert.ok(blockedActions.cards.length >= 17);
   assert.ok(warnings.warnings.some((warning) => warning.includes("Preview-only adapter")));
+});
+
+test("Business and Marketplace alignment inspection exposes read-only alignment surfaces", () => {
+  const business = inspectBusinessAlignmentSnapshot();
+  const marketplace = inspectMarketplaceAlignmentSnapshot();
+  const summary = inspectBusinessMarketplaceAlignmentSummary();
+  const businessActions = inspectBusinessCommerceBlockedActions();
+  const marketplaceActions = inspectMarketplaceCommerceBlockedActions();
+  const businessWarnings = inspectBusinessCriticalWarnings();
+  const marketplaceWarnings = inspectMarketplaceCriticalWarnings();
+  const businessCheck = inspectBusinessCommerceActionPosture("billing.execute.real");
+  const marketplaceCheck = inspectMarketplaceCommerceActionPosture("provider.external.production.execute");
+
+  assert.equal(business.snapshot.targetConsumer, "BUSINESS_ALIGNMENT_PREVIEW");
+  assert.equal(marketplace.snapshot.targetConsumer, "MARKETPLACE_ALIGNMENT_PREVIEW");
+  assert.equal(summary.summary.recommendedNextReq, "ACS-REQ-10");
+  assert.ok(businessActions.actions.length >= 5);
+  assert.ok(marketplaceActions.actions.length >= 5);
+  assert.ok(businessWarnings.warnings.some((warning) => warning.includes("Business alignment is preview-only")));
+  assert.ok(marketplaceWarnings.warnings.some((warning) => warning.includes("Marketplace alignment is HOLD/BACKLOG_READY")));
+  assert.equal(businessCheck.result.representedBlocked, true);
+  assert.equal(marketplaceCheck.result.representedBlocked, true);
 });
 
 test("inspection CLI commands return valid JSON without runtime side effects", () => {

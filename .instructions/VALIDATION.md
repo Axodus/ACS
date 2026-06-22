@@ -37,6 +37,12 @@ Documentation / inspection commands used in `ACS-REQ-08`:
 - `git diff -- .`
 - `git status --short`
 
+Documentation / inspection commands used in `ACS-REQ-09`:
+- `command -v node`
+- `command -v npm`
+- `git diff -- .`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
@@ -59,6 +65,8 @@ Current-cycle validation evidence:
 - read-only consumer contract tests added
 - AxodusAPP preview adapter added in source
 - AxodusAPP preview adapter tests added
+- Business/Marketplace alignment contract added in source
+- Business/Marketplace alignment tests added
 - documentation diff review performed
 
 ## Historical Validation Evidence
@@ -81,7 +89,7 @@ Constraint:
 ## Validation Interpretation
 
 Current validation status means:
-- readiness, permission, operational gate, read-only consumer contract, and AxodusAPP preview implementations are complete at source/documentation level
+- readiness, permission, operational gate, read-only consumer contract, AxodusAPP preview, and Business/Marketplace alignment implementations are complete at source/documentation level
 - repository runtime health is `NOT_CONFIRMED_LOCAL_EVIDENCE_REQUIRED` for this cycle
 - ACS must remain execution-gated and non-production
 

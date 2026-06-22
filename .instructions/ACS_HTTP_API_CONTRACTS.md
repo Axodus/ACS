@@ -61,4 +61,10 @@ REQ-08 AxodusAPP preview note:
 - The preview adapter does not call AxodusAPP and does not require AxodusAPP runtime.
 - No new mutating HTTP endpoints are added in `ACS-REQ-08`.
 
+REQ-09 Business/Marketplace alignment note:
+- `ACS-REQ-09` adds Business and Marketplace alignment projections at the local registry/inspection layer only.
+- The alignment contract is read-only, local/config-first, and non-executive.
+- The alignment contract does not call Business runtime or Marketplace runtime.
+- No new mutating HTTP endpoints are added in `ACS-REQ-09`.
+
 Full response examples live in `.instructions/ACS_API_EXAMPLES.md`.

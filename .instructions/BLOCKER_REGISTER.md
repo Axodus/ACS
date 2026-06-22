@@ -126,7 +126,7 @@ Treat portfolio register updates as environment-dependent and defer them to `ACS
 
 Severity: LOW
 
-Status: OPEN
+Status: RESOLVED IN `ACS-REQ-09`
 
 Description:
 `ACS-REQ-08` added an AxodusAPP-specific preview adapter on top of the generic consumer contract, but the Business/Marketplace-specific alignment contract remains intentionally out of scope until `ACS-REQ-09`.
@@ -136,6 +136,21 @@ AxodusAPP preview consumption is now available locally, but Business and Marketp
 
 Resolution path:
 Use `ACS-REQ-09` for Business/Marketplace alignment without reopening execution authority.
+
+## ACS-BLOCKER-010 - Boundary Enforcement Tests Not Implemented Yet
+
+Severity: MEDIUM
+
+Status: OPEN
+
+Description:
+Read-only registries and consumer-facing contracts now exist for ACS, but explicit Sprint 04 boundary-enforcement coverage has not been added yet.
+
+Impact:
+Boundary intent is represented in code and docs, but current-cycle enforcement proof for the full execution/no-go surface is still incomplete.
+
+Resolution path:
+Use `ACS-REQ-10` to add explicit boundary-enforcement tests without reopening execution authority.
 
 ## Current No-Go Areas
 
@@ -154,4 +169,4 @@ Active blocked areas:
 
 ## Next Recommended Request
 
-`ACS-REQ-09 - Business and Marketplace ACS Alignment Contract`
+`ACS-REQ-10 - ACS Boundary Enforcement Tests`

@@ -1,5 +1,16 @@
 import { ACS_POLICY_MATRIX, getPolicyMatrixEntry, type AcsCapabilityId } from "./acs-policy-matrix.js";
 import { AcsCapabilityRegistry, type AcsServiceCapability } from "./capability-registry.js";
+import {
+  checkAcsBusinessCommerceActionPosture,
+  checkAcsMarketplaceCommerceActionPosture,
+  getAcsBusinessAlignmentSnapshot,
+  getAcsBusinessCommerceBlockedActions,
+  getAcsBusinessCriticalWarnings,
+  getAcsBusinessMarketplaceAlignmentSummary,
+  getAcsMarketplaceAlignmentSnapshot,
+  getAcsMarketplaceCommerceBlockedActions,
+  getAcsMarketplaceCriticalWarnings,
+} from "./business-marketplace-alignment.js";
 import type { AcsConsumptionLevel } from "./consumption-levels.js";
 import {
   getAcsAxodusAppBlockedActionCards,
@@ -461,6 +472,60 @@ export function inspectAxodusAppBlockedActionCards() {
 export function inspectAxodusAppCriticalWarnings() {
   return {
     warnings: getAcsAxodusAppCriticalWarnings(),
+  };
+}
+
+export function inspectBusinessAlignmentSnapshot() {
+  return {
+    snapshot: getAcsBusinessAlignmentSnapshot(),
+  };
+}
+
+export function inspectMarketplaceAlignmentSnapshot() {
+  return {
+    snapshot: getAcsMarketplaceAlignmentSnapshot(),
+  };
+}
+
+export function inspectBusinessMarketplaceAlignmentSummary() {
+  return {
+    summary: getAcsBusinessMarketplaceAlignmentSummary(),
+  };
+}
+
+export function inspectBusinessCommerceBlockedActions() {
+  return {
+    actions: getAcsBusinessCommerceBlockedActions(),
+  };
+}
+
+export function inspectMarketplaceCommerceBlockedActions() {
+  return {
+    actions: getAcsMarketplaceCommerceBlockedActions(),
+  };
+}
+
+export function inspectBusinessCriticalWarnings() {
+  return {
+    warnings: getAcsBusinessCriticalWarnings(),
+  };
+}
+
+export function inspectMarketplaceCriticalWarnings() {
+  return {
+    warnings: getAcsMarketplaceCriticalWarnings(),
+  };
+}
+
+export function inspectBusinessCommerceActionPosture(action: string) {
+  return {
+    result: checkAcsBusinessCommerceActionPosture(action),
+  };
+}
+
+export function inspectMarketplaceCommerceActionPosture(action: string) {
+  return {
+    result: checkAcsMarketplaceCommerceActionPosture(action),
   };
 }
 

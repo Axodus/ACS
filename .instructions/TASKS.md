@@ -20,7 +20,7 @@ Last updated: 2026-06-22
 
 - [x] `ACS-REQ-07` define read-only consumer contract
 - [x] `ACS-REQ-08` prepare AxodusAPP ACS integration preview
-- [ ] `ACS-REQ-09` define Business and Marketplace alignment contract
+- [x] `ACS-REQ-09` define Business and Marketplace alignment contract
 
 ### Sprint 04 - Security, Validation and Boundary Enforcement
 
@@ -48,7 +48,7 @@ Last updated: 2026-06-22
 
 ## Explicitly Deferred In This Cycle
 
-- [x] do not implement Business/Marketplace-specific alignment contract during `ACS-REQ-08`
-- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-08`
-- [x] do not update portfolio/global registers during `ACS-REQ-08`
-- [x] do not add AxodusAPP runtime dependency or production integration during `ACS-REQ-08`
+- [x] do not start boundary enforcement tests during `ACS-REQ-09`
+- [x] do not promote ACS to `L4 Consolidated` during `ACS-REQ-09`
+- [x] do not update portfolio/global registers during `ACS-REQ-09`
+- [x] do not add Business/Marketplace runtime dependency or production commerce integration during `ACS-REQ-09`

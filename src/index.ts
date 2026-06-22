@@ -3,6 +3,7 @@ export * from "./acs-receipts.js";
 export * from "./acs-policy-matrix.js";
 export * from "./api-safety.js";
 export * from "./axodusapp-preview.js";
+export * from "./business-marketplace-alignment.js";
 export * from "./capability-registry.js";
 export * from "./consumption-levels.js";
 export * from "./consumer-contract.js";
