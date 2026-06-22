@@ -17,6 +17,7 @@ Date: 2026-06-22
 - completed `ACS-REQ-11` security review and secret safety audit
 - completed `ACS-REQ-12` local validation suite
 - completed `ACS-REQ-13` L4 consolidation assessment
+- completed `ACS-REQ-14` handoff and operational report
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -34,6 +35,7 @@ Date: 2026-06-22
 - `.instructions/reports/ACS_PRODUCTION_ENDPOINT_AUDIT.md`
 - `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md`
 - `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md`
+- `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md`
 
 ## Current Recommended State
 
@@ -61,6 +63,7 @@ Operational posture:
 - treat boundary enforcement as test evidence only, not as production authority
 - treat the ACS-REQ-11 audit as local inspection evidence only, not as production approval
 - treat the ACS-REQ-13 assessment as a maturity recommendation only, not as automatic promotion
+- treat the ACS-REQ-14 handoff as the final EPIC summary without portfolio or authority updates
 
 ## Current Validation State
 
@@ -69,6 +72,7 @@ Operational posture:
 - no tests were skipped or removed
 - historical build/test evidence exists only as historical documentation
 - ACS-REQ-13 reused that fresh evidence and did not re-run build/test/check
+- ACS-REQ-14 reused the completed assessment and did not re-run build/test/check
 
 ## Active Boundaries
 
@@ -91,11 +95,11 @@ Do not enable:
 - Hummingbot runtime blocked
 - portfolio/global registers unavailable in the current environment
 - production security controls intentionally unavailable
-- final ACS EPIC handoff not yet created
+- ACS-REQ-15 remains pending
 
 ## Next Recommended Request
 
-`ACS-REQ-14 - Final ACS EPIC handoff`
+`ACS-REQ-15 - Portfolio and global register update`
 
 ## Continuation Guidance
 
@@ -109,3 +113,4 @@ Do not enable:
 - keep the Business/Marketplace alignment contract local/read-only and non-executive
 - use `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md` as the baseline for ACS-REQ-14
 - preserve the `PROMOTE_TO_L4_READINESS` recommendation unless later scope closes the remaining delivery-state gaps without expanding authority
+- use `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md` as the handoff baseline for ACS-REQ-15

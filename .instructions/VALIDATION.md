@@ -75,6 +75,10 @@ Documentation-safe evidence commands used in `ACS-REQ-13`:
 - `git diff -- .instructions`
 - `git status --short`
 
+Documentation-safe evidence commands used in `ACS-REQ-14`:
+- `git diff -- .instructions`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
@@ -134,8 +138,8 @@ Current validation status means:
 
 ## Next Validation Need
 
-`ACS-REQ-13` used the fresh evidence in `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md` and did not re-run build/test/check.
+`ACS-REQ-14` used the evidence chain already captured in `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md` and did not re-run build/test/check.
 
 Next:
-- use `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md` in `ACS-REQ-14`
+- use `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md` as the handoff baseline for `ACS-REQ-15`
 - keep passing local validation as necessary but not sufficient evidence for maturity promotion

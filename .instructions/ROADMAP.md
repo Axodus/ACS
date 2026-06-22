@@ -86,7 +86,7 @@ Status:
 
 Requests:
 - `ACS-REQ-13` - COMPLETE
-- `ACS-REQ-14`
+- `ACS-REQ-14` - COMPLETE
 - `ACS-REQ-15`
 
 Planned outcomes:

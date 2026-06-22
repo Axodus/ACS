@@ -31,7 +31,7 @@ Last updated: 2026-06-22
 ### Sprint 05 - L4 Consolidation Assessment and Portfolio Update
 
 - [x] `ACS-REQ-13` perform evidence-based L4 consolidation assessment
-- [ ] `ACS-REQ-14` create final ACS EPIC handoff
+- [x] `ACS-REQ-14` create final ACS EPIC handoff
 - [ ] `ACS-REQ-15` update portfolio/global registers when environment is available
 
 ## Current Documentation-Derived Gaps
@@ -60,3 +60,10 @@ Last updated: 2026-06-22
 - [x] recommend `D3+`
 - [x] confirm ACS remains non-production and without mutation authority
 - [x] defer final handoff and portfolio/global register updates to later requests
+
+## ACS-REQ-14 Outcome
+
+- [x] create `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md`
+- [x] carry forward the `PROMOTE_TO_L4_READINESS` recommendation
+- [x] preserve `ACS-REQ-15` as pending
+- [x] confirm ACS remains local-first, config-first, mock/read-only when applicable, integration-ready, execution-gated, and non-production
