@@ -1,6 +1,6 @@
 # ACS Blocker Register
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 ## ACS-BLOCKER-001 - Execution Authority Not Approved
 
@@ -111,16 +111,16 @@ Re-run executable validation in a compatible environment and extend boundary-enf
 
 Severity: LOW
 
-Status: OPEN - DIRECTORY PRESENT, WRITE ACCESS UNAVAILABLE
+Status: RESOLVED IN `ACS-FOLLOWUP-01`
 
 Description:
-The expected portfolio/global register path and all 13 expected files are present and readable, but the active workspace filesystem profile does not permit writes under `/opt/Axodus/.instructions/`.
+The initial ACS-REQ-15 environment could not write the portfolio registers. ACS-FOLLOWUP-01 later ran in a writable environment and synchronized all 13 expected global files.
 
 Impact:
-Portfolio-level updates cannot be performed or validated as mutations in the current environment. The global registers still contain the pre-ACS-EPIC-01 portfolio snapshot.
+The ACS local EPIC, recommendation, D-Level and boundary state are now synchronized globally.
 
 Resolution path:
-Use `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md` to perform a portfolio-only synchronization in an explicitly writable environment. Do not infer production or execution authority from that synchronization.
+Keep `.instructions/reports/ACS_GLOBAL_PORTFOLIO_SYNC_REPORT.md` as the successful sync evidence. Future global mutations remain governed and do not imply production or execution authority.
 
 ## ACS-BLOCKER-009 - Business And Marketplace Alignment Contract Not Implemented Yet
 
@@ -182,6 +182,21 @@ ACS must not be exposed or treated as a production service even though its curre
 Resolution path:
 Keep ACS local and non-production. Any later production proposal requires separately approved identity, authorization, rate limiting, origin restrictions, secret storage, deployment controls, and a renewed security review.
 
+## ACS-BLOCKER-013 - L4 Consolidated Governance Gates Not Yet Satisfied
+
+Severity: HIGH
+
+Status: OPEN
+
+Description:
+ACS-GOV-02 defines the gates for a future L4 Consolidated assessment, but fresh assessment-time evidence, security-control disposition, cross-nucleus consistency review, global snapshot reconciliation and four-role sign-off are not yet complete.
+
+Impact:
+ACS cannot enter an L4 Consolidated assessment or be promoted. Current state remains `L4_READINESS` / `D3+` / `NON_PRODUCTION` / `EXECUTION_GATED` / `NO_MUTATION_AUTHORITY`.
+
+Resolution path:
+Run `ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review` as a governance/evidence task only. Do not combine it with implementation, promotion or authority expansion.
+
 ## Current No-Go Areas
 
 Active blocked areas:
@@ -209,6 +224,18 @@ Active blocked areas:
 
 `ACS-REQ-15` found the global directory and all 13 expected register files, but write access was unavailable under the active filesystem profile. It created `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md`, recorded `PORTFOLIO_REGISTERS_UNAVAILABLE_IN_CURRENT_ENVIRONMENT`, and did not simulate global mutations.
 
+## ACS-FOLLOWUP-01 Global Sync Note
+
+`ACS-FOLLOWUP-01` synchronized all 13 global portfolio registers in a later writable environment. Future `portfolio.global_registers.mutate` actions remain governed/blocked outside explicitly authorized register tasks.
+
+## ACS-GOV-01 Adoption Note
+
+`ACS-GOV-01` decided `ADOPT_L4_READINESS` and recorded `L4_READINESS_ADOPTED`. This closes the readiness-adoption question only. It does not close execution, Hummingbot, production-security or L4 Consolidated blockers.
+
+## ACS-GOV-02 Gate Definition Note
+
+`ACS-GOV-02` defined the future consolidated-assessment gates. It did not assess or promote ACS. All canonical actions and execution/production blockers remain active.
+
 ## Next Recommended Request
 
-ACS-EPIC-01 is complete. Repeat only the portfolio-register synchronization in an explicitly writable environment; keep every execution and production blocker active.
+`ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`

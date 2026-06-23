@@ -86,6 +86,22 @@ Documentation/register-safe evidence commands used in `ACS-REQ-15`:
 - `git diff -- .instructions`
 - `git status --short`
 
+Documentation/register-safe evidence commands used in `ACS-GOV-01`:
+- `test -d /opt/Axodus/.instructions && echo PORTFOLIO_DIR_AVAILABLE || echo PORTFOLIO_DIR_UNAVAILABLE`
+- `test -w /opt/Axodus/.instructions && echo PORTFOLIO_DIR_WRITABLE || echo PORTFOLIO_DIR_NOT_WRITABLE`
+- local/global evidence inspection with `rg` and `sed`
+- canonical blocked-action verification
+- `git diff -- .instructions`
+- `git status --short`
+
+Documentation/register-safe evidence commands used in `ACS-GOV-02`:
+- `test -d /opt/Axodus/.instructions && echo PORTFOLIO_DIR_AVAILABLE || echo PORTFOLIO_DIR_UNAVAILABLE`
+- `test -w /opt/Axodus/.instructions && echo PORTFOLIO_DIR_WRITABLE || echo PORTFOLIO_DIR_NOT_WRITABLE`
+- local/global evidence and gate-source inspection with `rg` and `sed`
+- canonical blocked-action verification
+- `git diff -- .instructions`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
@@ -145,9 +161,10 @@ Current validation status means:
 
 ## Next Validation Need
 
-`ACS-REQ-15` used the evidence chain captured by ACS-REQ-12 through ACS-REQ-14 and did not re-run build/test/check.
+`ACS-GOV-02` used the evidence chain captured by ACS-REQ-12 through ACS-GOV-01 and did not re-run build/test/check.
 
 Next:
-- retain `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md` as the evidence that the portfolio directory was readable but not writable
-- repeat only the portfolio-register synchronization in an explicitly writable environment
-- keep passing local validation as necessary but not sufficient evidence for maturity promotion or production authority
+- retain `.instructions/reports/ACS_GLOBAL_PORTFOLIO_SYNC_REPORT.md` as successful global-sync evidence
+- retain `.instructions/reports/ACS_L4_READINESS_ADOPTION_REVIEW.md` as governance adoption evidence
+- retain `.instructions/reports/ACS_L4_CONSOLIDATED_GOVERNANCE_GATE_DEFINITION.md` as the future gate baseline
+- keep passing local validation as necessary but not sufficient evidence for L4 Consolidated or production authority

@@ -1,6 +1,6 @@
 # ACS Portfolio Handoff
 
-Date: 2026-06-22
+Date: 2026-06-23
 
 ## Completed In This Cycle
 
@@ -19,6 +19,9 @@ Date: 2026-06-22
 - completed `ACS-REQ-13` L4 consolidation assessment
 - completed `ACS-REQ-14` handoff and operational report
 - completed `ACS-REQ-15` portfolio register environment check and unavailability report
+- completed `ACS-FOLLOWUP-01` global portfolio register synchronization
+- completed `ACS-GOV-01` L4 Readiness adoption review
+- completed `ACS-GOV-02` L4 Consolidated governance gate definition
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -38,20 +41,26 @@ Date: 2026-06-22
 - `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md`
 - `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md`
 - `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md`
+- `.instructions/reports/ACS_GLOBAL_PORTFOLIO_SYNC_REPORT.md`
+- `.instructions/reports/ACS_L4_READINESS_ADOPTION_REVIEW.md`
+- `.instructions/reports/ACS_L4_CONSOLIDATED_GOVERNANCE_GATE_DEFINITION.md`
 
-## Current Recommended State
+## Current Governance State
 
 L-Level:
-- `L4 Candidate`
+- `L4_READINESS`
 
-Assessed recommendation:
-- `PROMOTE_TO_L4_READINESS`
+Previous L-Level:
+- `L4_CANDIDATE`
+
+Governance adoption:
+- `L4_READINESS_ADOPTED`
 
 D-Level:
-- `LOCAL_VALIDATION_CONFIRMED`
-
-Assessed recommendation:
 - `D3+`
+
+Validation state:
+- `LOCAL_VALIDATION_CONFIRMED`
 
 Operational posture:
 - hold execution gates closed
@@ -67,6 +76,9 @@ Operational posture:
 - treat the ACS-REQ-13 assessment as a maturity recommendation only, not as automatic promotion
 - treat the ACS-REQ-14 handoff as the final EPIC summary without portfolio or authority updates
 - treat the ACS-REQ-15 report as evidence that global registers were readable but unavailable for write; no global update was simulated
+- treat ACS-FOLLOWUP-01 as the successful later global synchronization
+- treat ACS-GOV-01 as adoption of readiness maturity only, not L4 Consolidation or authority expansion
+- treat ACS-GOV-02 as gate definition only, not assessment readiness or promotion
 
 ## Current Validation State
 
@@ -77,6 +89,8 @@ Operational posture:
 - ACS-REQ-13 reused that fresh evidence and did not re-run build/test/check
 - ACS-REQ-14 reused the completed assessment and did not re-run build/test/check
 - ACS-REQ-15 did not re-run build/test/check and made documentation-only local updates
+- ACS-FOLLOWUP-01 and ACS-GOV-01 reused the passing evidence and did not re-run build/test/check
+- ACS-GOV-02 reused the evidence chain and did not re-run build/test/check
 
 ## Active Boundaries
 
@@ -97,13 +111,13 @@ Do not enable:
 
 - execution authority not approved
 - Hummingbot runtime blocked
-- portfolio/global registers unavailable for write in the current environment
 - production security controls intentionally unavailable
-- global adoption of the L4 Readiness/D3+ recommendation remains pending
+- L4 Consolidated assessment remains gated
+- fresh evidence, security-control disposition, cross-nucleus review and governance sign-off remain pending
 
 ## Next Recommended Request
 
-ACS-EPIC-01 is complete. If a later environment provides explicit write access to `/opt/Axodus/.instructions/`, synchronize the portfolio registers from `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md` without expanding authority.
+`ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`
 
 ## Continuation Guidance
 
@@ -119,3 +133,6 @@ ACS-EPIC-01 is complete. If a later environment provides explicit write access t
 - preserve the `PROMOTE_TO_L4_READINESS` recommendation unless later scope closes the remaining delivery-state gaps without expanding authority
 - use `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md` as the handoff baseline for ACS-REQ-15
 - use `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md` as the final ACS-EPIC-01 portfolio-sync evidence
+- use `.instructions/reports/ACS_GLOBAL_PORTFOLIO_SYNC_REPORT.md` as the successful sync evidence
+- use `.instructions/reports/ACS_L4_READINESS_ADOPTION_REVIEW.md` as the governance adoption baseline
+- use `.instructions/reports/ACS_L4_CONSOLIDATED_GOVERNANCE_GATE_DEFINITION.md` as the only gate-definition baseline for future assessment preparation

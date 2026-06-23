@@ -1,10 +1,10 @@
 # ACS Status
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 ## Current Request State
 
-Current request: `ACS-REQ-15 - Portfolio Registers Update for ACS Consolidation`
+Current request: `ACS-GOV-02 - L4 Consolidated Governance Gate Definition`
 
 Request status: COMPLETE
 
@@ -27,20 +27,26 @@ Evidence baseline:
 - `.instructions/reports/ACS_L4_CONSOLIDATION_ASSESSMENT.md`
 - `.instructions/reports/ACS_HANDOFF_AND_OPERATIONAL_REPORT.md`
 - `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md`
+- `.instructions/reports/ACS_GLOBAL_PORTFOLIO_SYNC_REPORT.md`
+- `.instructions/reports/ACS_L4_READINESS_ADOPTION_REVIEW.md`
+- `.instructions/reports/ACS_L4_CONSOLIDATED_GOVERNANCE_GATE_DEFINITION.md`
 
 ## Current Classification
 
 L-Level:
-- `L4 Candidate`
+- `L4_READINESS`
 
-Assessed recommendation:
-- `PROMOTE_TO_L4_READINESS`
+Previous L-Level:
+- `L4_CANDIDATE`
+
+Governance adoption:
+- `L4_READINESS_ADOPTED`
 
 D-Level:
-- `LOCAL_VALIDATION_CONFIRMED`
-
-Assessed recommendation:
 - `D3+`
+
+Validation state:
+- `LOCAL_VALIDATION_CONFIRMED`
 
 Status summary:
 - ACS is locally structured, integration-oriented, inspection-first, and execution-gated.
@@ -54,8 +60,9 @@ Status summary:
 - ACS now has fresh passing local build, test, and check evidence from `ACS-REQ-12`.
 - ACS now has a formal `ACS-REQ-13` consolidation assessment recommending `PROMOTE_TO_L4_READINESS`, not automatic promotion.
 - ACS now has a final `ACS-REQ-14` handoff and operational report.
-- ACS-REQ-15 confirmed that the portfolio directory and all 13 expected registers exist, but global writes are unavailable under the active filesystem profile.
-- ACS-REQ-15 documented `PORTFOLIO_REGISTERS_UNAVAILABLE_IN_CURRENT_ENVIRONMENT` without simulating global updates.
+- ACS-FOLLOWUP-01 synchronized the global portfolio registers successfully.
+- ACS-GOV-01 adopted `L4_READINESS` by decision `ADOPT_L4_READINESS`.
+- ACS-GOV-02 defined the ten governance gates required before any future L4 Consolidated assessment.
 - ACS is not `L4 Consolidated`.
 - ACS remains non-production and without mutation authority.
 
@@ -112,10 +119,10 @@ Forbidden in current state:
 ## Current Gaps
 
 Confirmed local gaps:
-- global portfolio registers are readable but unavailable for write in the current environment
 - production security controls remain intentionally unavailable
 - execution authority remains unapproved
-- global adoption of the `PROMOTE_TO_L4_READINESS` / `D3+` recommendation remains pending
+- L4 Consolidated assessment remains gated by governance, security, execution and production prerequisites
+- fresh assessment-time evidence, cross-nucleus review, security-control disposition and four-role sign-off remain pending
 
 ## Active Blockers
 
@@ -128,4 +135,4 @@ Confirmed local gaps:
 
 ## Next Recommended Request
 
-ACS-EPIC-01 is complete. A future portfolio-only synchronization may be run in an environment with write access to `/opt/Axodus/.instructions/`; it must not add execution or production authority.
+`ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`

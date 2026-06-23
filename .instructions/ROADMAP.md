@@ -99,5 +99,47 @@ Planned outcomes:
 The roadmap remains blocked from execution-sensitive expansion while any of the following remain unresolved:
 - execution authority not approved
 - production security controls intentionally unavailable
-- portfolio/global registers unavailable for write in the current environment
 - Hummingbot runtime blocked
+
+## ACS-FOLLOWUP-01 - Global Portfolio Register Sync
+
+Status:
+- `COMPLETE`
+
+Outcome:
+- global register sync `COMPLETE`
+- ACS current L-Level remained `L4_CANDIDATE` pending governance adoption
+- ACS D-Level registered as `D3+`
+- no production, execution or mutation authority added
+
+## ACS-GOV-01 - L4 Readiness Adoption Review
+
+Status:
+- `COMPLETE`
+
+Decision:
+- `ADOPT_L4_READINESS`
+- governance adoption `L4_READINESS_ADOPTED`
+- previous L-Level `L4_CANDIDATE`
+- current L-Level `L4_READINESS`
+- D-Level `D3+`
+- L4 Consolidated `NO`
+
+Next target:
+- `L4_CONSOLIDATED_ASSESSMENT_ONLY_AFTER_GOVERNANCE_GATES`
+
+## ACS-GOV-02 - L4 Consolidated Governance Gate Definition
+
+Status:
+- `COMPLETE`
+
+Outcome:
+- ten governance gate categories defined
+- current L-Level remains `L4_READINESS`
+- D-Level remains `D3+`
+- L4 Consolidated remains `NO`
+- production, execution and mutation authority remain blocked
+- final recommendation `GOVERNANCE_GATE_DEFINITION_ONLY`
+
+Next governance request:
+- `ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`

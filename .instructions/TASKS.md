@@ -1,6 +1,6 @@
 # ACS Tasks
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 ## ACS-EPIC-01 Active Tasks
 
@@ -76,3 +76,30 @@ Last updated: 2026-06-22
 - [x] create `.instructions/reports/ACS_PORTFOLIO_REGISTER_UPDATE_REPORT.md`
 - [x] record `PORTFOLIO_REGISTERS_UNAVAILABLE_IN_CURRENT_ENVIRONMENT` without simulating updates
 - [x] preserve `PROMOTE_TO_L4_READINESS`, `D3+`, non-production posture, and closed execution gates
+
+## ACS-FOLLOWUP-01 Outcome
+
+- [x] synchronize the 13 global portfolio registers
+- [x] register ACS current L-Level as `L4_CANDIDATE` pending governance adoption
+- [x] register recommended L-Level `L4_READINESS` and D-Level `D3+`
+- [x] preserve all canonical blocked actions and non-production authority boundaries
+
+## ACS-GOV-01 Outcome
+
+- [x] review local and global maturity evidence
+- [x] verify validation, security, secret-safety, endpoint and boundary evidence
+- [x] verify all canonical actions remain `BLOCKED`
+- [x] decide `ADOPT_L4_READINESS`
+- [x] record `L4_READINESS_ADOPTED`
+- [x] retain `D3+`, `NON_PRODUCTION`, `EXECUTION_GATED`, and `NO_MUTATION_AUTHORITY`
+- [x] retain L4 Consolidated as `NO`
+
+## ACS-GOV-02 Outcome
+
+- [x] verify the adopted L4 Readiness baseline
+- [x] define evidence freshness, governance, authority, production, security, cross-nucleus, blocked-action, non-production, delivery-reality and sign-off gates
+- [x] distinguish permanent no-go boundaries from future governance gates
+- [x] define future evidence and invalidation criteria
+- [x] preserve all 17 canonical blocked actions
+- [x] keep ACS at `L4_READINESS`, `D3+`, `NON_PRODUCTION`, `EXECUTION_GATED`, and `NO_MUTATION_AUTHORITY`
+- [x] record `GOVERNANCE_GATE_DEFINITION_ONLY`

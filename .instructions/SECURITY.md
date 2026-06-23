@@ -120,10 +120,35 @@ Historical evidence:
 Authority boundary source:
 - `.instructions/ACS_AUTHORITY_BOUNDARY_MATRIX.md`
 
-Next documentation-to-implementation step:
-- `ACS-REQ-13 - Evidence-based L4 consolidation assessment`
+Next governance evidence step:
+- `ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`
 
-Before any maturity discussion beyond `L4 Candidate`:
-- re-run validation in a compatible environment
+Before any future L4 Consolidated assessment:
+- refresh validation, security, secret-safety, endpoint and boundary evidence
 - preserve the authority model
-- centralize permission and gate representations
+- document the security-control disposition, threat model and incident-response notes
+
+## L4 Consolidated Security Gate
+
+ACS-GOV-02 does not grant L4 Consolidated or production status. A future assessment package must provide current disposition for:
+
+- authentication model
+- authorization/access-control model
+- rate limiting
+- CORS/origin policy
+- secret storage
+- audit logging and receipt integrity
+- threat model
+- incident response notes
+
+Current production-security blockers remain:
+
+- authentication and rate limiting are mock/placeholders
+- wildcard CORS is incompatible with production exposure
+- no production KMS/Vault-equivalent secret adapter exists
+- production access-control and deployment controls are absent
+- consolidated threat-model and incident-response evidence is pending
+
+For a non-production L4 Consolidated assessment, an absent production-grade control may be accepted only as an explicit production blocker with a documented local compensating boundary and security/governance sign-off. It must not protect a reachable production surface.
+
+All canonical actions, Hummingbot runtime execution, production permission enforcement and production state mutation remain blocked.
