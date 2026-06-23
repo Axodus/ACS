@@ -4,7 +4,7 @@ Last updated: 2026-06-23
 
 ## Current Request State
 
-Current request: `ACS-GOV-02 - L4 Consolidated Governance Gate Definition`
+Current request: `ACS-CLOSE-01 - ACS L4 Readiness Closure and Portfolio Handoff`
 
 Request status: COMPLETE
 
@@ -30,6 +30,7 @@ Evidence baseline:
 - `.instructions/reports/ACS_GLOBAL_PORTFOLIO_SYNC_REPORT.md`
 - `.instructions/reports/ACS_L4_READINESS_ADOPTION_REVIEW.md`
 - `.instructions/reports/ACS_L4_CONSOLIDATED_GOVERNANCE_GATE_DEFINITION.md`
+- `.instructions/reports/ACS_L4_READINESS_CLOSURE_AND_PORTFOLIO_HANDOFF.md`
 
 ## Current Classification
 
@@ -41,6 +42,15 @@ Previous L-Level:
 
 Governance adoption:
 - `L4_READINESS_ADOPTED`
+
+Governance track:
+- `PAUSED_AND_HANDOFF`
+
+ACS-GOV-03:
+- `DEFERRED_TO_AVOID_GOVERNANCE_LOOP`
+
+ACS-GOV-04:
+- `NOT_OPENED`
 
 D-Level:
 - `D3+`
@@ -63,6 +73,7 @@ Status summary:
 - ACS-FOLLOWUP-01 synchronized the global portfolio registers successfully.
 - ACS-GOV-01 adopted `L4_READINESS` by decision `ADOPT_L4_READINESS`.
 - ACS-GOV-02 defined the ten governance gates required before any future L4 Consolidated assessment.
+- ACS-CLOSE-01 closes the current ACS governance track, defers ACS-GOV-03, and leaves ACS-GOV-04 unopened.
 - ACS is not `L4 Consolidated`.
 - ACS remains non-production and without mutation authority.
 
@@ -123,6 +134,7 @@ Confirmed local gaps:
 - execution authority remains unapproved
 - L4 Consolidated assessment remains gated by governance, security, execution and production prerequisites
 - fresh assessment-time evidence, cross-nucleus review, security-control disposition and four-role sign-off remain pending
+- further ACS governance escalation is intentionally paused until a formal L4 Consolidated assessment is actually intended
 
 ## Active Blockers
 
@@ -132,7 +144,22 @@ Confirmed local gaps:
 - secrets access remains blocked
 - live/paper trading runtime remains blocked
 - treasury movement remains blocked
+- governance looping risk is controlled by pausing ACS-GOV-03 and not opening ACS-GOV-04 outside a formal consolidation intent
 
 ## Next Recommended Request
 
-`ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`
+`ACADEMY-EPIC-01 - Academy L4 Consolidation`
+
+## Closure Decision
+
+`ACS STATUS: L4_READINESS / D3+`
+
+`ACS CONSOLIDATION: NOT_PROMOTED`
+
+`ACS-GOV TRACK: PAUSED`
+
+`ACS-GOV-03: DEFERRED`
+
+`ACS-GOV-04: NOT_OPENED`
+
+`NEXT ACS ACTION: ONLY WHEN FORMAL L4 CONSOLIDATED ASSESSMENT IS INTENDED`

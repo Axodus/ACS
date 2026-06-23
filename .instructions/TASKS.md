@@ -103,3 +103,13 @@ Last updated: 2026-06-23
 - [x] preserve all 17 canonical blocked actions
 - [x] keep ACS at `L4_READINESS`, `D3+`, `NON_PRODUCTION`, `EXECUTION_GATED`, and `NO_MUTATION_AUTHORITY`
 - [x] record `GOVERNANCE_GATE_DEFINITION_ONLY`
+
+## ACS-CLOSE-01 Outcome
+
+- [x] verify and preserve `L4_READINESS` / `D3+` / `NON_PRODUCTION` / `EXECUTION_GATED` / `NO_MUTATION_AUTHORITY`
+- [x] create `.instructions/reports/ACS_L4_READINESS_CLOSURE_AND_PORTFOLIO_HANDOFF.md`
+- [x] record `ACS-GOV-03` as `DEFERRED_TO_AVOID_GOVERNANCE_LOOP`
+- [x] record `ACS-GOV-04` as `NOT_OPENED`
+- [x] set ACS governance track to `PAUSED_AND_HANDOFF`
+- [x] preserve ACS as not `L4_CONSOLIDATED`
+- [x] hand off portfolio focus recommendation to `ACADEMY-EPIC-01 - Academy L4 Consolidation`

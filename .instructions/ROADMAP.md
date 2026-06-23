@@ -141,5 +141,12 @@ Outcome:
 - production, execution and mutation authority remain blocked
 - final recommendation `GOVERNANCE_GATE_DEFINITION_ONLY`
 
-Next governance request:
-- `ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`
+Governance closure:
+- `ACS-CLOSE-01` pauses the ACS governance track after adoption and gate definition.
+- `ACS-GOV-03` is deferred to avoid governance looping.
+- `ACS-GOV-04` is not opened.
+- ACS should return only when a formal L4 Consolidated assessment is actually intended.
+
+Next portfolio focus:
+- `ACADEMY-EPIC-01 - Academy L4 Consolidation`
+- secondary option: `MINING-EPIC-01 - Mining L4 Consolidation`

@@ -22,6 +22,7 @@ Date: 2026-06-23
 - completed `ACS-FOLLOWUP-01` global portfolio register synchronization
 - completed `ACS-GOV-01` L4 Readiness adoption review
 - completed `ACS-GOV-02` L4 Consolidated governance gate definition
+- completed `ACS-CLOSE-01` L4 Readiness closure and portfolio handoff
 - created:
 - `.instructions/reports/ACS_CURRENT_STATE_BASELINE.md`
 - `.instructions/reports/ACS_INSTRUCTION_NORMALIZATION_REPORT.md`
@@ -79,6 +80,7 @@ Operational posture:
 - treat ACS-FOLLOWUP-01 as the successful later global synchronization
 - treat ACS-GOV-01 as adoption of readiness maturity only, not L4 Consolidation or authority expansion
 - treat ACS-GOV-02 as gate definition only, not assessment readiness or promotion
+- treat ACS-CLOSE-01 as intentional governance pause and portfolio handoff, not a reopening of consolidated assessment work
 
 ## Current Validation State
 
@@ -91,6 +93,7 @@ Operational posture:
 - ACS-REQ-15 did not re-run build/test/check and made documentation-only local updates
 - ACS-FOLLOWUP-01 and ACS-GOV-01 reused the passing evidence and did not re-run build/test/check
 - ACS-GOV-02 reused the evidence chain and did not re-run build/test/check
+- ACS-CLOSE-01 reused the ACS-GOV-01 / ACS-GOV-02 evidence chain and did not re-run build/test/check
 
 ## Active Boundaries
 
@@ -114,10 +117,11 @@ Do not enable:
 - production security controls intentionally unavailable
 - L4 Consolidated assessment remains gated
 - fresh evidence, security-control disposition, cross-nucleus review and governance sign-off remain pending
+- the ACS governance track is intentionally paused to avoid governance looping until a formal consolidated assessment is actually intended
 
 ## Next Recommended Request
 
-`ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`
+`ACADEMY-EPIC-01 - Academy L4 Consolidation`
 
 ## Continuation Guidance
 
@@ -136,3 +140,6 @@ Do not enable:
 - use `.instructions/reports/ACS_GLOBAL_PORTFOLIO_SYNC_REPORT.md` as the successful sync evidence
 - use `.instructions/reports/ACS_L4_READINESS_ADOPTION_REVIEW.md` as the governance adoption baseline
 - use `.instructions/reports/ACS_L4_CONSOLIDATED_GOVERNANCE_GATE_DEFINITION.md` as the only gate-definition baseline for future assessment preparation
+- use `.instructions/reports/ACS_L4_READINESS_CLOSURE_AND_PORTFOLIO_HANDOFF.md` as the closure baseline
+- do not open `ACS-GOV-03` or `ACS-GOV-04` unless a formal L4 Consolidated assessment is intentionally being prepared
+- shift the portfolio focus away from ACS and toward `ACADEMY-EPIC-01 - Academy L4 Consolidation`, with Mining as the secondary option

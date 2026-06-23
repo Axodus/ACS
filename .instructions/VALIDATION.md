@@ -102,6 +102,13 @@ Documentation/register-safe evidence commands used in `ACS-GOV-02`:
 - `git diff -- .instructions`
 - `git status --short`
 
+Documentation/register-safe evidence commands used in `ACS-CLOSE-01`:
+- `test -d /opt/Axodus/.instructions && echo PORTFOLIO_DIR_AVAILABLE || echo PORTFOLIO_DIR_UNAVAILABLE`
+- `test -w /opt/Axodus/.instructions && echo PORTFOLIO_DIR_WRITABLE || echo PORTFOLIO_DIR_NOT_WRITABLE`
+- local/global evidence inspection with `sed`
+- `git diff -- .instructions`
+- `git status --short`
+
 ## Current-Cycle Validation Status
 
 Status:
@@ -167,4 +174,5 @@ Next:
 - retain `.instructions/reports/ACS_GLOBAL_PORTFOLIO_SYNC_REPORT.md` as successful global-sync evidence
 - retain `.instructions/reports/ACS_L4_READINESS_ADOPTION_REVIEW.md` as governance adoption evidence
 - retain `.instructions/reports/ACS_L4_CONSOLIDATED_GOVERNANCE_GATE_DEFINITION.md` as the future gate baseline
+- retain `.instructions/reports/ACS_L4_READINESS_CLOSURE_AND_PORTFOLIO_HANDOFF.md` as the closure/handoff baseline
 - keep passing local validation as necessary but not sufficient evidence for L4 Consolidated or production authority

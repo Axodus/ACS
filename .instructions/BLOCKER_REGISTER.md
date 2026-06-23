@@ -195,7 +195,7 @@ Impact:
 ACS cannot enter an L4 Consolidated assessment or be promoted. Current state remains `L4_READINESS` / `D3+` / `NON_PRODUCTION` / `EXECUTION_GATED` / `NO_MUTATION_AUTHORITY`.
 
 Resolution path:
-Run `ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review` as a governance/evidence task only. Do not combine it with implementation, promotion or authority expansion.
+Do not open `ACS-GOV-03` automatically. Revisit this blocker only when a formal L4 Consolidated assessment is intentionally requested. Do not combine future review with implementation, promotion or authority expansion.
 
 ## Current No-Go Areas
 
@@ -236,6 +236,10 @@ Active blocked areas:
 
 `ACS-GOV-02` defined the future consolidated-assessment gates. It did not assess or promote ACS. All canonical actions and execution/production blockers remain active.
 
+## ACS-CLOSE-01 Closure Note
+
+`ACS-CLOSE-01` intentionally pauses the ACS governance track to avoid governance looping. `ACS-GOV-03` is deferred and `ACS-GOV-04` is not opened. This pause does not resolve any execution, production or L4 Consolidated blocker.
+
 ## Next Recommended Request
 
-`ACS-GOV-03 - L4 Consolidated Gate Evidence Refresh and Readiness Review`
+`ACADEMY-EPIC-01 - Academy L4 Consolidation`
