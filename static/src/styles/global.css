@@ -665,7 +665,8 @@ section {
 
 .preview-wrap {
     position: relative;
-    margin-top: 64px
+    margin-top: 64px;
+    overflow: hidden
 }
 
 .preview-wrap .product-ui {
@@ -1676,6 +1677,19 @@ footer {
         transform: scale(.5);
         margin-right: -100%;
         margin-bottom: -50%
+    }
+
+    #product .preview-wrap {
+        overflow: hidden;
+        width: 100%;
+    }
+
+    #product .preview-wrap .product-ui {
+        transform: scale(.48);
+        transform-origin: top left;
+        width: 208.333%;
+        margin-right: -108.333%;
+        margin-bottom: -52%;
     }
 
     .principle,
