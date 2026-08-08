@@ -1,0 +1,4 @@
+[submodule "engines/agentsai"]
+	path = engines/agentsai
+	url = https://github.com/Axodus/AgentsAI.git
+	branch = dev
