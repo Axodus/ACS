@@ -230,7 +230,7 @@ export default function App() {
         <div className="brand"><img src="/assets/Axodus_logo.svg" /><div><b>ACS</b><small>CONTROL PLANE</small></div><button className="mobile-close" onClick={() => setMobile(false)}>×</button></div>
         <div className="workspace-switch"><span className="workspace-icon">⌘</span><div><b>Local workspace</b><small>~/.openclaw</small></div><span>⌄</span></div>
         <nav>{navGroups.map((g, i) => <div className="nav-group" key={i}>{g.map(v => <button className={!agentDetail && view === v ? "active" : ""} onClick={() => go(v)} key={v}><span>{icons[v]}</span>{v}{v === "Skills" && <i className="count">2</i>}</button>)}</div>)}</nav>
-        <div className="connection"><div><span className="openclaw-mark">🦀</span><div><b>OpenClaw</b><small><i /> Connected</small></div></div><span className="mono">v0.9.4</span></div>
+        <div className="connection"><div><span className="openclaw-mark">🦞</span><div><b>OpenClaw</b><small><i /> Connected</small></div></div><span className="mono">v0.9.4</span></div>
       </aside>
       <main className="main">
         <header className="topbar">
