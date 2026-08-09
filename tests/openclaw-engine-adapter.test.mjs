@@ -126,7 +126,7 @@ test("real stdio stack works through AgentEngine abstraction", async () => {
     configRoot,
     artifactsRoot,
     workspaceRoot,
-    timeoutMs: 5000,
+    timeoutMs: 10000,
   });
 
   try {

@@ -27,6 +27,8 @@ export * from "./engines/openclaw-engine-adapter.js";
 export * from "./engines/engine-registry.js";
 export * from "./engines/engine-service.js";
 export * from "./engines/openclaw-bootstrap.js";
+export * from "./targets/execution-target-registry.js";
+export * from "./targets/execution-target-service.js";
 export * from "./hummingbot-sandbox-lifecycle.js";
 export * from "./hummingbot-strategy-validation-gate.js";
 export * from "./fixtures/acs-fixtures.js";
