@@ -35,6 +35,8 @@ export * from "./intelligence/model-provider-service.js";
 export * from "./intelligence/credential-connection.js";
 export * from "./intelligence/credential-registry.js";
 export * from "./intelligence/secret-store.js";
+export * from "./intelligence/axodus-model-gateway.js";
+export * from "./intelligence/axodus-managed-provider.js";
 export * from "./hummingbot-sandbox-lifecycle.js";
 export * from "./hummingbot-strategy-validation-gate.js";
 export * from "./fixtures/acs-fixtures.js";
