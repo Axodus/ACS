@@ -48,6 +48,24 @@ export * from "./intelligence/opencode-transport.js";
 export * from "./intelligence/opencode-runner.js";
 export * from "./hummingbot-sandbox-lifecycle.js";
 export * from "./hummingbot-strategy-validation-gate.js";
+export {
+  createAgentComposition,
+  createAgentRevision,
+  fingerprintAgentDefinition,
+  validateAgentDefinition,
+  type AgentComposition,
+  type AgentDeployment,
+  type AgentModelReference,
+  type AgentModelStrategy,
+  type AgentRevision,
+  type DeploymentMode,
+  type ExecutionPlan,
+  type ExecutionRun,
+  type ExecutionRunStatus,
+  type GovernedAgentStatus,
+  type RuntimeInstance,
+  type RuntimeStatus,
+} from "./control-plane/unified-agent-model.js";
 export * from "./fixtures/acs-fixtures.js";
 export * from "./fixtures/acs-operational-gate-fixtures.js";
 export * from "./fixtures/acs-permission-fixtures.js";
