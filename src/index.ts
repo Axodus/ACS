@@ -44,6 +44,8 @@ export * from "./intelligence/openai-byok-provider.js";
 export * from "./intelligence/agent-runner.js";
 export * from "./intelligence/agent-runner-registry.js";
 export * from "./intelligence/agent-runner-service.js";
+export * from "./intelligence/opencode-transport.js";
+export * from "./intelligence/opencode-runner.js";
 export * from "./hummingbot-sandbox-lifecycle.js";
 export * from "./hummingbot-strategy-validation-gate.js";
 export * from "./fixtures/acs-fixtures.js";
