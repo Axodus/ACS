@@ -2,6 +2,8 @@ import { EngineProtocolClient } from "./protocol/client.js";
 import { EngineProtocolError, EngineTimeoutError, EngineTransportError } from "./protocol/errors.js";
 import type {
   AgentEngine,
+  DeployAgentRequest,
+  DeploymentResult,
   EngineCapabilities,
   EngineHealth,
   EngineIdentity,
@@ -11,10 +13,14 @@ import type {
   ExecutionTargetHealthCheck,
   ExecutionTargetInfo,
   ExecutionTargetOperatorMetadata,
+  RuntimeInstanceResult,
+  StartRuntimeRequest,
 } from "./agent-engine.js";
 import {
   EngineInvalidResponseError,
   EngineProtocolFailureError,
+  EngineRuntimeNotFoundError,
+  EngineSandboxOnlyError,
   EngineTargetNotFoundError,
   EngineTimeoutDomainError,
   EngineUnavailableError,
@@ -87,6 +93,108 @@ export class OpenClawEngineAdapter implements AgentEngine {
     return this.#mapTarget(result.target);
   }
 
+  async deployAgent(request: DeployAgentRequest): Promise<DeploymentResult> {
+    if (request.deploymentMode !== "sandbox") {
+      throw new EngineSandboxOnlyError(`Only sandbox deployment mode is supported, got: ${request.deploymentMode}`, {
+        code: "ACS_ENGINE_SANDBOX_ONLY",
+        details: { deploymentMode: request.deploymentMode },
+      });
+    }
+    const result = await this.#invoke("agent.deploy", {
+      agent_id: request.agentId,
+      revision: request.revision,
+      composition: request.composition,
+      deployment_mode: request.deploymentMode,
+      target_id: request.targetId,
+      ...(request.executionPlanId ? { execution_plan_id: request.executionPlanId } : {}),
+    });
+
+    const executionPlanId = this.#readOptionalString(result, "execution_plan_id");
+    const artifactPath = this.#readOptionalString(result, "artifact_path");
+
+    return {
+      deploymentId: this.#readString(result, "deployment_id"),
+      agentId: this.#readString(result, "agent_id"),
+      revision: this.#readNumber(result, "revision"),
+      targetId: this.#readString(result, "target_id"),
+      deploymentMode: this.#readString(result, "deployment_mode"),
+      status: this.#readString(result, "status"),
+      timestamp: this.#readNumber(result, "timestamp"),
+      ...(executionPlanId ? { executionPlanId } : {}),
+      ...(artifactPath ? { artifactPath } : {}),
+    };
+  }
+
+  async startRuntime(request: StartRuntimeRequest): Promise<RuntimeInstanceResult> {
+    const deploymentMode = request.deploymentMode ?? "sandbox";
+    if (deploymentMode !== "sandbox") {
+      throw new EngineSandboxOnlyError(`Only sandbox runtime execution is supported, got: ${deploymentMode}`, {
+        code: "ACS_ENGINE_SANDBOX_ONLY",
+        details: { deploymentMode },
+      });
+    }
+    const result = await this.#invoke("runtime.start", {
+      deployment_id: request.deploymentId,
+      ...(request.agentId ? { agent_id: request.agentId } : {}),
+      deployment_mode: deploymentMode,
+      target_id: request.targetId ?? "local-wsl",
+    });
+
+    const agentId = this.#readOptionalString(result, "agent_id");
+
+    return {
+      runtimeInstanceId: this.#readString(result, "runtime_instance_id"),
+      deploymentId: this.#readString(result, "deployment_id"),
+      status: this.#readString(result, "status"),
+      startedAt: this.#readNumber(result, "started_at"),
+      timestamp: this.#readNumber(result, "timestamp"),
+      ...(agentId ? { agentId } : {}),
+    };
+  }
+
+  async inspectRuntime(runtimeInstanceId: string): Promise<RuntimeInstanceResult> {
+    const result = await this.#invoke("runtime.inspect", { runtime_instance_id: runtimeInstanceId });
+    const instance = result.runtime_instance as Record<string, unknown>;
+    const agentId = this.#readOptionalString(instance, "agent_id");
+    const stoppedAt = instance.stopped_at !== undefined ? this.#readNumber(instance, "stopped_at") : undefined;
+    const terminatedAt = instance.terminated_at !== undefined ? this.#readNumber(instance, "terminated_at") : undefined;
+
+    return {
+      runtimeInstanceId: this.#readString(instance, "runtime_instance_id"),
+      deploymentId: this.#readString(instance, "deployment_id"),
+      status: this.#readString(instance, "status"),
+      startedAt: this.#readNumber(instance, "started_at"),
+      timestamp: this.#readNumber(result, "timestamp"),
+      ...(agentId ? { agentId } : {}),
+      ...(stoppedAt !== undefined ? { stoppedAt } : {}),
+      ...(terminatedAt !== undefined ? { terminatedAt } : {}),
+    };
+  }
+
+  async stopRuntime(runtimeInstanceId: string): Promise<RuntimeInstanceResult> {
+    const result = await this.#invoke("runtime.stop", { runtime_instance_id: runtimeInstanceId });
+    return {
+      runtimeInstanceId: this.#readString(result, "runtime_instance_id"),
+      deploymentId: "",
+      status: this.#readString(result, "status"),
+      startedAt: 0,
+      stoppedAt: this.#readNumber(result, "stopped_at"),
+      timestamp: this.#readNumber(result, "timestamp"),
+    };
+  }
+
+  async terminateRuntime(runtimeInstanceId: string): Promise<RuntimeInstanceResult> {
+    const result = await this.#invoke("runtime.terminate", { runtime_instance_id: runtimeInstanceId });
+    return {
+      runtimeInstanceId: this.#readString(result, "runtime_instance_id"),
+      deploymentId: "",
+      status: this.#readString(result, "status"),
+      startedAt: 0,
+      terminatedAt: this.#readNumber(result, "terminated_at"),
+      timestamp: this.#readNumber(result, "timestamp"),
+    };
+  }
+
   close(): Promise<void> {
     return this.#client.close();
   }
@@ -108,6 +216,10 @@ export class OpenClawEngineAdapter implements AgentEngine {
             throw new EngineUnsupportedOperationError(error.message, options);
           case "ACS_ENGINE_TARGET_NOT_FOUND":
             throw new EngineTargetNotFoundError(error.message, options);
+          case "ACS_ENGINE_SANDBOX_ONLY":
+            throw new EngineSandboxOnlyError(error.message, options);
+          case "ACS_ENGINE_RUNTIME_NOT_FOUND":
+            throw new EngineRuntimeNotFoundError(error.message, options);
           case "ACS_ENGINE_PROTOCOL_MISMATCH":
           case "ACS_ENGINE_CORRELATION_MISMATCH":
             throw new EngineInvalidResponseError(error.message, options);

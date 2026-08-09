@@ -78,6 +78,45 @@ export interface EngineCapabilities {
   readonly deploymentModes: readonly string[];
 }
 
+export interface DeployAgentRequest {
+  readonly agentId: string;
+  readonly revision: number;
+  readonly composition: Record<string, unknown>;
+  readonly deploymentMode: string;
+  readonly targetId: string;
+  readonly executionPlanId?: string;
+}
+
+export interface DeploymentResult {
+  readonly deploymentId: string;
+  readonly agentId: string;
+  readonly revision: number;
+  readonly targetId: string;
+  readonly deploymentMode: string;
+  readonly executionPlanId?: string;
+  readonly status: string;
+  readonly artifactPath?: string;
+  readonly timestamp: number;
+}
+
+export interface StartRuntimeRequest {
+  readonly deploymentId: string;
+  readonly agentId?: string;
+  readonly deploymentMode?: string;
+  readonly targetId?: string;
+}
+
+export interface RuntimeInstanceResult {
+  readonly runtimeInstanceId: string;
+  readonly deploymentId: string;
+  readonly agentId?: string;
+  readonly status: string;
+  readonly startedAt: number;
+  readonly stoppedAt?: number;
+  readonly terminatedAt?: number;
+  readonly timestamp: number;
+}
+
 export interface AgentEngine {
   readonly identity: EngineIdentity;
 
@@ -86,5 +125,10 @@ export interface AgentEngine {
   capabilities(): Promise<EngineCapabilities>;
   listExecutionTargets(): Promise<readonly ExecutionTargetInfo[]>;
   inspectExecutionTarget(targetId: string): Promise<ExecutionTargetInfo>;
+  deployAgent(request: DeployAgentRequest): Promise<DeploymentResult>;
+  startRuntime?(request: StartRuntimeRequest): Promise<RuntimeInstanceResult>;
+  inspectRuntime?(runtimeInstanceId: string): Promise<RuntimeInstanceResult>;
+  stopRuntime?(runtimeInstanceId: string): Promise<RuntimeInstanceResult>;
+  terminateRuntime?(runtimeInstanceId: string): Promise<RuntimeInstanceResult>;
   close(): Promise<void>;
 }

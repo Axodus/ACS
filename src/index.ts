@@ -107,3 +107,5 @@ export * from "./license-loss.js";
 export * from "./product-access-registry.js";
 export * from "./user-status.js";
 export * from "./workflows/index.js";
+
+export * from "./control-plane/deployment-service.js";

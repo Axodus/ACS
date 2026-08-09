@@ -20,3 +20,6 @@ export class EngineInvalidResponseError extends EngineError {}
 export class EngineTimeoutDomainError extends EngineError {}
 export class EngineRegistryDuplicateError extends EngineError {}
 export class EngineRegistryNotFoundError extends EngineError {}
+
+export class EngineSandboxOnlyError extends EngineError {}
+export class EngineRuntimeNotFoundError extends EngineError {}
