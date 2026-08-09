@@ -5,7 +5,7 @@ import { HeroSystemGraphic } from './components/HeroSystemGraphic'
 import { CoreEvolution, WorkflowEvidence } from './components/CoreEvolution'
 import { EXTERNAL_LINKS } from './config/links'
 
-const APP=import.meta.env.VITE_ACS_APP_URL||'https://acs-standalone-control-plane.mallbrasilhosting.chatgpt.site/'
+const APP=import.meta.env.VITE_ACS_APP_URL||'https://acs-app.axodus.country'
 const GITHUB=import.meta.env.VITE_ACS_GITHUB_URL||'https://github.com/Axodus/ACS'
 const DOCS=EXTERNAL_LINKS.docs
 const concepts=[
