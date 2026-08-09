@@ -67,6 +67,7 @@ export {
   type RuntimeStatus,
 } from "./control-plane/unified-agent-model.js";
 export * from "./control-plane/composition-resources.js";
+export * from "./control-plane/agent-service.js";
 export * from "./fixtures/acs-fixtures.js";
 export * from "./fixtures/acs-operational-gate-fixtures.js";
 export * from "./fixtures/acs-permission-fixtures.js";

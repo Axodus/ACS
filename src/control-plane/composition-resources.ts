@@ -128,6 +128,33 @@ const DEFAULT_TOOLS: readonly GovernedToolResource[] = [
   },
 ];
 
+const DEFAULT_GOVERNED_CAPABILITIES: readonly GovernedCapabilityResource[] = [
+  {
+    kind: "capability",
+    id: "agent.inspect",
+    revision: 1,
+    displayName: "Agent Inspect",
+    status: "active",
+    category: "agent",
+  },
+  {
+    kind: "capability",
+    id: "deployment.sandbox",
+    revision: 1,
+    displayName: "Sandbox Deployment",
+    status: "active",
+    category: "deployment",
+  },
+  {
+    kind: "capability",
+    id: "runtime.inspect",
+    revision: 1,
+    displayName: "Runtime Inspect",
+    status: "active",
+    category: "runtime",
+  },
+];
+
 function toCapabilityResource(capability: AcsServiceCapability): GovernedCapabilityResource {
   return {
     kind: "capability",
@@ -163,7 +190,7 @@ export class CompositionResourceRegistry {
     for (const profile of input.profiles ?? DEFAULT_PROFILES) this.#profiles.set(profile.id, profile);
     for (const skill of input.skills ?? DEFAULT_SKILLS) this.#skills.set(skill.id, skill);
     for (const tool of input.tools ?? DEFAULT_TOOLS) this.#tools.set(tool.id, tool);
-    for (const capability of input.capabilities ?? ACS_CAPABILITIES.map(toCapabilityResource)) this.#capabilities.set(capability.id, capability);
+    for (const capability of input.capabilities ?? [...DEFAULT_GOVERNED_CAPABILITIES, ...ACS_CAPABILITIES.map(toCapabilityResource)]) this.#capabilities.set(capability.id, capability);
   }
 
   list(kind: ResourceKind): readonly GovernedCompositionResource[] {
