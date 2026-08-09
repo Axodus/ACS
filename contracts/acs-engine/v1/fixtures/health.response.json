@@ -1,0 +1,12 @@
+{
+  "protocol": "acs-engine/1",
+  "id": "req_health_01",
+  "success": true,
+  "result": {
+    "engine": "openclaw",
+    "status": "degraded",
+    "protocols": ["acs-engine/1"],
+    "operations": ["engine.capabilities", "engine.health", "engine.version", "target.inspect", "target.list"],
+    "timestamp": 0
+  }
+}

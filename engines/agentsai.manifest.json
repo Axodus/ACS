@@ -6,12 +6,12 @@
     "type": "git-submodule",
     "path": "engines/agentsai",
     "repository": "https://github.com/Axodus/AgentsAI.git",
-    "revision": "c7c3599a9a72d23e3d4316c9bd2de2e2ccca91ec",
+    "revision": "ce46bfff9f7d1b7dc6a7ced3f9790632cea79a3b",
     "branch": "dev"
   },
   "protocol": {
     "id": "acs-engine/1",
-    "status": "planned",
+    "status": "implemented",
     "implementation_story": "S04"
   },
   "runtime_policy": {
@@ -23,6 +23,6 @@
     "pinned_revision_exists_locally": true,
     "pinned_revision_fetchable_from_origin": false,
     "origin_dev_revision_at_verification": "44e9f4d03facb9887b2fe1cab1827d221e4acaab",
-    "reproducibility_note": "AgentsAI S01/S02 commits are local-only until pushed to origin/dev."
+    "reproducibility_note": "AgentsAI S01/S02/S04 commits are local-only until pushed to origin/dev."
   }
 }

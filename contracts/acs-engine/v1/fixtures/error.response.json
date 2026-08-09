@@ -1,0 +1,13 @@
+{
+  "protocol": "acs-engine/1",
+  "id": "req_bad_01",
+  "success": false,
+  "error": {
+    "code": "ACS_ENGINE_UNSUPPORTED_OPERATION",
+    "message": "unsupported protocol operation",
+    "retryable": false,
+    "details": {
+      "operation": "boom"
+    }
+  }
+}

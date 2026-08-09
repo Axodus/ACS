@@ -1,0 +1,8 @@
+{
+  "protocol": "acs-engine/1",
+  "id": "req_target_01",
+  "operation": "target.inspect",
+  "params": {
+    "target_id": "local-wsl"
+  }
+}

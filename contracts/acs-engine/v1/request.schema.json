@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axodus/acs-engine/v1/request.schema.json",
+  "type": "object",
+  "required": ["protocol", "id", "operation", "params"],
+  "properties": {
+    "protocol": { "const": "acs-engine/1" },
+    "id": { "type": ["string", "null"] },
+    "operation": { "type": "string", "minLength": 1 },
+    "params": { "type": "object" },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": false
+}

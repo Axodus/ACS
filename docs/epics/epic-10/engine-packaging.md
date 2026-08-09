@@ -17,11 +17,11 @@ https://github.com/Axodus/AgentsAI.git
 The ACS superproject records the engine as a Gitlink. The pinned local revision is:
 
 ```text
-c7c3599a9a72d23e3d4316c9bd2de2e2ccca91ec
-EPIC-10 S02: add local WSL2 execution target
+ce46bfff9f7d1b7dc6a7ced3f9790632cea79a3b
+EPIC-10 S04: implement acs-engine protocol server
 ```
 
-The source manifest is [engines/agentsai.manifest.json](../../engines/agentsai.manifest.json). It identifies the source repository, Git revision, planned `acs-engine/1` protocol, and the source-only/runtime-external policy. S04 protocol behavior is not implemented here.
+The source manifest is [engines/agentsai.manifest.json](../../engines/agentsai.manifest.json). It identifies the source repository, Git revision, implemented `acs-engine/1` protocol, and the source-only/runtime-external policy. The ACS runtime adapter remains deferred to S05.
 
 ## Source versus runtime
 
@@ -70,4 +70,4 @@ Limitations:
 
 A published wheel/container may replace it after AgentsAI has an independent release pipeline. Submodule is the initial integration mechanism, not a permanent production packaging decision.
 
-S03 does not implement `acs-engine/1`, stdio/HTTP/gRPC bridges, the TypeScript `OpenClawEngineAdapter`, frontend integration, providers/runners, billing, or cloud workers.
+S04 implements the protocol server/client, JSONL stdio transport, and ACS generic transport layer. The domain-specific `OpenClawEngineAdapter`, frontend integration, providers/runners, billing, and cloud workers remain deferred.

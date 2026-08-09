@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axodus/acs-engine/v1/success-response.schema.json",
+  "type": "object",
+  "required": ["protocol", "id", "success", "result"],
+  "properties": {
+    "protocol": { "const": "acs-engine/1" },
+    "id": { "type": ["string", "null"] },
+    "success": { "const": true },
+    "result": { "type": "object" }
+  },
+  "additionalProperties": false
+}
