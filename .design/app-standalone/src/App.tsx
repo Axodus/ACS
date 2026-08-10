@@ -104,8 +104,8 @@ function Dashboard({ setView }: { setView: (v: View) => void }) {
         <div className="agent-list">
           {data.agents.length === 0 ? <div className="empty-state">No agents deployed</div> : data.agents.map(a => (
             <button className="agent-row" key={a.agentId} onClick={() => window.location.href = `/agents/${a.agentId}`}>
-              <span className={`avatar ${a.status !== "running" ? "gray" : ""}`}>{a.name.split(" ").map(x => x[0]).join("")}</span>
-              <span className="agent-main"><b>{a.name}</b><small>{a.agentId} · {a.definition.roleId ?? "no role"}</small></span>
+              <span className={`avatar ${a.status !== "running" ? "gray" : ""}`}>{a.name ? a.name.split(" ").map(x => x[0]).join("") : "?"}</span>
+              <span className="agent-main"><b>{a.name ?? "Unknown"}</b><small>{a.agentId} · {a.definition.roleId ?? "no role"}</small></span>
               <span className="agent-health"><Status status={a.status} /><small>{a.status === "running" ? "Healthy" : "Not deployed"}</small></span>
               <span className="chev">›</span>
             </button>
@@ -134,7 +134,7 @@ function Agents() {
       .catch(() => setLoading(false));
   }, []);
 
-  const filtered = agents.filter(a => (a.name + a.agentId + (a.definition.roleId ?? "")).toLowerCase().includes(q.toLowerCase()));
+  const filtered = agents.filter(a => ((a.name ?? "") + a.agentId + (a.definition.roleId ?? "")).toLowerCase().includes(q.toLowerCase()));
 
   if (loading) return <div className="loading-screen">Loading agents...</div>;
 
@@ -144,7 +144,7 @@ function Agents() {
     <section className="agent-cards">
       {filtered.length === 0 ? <div className="empty-state">No agents found</div> : filtered.map(a => (
         <article className="agent-card" key={a.agentId}>
-          <div className="card-title"><span className={`avatar ${a.status !== "running" ? "gray" : ""}`}>{a.name.slice(0, 2).toUpperCase()}</span><div><h2>{a.name}</h2><p className="mono">{a.agentId}</p></div><Status status={a.status} /></div>
+          <div className="card-title"><span className={`avatar ${a.status !== "running" ? "gray" : ""}`}>{a.name ? a.name.slice(0, 2).toUpperCase() : "??"}</span><div><h2>{a.name ?? "Unknown"}</h2><p className="mono">{a.agentId}</p></div><Status status={a.status} /></div>
           <div className="card-specs"><span>Role<b>{a.definition.roleId ?? "unassigned"}</b></span><span>Profile<b>{a.definition.profileId ?? "unassigned"}</b></span><span>Revision<b>{a.revision}</b></span></div>
           <div className="cap-row"><span>✦ {a.revision} skills</span><span>⌘ {a.revision} plugins</span><span>◎ Memory enabled</span></div>
           <div className="card-actions"><button className="secondary" onClick={() => navigate(`/agents/${a.agentId}`)}>Open agent</button><button className="icon-btn">•••</button></div>
@@ -198,7 +198,7 @@ function AgentDetail({ back }: { back: () => void }) {
 
   return <>
     <button className="back" onClick={back}>← Agents</button>
-    <header className="detail-head"><div className="detail-id"><span className="avatar large">{agent.name.slice(0, 2).toUpperCase()}</span><div><div className="title-status"><h1>{agent.name}</h1><Status status={agent.status} /></div><p className="mono">{agent.agentId} · {agent.definition.roleId ?? "unassigned"}</p></div></div><div className="actions"><button className="secondary">■ Stop</button><button className="secondary">▷ Test</button><button className="primary" disabled={deploying} onClick={handleDeploy}>{deploying ? "Deploying..." : "↑ Deploy"}</button><button className="icon-btn">•••</button></div></header>
+    <header className="detail-head"><div className="detail-id"><span className="avatar large">{agent.name ? agent.name.slice(0, 2).toUpperCase() : "??"}</span><div><div className="title-status"><h1>{agent.name ?? "Unknown"}</h1><Status status={agent.status} /></div><p className="mono">{agent.agentId} · {agent.definition.roleId ?? "unassigned"}</p></div></div><div className="actions"><button className="secondary">■ Stop</button><button className="secondary">▷ Test</button><button className="primary" disabled={deploying} onClick={handleDeploy}>{deploying ? "Deploying..." : "↑ Deploy"}</button><button className="icon-btn">•••</button></div></header>
     <div className="tabs">{tabs.map(t => <button className={tab === t ? "active" : ""} onClick={() => setTab(t)} key={t}>{t}</button>)}</div>
     {deployError && <div className="error-banner">{deployError}</div>}
     {tab === "Profile" ? <ProfileEditor /> : <div className="detail-grid">
