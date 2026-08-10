@@ -98,19 +98,19 @@ export class ExecutionPlanResolver {
     const engineRevision = engineVersion?.sourceRevision ?? engineVersion?.packageVersion;
     const digest = createHash("sha256").update(correlationId).digest("hex").slice(0, 12);
 
-    return {
-      planId: `plan_${agentRevision.agentId}_r${agentRevision.revision}_${digest}`,
-      agentId: agentRevision.agentId,
-      agentRevision: agentRevision.revision,
-      compositionFingerprint: composition.fingerprint,
-      engineId,
-      ...(engineRevision ? { engineRevision } : {}),
-      executionTargetId: targetId,
-      runnerId: resolvedRunnerId,
-      providerId: primary.providerId,
-      modelId: primary.modelId,
-      credentialConnectionId: primary.credentialConnectionId,
-      governancePolicyId: "default-sandbox-policy",
+     return {
+       planId: `plan_${agentRevision.agentId}_r${agentRevision.revision}_${digest}`,
+       agentId: agentRevision.agentId,
+       agentRevision: agentRevision.revision,
+       compositionFingerprint: composition.fingerprint,
+       engineId,
+       ...(engineRevision ? { engineRevision } : {}),
+       executionTargetId: targetId,
+       ...(resolvedRunnerId !== undefined ? { runnerId: resolvedRunnerId } : {}),
+       providerId: primary.providerId,
+       modelId: primary.modelId,
+       ...(primary.credentialConnectionId !== undefined ? { credentialConnectionId: primary.credentialConnectionId } : {}),
+       governancePolicyId: "default-sandbox-policy",
       economicPolicyId: "default-dev-policy",
       isolationMode: "sandbox",
       deploymentMode,

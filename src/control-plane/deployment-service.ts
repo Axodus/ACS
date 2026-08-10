@@ -6,6 +6,7 @@ import { PolicyRejectedError } from "../errors.js";
 import type { EconomicService, UsageReservation } from "./neurons-economic-contract.js";
 import type { AgentService } from "./agent-service.js";
 import { ExecutionPlanResolver } from "./execution-plan-resolver.js";
+import type { DeploymentMode } from "./unified-agent-model.js";
 import type { AuditService } from "./audit-service.js";
 
 export interface DeploymentRequest {
@@ -46,6 +47,10 @@ export class DeploymentService {
   readonly #auditService: AuditService | undefined;
   readonly #deployments = new Map<string, DeploymentRecord>();
 
+  static isDeploymentMode(value: string): value is DeploymentMode {
+    return value === "sandbox" || value === "staged" || value === "live";
+  }
+
   constructor(options: {
     engine: AgentEngine;
     targetService?: ExecutionTargetService;
@@ -81,6 +86,10 @@ export class DeploymentService {
     const correlationId =
       request.correlationId ?? `deploy_${request.agentId}_r${request.revision}_${Date.now()}`;
     const actor = request.actor;
+
+    if (!DeploymentService.isDeploymentMode(request.deploymentMode)) {
+      throw new PolicyRejectedError(`Invalid deployment mode: ${request.deploymentMode}`);
+    }
 
     const gov = this.evaluateGovernance(request.deploymentMode);
     this.#auditService?.recordEvent({
@@ -175,9 +184,9 @@ export class DeploymentService {
         agentRevision,
         composition,
         engineId: this.#engine.identity.id,
-        targetId: request.targetId,
+       targetId: request.targetId,
         deploymentMode: request.deploymentMode,
-        correlationId,
+       correlationId,
       });
 
       this.#auditService?.recordEvent({

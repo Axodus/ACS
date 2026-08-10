@@ -38,7 +38,7 @@ export interface ControlPlaneContext {
   readonly runnerService: AgentRunnerService;
   readonly credentials: CredentialConnectionRegistry;
   readonly economicService: EconomicService;
-  readonly close(): Promise<void>;
+  close(): Promise<void>;
 }
 
 /**
@@ -101,13 +101,13 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   const engineRegistry = new EngineRegistry();
   const engine = options.engine ?? createOpenClawEngineFromManifest({
     acsRoot: roots.acsRoot,
-    pythonCommand: options.pythonCommand,
-    timeoutMs: options.timeoutMs,
     runtimeRoot: roots.runtimeRoot,
     stateRoot: roots.stateRoot,
     configRoot: roots.configRoot,
     artifactsRoot: roots.artifactsRoot,
     workspaceRoot: roots.workspaceRoot,
+    ...(options.pythonCommand !== undefined ? { pythonCommand: options.pythonCommand } : {}),
+    ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
   });
   engineRegistry.register(engine);
 
@@ -147,21 +147,51 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
           modelId: "axodus-multi",
           displayName: "Axodus Multi",
           availability: "available",
-          capabilities: { supports: ["text", "reasoning", "tool-use", "structured-output"] },
+          capabilities: {
+            supports: ["text", "reasoning", "tool-use", "structured-output"],
+            inputModalities: ["text"],
+            outputModalities: ["text"],
+            toolUse: true,
+            reasoning: true,
+            coding: true,
+            streaming: true,
+            structuredOutput: true,
+            vision: false,
+          },
           metadata: { contextWindow: 128000 },
         },
         {
           modelId: "axodus-reason",
           displayName: "Axodus Reasoning",
           availability: "preview",
-          capabilities: { supports: ["text", "reasoning", "tool-use"] },
+          capabilities: {
+            supports: ["text", "reasoning", "tool-use"],
+            inputModalities: ["text"],
+            outputModalities: ["text"],
+            toolUse: true,
+            reasoning: true,
+            coding: true,
+            streaming: true,
+            structuredOutput: false,
+            vision: false,
+          },
           metadata: { contextWindow: 200000 },
         },
         {
           modelId: "axodus-fast",
           displayName: "Axodus Fast",
           availability: "available",
-          capabilities: { supports: ["text", "streaming"] },
+          capabilities: {
+            supports: ["text", "streaming"],
+            inputModalities: ["text"],
+            outputModalities: ["text"],
+            toolUse: false,
+            reasoning: false,
+            coding: false,
+            streaming: true,
+            structuredOutput: false,
+            vision: false,
+          },
           metadata: { contextWindow: 32000 },
         },
       ],
@@ -178,7 +208,17 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
         modelId: "gpt-5.5",
         displayName: "GPT-5.5",
         availability: "preview",
-        capabilities: { supports: ["text", "reasoning", "tool-use", "structured-output"] },
+        capabilities: {
+          supports: ["text", "reasoning", "tool-use", "structured-output"],
+          inputModalities: ["text"],
+          outputModalities: ["text"],
+          toolUse: true,
+          reasoning: true,
+          coding: true,
+          streaming: true,
+          structuredOutput: true,
+          vision: false,
+        },
       },
     ],
   }));
