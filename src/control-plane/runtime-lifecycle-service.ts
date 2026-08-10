@@ -1,13 +1,23 @@
 import type { AgentEngine, RuntimeInstanceResult } from "../engines/agent-engine.js";
 import { EngineSandboxOnlyError, EngineRuntimeNotFoundError } from "../engines/engine-errors.js";
+import type { AuditService } from "./audit-service.js";
 
-export type RuntimeState = "pending" | "starting" | "running" | "stopping" | "stopped" | "failed" | "terminated";
+export type RuntimeState =
+  | "pending"
+  | "starting"
+  | "running"
+  | "stopping"
+  | "stopped"
+  | "failed"
+  | "terminated";
 
 export interface StartRuntimeServiceRequest {
   readonly deploymentId: string;
   readonly agentId?: string;
   readonly deploymentMode?: string;
   readonly targetId?: string;
+  readonly correlationId?: string;
+  readonly actor?: string;
 }
 
 export interface RuntimeInstanceRecord {
@@ -27,6 +37,8 @@ export interface CreateExecutionRunRequest {
   readonly runtimeInstanceId: string;
   readonly agentId: string;
   readonly executionPlanId: string;
+  readonly correlationId?: string;
+  readonly actor?: string;
 }
 
 export interface ExecutionRunRecord {
@@ -37,6 +49,11 @@ export interface ExecutionRunRecord {
   readonly status: "pending" | "running" | "completed" | "failed" | "cancelled";
   readonly startedAt: number;
   readonly completedAt?: number;
+}
+
+export interface DeploymentLookupRecord {
+  readonly targetId?: string;
+  readonly deploymentMode?: string;
 }
 
 const VALID_TRANSITIONS: Record<RuntimeState, readonly RuntimeState[]> = {
@@ -51,11 +68,19 @@ const VALID_TRANSITIONS: Record<RuntimeState, readonly RuntimeState[]> = {
 
 export class RuntimeLifecycleService {
   readonly #engine: AgentEngine;
+  readonly #deploymentLookup: ((deploymentId: string) => DeploymentLookupRecord | undefined) | undefined;
+  readonly #auditService: AuditService | undefined;
   readonly #runtimes = new Map<string, RuntimeInstanceRecord>();
   readonly #executionRuns = new Map<string, ExecutionRunRecord>();
 
-  constructor(options: { engine: AgentEngine }) {
+  constructor(options: {
+    engine: AgentEngine;
+    deploymentLookup?: (deploymentId: string) => DeploymentLookupRecord | undefined;
+    auditService?: AuditService;
+  }) {
     this.#engine = options.engine;
+    this.#deploymentLookup = options.deploymentLookup;
+    this.#auditService = options.auditService;
   }
 
   validateStateTransition(current: RuntimeState, next: RuntimeState): boolean {
@@ -65,39 +90,78 @@ export class RuntimeLifecycleService {
   }
 
   async start(request: StartRuntimeServiceRequest): Promise<RuntimeInstanceRecord> {
-    const mode = request.deploymentMode ?? "sandbox";
-    if (mode !== "sandbox") {
-      throw new EngineSandboxOnlyError(`Only sandbox runtime execution is supported, got: ${mode}`, {
-        code: "ACS_ENGINE_SANDBOX_ONLY",
-        details: { deploymentMode: mode },
+    const deployment = this.#deploymentLookup?.(request.deploymentId);
+    const mode = request.deploymentMode ?? deployment?.deploymentMode ?? "sandbox";
+    const correlationId = request.correlationId ?? `runtime_${request.deploymentId}_${Date.now()}`;
+    const actor = request.actor;
+    const agentId = request.agentId;
+
+    try {
+      if (mode !== "sandbox") {
+        throw new EngineSandboxOnlyError(`Only sandbox runtime execution is supported, got: ${mode}`, {
+          code: "ACS_ENGINE_SANDBOX_ONLY",
+          details: { deploymentMode: mode },
+        });
+      }
+
+      if (!this.#engine.startRuntime) {
+        throw new Error("Engine does not support startRuntime");
+      }
+
+      const targetId = request.targetId ?? deployment?.targetId;
+      if (!targetId) {
+        throw new Error(
+          "targetId is required for runtime start; provide it explicitly or record it on the deployment",
+        );
+      }
+
+      const result: RuntimeInstanceResult = await this.#engine.startRuntime({
+        deploymentId: request.deploymentId,
+        deploymentMode: mode,
+        targetId,
+        ...(agentId ? { agentId } : {}),
       });
+
+      const resultAgentId = result.agentId ?? agentId;
+      const record: RuntimeInstanceRecord = {
+        runtimeInstanceId: result.runtimeInstanceId,
+        deploymentId: result.deploymentId,
+        targetId,
+        deploymentMode: mode,
+        status: "running",
+        startedAt: result.startedAt,
+        updatedAt: result.timestamp,
+        ...(resultAgentId ? { agentId: resultAgentId } : {}),
+      };
+
+      this.#runtimes.set(record.runtimeInstanceId, record);
+
+      this.#auditService?.recordEvent({
+        eventType: "runtime.started",
+        correlationId,
+        runtimeInstanceId: record.runtimeInstanceId,
+        deploymentId: record.deploymentId,
+        ...(record.agentId ? { agentId: record.agentId } : {}),
+        ...(actor ? { actor } : {}),
+        decision: "allowed",
+        result: "success",
+        metadata: { targetId: record.targetId, deploymentMode: record.deploymentMode },
+      });
+
+      return record;
+    } catch (error) {
+      this.#auditService?.recordEvent({
+        eventType: "runtime.failed",
+        correlationId,
+        deploymentId: request.deploymentId,
+        ...(agentId ? { agentId } : {}),
+        ...(actor ? { actor } : {}),
+        decision: "denied",
+        result: "failure",
+        metadata: { phase: "start", error: error instanceof Error ? error.message : String(error) },
+      });
+      throw error;
     }
-
-    if (!this.#engine.startRuntime) {
-      throw new Error("Engine does not support startRuntime");
-    }
-
-    const result: RuntimeInstanceResult = await this.#engine.startRuntime({
-      deploymentId: request.deploymentId,
-      deploymentMode: mode,
-      targetId: request.targetId ?? "local-wsl",
-      ...(request.agentId ? { agentId: request.agentId } : {}),
-    });
-
-    const agentId = result.agentId;
-    const record: RuntimeInstanceRecord = {
-      runtimeInstanceId: result.runtimeInstanceId,
-      deploymentId: result.deploymentId,
-      targetId: request.targetId ?? "local-wsl",
-      deploymentMode: mode,
-      status: "running",
-      startedAt: result.startedAt,
-      updatedAt: result.timestamp,
-      ...(agentId ? { agentId } : {}),
-    };
-
-    this.#runtimes.set(record.runtimeInstanceId, record);
-    return record;
   }
 
   async inspect(runtimeInstanceId: string): Promise<RuntimeInstanceRecord> {
@@ -108,11 +172,18 @@ export class RuntimeLifecycleService {
         const agentId = result.agentId ?? local?.agentId;
         const stoppedAt = result.stoppedAt;
         const terminatedAt = result.terminatedAt;
+        const deploymentId = result.deploymentId || local?.deploymentId || "";
+        const deployment = deploymentId ? this.#deploymentLookup?.(deploymentId) : undefined;
+        const targetId = local?.targetId ?? deployment?.targetId;
+        const deploymentMode = local?.deploymentMode ?? deployment?.deploymentMode ?? "sandbox";
+        if (!targetId) {
+          throw new Error(`cannot resolve targetId for runtime ${runtimeInstanceId}`);
+        }
         const updated: RuntimeInstanceRecord = {
           runtimeInstanceId: result.runtimeInstanceId,
-          deploymentId: result.deploymentId || local?.deploymentId || "",
-          targetId: local?.targetId ?? "local-wsl",
-          deploymentMode: local?.deploymentMode ?? "sandbox",
+          deploymentId,
+          targetId,
+          deploymentMode,
           status: (result.status as RuntimeState) || "running",
           startedAt: result.startedAt || local?.startedAt || Date.now(),
           updatedAt: result.timestamp,
@@ -147,16 +218,40 @@ export class RuntimeLifecycleService {
       throw new Error("Engine does not support stopRuntime");
     }
 
-    const result = await this.#engine.stopRuntime(runtimeInstanceId);
-    const stoppedAt = result.stoppedAt ?? Date.now();
-    const updated: RuntimeInstanceRecord = {
-      ...current,
-      status: "stopped",
-      stoppedAt,
-      updatedAt: result.timestamp,
-    };
-    this.#runtimes.set(runtimeInstanceId, updated);
-    return updated;
+    const correlationId = `runtime_stop_${runtimeInstanceId}_${Date.now()}`;
+    try {
+      const result = await this.#engine.stopRuntime(runtimeInstanceId);
+      const stoppedAt = result.stoppedAt ?? Date.now();
+      const updated: RuntimeInstanceRecord = {
+        ...current,
+        status: "stopped",
+        stoppedAt,
+        updatedAt: result.timestamp,
+      };
+      this.#runtimes.set(runtimeInstanceId, updated);
+
+      this.#auditService?.recordEvent({
+        eventType: "runtime.stopped",
+        correlationId,
+        runtimeInstanceId,
+        deploymentId: updated.deploymentId,
+        ...(updated.agentId ? { agentId: updated.agentId } : {}),
+        decision: "allowed",
+        result: "success",
+        metadata: { targetId: updated.targetId, status: "stopped" },
+      });
+      return updated;
+    } catch (error) {
+      this.#auditService?.recordEvent({
+        eventType: "runtime.failed",
+        correlationId,
+        runtimeInstanceId,
+        decision: "denied",
+        result: "failure",
+        metadata: { phase: "stop", error: error instanceof Error ? error.message : String(error) },
+      });
+      throw error;
+    }
   }
 
   async terminate(runtimeInstanceId: string): Promise<RuntimeInstanceRecord> {
@@ -169,16 +264,43 @@ export class RuntimeLifecycleService {
       throw new Error("Engine does not support terminateRuntime");
     }
 
-    const result = await this.#engine.terminateRuntime(runtimeInstanceId);
-    const terminatedAt = result.terminatedAt ?? Date.now();
-    const updated: RuntimeInstanceRecord = {
-      ...current,
-      status: "terminated",
-      terminatedAt,
-      updatedAt: result.timestamp,
-    };
-    this.#runtimes.set(runtimeInstanceId, updated);
-    return updated;
+    const correlationId = `runtime_terminate_${runtimeInstanceId}_${Date.now()}`;
+    try {
+      const result = await this.#engine.terminateRuntime(runtimeInstanceId);
+      const terminatedAt = result.terminatedAt ?? Date.now();
+      const updated: RuntimeInstanceRecord = {
+        ...current,
+        status: "terminated",
+        terminatedAt,
+        updatedAt: result.timestamp,
+      };
+      this.#runtimes.set(runtimeInstanceId, updated);
+
+      this.#auditService?.recordEvent({
+        eventType: "runtime.terminated",
+        correlationId,
+        runtimeInstanceId,
+        deploymentId: updated.deploymentId,
+        ...(updated.agentId ? { agentId: updated.agentId } : {}),
+        decision: "allowed",
+        result: "success",
+        metadata: { targetId: updated.targetId, status: "terminated" },
+      });
+      return updated;
+    } catch (error) {
+      this.#auditService?.recordEvent({
+        eventType: "runtime.failed",
+        correlationId,
+        runtimeInstanceId,
+        decision: "denied",
+        result: "failure",
+        metadata: {
+          phase: "terminate",
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      throw error;
+    }
   }
 
   createExecutionRun(request: CreateExecutionRunRequest): ExecutionRunRecord {
@@ -192,6 +314,18 @@ export class RuntimeLifecycleService {
       startedAt: Date.now(),
     };
     this.#executionRuns.set(runId, record);
+
+    this.#auditService?.recordEvent({
+      eventType: "execution.run_created",
+      correlationId: request.correlationId ?? runId,
+      agentId: request.agentId,
+      executionRunId: runId,
+      runtimeInstanceId: request.runtimeInstanceId,
+      ...(request.actor ? { actor: request.actor } : {}),
+      decision: "passed",
+      result: "success",
+      metadata: { executionPlanId: request.executionPlanId },
+    });
     return record;
   }
 

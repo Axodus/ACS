@@ -6,14 +6,24 @@ import { routeAcsRequest } from "./routes/acs-routes.js";
 
 export function createAcsHttpHandler() {
   return (request: IncomingMessage, response: ServerResponse): void => {
-    if (request.method !== "GET") {
+    if (request.method === "OPTIONS") {
+      response.writeHead(204, {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, POST, OPTIONS",
+        "access-control-allow-headers": "content-type, x-correlation-id, x-request-id, authorization",
+      });
+      response.end();
+      return;
+    }
+
+    if (request.method !== "GET" && request.method !== "POST") {
       const correlationId = readCorrelationId(request);
       writeJson(response, 405, fail(
         "method not allowed",
         405,
         "method_not_allowed",
         correlationId,
-        { allowedMethods: ["GET"] },
+        { allowedMethods: ["GET", "POST"] },
       ).body);
       return;
     }
@@ -25,6 +35,7 @@ export function createAcsHttpHandler() {
       ...(correlationId ? { correlationId } : {}),
       auth,
       rateLimit,
+      method: request.method,
     });
     writeJson(response, result.status, result.body);
   };

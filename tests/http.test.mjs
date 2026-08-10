@@ -103,7 +103,7 @@ test("HTTP server rejects non-GET methods", async () => {
 
   try {
     const address = server.address();
-    const response = await fetch(`http://127.0.0.1:${address.port}/acs/health`, { method: "POST" });
+    const response = await fetch(`http://127.0.0.1:${address.port}/acs/health`, { method: "DELETE" });
     const body = await response.json();
 
     assert.equal(response.status, 405);

@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DeploymentService } from "../dist/control-plane/deployment-service.js";
+import { AgentService } from "../dist/control-plane/agent-service.js";
+import { ExecutionPlanResolver } from "../dist/control-plane/execution-plan-resolver.js";
+import { ExecutionTargetService } from "../dist/targets/execution-target-service.js";
+import { EngineRegistry } from "../dist/engines/engine-registry.js";
+import { ModelProviderRegistry } from "../dist/intelligence/model-provider-registry.js";
+import { CredentialConnectionRegistry } from "../dist/intelligence/credential-registry.js";
+import { AgentRunnerRegistry } from "../dist/intelligence/agent-runner-registry.js";
+import { AxodusManagedModelProvider } from "../dist/intelligence/axodus-managed-provider.js";
+import { StaticAxodusModelGateway } from "../dist/intelligence/axodus-model-gateway.js";
 import { EngineSandboxOnlyError } from "../dist/engines/engine-errors.js";
 import { EconomicService } from "../dist/control-plane/neurons-economic-contract.js";
 
@@ -34,7 +43,7 @@ function createMockEngine(options = {}) {
       return { identity: this.identity, supportedProtocols: ["acs-engine/1"], operations: [], engineCapabilities: [], deploymentModes: ["sandbox"] };
     },
     async listExecutionTargets() {
-      return [];
+      return [{ id: "local-wsl", type: "local", environment: "dev", engineId: "openclaw", status: "ready", health: { status: "ready", observedAt: 1, checks: [], findings: [] }, capabilities: ["deployment.sandbox"], deploymentModes: ["sandbox"], schedulingEligible: true, schedulingReasons: [], supportedRunners: [], supportedProviders: [], isolationModes: ["sandbox"] }];
     },
     async inspectExecutionTarget() {
       throw new Error("not implemented");
@@ -62,9 +71,43 @@ function createMockEngine(options = {}) {
   };
 }
 
+async function createSetup(options = {}) {
+  const engine = createMockEngine(options);
+  const engineRegistry = new EngineRegistry();
+  engineRegistry.register(engine);
+  const targetService = new ExecutionTargetService(engineRegistry);
+  await targetService.refresh();
+  const providers = new ModelProviderRegistry();
+  providers.register(new AxodusManagedModelProvider({
+    gateway: new StaticAxodusModelGateway({ models: [{ modelId: "default", displayName: "Default", availability: "available", capabilities: { supports: ["text"] } }] }),
+  }));
+  const credentials = new CredentialConnectionRegistry();
+  const runners = new AgentRunnerRegistry();
+  const agentService = new AgentService({ providers, credentials, runners });
+  agentService.create({
+    definition: {
+      agentId: "mazikeen",
+      name: "Mazikeen",
+      status: "draft",
+      capabilityIds: ["deployment.sandbox"],
+      skillIds: [],
+      toolIds: [],
+      credentialConnectionIds: [],
+      runnerPreferences: [],
+      modelStrategy: {
+        primary: { providerId: "axodus", modelId: "default" },
+        fallbacks: [],
+      },
+    },
+    createdAt: Date.now(),
+  });
+  const resolver = new ExecutionPlanResolver({ targetService, providers, credentials, runners, engines: engineRegistry });
+  const service = new DeploymentService({ engine, targetService, agentService, resolver, economicService: options.economicService });
+  return service;
+}
+
 test("DeploymentService deploys governed agent to sandbox target", async () => {
-  const engine = createMockEngine();
-  const service = new DeploymentService({ engine });
+  const service = await createSetup();
   const result = await service.deploy({
     agentId: "mazikeen",
     revision: 1,
@@ -79,8 +122,7 @@ test("DeploymentService deploys governed agent to sandbox target", async () => {
 });
 
 test("DeploymentService rejects live deployment mode", async () => {
-  const engine = createMockEngine();
-  const service = new DeploymentService({ engine });
+  const service = await createSetup();
   await assert.rejects(
     async () => {
       await service.deploy({
@@ -96,9 +138,8 @@ test("DeploymentService rejects live deployment mode", async () => {
 });
 
 test("DeploymentService releases reservation if deployment fails", async () => {
-  const engine = createMockEngine({ failDeploy: true });
   const economicService = new EconomicService({ policy: devPolicy });
-  const service = new DeploymentService({ engine, economicService });
+  const service = await createSetup({ failDeploy: true, economicService });
 
   await assert.rejects(
     async () => {

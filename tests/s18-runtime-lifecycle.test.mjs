@@ -96,11 +96,15 @@ test("RuntimeLifecycleService rejects live runtime execution", async () => {
 
 test("RuntimeLifecycleService validates state transitions and stops runtime", async () => {
   const engine = createMockEngine();
-  const service = new RuntimeLifecycleService({ engine });
+  const service = new RuntimeLifecycleService({
+    engine,
+    deploymentLookup: () => ({ targetId: "local-wsl", deploymentMode: "sandbox" }),
+  });
   const instance = await service.start({
     deploymentId: "dep_mazikeen_123",
     agentId: "mazikeen",
     deploymentMode: "sandbox",
+    targetId: "local-wsl",
   });
 
   assert.equal(service.validateStateTransition("running", "stopping"), true);
@@ -113,11 +117,15 @@ test("RuntimeLifecycleService validates state transitions and stops runtime", as
 
 test("RuntimeLifecycleService creates ExecutionRun distinct from RuntimeInstance", async () => {
   const engine = createMockEngine();
-  const service = new RuntimeLifecycleService({ engine });
+  const service = new RuntimeLifecycleService({
+    engine,
+    deploymentLookup: () => ({ targetId: "local-wsl", deploymentMode: "sandbox" }),
+  });
   const instance = await service.start({
     deploymentId: "dep_mazikeen_123",
     agentId: "mazikeen",
     deploymentMode: "sandbox",
+    targetId: "local-wsl",
   });
 
   const execRun = service.createExecutionRun({

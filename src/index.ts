@@ -113,3 +113,5 @@ export * from "./control-plane/deployment-service.js";
 export * from "./control-plane/runtime-lifecycle-service.js";
 
 export * from "./control-plane/audit-service.js";
+
+export * from "./control-plane/product-api-client.js";

@@ -29,11 +29,29 @@ import {
   getMockOperationalStatus,
   getMockReadiness,
 } from "../services/operational-status-service.js";
+import type { ControlPlaneContext } from "../control-plane-context.js";
+import { AgentRevisionConflictError } from "../../control-plane/agent-service.js";
+import { DuplicateRegistrationError, NotFoundError } from "../../errors.js";
+import {
+  EngineError,
+  EngineSandboxOnlyError,
+  EngineUnavailableError,
+} from "../../engines/engine-errors.js";
+import type {
+  AgentDefinition,
+  AgentModelReference,
+  AgentModelStrategy,
+  GovernedAgentStatus,
+} from "../../control-plane/unified-agent-model.js";
+import type { ExecutionTargetRequirements } from "../../targets/execution-target-registry.js";
+import type { AuditQueryFilter } from "../../control-plane/audit-service.js";
+import type { AcsHttpEnvelope, AcsHttpEnvelopeMeta } from "../responses.js";
 
 export interface AcsRouteOptions {
   readonly correlationId?: string;
   readonly auth?: AcsAuthContext;
   readonly rateLimit?: AcsRateLimitContext;
+  readonly method?: string;
 }
 
 export function routeAcsRequest(requestUrl: string, options: AcsRouteOptions = {}) {

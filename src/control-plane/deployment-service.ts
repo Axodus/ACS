@@ -1,7 +1,12 @@
 import type { AgentEngine, DeploymentResult } from "../engines/agent-engine.js";
 import { EngineSandboxOnlyError } from "../engines/engine-errors.js";
 import type { ExecutionTargetService } from "../targets/execution-target-service.js";
+import { ExecutionTargetRegistry } from "../targets/execution-target-registry.js";
+import { PolicyRejectedError } from "../errors.js";
 import type { EconomicService, UsageReservation } from "./neurons-economic-contract.js";
+import type { AgentService } from "./agent-service.js";
+import { ExecutionPlanResolver } from "./execution-plan-resolver.js";
+import type { AuditService } from "./audit-service.js";
 
 export interface DeploymentRequest {
   readonly agentId: string;
@@ -10,6 +15,8 @@ export interface DeploymentRequest {
   readonly deploymentMode: "sandbox" | "staged" | "live" | string;
   readonly targetId: string;
   readonly accountId?: string;
+  readonly actor?: string;
+  readonly correlationId?: string;
 }
 
 export interface DeploymentRecord {
@@ -34,16 +41,25 @@ export class DeploymentService {
   readonly #engine: AgentEngine;
   readonly #targetService: ExecutionTargetService | undefined;
   readonly #economicService: EconomicService | undefined;
+  readonly #agentService: AgentService;
+  readonly #resolver: ExecutionPlanResolver;
+  readonly #auditService: AuditService | undefined;
   readonly #deployments = new Map<string, DeploymentRecord>();
 
   constructor(options: {
     engine: AgentEngine;
     targetService?: ExecutionTargetService;
     economicService?: EconomicService;
+    agentService: AgentService;
+    resolver: ExecutionPlanResolver;
+    auditService?: AuditService;
   }) {
     this.#engine = options.engine;
     this.#targetService = options.targetService;
     this.#economicService = options.economicService;
+    this.#agentService = options.agentService;
+    this.#resolver = options.resolver;
+    this.#auditService = options.auditService;
   }
 
   evaluateGovernance(mode: string): GovernanceDecision {
@@ -62,7 +78,21 @@ export class DeploymentService {
   }
 
   async deploy(request: DeploymentRequest): Promise<DeploymentRecord> {
+    const correlationId =
+      request.correlationId ?? `deploy_${request.agentId}_r${request.revision}_${Date.now()}`;
+    const actor = request.actor;
+
     const gov = this.evaluateGovernance(request.deploymentMode);
+    this.#auditService?.recordEvent({
+      eventType: "governance.evaluated",
+      correlationId,
+      agentId: request.agentId,
+      revision: request.revision,
+      ...(actor ? { actor } : {}),
+      decision: gov.allowed ? "allowed" : "denied",
+      result: gov.allowed ? "success" : "failure",
+      metadata: { deploymentMode: request.deploymentMode, reason: gov.reason },
+    });
     if (!gov.allowed) {
       throw new EngineSandboxOnlyError(gov.reason, {
         code: "ACS_ENGINE_SANDBOX_ONLY",
@@ -71,13 +101,27 @@ export class DeploymentService {
     }
 
     if (this.#targetService) {
-      const eligibility = await this.#targetService.evaluateEligibility(request.targetId, {
+      const canonicalTargetId = ExecutionTargetRegistry.canonicalId(
+        this.#engine.identity.id,
+        request.targetId,
+      );
+      const eligibility = this.#targetService.evaluateEligibility(canonicalTargetId, {
         deploymentMode: request.deploymentMode,
         engineId: this.#engine.identity.id,
       });
       if (!eligibility.eligible) {
         const reason = eligibility.reasons.map((r) => r.message).join("; ");
-        throw new Error(`Target ${request.targetId} is not eligible: ${reason}`);
+        this.#auditService?.recordEvent({
+          eventType: "deployment.failed",
+          correlationId,
+          agentId: request.agentId,
+          revision: request.revision,
+          ...(actor ? { actor } : {}),
+          decision: "denied",
+          result: "failure",
+          metadata: { reason: `target_ineligible: ${reason}` },
+        });
+        throw new PolicyRejectedError(`Target ${canonicalTargetId} is not eligible: ${reason}`);
       }
     }
 
@@ -95,22 +139,84 @@ export class DeploymentService {
         estimatedUsage: { "agent.runtime": 100n },
         expiresAt: Date.now() + 3600000,
       });
+      this.#auditService?.recordEvent({
+        eventType: "economic.quoted",
+        correlationId,
+        agentId: request.agentId,
+        revision: request.revision,
+        ...(actor ? { actor } : {}),
+        decision: "passed",
+        result: "success",
+        metadata: { quoteId: quote.quoteId, planId: quote.planId },
+      });
       reservation = this.#economicService.reserve({
         reservationId: `res_${quote.quoteId}`,
         quoteId: quote.quoteId,
         idempotencyKey: `idemp_${quote.quoteId}`,
         expiresAt: Date.now() + 3600000,
       });
+      this.#auditService?.recordEvent({
+        eventType: "economic.reserved",
+        correlationId,
+        agentId: request.agentId,
+        revision: request.revision,
+        ...(actor ? { actor } : {}),
+        decision: "passed",
+        result: "success",
+        metadata: { reservationId: reservation.reservationId, quoteId: quote.quoteId },
+      });
     }
 
     try {
+      const agentRevision = this.#agentService.get(request.agentId);
+      const { revision, composition } = this.#agentService.compose(request.agentId);
+
+      const executionPlan = await this.#resolver.resolve({
+        agentRevision,
+        composition,
+        engineId: this.#engine.identity.id,
+        targetId: request.targetId,
+        deploymentMode: request.deploymentMode,
+        correlationId,
+      });
+
+      this.#auditService?.recordEvent({
+        eventType: "agent.plan_resolved",
+        correlationId,
+        agentId: agentRevision.agentId,
+        revision: agentRevision.revision,
+        ...(actor ? { actor } : {}),
+        decision: "passed",
+        result: "success",
+        metadata: {
+          planId: executionPlan.planId,
+          engineId: executionPlan.engineId,
+          executionTargetId: executionPlan.executionTargetId,
+        },
+      });
+
+      this.#auditService?.recordEvent({
+        eventType: "deployment.requested",
+        correlationId,
+        agentId: request.agentId,
+        revision: request.revision,
+        ...(actor ? { actor } : {}),
+        decision: "passed",
+        result: "pending",
+        metadata: {
+          executionPlanId: executionPlan.planId,
+          deploymentMode: request.deploymentMode,
+          targetId: request.targetId,
+        },
+      });
+
       const result: DeploymentResult = await this.#engine.deployAgent({
         agentId: request.agentId,
         revision: request.revision,
         composition: request.composition,
         deploymentMode: request.deploymentMode,
         targetId: request.targetId,
-        executionPlanId: `plan_${request.agentId}_r${request.revision}`,
+        executionPlanId: executionPlan.planId,
       });
 
       const artifactPath = result.artifactPath;
@@ -129,6 +235,23 @@ export class DeploymentService {
       };
 
       this.#deployments.set(record.deploymentId, record);
+
+      this.#auditService?.recordEvent({
+        eventType: "deployment.completed",
+        correlationId,
+        agentId: record.agentId,
+        revision: record.revision,
+        deploymentId: record.deploymentId,
+        ...(actor ? { actor } : {}),
+        decision: "allowed",
+        result: "success",
+        metadata: {
+          executionPlanId: executionPlan.planId,
+          targetId: record.targetId,
+          deploymentMode: record.deploymentMode,
+        },
+      });
+
       return record;
     } catch (error) {
       if (reservation && this.#economicService) {
@@ -136,7 +259,29 @@ export class DeploymentService {
           reservationId: reservation.reservationId,
           reason: "deployment_failed",
         });
+        this.#auditService?.recordEvent({
+          eventType: "economic.released",
+          correlationId,
+          agentId: request.agentId,
+          revision: request.revision,
+          ...(actor ? { actor } : {}),
+          decision: "passed",
+          result: "success",
+          metadata: { reservationId: reservation.reservationId, reason: "deployment_failed" },
+        });
       }
+      this.#auditService?.recordEvent({
+        eventType: "deployment.failed",
+        correlationId,
+        agentId: request.agentId,
+        revision: request.revision,
+        ...(actor ? { actor } : {}),
+        decision: "denied",
+        result: "failure",
+        metadata: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
       throw error;
     }
   }

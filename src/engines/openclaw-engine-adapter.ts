@@ -1,5 +1,6 @@
 import { EngineProtocolClient } from "./protocol/client.js";
 import { EngineProtocolError, EngineTimeoutError, EngineTransportError } from "./protocol/errors.js";
+import { ExecutionTargetRegistry } from "../targets/execution-target-registry.js";
 import type {
   AgentEngine,
   DeployAgentRequest,
@@ -100,12 +101,13 @@ export class OpenClawEngineAdapter implements AgentEngine {
         details: { deploymentMode: request.deploymentMode },
       });
     }
+    const engineTargetId = ExecutionTargetRegistry.engineLocalId(this.identity.id, request.targetId);
     const result = await this.#invoke("agent.deploy", {
       agent_id: request.agentId,
       revision: request.revision,
       composition: request.composition,
       deployment_mode: request.deploymentMode,
-      target_id: request.targetId,
+      target_id: engineTargetId,
       ...(request.executionPlanId ? { execution_plan_id: request.executionPlanId } : {}),
     });
 

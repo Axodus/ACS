@@ -50,7 +50,12 @@ export class ExecutionTargetRegistry {
   readonly #targets = new Map<string, RegisteredExecutionTarget>();
 
   static canonicalId(engineId: string, targetId: string): string {
-    return engineId + "/" + targetId;
+    return targetId.startsWith(engineId + "/") ? targetId : engineId + "/" + targetId;
+  }
+
+  static engineLocalId(engineId: string, targetId: string): string {
+    const prefix = engineId + "/";
+    return targetId.startsWith(prefix) ? targetId.slice(prefix.length) : targetId;
   }
 
   register(target: ExecutionTargetInfo, observedAt = Date.now()): RegisteredExecutionTarget {
