@@ -78,7 +78,7 @@ test("HTTP inspection endpoints reject invalid filters without side effects", ()
 });
 
 test("HTTP server returns JSON for ACS health", async () => {
-  const server = createAcsHttpServer();
+  const { server } = await createAcsHttpServer();
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
 
@@ -97,7 +97,7 @@ test("HTTP server returns JSON for ACS health", async () => {
 });
 
 test("HTTP server rejects non-GET methods", async () => {
-  const server = createAcsHttpServer();
+  const { server } = await createAcsHttpServer();
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
 

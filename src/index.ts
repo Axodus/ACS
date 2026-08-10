@@ -13,6 +13,7 @@ export * from "./inspection.js";
 export * from "./emergency-stop.js";
 export * from "./http/server.js";
 export * from "./http/routes/acs-routes.js";
+export * from "./http/routes/product-api-routes.js";
 export * from "./http/validation.js";
 export * from "./http/auth.js";
 export * from "./http/rate-limit.js";

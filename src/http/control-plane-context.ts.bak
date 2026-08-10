@@ -236,6 +236,13 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     runners: runnerRegistry,
   });
 
+  const economicService = new EconomicService({ policy: DEV_BILLING_POLICY });
+  const auditService = new AuditService();
+  const planResolver = new ExecutionPlanResolver({
+    targetService,
+    providers: modelProviderRegistry,
+    credentials,
+
   // DEV-only fixture agent for Product API integration
   const devAgentDefinition: AgentDefinition = {
     agentId: "dev-agent-sandbox",
@@ -249,13 +256,6 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     modelStrategy: { primary: { providerId: "axodus", modelId: "axodus-multi" }, fallbacks: [] },
   };
   agentService.create({ definition: devAgentDefinition, createdAt: Date.now() });
-
-  const economicService = new EconomicService({ policy: DEV_BILLING_POLICY });
-  const auditService = new AuditService();
-  const planResolver = new ExecutionPlanResolver({
-    targetService,
-    providers: modelProviderRegistry,
-    credentials,
     runners: runnerRegistry,
     engines: engineRegistry,
   });

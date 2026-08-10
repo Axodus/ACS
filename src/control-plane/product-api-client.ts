@@ -60,6 +60,7 @@ export class ProductApiClient {
 
   async listTargets(): Promise<readonly unknown[]> {
     if (this.#targetService) {
+      await this.#targetService.refresh();
       return this.#targetService.list();
     }
     return [];

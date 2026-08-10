@@ -114,7 +114,7 @@ test("mock exceeded rate-limit returns structured error and preserves correlatio
 });
 
 test("HTTP server parses mock auth and rate-limit headers", async () => {
-  const server = createAcsHttpServer();
+  const { server } = await createAcsHttpServer();
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
 
