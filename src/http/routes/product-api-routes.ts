@@ -39,6 +39,8 @@ export async function routeProductApiRequest(
     targetService: context.targetService,
     providerService: context.providerService,
     runnerService: context.runnerService,
+    workerRegistry: context.workerRegistry,
+    workerAssignmentService: context.workerAssignmentService,
   });
 
   const url = new URL(requestUrl, "http://localhost");
@@ -64,6 +66,13 @@ export async function routeProductApiRequest(
           automation: "disabled",
         }, [], options.correlationId, routeMeta),
       };
+    }
+
+    // A02 exposes only a read-only aggregate; it does not introduce mutations.
+    if (apiPath === "dashboard" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const summary = await api.getDashboardSummary();
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
     }
 
     // GET /api/v1/agents

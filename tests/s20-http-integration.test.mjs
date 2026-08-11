@@ -37,6 +37,38 @@ test("GET /api/v1/health reports Product API connectivity", async () => {
   }
 });
 
+test("GET /api/v1/dashboard returns a read-only operational summary", async () => {
+  const context = createControlPlaneContext();
+  try {
+    const result = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/dashboard", headers: {} },
+      "/api/v1/dashboard",
+      context,
+      { correlationId: "test_dashboard" },
+    );
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.success, true);
+
+    const summary = result.body.data;
+    assert.equal(summary.system.service, "acs-product-api");
+    assert.equal(summary.system.status, "ok");
+    assert.equal(summary.system.mode, "inspection");
+    assert.equal(summary.system.automation, "disabled");
+    assert.equal(summary.system.readOnly, true);
+    assert.equal(typeof summary.system.generatedAt, "number");
+    assert.equal(typeof summary.agents.total, "number");
+    assert.equal(typeof summary.deployments.total, "number");
+    assert.equal(typeof summary.runtimes.total, "number");
+    assert.equal(typeof summary.workers.total, "number");
+    assert.equal(typeof summary.executionRuns.total, "number");
+    assert.ok(Array.isArray(summary.blockers));
+    assert.ok(Array.isArray(summary.warnings));
+  } finally {
+    await context.close();
+  }
+});
+
 async function invokeHandler(handler, request) {
   const response = {
     statusCode: 0,

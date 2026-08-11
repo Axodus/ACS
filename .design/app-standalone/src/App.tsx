@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Navigate,
   Route,
@@ -7,7 +7,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
-import { productApi, productApiConfig, type ProductApiHealth } from "./api/product-api";
+import { productApi, productApiConfig, type ApiAgent, type DashboardFinding, type DashboardSummary, type ProductApiHealth } from "./api/product-api";
 import "./operational.css";
 
 type View =
@@ -22,17 +22,7 @@ type View =
   | "Logs"
   | "Settings";
 
-type Agent = {
-  agentId: string;
-  name: string;
-  status: string;
-  definition: {
-    roleId?: string;
-    profileId?: string;
-  };
-  revision: number;
-  createdAt: number;
-};
+type Agent = ApiAgent;
 
 type ConnectivityState =
   | { status: "loading"; health: null; error: null }
@@ -86,41 +76,140 @@ function Metric({ label, value, note }: { label: string; value: string; note: st
   return <article className="metric"><div className="metric-top"><span>{label}</span><span className="metric-mark">↗</span></div><strong>{value}</strong><small>{note}</small></article>;
 }
 
-function Dashboard({ setView }: { setView: (v: View) => void }) {
-  const [data, setData] = useState<{ agents: Agent[]; loading: boolean }>({ agents: [], loading: true });
+type DashboardLoadState = "loading" | "ready" | "error";
+type DashboardCardState = DashboardLoadState | "empty";
+
+function DashboardCard({ title, meta, state, emptyMessage, children }: {
+  title: string;
+  meta: string;
+  state: DashboardCardState;
+  emptyMessage?: string;
+  children?: ReactNode;
+}) {
+  const label = state === "loading" ? "..." : state === "error" ? "error" : state === "empty" ? "empty" : "ready";
+  return <section className={`panel dashboard-card state-${state}`}>
+    <div className="panel-head"><div><h2>{title}</h2><p>{meta}</p></div><span className="card-state">{label}</span></div>
+    <div className="card-body">
+      {state === "loading" && <div className="state-line">Loading operational state...</div>}
+      {state === "error" && <div className="state-line error">Unable to load this card. Check Product API connectivity and retry.</div>}
+      {state === "empty" && <div className="state-line empty">{emptyMessage ?? "No data available"}</div>}
+      {state === "ready" && children}
+    </div>
+  </section>;
+}
+
+function SummaryRow({ label, value, tone }: { label: string; value: string | number; tone?: "good" | "warn" | "muted" }) {
+  return <div className="summary-row"><span>{label}</span><strong className={tone ?? ""}>{value}</strong></div>;
+}
+
+function FindingRow({ finding }: { finding: DashboardFinding }) {
+  return <div className={`finding-row ${finding.severity}`}><span>{finding.severity}</span><p>{finding.message}</p></div>;
+}
+
+function Dashboard() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loadState, setLoadState] = useState<DashboardLoadState>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    productApi.listAgents()
-      .then(agents => setData({ agents, loading: false }))
-      .catch(() => setData({ agents: [], loading: false }));
-  }, []);
+    let cancelled = false;
+    setLoadState("loading");
+    setLoadError(null);
+    productApi.getDashboardSummary()
+      .then(data => {
+        if (!cancelled) {
+          setSummary(data);
+          setLoadState("ready");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadError("Unable to load dashboard summary from Product API");
+          setLoadState("error");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
-  if (data.loading) return <div className="loading-screen">Loading operational state...</div>;
+  const cardState = (count: number | undefined): DashboardCardState => {
+    if (loadState === "loading") return "loading";
+    if (loadState === "error") return "error";
+    return count !== undefined && count > 0 ? "ready" : "empty";
+  };
+
+  const updatedAt = summary ? new Date(summary.system.generatedAt).toLocaleTimeString() : "--";
 
   return <>
-    <header className="page-head"><div><p className="eyebrow">LOCAL CONTROL PLANE</p><h1>Good morning, operator.</h1><p>Your ACS environment is healthy and ready for work.</p></div><button className="primary" onClick={() => setView("Agents")}>＋ Create agent</button></header>
-    <section className="metrics">
-      <Metric label="Agents" value={data.agents.length.toString()} note={`${data.agents.filter(a => a.status === "running").length} running`} />
-      <Metric label="Skills" value="--" note="loading" />
-      <Metric label="Plugins" value="--" note="loading" />
-      <Metric label="Runtime" value={data.agents.length > 0 ? "Running" : "Idle"} note="OpenClaw connected" />
-    </section>
+    <header className="page-head compact dashboard-head">
+      <div><p className="eyebrow">OPERATIONAL AWARENESS</p><h1>System Dashboard</h1><p>Aggregated ACS state from the Product API. Read-only surface.</p></div>
+      <button className="secondary" disabled={loadState === "loading"} onClick={() => setRefreshKey(k => k + 1)}>{loadState === "error" ? "Retry" : "Refresh"}</button>
+    </header>
+    {loadError && <div className="error-banner">{loadError}</div>}
     <div className="dashboard-grid">
-      <section className="panel agents-panel"><div className="panel-head"><div><h2>Agents</h2><p>Deployed in this workspace</p></div><button className="text-btn" onClick={() => setView("Agents")}>View all →</button></div>
-        <div className="agent-list">
-          {data.agents.length === 0 ? <div className="empty-state">No agents deployed</div> : data.agents.map(a => (
-            <button className="agent-row" key={a.agentId} onClick={() => window.location.href = `/agents/${a.agentId}`}>
-              <span className={`avatar ${a.status !== "running" ? "gray" : ""}`}>{a.name ? a.name.split(" ").map(x => x[0]).join("") : "?"}</span>
-              <span className="agent-main"><b>{a.name ?? "Unknown"}</b><small>{a.agentId} · {a.definition.roleId ?? "no role"}</small></span>
-              <span className="agent-health"><Status status={a.status} /><small>{a.status === "running" ? "Healthy" : "Not deployed"}</small></span>
-              <span className="chev">›</span>
-            </button>
-          ))}
+      <DashboardCard title="System overview" meta="Product API boundary" state={loadState}>
+        <div className="summary-list">
+          <SummaryRow label="Service" value={summary?.system.service ?? "--"} />
+          <SummaryRow label="Status" value="Connected" tone="good" />
+          <SummaryRow label="Mode" value={summary?.system.mode ?? "--"} />
+          <SummaryRow label="Automation" value={summary?.system.automation ?? "--"} />
+          <SummaryRow label="Access" value="read-only" />
+          <SummaryRow label="Generated" value={updatedAt} />
         </div>
-      </section>
-      <section className="panel runtime-card"><div className="panel-head"><div><p className="eyebrow">RUNTIME</p><h2>OpenClaw</h2></div><span className="pulse"><i /> {data.agents.length > 0 ? "LIVE" : "IDLE"}</span></div><div className="runtime-orbit"><div className="core">ACS<small>CORE</small></div><span className="node n1">BT</span><span className="node n2">DV</span><span className="node n3">RS</span></div><dl><div><dt>Status</dt><dd><Status status={data.agents.length > 0 ? "Running" : "Idle"} /></dd></div><div><dt>Workspace</dt><dd className="mono">~/.openclaw</dd></div><div><dt>Uptime</dt><dd>--:--:--</dd></div><div><dt>Heartbeat</dt><dd>{data.agents.length > 0 ? "Healthy" : "None"}</dd></div></dl><button className="secondary full" onClick={() => setView("Runtime")}>Inspect runtime <span>→</span></button></section>
-      <section className="panel activity"><div className="panel-head"><div><h2>Recent activity</h2><p>Changes across your environment</p></div><button className="icon-btn">•••</button></div><div className="empty-state">No recent events</div></section>
-      <section className="panel quick"><div className="panel-head"><div><h2>Quick actions</h2><p>Common operator workflows</p></div></div><div className="quick-grid"><button onClick={() => setView("Agents")}><span>＋</span><b>Create agent</b><small>Configure a new agent</small></button><button onClick={() => setView("Logs")}><span>≡</span><b>Open logs</b><small>Inspect live events</small></button><button onClick={() => setView("Skills")}><span>✦</span><b>Install skill</b><small>Browse the registry</small></button><button onClick={() => setView("Runtime")}><span>↻</span><b>Validate runtime</b><small>Check OpenClaw health</small></button></div></section>
+      </DashboardCard>
+      <DashboardCard title="Agent summary" meta="Registered agent definitions" state={cardState(summary?.agents.total)} emptyMessage="No agents registered">
+        <div className="summary-list">
+          <SummaryRow label="Total" value={summary?.agents.total ?? 0} />
+          <SummaryRow label="Active" value={summary?.agents.active ?? 0} tone="good" />
+          <SummaryRow label="Draft" value={summary?.agents.draft ?? 0} />
+          <SummaryRow label="Disabled" value={summary?.agents.disabled ?? 0} tone="warn" />
+          <SummaryRow label="Archived" value={summary?.agents.archived ?? 0} tone="muted" />
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Deployment summary" meta="Sandbox deployment records" state={cardState(summary?.deployments.total)} emptyMessage="No deployments recorded">
+        <div className="summary-list">
+          <SummaryRow label="Total" value={summary?.deployments.total ?? 0} />
+          <SummaryRow label="Deployed" value={summary?.deployments.deployed ?? 0} tone="good" />
+          <SummaryRow label="Failed" value={summary?.deployments.failed ?? 0} tone="warn" />
+          <SummaryRow label="Rejected" value={summary?.deployments.rejected ?? 0} tone="warn" />
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Runtime summary" meta="Runtime instance states" state={cardState(summary?.runtimes.total)} emptyMessage="No runtime instances">
+        <div className="summary-list">
+          <SummaryRow label="Total" value={summary?.runtimes.total ?? 0} />
+          <SummaryRow label="Running" value={summary?.runtimes.running ?? 0} tone="good" />
+          <SummaryRow label="Pending" value={summary?.runtimes.pending ?? 0} />
+          <SummaryRow label="Stopped" value={summary?.runtimes.stopped ?? 0} tone="muted" />
+          <SummaryRow label="Failed" value={summary?.runtimes.failed ?? 0} tone="warn" />
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Worker summary" meta="Execution worker registry" state={cardState(summary?.workers.total)} emptyMessage="No workers registered">
+        <div className="summary-list">
+          <SummaryRow label="Total" value={summary?.workers.total ?? 0} />
+          <SummaryRow label="Available" value={summary?.workers.available ?? 0} tone="good" />
+          <SummaryRow label="Slots" value={summary?.workers.availableSlots ?? 0} />
+          <SummaryRow label="Assignments" value={summary?.workers.activeAssignments ?? 0} />
+          <SummaryRow label="Unavailable" value={summary?.workers.unavailable ?? 0} tone="warn" />
+        </div>
+      </DashboardCard>
+      <DashboardCard title="ExecutionRun summary" meta="Execution run records" state={cardState(summary?.executionRuns.total)} emptyMessage="No execution runs">
+        <div className="summary-list">
+          <SummaryRow label="Total" value={summary?.executionRuns.total ?? 0} />
+          <SummaryRow label="Running" value={summary?.executionRuns.running ?? 0} tone="good" />
+          <SummaryRow label="Completed" value={summary?.executionRuns.completed ?? 0} tone="good" />
+          <SummaryRow label="Pending" value={summary?.executionRuns.pending ?? 0} />
+          <SummaryRow label="Failed" value={summary?.executionRuns.failed ?? 0} tone="warn" />
+        </div>
+        {summary && summary.executionRuns.recent.length > 0 && <div className="recent-runs"><b>Recent runs</b>{summary.executionRuns.recent.slice(0, 3).map(run => <span key={run.runId}><i />{run.runId}<code>{run.status}</code></span>)}</div>}
+      </DashboardCard>
+      <DashboardCard title="Critical blockers" meta="Operational errors requiring attention" state={cardState(summary?.blockers.length)} emptyMessage="No critical blockers">
+        <div className="finding-list">{summary?.blockers.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
+      </DashboardCard>
+      <DashboardCard title="Operational warnings" meta="Non-blocking operational signals" state={cardState(summary?.warnings.length)} emptyMessage="No operational warnings">
+        <div className="finding-list">{summary?.warnings.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
+      </DashboardCard>
     </div>
   </>;
 }
@@ -192,8 +281,8 @@ function AgentDetail({ back }: { back: () => void }) {
         targetId: "local-wsl",
       });
       alert("Deployment successful!");
-    } catch (e: any) {
-      setDeployError(e.message);
+    } catch (error: unknown) {
+      setDeployError(error instanceof Error ? error.message : "Deployment failed");
     } finally {
       setDeploying(false);
     }
@@ -322,7 +411,7 @@ export default function App() {
         {connectivity.status === "error" && <div className="global-state error-state" role="alert"><span>Product API unavailable: {connectivity.error}</span><button className="secondary" onClick={() => void checkProductApi()}>Retry</button></div>}
         <div className="content">
           <Routes>
-            <Route path="/" element={<Dashboard setView={go} />} />
+            <Route path="/" element={<Dashboard />} />
             <Route path="/agents" element={<Agents />} />
             <Route path="/agents/:agentId" element={<AgentRoute />} />
             <Route path="/roles" element={<GenericView view="Roles" />} />

@@ -7,6 +7,88 @@ export type ProductApiHealth = {
   automation: string;
 };
 
+export type ApiAgent = {
+  agentId: string;
+  name: string;
+  status: string;
+  definition: {
+    roleId?: string;
+    profileId?: string;
+  };
+  revision: number;
+  createdAt: number;
+};
+
+export type DashboardFinding = {
+  code: string;
+  severity: "error" | "warning";
+  domain: string;
+  message: string;
+};
+
+export type DashboardSummary = {
+  system: {
+    service: string;
+    status: "ok";
+    mode: string;
+    automation: string;
+    readOnly: true;
+    generatedAt: number;
+  };
+  agents: {
+    total: number;
+    draft: number;
+    active: number;
+    disabled: number;
+    archived: number;
+  };
+  deployments: {
+    total: number;
+    deployed: number;
+    failed: number;
+    rejected: number;
+  };
+  runtimes: {
+    total: number;
+    pending: number;
+    starting: number;
+    running: number;
+    stopping: number;
+    stopped: number;
+    failed: number;
+    terminated: number;
+  };
+  workers: {
+    total: number;
+    registered: number;
+    available: number;
+    degraded: number;
+    unavailable: number;
+    stale: number;
+    activeAssignments: number;
+    availableSlots: number;
+  };
+  executionRuns: {
+    total: number;
+    pending: number;
+    running: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+    recent: {
+      runId: string;
+      runtimeInstanceId: string;
+      agentId: string;
+      executionPlanId: string;
+      status: "pending" | "running" | "completed" | "failed" | "cancelled";
+      startedAt: number;
+      completedAt?: number;
+    }[];
+  };
+  blockers: DashboardFinding[];
+  warnings: DashboardFinding[];
+};
+
 export const productApiConfig = {
   baseUrl: API_BASE_URL,
   environment: import.meta.env.VITE_ACS_ENVIRONMENT ?? "local",
@@ -39,28 +121,32 @@ export const productApi = {
     return request<ProductApiHealth>("/health");
   },
 
+  async getDashboardSummary() {
+    return request<DashboardSummary>("/dashboard");
+  },
+
   async listAgents() {
-    return request<any[]>("/agents");
+    return request<ApiAgent[]>("/agents");
   },
 
   async getAgent(id: string) {
-    return request<any>(`/agents/${id}`);
+    return request<ApiAgent>(`/agents/${id}`);
   },
 
   async listTargets() {
-    return request<any[]>("/targets");
+    return request<unknown[]>("/targets");
   },
 
   async listProviders() {
-    return request<any[]>("/providers");
+    return request<unknown[]>("/providers");
   },
 
   async listRunners() {
-    return request<any[]>("/runners");
+    return request<unknown[]>("/runners");
   },
 
-  async deployAgent(agentId: string, data: { revision: number; composition: any; targetId: string }) {
-    return request<any>(`/agents/${agentId}/deploy`, {
+  async deployAgent(agentId: string, data: { revision: number; composition: Record<string, unknown>; targetId: string }) {
+    return request<unknown>(`/agents/${agentId}/deploy`, {
       method: "POST",
       body: JSON.stringify({
         ...data,
@@ -70,18 +156,18 @@ export const productApi = {
   },
 
   async startRuntime(runtimeInstanceId: string) {
-    return request<any>(`/runtimes/${runtimeInstanceId}/start`, {
+    return request<unknown>(`/runtimes/${runtimeInstanceId}/start`, {
       method: "POST",
     });
   },
 
   async stopRuntime(runtimeInstanceId: string) {
-    return request<any>(`/runtimes/${runtimeInstanceId}/stop`, {
+    return request<unknown>(`/runtimes/${runtimeInstanceId}/stop`, {
       method: "POST",
     });
   },
 
   async queryAudit() {
-    return request<any[]>("/audit");
+    return request<unknown[]>("/audit");
   },
 };
