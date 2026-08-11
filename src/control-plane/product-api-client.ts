@@ -7,8 +7,16 @@ import type { ExecutionTargetService } from "../targets/execution-target-service
 import type { ModelProviderService } from "../intelligence/model-provider-service.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
 import { EngineSandboxOnlyError } from "../engines/engine-errors.js";
+import type { EngineService } from "../engines/engine-service.js";
 import type { ExecutionWorkerRegistry } from "../workers/worker-registry.js";
 import type { WorkerAssignmentService } from "../workers/worker-assignment-service.js";
+import {
+  createEpic10ReadinessReport,
+  type Epic10ReadinessDomainReport,
+  type Epic10ReadinessFinding,
+  type Epic10ReadinessSignals,
+  type Epic10ReadinessStatus,
+} from "./epic-10-readiness.js";
 
 export interface ProductApiClientOptions {
   readonly agentService?: AgentService;
@@ -20,6 +28,7 @@ export interface ProductApiClientOptions {
   readonly runnerService?: AgentRunnerService;
   readonly workerRegistry?: ExecutionWorkerRegistry;
   readonly workerAssignmentService?: WorkerAssignmentService;
+  readonly engineService?: EngineService;
   readonly baseUrl?: string;
 }
 
@@ -85,6 +94,62 @@ export interface DashboardSummary {
   readonly warnings: readonly DashboardFinding[];
 }
 
+export type ProductApiRuntimeConnectivity = "connected" | "degraded" | "unavailable" | "unverified";
+
+export type ProductApiHealthStatus = "ok" | "degraded" | "unavailable" | "unverified";
+
+export type ProductApiReadinessFlagStatus = "ready" | "partial" | "blocked" | "unverified";
+
+export interface GlobalReadinessSummary {
+  readonly generatedAt: number;
+  readonly mode: "inspection";
+  readonly readOnly: true;
+  readonly productApi: {
+    readonly service: string;
+    readonly status: "ok";
+    readonly mode: string;
+    readonly automation: string;
+    readonly checkedAt: number;
+  };
+  readonly runtime: {
+    readonly connectivity: ProductApiRuntimeConnectivity;
+    readonly checkedAt: number;
+    readonly engines: readonly {
+      readonly id: string;
+      readonly provider: string;
+      readonly status: string;
+    }[];
+  };
+  readonly healthIndicators: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly status: ProductApiHealthStatus;
+    readonly detail: string;
+  }[];
+  readonly readinessFlags: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly status: ProductApiReadinessFlagStatus;
+    readonly detail: string;
+  }[];
+  readonly readiness: {
+    readonly devReady: boolean;
+    readonly distributedRuntimeReady: boolean;
+    readonly productionReady: boolean;
+    readonly status: Epic10ReadinessStatus;
+    readonly blockerCount: number;
+  };
+  readonly components: readonly {
+    readonly domain: string;
+    readonly status: Epic10ReadinessStatus;
+    readonly currentState: string;
+    readonly requiredState: string;
+  }[];
+  readonly blockers: readonly Epic10ReadinessFinding[];
+  readonly warnings: readonly Epic10ReadinessFinding[];
+  readonly evidence: readonly Epic10ReadinessDomainReport[];
+}
+
 export class ProductApiClient {
   readonly #agentService: AgentService | undefined;
   readonly #deploymentService: DeploymentService | undefined;
@@ -95,6 +160,7 @@ export class ProductApiClient {
   readonly #runnerService: AgentRunnerService | undefined;
   readonly #workerRegistry: ExecutionWorkerRegistry | undefined;
   readonly #workerAssignmentService: WorkerAssignmentService | undefined;
+  readonly #engineService: EngineService | undefined;
   readonly #baseUrl: string | undefined;
 
   constructor(options: ProductApiClientOptions = {}) {
@@ -107,6 +173,7 @@ export class ProductApiClient {
     this.#runnerService = options.runnerService;
     this.#workerRegistry = options.workerRegistry;
     this.#workerAssignmentService = options.workerAssignmentService;
+    this.#engineService = options.engineService;
     this.#baseUrl = options.baseUrl;
   }
 
@@ -208,6 +275,215 @@ export class ProductApiClient {
       return this.#auditService.queryEvents(filter);
     }
     return [];
+  }
+
+  async #probeRuntimeConnectivity(): Promise<{
+    readonly connectivity: ProductApiRuntimeConnectivity;
+    readonly checkedAt: number;
+    readonly engines: readonly {
+      readonly id: string;
+      readonly provider: string;
+      readonly status: string;
+    }[];
+  }> {
+    const checkedAt = Date.now();
+    const engineService = this.#engineService;
+    if (!engineService) {
+      return { connectivity: "unverified", checkedAt, engines: [] };
+    }
+
+    const engines = engineService.listEngines();
+    const states = await Promise.all(engines.map(async (engine) => {
+      try {
+        const health = await engineService.health(engine.identity.id);
+        return {
+          id: engine.identity.id,
+          provider: engine.identity.provider,
+          status: health.status,
+        };
+      } catch {
+        return {
+          id: engine.identity.id,
+          provider: engine.identity.provider,
+          status: "unavailable",
+        };
+      }
+    }));
+
+    const connectivity: ProductApiRuntimeConnectivity = states.length === 0
+      ? "unverified"
+      : states.every((state) => state.status === "ready")
+        ? "connected"
+        : states.some((state) => state.status === "ready" || state.status === "degraded")
+          ? "degraded"
+          : "unavailable";
+
+    return { connectivity, checkedAt, engines: states };
+  }
+
+  async getGlobalReadinessSummary(): Promise<GlobalReadinessSummary> {
+    const generatedAt = Date.now();
+    const workers = this.#workerRegistry?.list() ?? [];
+    const workerStatus: Epic10ReadinessSignals["workerStatus"] = workers.some((worker) => worker.status === "available")
+      ? "available"
+      : workers[0]?.status ?? "unavailable";
+
+    const targetRefresh = this.#targetService ? await this.#targetService.refresh() : undefined;
+    const targets = this.#targetService?.list() ?? [];
+    const targetStatus: Epic10ReadinessSignals["targetStatus"] = targetRefresh && targetRefresh.failures.length > 0
+      ? "unavailable"
+      : targets.length === 0
+        ? "unavailable"
+        : targets.every((target) => target.status === "ready" && !target.stale)
+          ? "ready"
+          : targets.some((target) => target.status === "ready" && !target.stale)
+            ? "degraded"
+            : "unavailable";
+
+    const runtime = await this.#probeRuntimeConnectivity();
+    const report = createEpic10ReadinessReport({
+      workerStatus,
+      targetStatus,
+      runtimeStatus: runtime.connectivity === "connected" || runtime.connectivity === "degraded" ? "running" : "failed",
+      authMode: "disabled",
+      rateLimitEnabled: false,
+      observabilityExporterEnabled: false,
+      persistenceBackend: "memory",
+      secretBackend: "memory",
+      settlementBackend: "memory",
+      remoteWorkerSupported: false,
+      liveDeploymentEnabled: false,
+    });
+
+    const blockers = [...report.blockers];
+    const warnings = report.findings.filter((finding) => !finding.blocksProduction);
+    const distributedRuntimeReady = runtime.connectivity === "connected"
+      && workerStatus === "available"
+      && targetStatus === "ready";
+
+    const distributedRuntimeDetail = runtime.connectivity === "connected"
+      ? workerStatus === "available" && targetStatus === "ready"
+        ? "Engine connectivity, worker and target checks passed."
+        : `Engine connected, but worker is ${workerStatus} and target state is ${targetStatus}.`
+      : `Engine connectivity is ${runtime.connectivity}; distributed execution is not proven.`;
+
+    const readinessFlags: GlobalReadinessSummary["readinessFlags"] = [
+      {
+        id: "dev",
+        label: "DEV readiness",
+        status: report.devReady ? "ready" : "blocked",
+        detail: "DEV workspace and sandbox operations are available through the control plane.",
+      },
+      {
+        id: "distributed-runtime",
+        label: "Distributed Runtime readiness",
+        status: runtime.connectivity === "connected"
+          ? workerStatus === "available" && targetStatus === "ready" ? "ready" : "partial"
+          : runtime.connectivity === "degraded" ? "partial" : "blocked",
+        detail: distributedRuntimeDetail,
+      },
+      {
+        id: "production",
+        label: "Production readiness",
+        status: report.productionReady
+          ? "ready"
+          : report.blockers.length > 0
+            ? "blocked"
+            : "partial",
+        detail: report.blockers.length > 0
+          ? `Blocked by ${report.blockers.length} production finding(s).`
+          : "Production readiness is not claimed in this inspection slice.",
+      },
+    ];
+
+    const infrastructureStatus: ProductApiHealthStatus = runtime.connectivity === "unverified"
+      ? "unverified"
+      : runtime.connectivity === "connected" && workerStatus === "available" && targetStatus === "ready"
+        ? "ok"
+        : runtime.connectivity === "unavailable" || (workerStatus === "unavailable" && targetStatus === "unavailable")
+          ? "unavailable"
+          : "degraded";
+
+    const healthIndicators: GlobalReadinessSummary["healthIndicators"] = [
+      {
+        id: "product-api",
+        label: "Product API",
+        status: "ok",
+        detail: "inspection mode",
+      },
+      {
+        id: "infrastructure",
+        label: "Infrastructure",
+        status: infrastructureStatus,
+        detail: "engine, worker and target health",
+      },
+      {
+        id: "runtime",
+        label: "Runtime connectivity",
+        status: runtime.connectivity === "connected"
+          ? "ok"
+          : runtime.connectivity === "degraded"
+            ? "degraded"
+            : runtime.connectivity === "unavailable"
+              ? "unavailable"
+              : "unverified",
+        detail: `${runtime.engines.length} engine(s) probed`,
+      },
+      {
+        id: "worker",
+        label: "Execution worker",
+        status: workerStatus === "available"
+          ? "ok"
+          : workerStatus === "degraded"
+            ? "degraded"
+            : workerStatus === "registered"
+              ? "unverified"
+              : "unavailable",
+        detail: `${workers.length} worker(s) registered`,
+      },
+      {
+        id: "target",
+        label: "Execution target",
+        status: targetStatus === "ready"
+          ? "ok"
+          : targetStatus === "degraded"
+            ? "degraded"
+            : "unavailable",
+        detail: `${targets.length} target(s) discovered`,
+      },
+    ];
+
+    return {
+      generatedAt,
+      mode: "inspection",
+      readOnly: true,
+      productApi: {
+        service: "acs-product-api",
+        status: "ok",
+        mode: "inspection",
+        automation: "disabled",
+        checkedAt: generatedAt,
+      },
+      runtime,
+      healthIndicators,
+      readinessFlags,
+      readiness: {
+        devReady: report.summary.devReady,
+        distributedRuntimeReady,
+        productionReady: report.summary.productionReady,
+        status: blockers.length > 0 ? "blocked" : "partial",
+        blockerCount: blockers.length,
+      },
+      components: report.domains.map(({ domain, status, currentState, requiredState }) => ({
+        domain,
+        status,
+        currentState,
+        requiredState,
+      })),
+      blockers,
+      warnings,
+      evidence: report.domains,
+    };
   }
 
   async getDashboardSummary(): Promise<DashboardSummary> {

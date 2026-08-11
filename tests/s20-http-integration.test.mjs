@@ -10,6 +10,17 @@ import { PolicyRejectedError } from "../dist/errors.js";
 function createMockEngine() {
   return {
     identity: { id: "openclaw", provider: "agentsai" },
+    async health() {
+      return {
+        identity: this.identity,
+        status: "ready",
+        supportedProtocols: ["acs-protocol"],
+        operations: ["health"],
+      };
+    },
+    async listExecutionTargets() {
+      return [];
+    },
     async close() {},
   };
 }
@@ -64,6 +75,55 @@ test("GET /api/v1/dashboard returns a read-only operational summary", async () =
     assert.equal(typeof summary.executionRuns.total, "number");
     assert.ok(Array.isArray(summary.blockers));
     assert.ok(Array.isArray(summary.warnings));
+  } finally {
+    await context.close();
+  }
+});
+
+test("GET /api/v1/readiness returns a read-only readiness inspection", async () => {
+  const context = createControlPlaneContext({
+    engine: createMockEngine(),
+    startLocalWorker: false,
+  });
+  try {
+    const result = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/readiness", headers: {} },
+      "/api/v1/readiness",
+      context,
+      { correlationId: "test_readiness" },
+    );
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.success, true);
+
+    const summary = result.body.data;
+    assert.equal(summary.mode, "inspection");
+    assert.equal(summary.readOnly, true);
+    assert.equal(summary.productApi.service, "acs-product-api");
+    assert.equal(summary.productApi.status, "ok");
+    assert.equal(summary.productApi.mode, "inspection");
+    assert.equal(summary.productApi.automation, "disabled");
+    assert.equal(summary.runtime.connectivity, "connected");
+    assert.equal(summary.readiness.devReady, true);
+    assert.equal(summary.readiness.distributedRuntimeReady, false);
+    assert.equal(summary.readiness.productionReady, false);
+    assert.equal(summary.readiness.status, "blocked");
+    assert.ok(summary.readiness.blockerCount > 0);
+    assert.ok(Array.isArray(summary.readinessFlags));
+    assert.ok(summary.readinessFlags.length > 0);
+    assert.equal(summary.readinessFlags.find(flag => flag.id === "production").status, "blocked");
+    assert.ok(Array.isArray(summary.healthIndicators));
+    assert.ok(summary.healthIndicators.some(indicator => indicator.id === "infrastructure"));
+    assert.ok(Array.isArray(summary.components));
+    assert.ok(Array.isArray(summary.blockers));
+    assert.ok(summary.blockers.length > 0);
+    assert.ok(Array.isArray(summary.warnings));
+    assert.ok(Array.isArray(summary.evidence));
+    assert.ok(summary.evidence.length > 0);
+
+    const serialized = JSON.stringify(result.body);
+    assert.equal(serialized.includes("sk-"), false);
+    assert.equal(serialized.includes("apiKey"), false);
   } finally {
     await context.close();
   }

@@ -7,11 +7,21 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
-import { productApi, productApiConfig, type ApiAgent, type DashboardFinding, type DashboardSummary, type ProductApiHealth } from "./api/product-api";
+import {
+  productApi,
+  productApiConfig,
+  type ApiAgent,
+  type DashboardFinding,
+  type DashboardSummary,
+  type GlobalReadinessSummary,
+  type ProductApiHealth,
+  type ReadinessFinding,
+} from "./api/product-api";
 import "./operational.css";
 
 type View =
   | "Dashboard"
+  | "Readiness"
   | "Agents"
   | "Roles"
   | "Profiles"
@@ -30,7 +40,7 @@ type ConnectivityState =
   | { status: "error"; health: null; error: string };
 
 const navGroups: View[][] = [
-  ["Dashboard"],
+  ["Dashboard", "Readiness"],
   ["Agents", "Roles", "Profiles"],
   ["Skills", "Tools & Plugins"],
   ["Memory"],
@@ -40,6 +50,7 @@ const navGroups: View[][] = [
 
 const icons: Record<View, string> = {
   Dashboard: "⌂",
+  Readiness: "✓",
   Agents: "◫",
   Roles: "◇",
   Profiles: "▤",
@@ -53,6 +64,7 @@ const icons: Record<View, string> = {
 
 const viewPaths: Record<View, string> = {
   Dashboard: "/",
+  Readiness: "/readiness",
   Agents: "/agents",
   Roles: "/roles",
   Profiles: "/profiles",
@@ -104,6 +116,129 @@ function SummaryRow({ label, value, tone }: { label: string; value: string | num
 
 function FindingRow({ finding }: { finding: DashboardFinding }) {
   return <div className={`finding-row ${finding.severity}`}><span>{finding.severity}</span><p>{finding.message}</p></div>;
+}
+
+function ReadinessStatus({ status }: { status: string }) {
+  const tone = /ready|ok|connected/i.test(status) ? "good" : /partial|blocked|degraded|warning|unavailable|unverified/i.test(status) ? "warn" : "muted";
+  return <span className={`status ${tone}`}><i />{status}</span>;
+}
+
+function ReadinessFindingRow({ finding }: { finding: ReadinessFinding }) {
+  const severity = finding.severity === "error" ? "error" : finding.severity === "warning" ? "warning" : "info";
+  return <div className={`finding-row ${severity}`}>
+    <span>{finding.severity}</span>
+    <div className="finding-content">
+      <b>{finding.component}</b>
+      <p>{finding.reason}</p>
+      <small>{finding.recommendedRemediation}</small>
+    </div>
+  </div>;
+}
+
+type ReadinessFlag = GlobalReadinessSummary["readinessFlags"][number];
+
+function ReadinessFlagCard({ title, meta, flag, state }: {
+  title: string;
+  meta: string;
+  flag?: ReadinessFlag;
+  state: DashboardLoadState;
+}) {
+  return <DashboardCard title={title} meta={meta} state={state}>
+    {flag
+      ? <div className="readiness-flag"><div className="readiness-flag-top"><b>{flag.label}</b><ReadinessStatus status={flag.status} /></div><p>{flag.detail}</p></div>
+      : <div className="state-line empty">Readiness flag unavailable</div>}
+  </DashboardCard>;
+}
+
+function Readiness() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [summary, setSummary] = useState<GlobalReadinessSummary | null>(null);
+  const [loadState, setLoadState] = useState<DashboardLoadState>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadState("loading");
+    setLoadError(null);
+    productApi.getGlobalReadinessSummary()
+      .then(data => {
+        if (!cancelled) {
+          setSummary(data);
+          setLoadState("ready");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadError("Unable to load readiness from Product API");
+          setLoadState("error");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  const cardState = (count: number | undefined): DashboardCardState => {
+    if (loadState === "loading") return "loading";
+    if (loadState === "error") return "error";
+    return count !== undefined && count > 0 ? "ready" : "empty";
+  };
+  const flag = (id: string) => summary?.readinessFlags.find(item => item.id === id);
+  const updatedAt = summary ? new Date(summary.generatedAt).toLocaleTimeString() : "--";
+  const connectivityTone = summary?.runtime.connectivity === "connected" ? "good" : summary?.runtime.connectivity === "degraded" ? "warn" : "muted";
+
+  return <>
+    <header className="page-head compact dashboard-head">
+      <div><p className="eyebrow">OPERATIONAL AWARENESS</p><h1>Global Readiness & Health</h1><p>Read-only inspection of ACS readiness, blockers, evidence and Product API health.</p></div>
+      <button className="secondary" disabled={loadState === "loading"} onClick={() => setRefreshKey(k => k + 1)}>{loadState === "error" ? "Retry" : "Recheck"}</button>
+    </header>
+    {loadError && <div className="error-banner">{loadError}</div>}
+    <div className="dashboard-grid readiness-grid">
+      <DashboardCard title="Product API health" meta="Boundary and inspection mode" state={loadState}>
+        <div className="summary-list">
+          <SummaryRow label="Service" value={summary?.productApi.service ?? "--"} />
+          <SummaryRow label="Status" value={summary?.productApi.status ?? "--"} tone="good" />
+          <SummaryRow label="Mode" value={summary?.productApi.mode ?? "--"} />
+          <SummaryRow label="Automation" value={summary?.productApi.automation ?? "--"} />
+          <SummaryRow label="Access" value="read-only" />
+          <SummaryRow label="Checked" value={updatedAt} />
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Runtime connectivity" meta="Engine probe results" state={cardState(summary?.runtime.engines.length)} emptyMessage="No engines probed">
+        <div className="summary-list">
+          <SummaryRow label="Connectivity" value={summary?.runtime.connectivity ?? "--"} tone={connectivityTone} />
+          <SummaryRow label="Engines" value={summary?.runtime.engines.length ?? 0} />
+        </div>
+        {summary && summary.runtime.engines.length > 0 && <div className="engine-list">{summary.runtime.engines.map(engine => <span key={engine.id}><i />{engine.id}<code>{engine.status}</code></span>)}</div>}
+      </DashboardCard>
+      <ReadinessFlagCard title="DEV readiness" meta="Local control plane capability" flag={flag("dev")} state={loadState} />
+      <ReadinessFlagCard title="Distributed Runtime readiness" meta="Engine and target capability" flag={flag("distributed-runtime")} state={loadState} />
+      <ReadinessFlagCard title="Production readiness" meta="Production blockers and evidence" flag={flag("production")} state={loadState} />
+    </div>
+    <div className="dashboard-grid readiness-grid">
+      <DashboardCard title="Health indicators" meta="Live Product API health signals" state={cardState(summary?.healthIndicators.length)} emptyMessage="No health indicators available">
+        <div className="health-list">
+          {summary?.healthIndicators.map(indicator => <div className="health-row" key={indicator.id}><div><b>{indicator.label}</b><small>{indicator.detail}</small></div><ReadinessStatus status={indicator.status} /></div>)}
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Component status" meta="Consolidated domain readiness" state={cardState(summary?.components.length)} emptyMessage="No component status available">
+        <div className="component-list">
+          {summary?.components.map(component => <div className="component-row" key={component.domain}><div><b>{component.domain}</b><small>{component.currentState}</small></div><ReadinessStatus status={component.status} /></div>)}
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Readiness blockers" meta="Production-blocking findings" state={cardState(summary?.blockers.length)} emptyMessage="No readiness blockers">
+        <div className="finding-list">{summary?.blockers.map(finding => <ReadinessFindingRow key={`${finding.domain}-${finding.component}`} finding={finding} />)}</div>
+      </DashboardCard>
+      <DashboardCard title="Operational warnings" meta="Non-blocking readiness findings" state={cardState(summary?.warnings.length)} emptyMessage="No operational warnings">
+        <div className="finding-list">{summary?.warnings.map(finding => <ReadinessFindingRow key={`${finding.domain}-${finding.component}-${finding.reason}`} finding={finding} />)}</div>
+      </DashboardCard>
+      <DashboardCard title="Readiness evidence" meta="Domain evidence used for status" state={cardState(summary?.evidence.length)} emptyMessage="No readiness evidence available">
+        <div className="evidence-list">
+          {summary?.evidence.map(domain => <details className="evidence-item" key={domain.domain}><summary><b>{domain.domain}</b><ReadinessStatus status={domain.status} /></summary><p>{domain.currentState}</p><ul>{domain.evidence.map(path => <li key={path} className="mono">{path}</li>)}</ul></details>)}
+        </div>
+      </DashboardCard>
+    </div>
+  </>;
 }
 
 function Dashboard() {
@@ -412,6 +547,7 @@ export default function App() {
         <div className="content">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/readiness" element={<Readiness />} />
             <Route path="/agents" element={<Agents />} />
             <Route path="/agents/:agentId" element={<AgentRoute />} />
             <Route path="/roles" element={<GenericView view="Roles" />} />

@@ -89,6 +89,82 @@ export type DashboardSummary = {
   warnings: DashboardFinding[];
 };
 
+export type ProductApiRuntimeConnectivity = "connected" | "degraded" | "unavailable" | "unverified";
+
+export type ProductApiHealthStatus = "ok" | "degraded" | "unavailable" | "unverified";
+
+export type ProductApiReadinessFlagStatus = "ready" | "partial" | "blocked" | "unverified";
+
+export type ReadinessFinding = {
+  domain: string;
+  component: string;
+  severity: "info" | "warning" | "error";
+  currentState: string;
+  requiredState: string;
+  reason: string;
+  recommendedRemediation: string;
+  blocksProduction: boolean;
+};
+
+export type ReadinessDomainReport = {
+  domain: string;
+  status: "ready" | "partial" | "blocked";
+  currentState: string;
+  requiredState: string;
+  evidence: string[];
+  findings: ReadinessFinding[];
+};
+
+export type GlobalReadinessSummary = {
+  generatedAt: number;
+  mode: "inspection";
+  readOnly: true;
+  productApi: {
+    service: string;
+    status: "ok";
+    mode: string;
+    automation: string;
+    checkedAt: number;
+  };
+  runtime: {
+    connectivity: ProductApiRuntimeConnectivity;
+    checkedAt: number;
+    engines: {
+      id: string;
+      provider: string;
+      status: string;
+    }[];
+  };
+  healthIndicators: {
+    id: string;
+    label: string;
+    status: ProductApiHealthStatus;
+    detail: string;
+  }[];
+  readinessFlags: {
+    id: string;
+    label: string;
+    status: ProductApiReadinessFlagStatus;
+    detail: string;
+  }[];
+  readiness: {
+    devReady: boolean;
+    distributedRuntimeReady: boolean;
+    productionReady: boolean;
+    status: "ready" | "partial" | "blocked";
+    blockerCount: number;
+  };
+  components: {
+    domain: string;
+    status: "ready" | "partial" | "blocked";
+    currentState: string;
+    requiredState: string;
+  }[];
+  blockers: ReadinessFinding[];
+  warnings: ReadinessFinding[];
+  evidence: ReadinessDomainReport[];
+};
+
 export const productApiConfig = {
   baseUrl: API_BASE_URL,
   environment: import.meta.env.VITE_ACS_ENVIRONMENT ?? "local",
@@ -123,6 +199,10 @@ export const productApi = {
 
   async getDashboardSummary() {
     return request<DashboardSummary>("/dashboard");
+  },
+
+  async getGlobalReadinessSummary() {
+    return request<GlobalReadinessSummary>("/readiness");
   },
 
   async listAgents() {

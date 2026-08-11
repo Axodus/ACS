@@ -41,6 +41,7 @@ export async function routeProductApiRequest(
     runnerService: context.runnerService,
     workerRegistry: context.workerRegistry,
     workerAssignmentService: context.workerAssignmentService,
+    engineService: context.engineService,
   });
 
   const url = new URL(requestUrl, "http://localhost");
@@ -72,6 +73,13 @@ export async function routeProductApiRequest(
     if (apiPath === "dashboard" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       const summary = await api.getDashboardSummary();
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+
+    // A03 exposes only a read-only readiness inspection; it does not mutate state.
+    if (apiPath === "readiness" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const summary = await api.getGlobalReadinessSummary();
       return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
     }
 
