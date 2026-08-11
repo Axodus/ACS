@@ -280,6 +280,233 @@ export type ProductApiOperationalGuardrails = {
   mutableOperations: false;
 };
 
+export type CompositionActionName =
+  | "assignRole"
+  | "adoptRole"
+  | "assignProfile"
+  | "adoptProfile"
+  | "assignSkill"
+  | "unassignSkill"
+  | "installSkill"
+  | "removeSkill"
+  | "assignTool"
+  | "unassignTool"
+  | "installPlugin"
+  | "removePlugin"
+  | "selectEngine"
+  | "selectProvider"
+  | "selectModel";
+
+export type CompositionActionView = {
+  action: CompositionActionName;
+  label: string;
+  available: false;
+  reason: string;
+  requiresConfirmation?: boolean;
+};
+
+export type CompositionSummary = {
+  checkedAt: number;
+  stale: false;
+  guardrails: ProductApiOperationalGuardrails;
+  roleCount: number;
+  profileCount: number;
+  capabilityCount: number;
+  skillCount: number;
+  toolCount: number;
+  pluginCount: number;
+  engineCount: number;
+  providerCount: number;
+  modelCount?: number;
+  warningCount: number;
+  missingRequirementCount: number;
+  conflictCount: number;
+};
+
+export type RoleSummary = {
+  roleId: string;
+  name: string;
+  description: string;
+  capabilities: string[];
+  revision: number;
+  usageCount: number;
+  status: string;
+  availableActions: CompositionActionView[];
+};
+
+export type ProfileSummary = {
+  profileId: string;
+  name: string;
+  description: string;
+  openClawCompatible: boolean;
+  legacyProfileVisible: boolean;
+  sections: string[];
+  revision: number;
+  usageCount: number;
+  status: string;
+  availableActions: CompositionActionView[];
+};
+
+export type CapabilitySummary = {
+  capabilityId: string;
+  name: string;
+  source: string;
+  type: string;
+  level?: string;
+  requirements: string[];
+  conflicts: string[];
+  usageCount: number;
+  status: string;
+};
+
+export type SkillSummary = {
+  skillId: string;
+  name: string;
+  description: string;
+  installed: boolean;
+  assigned: boolean;
+  capabilities: string[];
+  requirements: string[];
+  compatibility: "compatible" | "unverified" | "unavailable";
+  usageCount: number;
+  availableActions: CompositionActionView[];
+};
+
+export type ToolSummary = {
+  toolId: string;
+  name: string;
+  description: string;
+  assigned: boolean;
+  capabilities: string[];
+  requirements: string[];
+  availability: "available" | "unavailable";
+  usageCount: number;
+  availableActions: CompositionActionView[];
+};
+
+export type PluginSummary = {
+  pluginId: string;
+  packageId: string;
+  name: string;
+  source: string;
+  installed: boolean;
+  dependencies: string[];
+  compatibility: "compatible" | "unverified" | "unavailable";
+  failureState: "none" | "unavailable";
+  availableActions: CompositionActionView[];
+};
+
+export type PluginPackage = {
+  packageId: string;
+  name: string;
+  source: string;
+  version?: string;
+  status: "available" | "unavailable";
+};
+
+export type PackageSource = {
+  sourceId: string;
+  name: string;
+  type: string;
+  status: "available" | "unavailable";
+};
+
+export type EngineSummary = {
+  id: string;
+  name: string;
+  type: string;
+  capabilities: string[];
+  deploymentModes: string[];
+  availability: "ready" | "degraded" | "unavailable" | "misconfigured" | "unverified";
+  credentialRequired: false;
+  compatibility: "compatible" | "unverified";
+  usageCount: number;
+  availableActions: CompositionActionView[];
+};
+
+export type ProviderSummary = {
+  id: string;
+  name: string;
+  type: string[];
+  capabilities: string[];
+  availability: "available" | "pending" | "unavailable";
+  credentialRequired: boolean;
+  compatibility: "compatible" | "pending" | "not-configured";
+  usageCount: number;
+  availableActions: CompositionActionView[];
+};
+
+export type ModelSummary = {
+  id: string;
+  name: string;
+  type: string;
+  capabilities: string[];
+  availability: "available" | "preview" | "deprecated" | "unavailable";
+  credentialRequired: boolean;
+  compatibility: "compatible" | "pending" | "not-configured";
+  usageCount: number;
+  availableActions: CompositionActionView[];
+};
+
+export type CapabilitySourceEntry = {
+  capabilityId: string;
+  name: string;
+  sources: string[];
+  status: string;
+};
+
+export type EffectiveCapabilities = {
+  agentId: string;
+  capabilityIds: string[];
+  sources: CapabilitySourceEntry[];
+  checkedAt: number;
+};
+
+export type CompatibilityReport = {
+  agentId: string;
+  missingRequirements: CompositionFinding[];
+  conflicts: CompositionFinding[];
+  warnings: CompositionFinding[];
+  ready: boolean;
+  checkedAt: number;
+};
+
+export type AgentCompositionDetail = {
+  agentId: string;
+  agentName: string;
+  currentRevisionId: number;
+  roleSummary?: RoleSummary;
+  profileSummary?: ProfileSummary;
+  effectiveCapabilities: CapabilitySourceEntry[];
+  skills: SkillSummary[];
+  tools: ToolSummary[];
+  plugins: PluginSummary[];
+  engine?: EngineSummary;
+  provider?: ProviderSummary;
+  model?: ModelSummary;
+  compatibilitySummary: CompatibilityReport;
+  missingRequirements: CompositionFinding[];
+  conflicts: CompositionFinding[];
+  readinessSummary: AgentReadinessSummary;
+  availableActions: CompositionActionView[];
+  guardrails: ProductApiOperationalGuardrails;
+  checkedAt: number;
+  stale: false;
+};
+
+export type CompositionOperationResult = {
+  ok: boolean;
+  operation: string;
+  entityType: string;
+  entityId: string;
+  status: string;
+  message: string;
+  warnings: string[];
+  errors: string[];
+  auditRef?: string;
+  completedAt: number;
+};
+
 export type ProductApiReadinessLink = {
   state: "ready" | "partial" | "blocked" | "unverified";
   blockerCount: number;
@@ -564,11 +791,99 @@ export const productApi = {
   },
 
   async listProviders() {
-    return request<unknown[]>("/providers");
+    return request<ProviderSummary[]>("/providers");
   },
 
   async listRunners() {
     return request<unknown[]>("/runners");
+  },
+
+  async getCompositionSummary() {
+    return request<CompositionSummary>("/composition/summary");
+  },
+
+  async getAgentComposition(agentId: string) {
+    return request<AgentCompositionDetail>(`/agents/${agentId}/composition`);
+  },
+
+  async getAgentEffectiveCapabilities(agentId: string) {
+    return request<EffectiveCapabilities>(`/agents/${agentId}/composition/capabilities`);
+  },
+
+  async getAgentCompositionCompatibility(agentId: string) {
+    return request<CompatibilityReport>(`/agents/${agentId}/composition/compatibility`);
+  },
+
+  async listRoles() {
+    return request<RoleSummary[]>("/roles");
+  },
+
+  async getRoleDetail(roleId: string) {
+    return request<RoleSummary>(`/roles/${roleId}`);
+  },
+
+  async listProfiles() {
+    return request<ProfileSummary[]>("/profiles");
+  },
+
+  async getProfileDetail(profileId: string) {
+    return request<ProfileSummary>(`/profiles/${profileId}`);
+  },
+
+  async listCapabilities() {
+    return request<CapabilitySummary[]>("/capabilities");
+  },
+
+  async getCapabilityDetail(capabilityId: string) {
+    return request<CapabilitySummary>(`/capabilities/${capabilityId}`);
+  },
+
+  async listSkills() {
+    return request<SkillSummary[]>("/skills");
+  },
+
+  async getSkillDetail(skillId: string) {
+    return request<SkillSummary>(`/skills/${skillId}`);
+  },
+
+  async listTools() {
+    return request<ToolSummary[]>("/tools");
+  },
+
+  async getToolDetail(toolId: string) {
+    return request<ToolSummary>(`/tools/${toolId}`);
+  },
+
+  async listPlugins() {
+    return request<PluginSummary[]>("/plugins");
+  },
+
+  async getPluginDetail(pluginId: string) {
+    return request<PluginSummary>(`/plugins/${pluginId}`);
+  },
+
+  async listPluginPackages() {
+    return request<PluginPackage[]>("/plugin-packages");
+  },
+
+  async listPackageSources() {
+    return request<PackageSource[]>("/package-sources");
+  },
+
+  async listEngines() {
+    return request<EngineSummary[]>("/engines");
+  },
+
+  async getEngineDetail(engineId: string) {
+    return request<EngineSummary>(`/engines/${engineId}`);
+  },
+
+  async getProviderDetail(providerId: string) {
+    return request<ProviderSummary>(`/providers/${providerId}`);
+  },
+
+  async listModels() {
+    return request<ModelSummary[]>("/models");
   },
 
   async deployAgent(agentId: string, data: { revision: number; composition: Record<string, unknown>; targetId: string }) {

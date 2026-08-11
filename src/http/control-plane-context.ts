@@ -6,6 +6,7 @@ import { EngineService } from "../engines/engine-service.js";
 import { createOpenClawEngineFromManifest } from "../engines/openclaw-bootstrap.js";
 import { ExecutionTargetService } from "../targets/execution-target-service.js";
 import { AgentService } from "../control-plane/agent-service.js";
+import { CompositionResourceService } from "../control-plane/composition-resources.js";
 import { DeploymentService } from "../control-plane/deployment-service.js";
 import { RuntimeLifecycleService } from "../control-plane/runtime-lifecycle-service.js";
 import { AuditService } from "../control-plane/audit-service.js";
@@ -42,6 +43,7 @@ export interface ControlPlaneContext {
   readonly engineService: EngineService;
   readonly targetService: ExecutionTargetService;
   readonly agentService: AgentService;
+  readonly compositionResources: CompositionResourceService;
   readonly deploymentService: DeploymentService;
   readonly runtimeService: RuntimeLifecycleService;
   readonly auditService: AuditService;
@@ -262,10 +264,13 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     transport: new FetchOpenCodeTransport(process.env.ACS_OPENCODE_ENDPOINT ?? "http://127.0.0.1:4096"),
   }));
 
+  const compositionResources = new CompositionResourceService();
+
   const agentService = new AgentService({
     providers: modelProviderRegistry,
     credentials,
     runners: runnerRegistry,
+    resources: compositionResources,
   });
 
   // DEV-only fixture agent for Product API integration
@@ -336,6 +341,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     engineService: new EngineService(engineRegistry),
     targetService,
     agentService,
+    compositionResources,
     deploymentService,
     runtimeService,
     auditService,

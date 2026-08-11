@@ -12,6 +12,7 @@ import {
 import {
   productApi,
   productApiConfig,
+  type AgentCompositionDetail,
   type AgentDefinition,
   type AgentDetail,
   type AgentDuplicateInput,
@@ -22,22 +23,38 @@ import {
   type AgentOperationResult,
   type AgentRevisionSummary,
   type AgentSurfaceGuardrails,
+  type CapabilitySummary,
+  type CompositionActionView,
+  type CompositionFinding,
+  type CompositionSummary,
   type DashboardFinding,
   type DashboardSummary,
+  type EngineSummary,
   type GlobalReadinessSummary,
   type GovernedAgentStatus,
+  type ModelSummary,
+  type PackageSource,
+  type PluginPackage,
+  type PluginSummary,
+  type ProfileSummary,
   type ProductApiHealth,
   type ProductApiOperationalGuardrails,
+  type ProviderSummary,
   type ReadinessFinding,
+  type RoleSummary,
+  type SkillSummary,
+  type ToolSummary,
 } from "./api/product-api";
 import "./operational.css";
 
 type View =
   | "Dashboard"
   | "Readiness"
+  | "Composition"
   | "Agents"
   | "Roles"
   | "Profiles"
+  | "Capabilities"
   | "Skills"
   | "Tools & Plugins"
   | "Memory"
@@ -51,8 +68,8 @@ type ConnectivityState =
   | { status: "error"; health: null; error: string };
 
 const navGroups: View[][] = [
-  ["Dashboard", "Readiness"],
-  ["Agents", "Roles", "Profiles"],
+  ["Dashboard", "Readiness", "Composition"],
+  ["Agents", "Roles", "Profiles", "Capabilities"],
   ["Skills", "Tools & Plugins"],
   ["Memory"],
   ["Runtime", "Logs"],
@@ -62,9 +79,11 @@ const navGroups: View[][] = [
 const icons: Record<View, string> = {
   Dashboard: "⌂",
   Readiness: "✓",
+  Composition: "◈",
   Agents: "◫",
   Roles: "◇",
   Profiles: "▤",
+  Capabilities: "✛",
   Skills: "✦",
   "Tools & Plugins": "⌘",
   Memory: "◎",
@@ -76,9 +95,11 @@ const icons: Record<View, string> = {
 const viewPaths: Record<View, string> = {
   Dashboard: "/",
   Readiness: "/readiness",
+  Composition: "/composition",
   Agents: "/agents",
   Roles: "/roles",
   Profiles: "/profiles",
+  Capabilities: "/capabilities",
   Skills: "/skills",
   "Tools & Plugins": "/plugins",
   Memory: "/memory",
@@ -87,8 +108,12 @@ const viewPaths: Record<View, string> = {
   Settings: "/settings",
 };
 
-const viewOfPath = (path: string): View | null =>
-  (Object.entries(viewPaths) as [View, string][]).find(([, p]) => p === path)?.[0] ?? null;
+const viewOfPath = (path: string): View | null => {
+  const exact = (Object.entries(viewPaths) as [View, string][]).find(([, p]) => p === path)?.[0];
+  if (exact) return exact;
+  const prefix = `/${path.split("/")[1] ?? ""}`;
+  return (Object.entries(viewPaths) as [View, string][]).find(([, p]) => p === prefix)?.[0] ?? null;
+};
 
 const SAFE_IDENTIFIER = /^[a-zA-Z0-9._:-]+$/;
 
@@ -225,6 +250,123 @@ function SummaryRow({ label, value, tone }: { label: string; value: string | num
 
 function FindingRow({ finding }: { finding: DashboardFinding }) {
   return <div className={`finding-row ${finding.severity}`}><span>{finding.severity}</span><p>{finding.message}</p></div>;
+}
+
+/* ---------------------------------------------------------------------------
+ * Milestone C — Composition surface helpers
+ * ------------------------------------------------------------------------- */
+
+function CompositionCard({ title, meta, count, state, to }: {
+  title: string;
+  meta: string;
+  count: number | undefined;
+  state: DashboardCardState;
+  to: string;
+}) {
+  return <section className={`panel dashboard-card composition-card state-${state}`}>
+    <div className="panel-head"><div><h2>{title}</h2><p>{meta}</p></div><span className="card-state">{state === "ready" ? count : state}</span></div>
+    <div className="card-body">
+      {state === "loading" && <div className="state-line">Loading operational state...</div>}
+      {state === "refreshing" && <div className="state-line">Refreshing operational state...</div>}
+      {state === "error" && <div className="state-line error">Unable to load this block.</div>}
+      {state === "empty" && <div className="state-line empty">No items available from the Product API.</div>}
+      {state === "ready" && <strong className="composition-count">{count}</strong>}
+      <Link className="surface-link" to={to}>Open {title.toLowerCase()} catalog →</Link>
+    </div>
+  </section>;
+}
+
+function CatalogPage({ eyebrow, title, description, loadState, loadError, stale, refresh, children }: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  loadState: DashboardLoadState;
+  loadError: string | null;
+  stale: boolean;
+  refresh: () => void;
+  children: ReactNode;
+}) {
+  return <>
+    <header className="page-head compact">
+      <div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    {stale && <div className="stale-banner" role="status">Showing a stale composition snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing composition...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {children}
+  </>;
+}
+
+function CatalogLoading({ message }: { message: string }) {
+  return <div className="loading-screen">{message}</div>;
+}
+
+function CatalogError({ message }: { message: string }) {
+  return <section className="panel"><div className="empty-state">{message}</div></section>;
+}
+
+function CapabilityBadges({ capabilities }: { capabilities: readonly string[] }) {
+  if (capabilities.length === 0) return <span className="unavailable">none</span>;
+  return <span className="capability-badges">{capabilities.map(capability => <code key={capability} className="capability-badge">{capability}</code>)}</span>;
+}
+
+function UnsupportedActionsPanel({ actions, note }: { actions: readonly CompositionActionView[]; note: string }) {
+  if (actions.length === 0) return null;
+  return <section className="panel wide">
+    <div className="panel-head"><div><h2>Composition actions</h2><p>{note}</p></div><Badge tone="muted">unsupported</Badge></div>
+    <div className="action-grid">
+      {actions.map(action => (
+        <div className="action-tile disabled" key={action.action}>
+          <b>{action.label}</b>
+          <span className="unsupported-badge">Unsupported · Coming later</span>
+          <small className="action-reason">{action.reason}</small>
+        </div>
+      ))}
+    </div>
+    <p className="panel-note">Unsupported actions are never simulated. The Product API governs every composition mutation; this milestone is read-only.</p>
+  </section>;
+}
+
+function CompositionFindingRow({ finding }: { finding: CompositionFinding }) {
+  return <div className={`finding-row ${finding.severity}`}><span>{finding.severity}</span><div className="finding-content"><code className="mono finding-code">{finding.code}</code><p>{finding.message}</p></div></div>;
+}
+
+function FindingSection({ title, meta, findings, emptyMessage }: {
+  title: string;
+  meta: string;
+  findings: readonly CompositionFinding[];
+  emptyMessage: string;
+}) {
+  return <section className="panel">
+    <div className="panel-head"><div><h2>{title}</h2><p>{meta}</p></div><Badge tone={findings.length > 0 ? "warn" : "good"}>{findings.length}</Badge></div>
+    <div className="panel-body">
+      {findings.length === 0
+        ? <div className="state-line empty">{emptyMessage}</div>
+        : <div className="finding-list">{findings.map((finding, index) => <CompositionFindingRow key={`${finding.code}-${index}`} finding={finding} />)}</div>}
+    </div>
+  </section>;
+}
+
+function SourceMap({ entries }: { entries: AgentCompositionDetail["effectiveCapabilities"] }) {
+  if (entries.length === 0) {
+    return <div className="state-line empty">No effective capabilities reported by the Product API.</div>;
+  }
+  return <div className="source-map">
+    {entries.map(entry => (
+      <div className="source-map-row" key={entry.capabilityId}>
+        <div className="source-map-id"><b>{entry.name}</b><code className="mono">{entry.capabilityId}</code></div>
+        <div className="source-map-sources">
+          <span>sources</span>
+          {entry.sources.length > 0
+            ? entry.sources.map(source => <code key={source} className="capability-badge">{source}</code>)
+            : <span className="unavailable">none</span>}
+        </div>
+        <Badge tone={entry.status === "active" ? "good" : entry.status === "warning" ? "warn" : "muted"}>{entry.status}</Badge>
+      </div>
+    ))}
+  </div>;
 }
 
 function ReadinessStatus({ status }: { status: string }) {
@@ -418,7 +560,7 @@ function Dashboard() {
           <SummaryRow label="Total" value={summary?.agents.total ?? 0} />
           <SummaryRow label="Active" value={summary?.agents.active ?? 0} tone="good" />
           <SummaryRow label="Draft" value={summary?.agents.draft ?? 0} />
-          <SummaryRow label="Disabled" value={summary?.agents.disabled ?? 0} tone="warn" />
+          <SummaryRow label="Disabled" value={summary?.agents.disabled ?? 0} />
           <SummaryRow label="Archived" value={summary?.agents.archived ?? 0} tone="muted" />
         </div>
       </DashboardCard>
@@ -426,8 +568,8 @@ function Dashboard() {
         <div className="summary-list">
           <SummaryRow label="Total" value={summary?.deployments.total ?? 0} />
           <SummaryRow label="Deployed" value={summary?.deployments.deployed ?? 0} tone="good" />
-          <SummaryRow label="Failed" value={summary?.deployments.failed ?? 0} tone="warn" />
-          <SummaryRow label="Rejected" value={summary?.deployments.rejected ?? 0} tone="warn" />
+          <SummaryRow label="Failed" value={summary?.deployments.failed ?? 0} />
+          <SummaryRow label="Rejected" value={summary?.deployments.rejected ?? 0} />
         </div>
       </DashboardCard>
       <DashboardCard title="Runtime summary" meta="Runtime instance states" state={cardState(summary?.runtimes.total)} emptyMessage="No runtime instances">
@@ -436,7 +578,7 @@ function Dashboard() {
           <SummaryRow label="Running" value={summary?.runtimes.running ?? 0} tone="good" />
           <SummaryRow label="Pending" value={summary?.runtimes.pending ?? 0} />
           <SummaryRow label="Stopped" value={summary?.runtimes.stopped ?? 0} tone="muted" />
-          <SummaryRow label="Failed" value={summary?.runtimes.failed ?? 0} tone="warn" />
+          <SummaryRow label="Failed" value={summary?.runtimes.failed ?? 0} />
         </div>
       </DashboardCard>
       <DashboardCard title="Worker summary" meta="Execution worker registry" state={cardState(summary?.workers.total)} emptyMessage="No workers registered">
@@ -445,7 +587,7 @@ function Dashboard() {
           <SummaryRow label="Available" value={summary?.workers.available ?? 0} tone="good" />
           <SummaryRow label="Slots" value={summary?.workers.availableSlots ?? 0} />
           <SummaryRow label="Assignments" value={summary?.workers.activeAssignments ?? 0} />
-          <SummaryRow label="Unavailable" value={summary?.workers.unavailable ?? 0} tone="warn" />
+          <SummaryRow label="Unavailable" value={summary?.workers.unavailable ?? 0} />
         </div>
       </DashboardCard>
       <DashboardCard title="ExecutionRun summary" meta="Execution run records" state={cardState(summary?.executionRuns.total)} emptyMessage="No execution runs">
@@ -454,7 +596,7 @@ function Dashboard() {
           <SummaryRow label="Running" value={summary?.executionRuns.running ?? 0} tone="good" />
           <SummaryRow label="Completed" value={summary?.executionRuns.completed ?? 0} tone="good" />
           <SummaryRow label="Pending" value={summary?.executionRuns.pending ?? 0} />
-          <SummaryRow label="Failed" value={summary?.executionRuns.failed ?? 0} tone="warn" />
+          <SummaryRow label="Failed" value={summary?.executionRuns.failed ?? 0} />
         </div>
         {summary && summary.executionRuns.recent.length > 0 && <div className="recent-runs"><b>Recent runs</b>{summary.executionRuns.recent.slice(0, 3).map(run => <span key={run.runId}><i />{run.runId}<code>{run.status}</code></span>)}</div>}
       </DashboardCard>
@@ -797,6 +939,7 @@ function AgentDetail() {
         <div className="panel-head"><div><h2>Composition summary</h2><p>Effective AgentComposition from the Product API</p></div>{composition && <Badge tone={composition.ready ? "good" : "warn"}>{composition.ready ? "ready" : "not ready"}</Badge>}</div>
         {composition
           ? <>
+            <p className="panel-note"><Link className="surface-link" to={`/agents/${detail.agentId}/composition`}>Open composition surface →</Link></p>
             <dl className="config-list">
               <div><dt>Fingerprint</dt><dd className="mono hash">{composition.fingerprint}</dd></div>
               <div><dt>Materialization</dt><dd>{composition.materialization ? `${composition.materialization.artifactType} · ${composition.materialization.artifactFingerprint}` : "none"}</dd></div>
@@ -1091,6 +1234,1019 @@ function AgentEdit() {
   return <AgentForm mode={mode} agentId={agentId} />;
 }
 
+/* ---------------------------------------------------------------------------
+ * Milestone C — Composition surface views
+ * ------------------------------------------------------------------------- */
+
+function CompositionOverview() {
+  const { data: summary, loadState, loadError, stale, refresh } = useOperationalSummary<CompositionSummary>(
+    () => productApi.getCompositionSummary(),
+    "Unable to load composition summary from Product API",
+    data => data.stale,
+  );
+  const { data: agents } = useOperationalSummary<AgentListItem[]>(
+    () => productApi.listAgents(),
+    "Unable to load agents for composition links",
+    () => false,
+  );
+
+  const cardState = (count: number | undefined): DashboardCardState => {
+    if (!summary && loadState === "loading") return "loading";
+    if (!summary && loadState === "error") return "error";
+    if (summary && loadState === "refreshing") return "refreshing";
+    return count !== undefined && count > 0 ? "ready" : "empty";
+  };
+  const signalCount = (summary?.warningCount ?? 0) + (summary?.missingRequirementCount ?? 0) + (summary?.conflictCount ?? 0);
+  const checkedAt = summary ? new Date(summary.checkedAt).toLocaleTimeString() : "--";
+
+  return <>
+    <header className="page-head compact dashboard-head">
+      <div><p className="eyebrow">COMPOSITION SURFACE</p><h1>Composition</h1><p>Operational summary of the elements that form an Agent, sourced from the Product API.</p></div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <OperationalModeNotice guardrails={summary?.guardrails} />
+    {stale && <div className="stale-banner" role="status">Showing a stale composition snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing composition...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    <div className="composition-grid">
+      <CompositionCard title="Roles" meta="Role catalog and revisions" count={summary?.roleCount} state={cardState(summary?.roleCount)} to="/roles" />
+      <CompositionCard title="Profiles" meta="Profile catalog and OpenClaw state" count={summary?.profileCount} state={cardState(summary?.profileCount)} to="/profiles" />
+      <CompositionCard title="Capabilities" meta="Capability registry" count={summary?.capabilityCount} state={cardState(summary?.capabilityCount)} to="/capabilities" />
+      <CompositionCard title="Skills" meta="Installed and assigned skills" count={summary?.skillCount} state={cardState(summary?.skillCount)} to="/skills" />
+      <CompositionCard title="Tools" meta="Assigned and available tools" count={summary?.toolCount} state={cardState(summary?.toolCount)} to="/plugins" />
+      <CompositionCard title="Plugins" meta="Plugin packages and sources" count={summary?.pluginCount} state={cardState(summary?.pluginCount)} to="/plugins" />
+      <CompositionCard title="Engines" meta="Engine registry" count={summary?.engineCount} state={cardState(summary?.engineCount)} to="/engines" />
+      <CompositionCard title="Providers" meta="Provider registry and credentials" count={summary?.providerCount} state={cardState(summary?.providerCount)} to="/engines" />
+      <CompositionCard title="Models" meta="Model catalog" count={summary?.modelCount} state={cardState(summary?.modelCount)} to="/engines" />
+    </div>
+    <div className="dashboard-grid composition-detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Composition health</h2><p>Operational signals from the Product API</p></div><Badge tone={signalCount > 0 ? "warn" : "good"}>{signalCount > 0 ? "attention" : "clean"}</Badge></div>
+        <div className="summary-list card-body">
+          <SummaryRow label="Warnings" value={summary?.warningCount ?? 0} tone={(summary?.warningCount ?? 0) > 0 ? "warn" : "good"} />
+          <SummaryRow label="Missing requirements" value={summary?.missingRequirementCount ?? 0} tone={(summary?.missingRequirementCount ?? 0) > 0 ? "warn" : "good"} />
+          <SummaryRow label="Conflicts" value={summary?.conflictCount ?? 0} tone={(summary?.conflictCount ?? 0) > 0 ? "warn" : "good"} />
+          <SummaryRow label="Checked" value={checkedAt} />
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Agent compositions</h2><p>Convergence point for every composition block</p></div></div>
+        <div className="panel-body">
+          {!agents
+            ? <div className="state-line">Loading agent compositions...</div>
+            : agents.length === 0
+              ? <div className="state-line empty">No agents registered.</div>
+              : <div className="agent-composition-links">
+                {agents.map(agent => (
+                  <Link className="agent-composition-link" to={`/agents/${agent.agentId}/composition`} key={agent.agentId}>
+                    <div><b>{agent.name}</b><small className="mono">{agent.agentId}</small></div>
+                    <Badge tone={agent.compositionSummary.ready ? "good" : "warn"}>{agent.compositionSummary.ready ? "ready" : `${agent.compositionSummary.errorCount} errors`}</Badge>
+                  </Link>
+                ))}
+              </div>}
+        </div>
+      </section>
+    </div>
+  </>;
+}
+
+function AgentCompositionView() {
+  const { agentId } = useParams();
+  if (!agentId) return <Navigate to="/agents" replace />;
+  return <AgentCompositionSurface key={agentId} agentId={agentId} />;
+}
+
+function AgentCompositionSurface({ agentId }: { agentId: string }) {
+  const { data: composition, loadState, loadError, stale, refresh } = useOperationalSummary<AgentCompositionDetail>(
+    () => productApi.getAgentComposition(agentId),
+    "Unable to load agent composition from Product API",
+    data => data.stale,
+  );
+
+  if (loadState === "loading" && !composition) return <><Link className="back" to={`/agents/${agentId}`}>← Agent</Link><CatalogLoading message="Loading agent composition..." /></>;
+  if (loadState === "error" && !composition) return <><Link className="back" to={`/agents/${agentId}`}>← Agent</Link><CatalogError message={loadError ?? "Agent composition not found"} /></>;
+  if (!composition) return <div className="empty-state">Agent composition not found</div>;
+
+  const compat = composition.compatibilitySummary;
+  return <>
+    <Link className="back" to={`/agents/${agentId}`}>← Agent detail</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale composition snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agent composition...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{composition.agentName}</h1><Badge tone={compat.ready ? "good" : "warn"}>{compat.ready ? "compatible" : "attention"}</Badge></div>
+          <p className="mono">{composition.agentId} · current revision r{composition.currentRevisionId}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Role</h2><p>Active role on this Agent</p></div>{composition.roleSummary && <Badge tone="good">assigned</Badge>}</div>
+        <div className="panel-body">
+          {composition.roleSummary
+            ? <dl className="config-list">
+              <div><dt>Role</dt><dd><Link className="surface-link" to={`/roles/${composition.roleSummary.roleId}`}>{composition.roleSummary.name}</Link></dd></div>
+              <div><dt>Role ID</dt><dd className="mono">{composition.roleSummary.roleId}</dd></div>
+              <div><dt>Revision</dt><dd className="mono">r{composition.roleSummary.revision}</dd></div>
+              <div><dt>Status</dt><dd><Status status={composition.roleSummary.status} /></dd></div>
+            </dl>
+            : <div className="state-line empty">No role assigned to this Agent.</div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Profile</h2><p>Active profile on this Agent</p></div>{composition.profileSummary && <Badge tone="good">assigned</Badge>}</div>
+        <div className="panel-body">
+          {composition.profileSummary
+            ? <dl className="config-list">
+              <div><dt>Profile</dt><dd><Link className="surface-link" to={`/profiles/${composition.profileSummary.profileId}`}>{composition.profileSummary.name}</Link></dd></div>
+              <div><dt>Profile ID</dt><dd className="mono">{composition.profileSummary.profileId}</dd></div>
+              <div><dt>Revision</dt><dd className="mono">r{composition.profileSummary.revision}</dd></div>
+              <div><dt>OpenClaw compatible</dt><dd>{composition.profileSummary.openClawCompatible ? "Yes" : "No"}</dd></div>
+              <div><dt>Legacy profile visible</dt><dd>{composition.profileSummary.legacyProfileVisible ? "Yes" : "No"}</dd></div>
+            </dl>
+            : <div className="state-line empty">No profile assigned to this Agent.</div>}
+        </div>
+      </section>
+      <section className="panel wide">
+        <div className="panel-head"><div><h2>Effective capabilities</h2><p>Capability source map from the Product API — never recomputed in the UI</p></div><Badge tone="good">{composition.effectiveCapabilities.length}</Badge></div>
+        <div className="panel-body"><SourceMap entries={composition.effectiveCapabilities} /></div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Skills</h2><p>Assigned and available skills</p></div><Badge tone={composition.skills.length > 0 ? "good" : "muted"}>{composition.skills.length}</Badge></div>
+        <div className="panel-body">
+          {composition.skills.length === 0
+            ? <div className="state-line empty">No skills on this Agent.</div>
+            : <div className="catalog-list compact">
+              {composition.skills.map(skill => (
+                <Link className="catalog-row" to={`/skills/${skill.skillId}`} key={skill.skillId}>
+                  <div className="catalog-row-main"><b>{skill.name}</b><small className="mono">{skill.skillId}</small></div>
+                  <div className="catalog-badges">
+                    {skill.assigned && <Badge tone="good">assigned</Badge>}
+                    {skill.installed && <Badge tone="good">installed</Badge>}
+                    <Badge tone={skill.compatibility === "compatible" ? "good" : "warn"}>{skill.compatibility}</Badge>
+                  </div>
+                </Link>
+              ))}
+            </div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Tools</h2><p>Assigned and available tools</p></div><Badge tone={composition.tools.length > 0 ? "good" : "muted"}>{composition.tools.length}</Badge></div>
+        <div className="panel-body">
+          {composition.tools.length === 0
+            ? <div className="state-line empty">No tools on this Agent.</div>
+            : <div className="catalog-list compact">
+              {composition.tools.map(tool => (
+                <Link className="catalog-row" to={`/tools/${tool.toolId}`} key={tool.toolId}>
+                  <div className="catalog-row-main"><b>{tool.name}</b><small className="mono">{tool.toolId}</small></div>
+                  <div className="catalog-badges">
+                    {tool.assigned && <Badge tone="good">assigned</Badge>}
+                    <Badge tone={tool.availability === "available" ? "good" : "warn"}>{tool.availability}</Badge>
+                  </div>
+                </Link>
+              ))}
+            </div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Plugins</h2><p>Plugin state on this Agent</p></div><Badge tone={composition.plugins.length > 0 ? "good" : "muted"}>{composition.plugins.length}</Badge></div>
+        <div className="panel-body">
+          {composition.plugins.length === 0
+            ? <div className="state-line empty">No plugins on this Agent. Plugin installations are not supported in this milestone.</div>
+            : <div className="catalog-list compact">
+              {composition.plugins.map(plugin => (
+                <div className="catalog-row" key={plugin.pluginId}>
+                  <div className="catalog-row-main"><b>{plugin.name}</b><small className="mono">{plugin.pluginId}</small></div>
+                  <div className="catalog-badges">
+                    {plugin.installed && <Badge tone="good">installed</Badge>}
+                    {plugin.failureState !== "none" && <Badge tone="warn">failure</Badge>}
+                    <Badge tone={plugin.compatibility === "compatible" ? "good" : "warn"}>{plugin.compatibility}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Engine / Provider / Model</h2><p>Selected composition references</p></div>{composition.engine && <Badge tone="good">selected</Badge>}</div>
+        <div className="panel-body">
+          <dl className="config-list">
+            <div><dt>Engine</dt><dd>{composition.engine ? <Link className="surface-link" to={`/engines/${composition.engine.id}`}>{composition.engine.name}</Link> : "none"}</dd></div>
+            <div><dt>Provider</dt><dd>{composition.provider ? <Link className="surface-link" to={`/providers/${composition.provider.id}`}>{composition.provider.name}</Link> : "none"}</dd></div>
+            <div><dt>Model</dt><dd className="mono">{composition.model ? composition.model.id : "none"}</dd></div>
+          </dl>
+          <p className="panel-note">Selection actions are governed by the Product API and are not supported in this milestone.</p>
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Compatibility summary</h2><p>From the Product API — never recomputed in the UI</p></div><Badge tone={compat.ready ? "good" : "warn"}>{compat.ready ? "ready" : "not ready"}</Badge></div>
+        <dl className="config-list">
+          <div><dt>Missing requirements</dt><dd>{compat.missingRequirements.length}</dd></div>
+          <div><dt>Conflicts</dt><dd>{compat.conflicts.length}</dd></div>
+          <div><dt>Warnings</dt><dd>{compat.warnings.length}</dd></div>
+          <div><dt>Checked</dt><dd><Time value={compat.checkedAt} /></dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Readiness summary</h2><p>Reference only — readiness truth stays in the Product API</p></div><ReadinessBadge summary={composition.readinessSummary} /></div>
+        <dl className="config-list">
+          <div><dt>State</dt><dd>{composition.readinessSummary.state}</dd></div>
+          <div><dt>Blockers</dt><dd>{composition.readinessSummary.blockerCount}</dd></div>
+          <div><dt>Warnings</dt><dd>{composition.readinessSummary.warningCount}</dd></div>
+        </dl>
+      </section>
+      <FindingSection title="Missing requirements" meta="Required but absent composition elements" findings={composition.missingRequirements} emptyMessage="No missing requirements reported." />
+      <FindingSection title="Conflicts" meta="Incompatible or conflicting composition elements" findings={composition.conflicts} emptyMessage="No conflicts reported." />
+      <FindingSection title="Compatibility warnings" meta="Non-blocking compatibility findings" findings={compat.warnings} emptyMessage="No compatibility warnings reported." />
+      <UnsupportedActionsPanel actions={composition.availableActions} note="Composition mutations on this Agent" />
+    </div>
+  </>;
+}
+
+function RoleCatalog() {
+  const { data: roles, loadState, loadError, stale, refresh } = useOperationalSummary<RoleSummary[]>(
+    () => productApi.listRoles(),
+    "Unable to load roles from Product API",
+    () => false,
+  );
+  return <CatalogPage eyebrow="ROLE & PROFILE COMPOSITION" title="Roles" description="Role catalog with capabilities, revisions and usage from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
+    {loadState === "loading" && !roles && <CatalogLoading message="Loading roles..." />}
+    {loadState === "error" && !roles && <CatalogError message={loadError ?? "Unable to load roles"} />}
+    {roles && roles.length === 0 && <section className="panel"><div className="empty-state">No roles registered in the Product API.</div></section>}
+    {roles && roles.length > 0 && <section className="catalog-list">
+      {roles.map(role => (
+        <Link className="catalog-row" to={`/roles/${role.roleId}`} key={role.roleId}>
+          <div className="catalog-row-main"><b>{role.name}</b><small className="mono">{role.roleId}</small><p>{role.description}</p></div>
+          <div className="catalog-badges">
+            <Status status={role.status} />
+            <span className="tag mono">r{role.revision}</span>
+            <span className="catalog-count">{role.capabilities.length} capabilities</span>
+            <span className="catalog-count">{role.usageCount} agents</span>
+          </div>
+        </Link>
+      ))}
+    </section>}
+  </CatalogPage>;
+}
+
+function RoleDetail() {
+  const { roleId } = useParams();
+  if (!roleId) return <Navigate to="/roles" replace />;
+  return <RoleDetailSurface key={roleId} roleId={roleId} />;
+}
+
+function RoleDetailSurface({ roleId }: { roleId: string }) {
+  const { data: role, loadState, loadError, stale, refresh } = useOperationalSummary<RoleSummary>(
+    () => productApi.getRoleDetail(roleId),
+    "Unable to load role from Product API",
+    () => false,
+  );
+  if (loadState === "loading" && !role) return <><Link className="back" to="/roles">← Roles</Link><CatalogLoading message="Loading role..." /></>;
+  if (loadState === "error" && !role) return <><Link className="back" to="/roles">← Roles</Link><CatalogError message={loadError ?? "Role not found"} /></>;
+  if (!role) return <div className="empty-state">Role not found</div>;
+  return <>
+    <Link className="back" to="/roles">← Roles</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale role snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing role...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{role.name}</h1><Status status={role.status} /></div>
+          <p className="mono">{role.roleId} · revision r{role.revision}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Role</h2><p>Catalog entry from the Product API</p></div></div>
+        <dl className="config-list">
+          <div><dt>Role ID</dt><dd className="mono">{role.roleId}</dd></div>
+          <div><dt>Name</dt><dd>{role.name}</dd></div>
+          <div><dt>Description</dt><dd>{role.description}</dd></div>
+          <div><dt>Revision</dt><dd className="mono">r{role.revision}</dd></div>
+          <div><dt>Status</dt><dd><Status status={role.status} /></dd></div>
+          <div><dt>Used by agents</dt><dd>{role.usageCount}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Role capabilities</h2><p>Capabilities granted by this role</p></div><Badge tone={role.capabilities.length > 0 ? "good" : "muted"}>{role.capabilities.length}</Badge></div>
+        <div className="panel-body"><IdList label="Capabilities" ids={role.capabilities} /></div>
+      </section>
+      <UnsupportedActionsPanel actions={role.availableActions} note="Role assignment and adoption" />
+    </div>
+  </>;
+}
+
+function ProfileCatalog() {
+  const { data: profiles, loadState, loadError, stale, refresh } = useOperationalSummary<ProfileSummary[]>(
+    () => productApi.listProfiles(),
+    "Unable to load profiles from Product API",
+    () => false,
+  );
+  return <CatalogPage eyebrow="ROLE & PROFILE COMPOSITION" title="Profiles" description="Profile catalog with sections, OpenClaw-compatible state and legacy visibility from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
+    {loadState === "loading" && !profiles && <CatalogLoading message="Loading profiles..." />}
+    {loadState === "error" && !profiles && <CatalogError message={loadError ?? "Unable to load profiles"} />}
+    {profiles && profiles.length === 0 && <section className="panel"><div className="empty-state">No profiles registered in the Product API.</div></section>}
+    {profiles && profiles.length > 0 && <section className="catalog-list">
+      {profiles.map(profile => (
+        <Link className="catalog-row" to={`/profiles/${profile.profileId}`} key={profile.profileId}>
+          <div className="catalog-row-main"><b>{profile.name}</b><small className="mono">{profile.profileId}</small><p>{profile.description}</p></div>
+          <div className="catalog-badges">
+            <Status status={profile.status} />
+            {profile.openClawCompatible && <Badge tone="good">openclaw-compatible</Badge>}
+            {profile.legacyProfileVisible && <Badge tone="warn">legacy visible</Badge>}
+            <span className="tag mono">r{profile.revision}</span>
+            <span className="catalog-count">{profile.sections.length} sections</span>
+            <span className="catalog-count">{profile.usageCount} agents</span>
+          </div>
+        </Link>
+      ))}
+    </section>}
+  </CatalogPage>;
+}
+
+function ProfileDetail() {
+  const { profileId } = useParams();
+  if (!profileId) return <Navigate to="/profiles" replace />;
+  return <ProfileDetailSurface key={profileId} profileId={profileId} />;
+}
+
+function ProfileDetailSurface({ profileId }: { profileId: string }) {
+  const { data: profile, loadState, loadError, stale, refresh } = useOperationalSummary<ProfileSummary>(
+    () => productApi.getProfileDetail(profileId),
+    "Unable to load profile from Product API",
+    () => false,
+  );
+  if (loadState === "loading" && !profile) return <><Link className="back" to="/profiles">← Profiles</Link><CatalogLoading message="Loading profile..." /></>;
+  if (loadState === "error" && !profile) return <><Link className="back" to="/profiles">← Profiles</Link><CatalogError message={loadError ?? "Profile not found"} /></>;
+  if (!profile) return <div className="empty-state">Profile not found</div>;
+  return <>
+    <Link className="back" to="/profiles">← Profiles</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale profile snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing profile...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{profile.name}</h1><Status status={profile.status} /></div>
+          <p className="mono">{profile.profileId} · revision r{profile.revision}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Profile</h2><p>Catalog entry from the Product API</p></div></div>
+        <dl className="config-list">
+          <div><dt>Profile ID</dt><dd className="mono">{profile.profileId}</dd></div>
+          <div><dt>Name</dt><dd>{profile.name}</dd></div>
+          <div><dt>Description</dt><dd>{profile.description}</dd></div>
+          <div><dt>Revision</dt><dd className="mono">r{profile.revision}</dd></div>
+          <div><dt>Status</dt><dd><Status status={profile.status} /></dd></div>
+          <div><dt>OpenClaw compatible</dt><dd>{profile.openClawCompatible ? "Yes" : "No"}</dd></div>
+          <div><dt>Legacy profile visible</dt><dd>{profile.legacyProfileVisible ? "Yes" : "No"}</dd></div>
+          <div><dt>Used by agents</dt><dd>{profile.usageCount}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Profile sections</h2><p>Composition sections carried by this profile</p></div><Badge tone={profile.sections.length > 0 ? "good" : "muted"}>{profile.sections.length}</Badge></div>
+        <div className="panel-body">
+          {profile.sections.length === 0
+            ? <div className="state-line empty">No sections reported.</div>
+            : <div className="catalog-list compact">{profile.sections.map(section => <div className="catalog-row" key={section}><div className="catalog-row-main"><b>{section}</b></div></div>)}</div>}
+        </div>
+      </section>
+      <UnsupportedActionsPanel actions={profile.availableActions} note="Profile assignment and adoption" />
+    </div>
+  </>;
+}
+
+function CapabilityCatalog() {
+  const { data: capabilities, loadState, loadError, stale, refresh } = useOperationalSummary<CapabilitySummary[]>(
+    () => productApi.listCapabilities(),
+    "Unable to load capabilities from Product API",
+    () => false,
+  );
+  const [source, setSource] = useState("all");
+  const [type, setType] = useState("all");
+  const [status, setStatus] = useState("all");
+
+  const sources = Array.from(new Set((capabilities ?? []).map(capability => capability.source))).sort();
+  const types = Array.from(new Set((capabilities ?? []).map(capability => capability.type))).sort();
+  const statuses = Array.from(new Set((capabilities ?? []).map(capability => capability.status))).sort();
+  const filtered = (capabilities ?? []).filter(capability =>
+    (source === "all" || capability.source === source)
+    && (type === "all" || capability.type === type)
+    && (status === "all" || capability.status === status));
+
+  return <CatalogPage eyebrow="CAPABILITY MODEL" title="Capabilities" description="Capability registry from the Product API. Filters and badges are presentation only — effective capability truth is never recomputed here." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
+    {loadState === "loading" && !capabilities && <CatalogLoading message="Loading capabilities..." />}
+    {loadState === "error" && !capabilities && <CatalogError message={loadError ?? "Unable to load capabilities"} />}
+    {capabilities && capabilities.length === 0 && <section className="panel"><div className="empty-state">No capabilities registered in the Product API.</div></section>}
+    {capabilities && capabilities.length > 0 && <>
+      <div className="toolbar">
+        <select className="filter select-filter" value={source} onChange={e => setSource(e.target.value)} aria-label="Filter by source">
+          <option value="all">All sources</option>
+          {sources.map(item => <option value={item} key={item}>{item}</option>)}
+        </select>
+        <select className="filter select-filter" value={type} onChange={e => setType(e.target.value)} aria-label="Filter by type">
+          <option value="all">All types</option>
+          {types.map(item => <option value={item} key={item}>{item}</option>)}
+        </select>
+        <select className="filter select-filter" value={status} onChange={e => setStatus(e.target.value)} aria-label="Filter by status">
+          <option value="all">All statuses</option>
+          {statuses.map(item => <option value={item} key={item}>{item}</option>)}
+        </select>
+        <span className="env-chip">{filtered.length} of {capabilities.length}</span>
+      </div>
+      {filtered.length === 0
+        ? <section className="panel"><div className="empty-state">No capabilities match the selected filters.</div></section>
+        : <section className="catalog-list">
+          {filtered.map(capability => (
+            <Link className="catalog-row" to={`/capabilities/${capability.capabilityId}`} key={capability.capabilityId}>
+              <div className="catalog-row-main"><b>{capability.name}</b><small className="mono">{capability.capabilityId}</small></div>
+              <div className="catalog-badges">
+                <Status status={capability.status} />
+                <Badge tone="muted">{capability.source}</Badge>
+                <Badge tone="muted">{capability.type}</Badge>
+                {capability.level && <Badge tone="muted">{capability.level}</Badge>}
+                <span className="catalog-count">{capability.usageCount} agents</span>
+              </div>
+            </Link>
+          ))}
+        </section>}
+    </>}
+  </CatalogPage>;
+}
+
+function CapabilityDetail() {
+  const { capabilityId } = useParams();
+  if (!capabilityId) return <Navigate to="/capabilities" replace />;
+  return <CapabilityDetailSurface key={capabilityId} capabilityId={capabilityId} />;
+}
+
+function CapabilityDetailSurface({ capabilityId }: { capabilityId: string }) {
+  const { data: capability, loadState, loadError, stale, refresh } = useOperationalSummary<CapabilitySummary>(
+    () => productApi.getCapabilityDetail(capabilityId),
+    "Unable to load capability from Product API",
+    () => false,
+  );
+  if (loadState === "loading" && !capability) return <><Link className="back" to="/capabilities">← Capabilities</Link><CatalogLoading message="Loading capability..." /></>;
+  if (loadState === "error" && !capability) return <><Link className="back" to="/capabilities">← Capabilities</Link><CatalogError message={loadError ?? "Capability not found"} /></>;
+  if (!capability) return <div className="empty-state">Capability not found</div>;
+  return <>
+    <Link className="back" to="/capabilities">← Capabilities</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale capability snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing capability...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{capability.name}</h1><Status status={capability.status} /></div>
+          <p className="mono">{capability.capabilityId}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Capability</h2><p>Registry entry from the Product API</p></div></div>
+        <dl className="config-list">
+          <div><dt>Capability ID</dt><dd className="mono">{capability.capabilityId}</dd></div>
+          <div><dt>Name</dt><dd>{capability.name}</dd></div>
+          <div><dt>Source</dt><dd>{capability.source}</dd></div>
+          <div><dt>Type</dt><dd>{capability.type}</dd></div>
+          <div><dt>Level</dt><dd>{capability.level ?? "—"}</dd></div>
+          <div><dt>Status</dt><dd><Status status={capability.status} /></dd></div>
+          <div><dt>Used by agents</dt><dd>{capability.usageCount}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Requirements</h2><p>Prerequisites reported by the Product API</p></div><Badge tone={capability.requirements.length > 0 ? "warn" : "good"}>{capability.requirements.length}</Badge></div>
+        <div className="panel-body"><IdList label="Requirements" ids={capability.requirements} /></div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Conflicts</h2><p>Conflicting capabilities reported by the Product API</p></div><Badge tone={capability.conflicts.length > 0 ? "warn" : "good"}>{capability.conflicts.length}</Badge></div>
+        <div className="panel-body"><IdList label="Conflicts" ids={capability.conflicts} /></div>
+      </section>
+    </div>
+  </>;
+}
+
+function SkillCatalog() {
+  const { data: skills, loadState, loadError, stale, refresh } = useOperationalSummary<SkillSummary[]>(
+    () => productApi.listSkills(),
+    "Unable to load skills from Product API",
+    () => false,
+  );
+  return <CatalogPage eyebrow="SKILLS MANAGEMENT" title="Skills" description="Skill catalog with installed, assigned and compatibility state from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
+    {loadState === "loading" && !skills && <CatalogLoading message="Loading skills..." />}
+    {loadState === "error" && !skills && <CatalogError message={loadError ?? "Unable to load skills"} />}
+    {skills && skills.length === 0 && <section className="panel"><div className="empty-state">No skills registered in the Product API.</div></section>}
+    {skills && skills.length > 0 && <section className="catalog-list">
+      {skills.map(skill => (
+        <Link className="catalog-row" to={`/skills/${skill.skillId}`} key={skill.skillId}>
+          <div className="catalog-row-main"><b>{skill.name}</b><small className="mono">{skill.skillId}</small><p>{skill.description}</p></div>
+          <div className="catalog-badges">
+            {skill.installed && <Badge tone="good">installed</Badge>}
+            {skill.assigned && <Badge tone="good">assigned</Badge>}
+            <Badge tone={skill.compatibility === "compatible" ? "good" : "warn"}>{skill.compatibility}</Badge>
+            <span className="catalog-count">{skill.capabilities.length} capabilities</span>
+            <span className="catalog-count">{skill.usageCount} agents</span>
+          </div>
+        </Link>
+      ))}
+    </section>}
+  </CatalogPage>;
+}
+
+function SkillDetail() {
+  const { skillId } = useParams();
+  if (!skillId) return <Navigate to="/skills" replace />;
+  return <SkillDetailSurface key={skillId} skillId={skillId} />;
+}
+
+function SkillDetailSurface({ skillId }: { skillId: string }) {
+  const { data: skill, loadState, loadError, stale, refresh } = useOperationalSummary<SkillSummary>(
+    () => productApi.getSkillDetail(skillId),
+    "Unable to load skill from Product API",
+    () => false,
+  );
+  if (loadState === "loading" && !skill) return <><Link className="back" to="/skills">← Skills</Link><CatalogLoading message="Loading skill..." /></>;
+  if (loadState === "error" && !skill) return <><Link className="back" to="/skills">← Skills</Link><CatalogError message={loadError ?? "Skill not found"} /></>;
+  if (!skill) return <div className="empty-state">Skill not found</div>;
+  return <>
+    <Link className="back" to="/skills">← Skills</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale skill snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing skill...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{skill.name}</h1>{skill.installed && <Badge tone="good">installed</Badge>}{skill.assigned && <Badge tone="good">assigned</Badge>}</div>
+          <p className="mono">{skill.skillId}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Skill</h2><p>Catalog entry from the Product API</p></div></div>
+        <dl className="config-list">
+          <div><dt>Skill ID</dt><dd className="mono">{skill.skillId}</dd></div>
+          <div><dt>Name</dt><dd>{skill.name}</dd></div>
+          <div><dt>Description</dt><dd>{skill.description}</dd></div>
+          <div><dt>Installed</dt><dd>{skill.installed ? "Yes" : "No"}</dd></div>
+          <div><dt>Assigned</dt><dd>{skill.assigned ? "Yes" : "No"}</dd></div>
+          <div><dt>Compatibility</dt><dd><Status status={skill.compatibility} /></dd></div>
+          <div><dt>Used by agents</dt><dd>{skill.usageCount}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Skill capabilities</h2><p>Capabilities provided by this skill</p></div><Badge tone={skill.capabilities.length > 0 ? "good" : "muted"}>{skill.capabilities.length}</Badge></div>
+        <div className="panel-body"><IdList label="Capabilities" ids={skill.capabilities} /></div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Requirements</h2><p>Prerequisites reported by the Product API</p></div><Badge tone={skill.requirements.length > 0 ? "warn" : "good"}>{skill.requirements.length}</Badge></div>
+        <div className="panel-body"><IdList label="Requirements" ids={skill.requirements} /></div>
+      </section>
+      <UnsupportedActionsPanel actions={skill.availableActions} note="Skill assignment, unassignment, install and removal" />
+    </div>
+  </>;
+}
+
+function ToolsPluginsCatalog() {
+  const { data: tools, loadState, loadError, stale, refresh } = useOperationalSummary<ToolSummary[]>(
+    () => productApi.listTools(),
+    "Unable to load tools from Product API",
+    () => false,
+  );
+  const { data: plugins, loadState: pluginsState, loadError: pluginsError } = useOperationalSummary<PluginSummary[]>(
+    () => productApi.listPlugins(),
+    "Unable to load plugins from Product API",
+    () => false,
+  );
+  const { data: packages, loadState: packagesState, loadError: packagesError } = useOperationalSummary<PluginPackage[]>(
+    () => productApi.listPluginPackages(),
+    "Unable to load plugin packages from Product API",
+    () => false,
+  );
+  const { data: sources, loadState: sourcesState, loadError: sourcesError } = useOperationalSummary<PackageSource[]>(
+    () => productApi.listPackageSources(),
+    "Unable to load package sources from Product API",
+    () => false,
+  );
+
+  return <>
+    <header className="page-head compact">
+      <div><p className="eyebrow">TOOLS & PLUGINS MANAGEMENT</p><h1>Tools & Plugins</h1><p>Tool catalog, plugin packages and package sources from the Product API.</p></div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    {stale && <div className="stale-banner" role="status">Showing a stale snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing tools and plugins...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    <section className="panel">
+      <div className="panel-head"><div><h2>Tool catalog</h2><p>Assigned and available tools</p></div><Badge tone={tools && tools.length > 0 ? "good" : "muted"}>{tools?.length ?? 0}</Badge></div>
+      {loadState === "loading" && !tools && <div className="state-line card-body">Loading tools...</div>}
+      {loadState === "error" && !tools && <div className="state-line error card-body">Unable to load tools.</div>}
+      {tools && tools.length === 0 && <div className="state-line empty card-body">No tools registered in the Product API.</div>}
+      {tools && tools.length > 0 && <div className="catalog-list card-body">
+        {tools.map(tool => (
+          <Link className="catalog-row" to={`/tools/${tool.toolId}`} key={tool.toolId}>
+            <div className="catalog-row-main"><b>{tool.name}</b><small className="mono">{tool.toolId}</small><p>{tool.description}</p></div>
+            <div className="catalog-badges">
+              {tool.assigned && <Badge tone="good">assigned</Badge>}
+              <Badge tone={tool.availability === "available" ? "good" : "warn"}>{tool.availability}</Badge>
+              <span className="catalog-count">{tool.capabilities.length} capabilities</span>
+              <span className="catalog-count">{tool.usageCount} agents</span>
+            </div>
+          </Link>
+        ))}
+      </div>}
+    </section>
+    <div className="dashboard-grid composition-detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Plugin packages</h2><p>Package catalog from the Product API</p></div><Badge tone={packages && packages.length > 0 ? "good" : "muted"}>{packages?.length ?? 0}</Badge></div>
+        <div className="panel-body">
+          {packagesState === "loading" && !packages && <div className="state-line">Loading plugin packages...</div>}
+          {packagesError && <div className="state-line error">{packagesError}</div>}
+          {packages && packages.length === 0 && <div className="state-line empty">No plugin packages available. Plugin installation is unsupported in this milestone.</div>}
+          {packages && packages.length > 0 && <div className="catalog-list compact">
+            {packages.map(pkg => (
+              <div className="catalog-row" key={pkg.packageId}>
+                <div className="catalog-row-main"><b>{pkg.name}</b><small className="mono">{pkg.packageId}</small></div>
+                <div className="catalog-badges">
+                  <Badge tone="muted">{pkg.source}</Badge>
+                  {pkg.version && <span className="tag mono">{pkg.version}</span>}
+                  <Badge tone={pkg.status === "available" ? "good" : "warn"}>{pkg.status}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Package sources</h2><p>Plugin package sources</p></div><Badge tone={sources && sources.length > 0 ? "good" : "muted"}>{sources?.length ?? 0}</Badge></div>
+        <div className="panel-body">
+          {sourcesState === "loading" && !sources && <div className="state-line">Loading package sources...</div>}
+          {sourcesError && <div className="state-line error">{sourcesError}</div>}
+          {sources && sources.length === 0 && <div className="state-line empty">No package sources reported by the Product API.</div>}
+          {sources && sources.length > 0 && <div className="catalog-list compact">
+            {sources.map(source => (
+              <div className="catalog-row" key={source.sourceId}>
+                <div className="catalog-row-main"><b>{source.name}</b><small className="mono">{source.sourceId}</small></div>
+                <div className="catalog-badges">
+                  <Badge tone="muted">{source.type}</Badge>
+                  <Badge tone={source.status === "available" ? "good" : "warn"}>{source.status}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>}
+        </div>
+      </section>
+    </div>
+    <section className="panel">
+      <div className="panel-head"><div><h2>Plugin installations</h2><p>Installed plugins on this workspace</p></div><Badge tone={plugins && plugins.length > 0 ? "good" : "muted"}>{plugins?.length ?? 0}</Badge></div>
+      <div className="panel-body">
+        {pluginsState === "loading" && !plugins && <div className="state-line">Loading plugin installations...</div>}
+        {pluginsError && <div className="state-line error">{pluginsError}</div>}
+        {plugins && plugins.length === 0 && <div className="state-line empty">No plugin installations. Install and remove actions are unsupported in this milestone.</div>}
+        {plugins && plugins.length > 0 && <div className="catalog-list compact">
+          {plugins.map(plugin => (
+            <div className="catalog-row" key={plugin.pluginId}>
+              <div className="catalog-row-main"><b>{plugin.name}</b><small className="mono">{plugin.pluginId} · {plugin.packageId}</small></div>
+              <div className="catalog-badges">
+                {plugin.installed && <Badge tone="good">installed</Badge>}
+                {plugin.failureState !== "none" && <Badge tone="warn">{plugin.failureState}</Badge>}
+                <Badge tone={plugin.compatibility === "compatible" ? "good" : "warn"}>{plugin.compatibility}</Badge>
+                {plugin.dependencies.length > 0 && <Badge tone="warn">{plugin.dependencies.length} deps</Badge>}
+              </div>
+            </div>
+          ))}
+        </div>}
+      </div>
+    </section>
+  </>;
+}
+
+function ToolDetail() {
+  const { toolId } = useParams();
+  if (!toolId) return <Navigate to="/plugins" replace />;
+  return <ToolDetailSurface key={toolId} toolId={toolId} />;
+}
+
+function ToolDetailSurface({ toolId }: { toolId: string }) {
+  const { data: tool, loadState, loadError, stale, refresh } = useOperationalSummary<ToolSummary>(
+    () => productApi.getToolDetail(toolId),
+    "Unable to load tool from Product API",
+    () => false,
+  );
+  if (loadState === "loading" && !tool) return <><Link className="back" to="/plugins">← Tools & Plugins</Link><CatalogLoading message="Loading tool..." /></>;
+  if (loadState === "error" && !tool) return <><Link className="back" to="/plugins">← Tools & Plugins</Link><CatalogError message={loadError ?? "Tool not found"} /></>;
+  if (!tool) return <div className="empty-state">Tool not found</div>;
+  return <>
+    <Link className="back" to="/plugins">← Tools & Plugins</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale tool snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing tool...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{tool.name}</h1>{tool.assigned && <Badge tone="good">assigned</Badge>}</div>
+          <p className="mono">{tool.toolId}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Tool</h2><p>Catalog entry from the Product API</p></div></div>
+        <dl className="config-list">
+          <div><dt>Tool ID</dt><dd className="mono">{tool.toolId}</dd></div>
+          <div><dt>Name</dt><dd>{tool.name}</dd></div>
+          <div><dt>Description</dt><dd>{tool.description}</dd></div>
+          <div><dt>Assigned</dt><dd>{tool.assigned ? "Yes" : "No"}</dd></div>
+          <div><dt>Availability</dt><dd><Status status={tool.availability} /></dd></div>
+          <div><dt>Used by agents</dt><dd>{tool.usageCount}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Tool capabilities</h2><p>Capabilities provided by this tool</p></div><Badge tone={tool.capabilities.length > 0 ? "good" : "muted"}>{tool.capabilities.length}</Badge></div>
+        <div className="panel-body"><IdList label="Capabilities" ids={tool.capabilities} /></div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Requirements</h2><p>Prerequisites reported by the Product API</p></div><Badge tone={tool.requirements.length > 0 ? "warn" : "good"}>{tool.requirements.length}</Badge></div>
+        <div className="panel-body"><IdList label="Requirements" ids={tool.requirements} /></div>
+      </section>
+      <UnsupportedActionsPanel actions={tool.availableActions} note="Tool assignment and unassignment" />
+    </div>
+  </>;
+}
+
+function PluginDetail() {
+  const { pluginId } = useParams();
+  if (!pluginId) return <Navigate to="/plugins" replace />;
+  return <PluginDetailSurface key={pluginId} pluginId={pluginId} />;
+}
+
+function PluginDetailSurface({ pluginId }: { pluginId: string }) {
+  const { data: plugin, loadState, loadError, stale, refresh } = useOperationalSummary<PluginSummary>(
+    () => productApi.getPluginDetail(pluginId),
+    "Unable to load plugin from Product API",
+    () => false,
+  );
+  if (loadState === "loading" && !plugin) return <><Link className="back" to="/plugins">← Tools & Plugins</Link><CatalogLoading message="Loading plugin..." /></>;
+  if (loadState === "error" && !plugin) return <><Link className="back" to="/plugins">← Tools & Plugins</Link><CatalogError message={loadError ?? "Plugin not found"} /></>;
+  if (!plugin) return <div className="empty-state">Plugin not found</div>;
+  return <>
+    <Link className="back" to="/plugins">← Tools & Plugins</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale plugin snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing plugin...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{plugin.name}</h1>{plugin.installed && <Badge tone="good">installed</Badge>}</div>
+          <p className="mono">{plugin.pluginId}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Plugin</h2><p>Catalog entry from the Product API</p></div></div>
+        <dl className="config-list">
+          <div><dt>Plugin ID</dt><dd className="mono">{plugin.pluginId}</dd></div>
+          <div><dt>Package</dt><dd className="mono">{plugin.packageId}</dd></div>
+          <div><dt>Name</dt><dd>{plugin.name}</dd></div>
+          <div><dt>Source</dt><dd>{plugin.source}</dd></div>
+          <div><dt>Installed</dt><dd>{plugin.installed ? "Yes" : "No"}</dd></div>
+          <div><dt>Compatibility</dt><dd><Status status={plugin.compatibility} /></dd></div>
+          <div><dt>Failure state</dt><dd>{plugin.failureState}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Dependencies</h2><p>Plugin dependency truth from the Product API</p></div><Badge tone={plugin.dependencies.length > 0 ? "warn" : "good"}>{plugin.dependencies.length}</Badge></div>
+        <div className="panel-body"><IdList label="Dependencies" ids={plugin.dependencies} /></div>
+      </section>
+      <UnsupportedActionsPanel actions={plugin.availableActions} note="Plugin installation and removal" />
+    </div>
+  </>;
+}
+
+function EngineCatalog() {
+  const { data: engines, loadState, loadError, stale, refresh } = useOperationalSummary<EngineSummary[]>(
+    () => productApi.listEngines(),
+    "Unable to load engines from Product API",
+    () => false,
+  );
+  const { data: providers, loadState: providersState, loadError: providersError } = useOperationalSummary<ProviderSummary[]>(
+    () => productApi.listProviders(),
+    "Unable to load providers from Product API",
+    () => false,
+  );
+  const { data: models, loadState: modelsState, loadError: modelsError } = useOperationalSummary<ModelSummary[]>(
+    () => productApi.listModels(),
+    "Unable to load models from Product API",
+    () => false,
+  );
+
+  return <>
+    <header className="page-head compact">
+      <div><p className="eyebrow">MODELS, ENGINES & PROVIDERS</p><h1>Engines, Providers & Models</h1><p>Composition registries from the Product API. Credential requirements are shown; credential management stays out of scope.</p></div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    {stale && <div className="stale-banner" role="status">Showing a stale snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing engine registries...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    <section className="panel">
+      <div className="panel-head"><div><h2>Engine registry</h2><p>Available execution engines</p></div><Badge tone={engines && engines.length > 0 ? "good" : "muted"}>{engines?.length ?? 0}</Badge></div>
+      <div className="panel-body">
+        {loadState === "loading" && !engines && <div className="state-line">Loading engines...</div>}
+        {loadState === "error" && !engines && <div className="state-line error">Unable to load engines.</div>}
+        {engines && engines.length === 0 && <div className="state-line empty">No engines reported by the Product API.</div>}
+        {engines && engines.length > 0 && <div className="catalog-list compact">
+          {engines.map(engine => (
+            <Link className="catalog-row" to={`/engines/${engine.id}`} key={engine.id}>
+              <div className="catalog-row-main"><b>{engine.name}</b><small className="mono">{engine.id}</small><CapabilityBadges capabilities={engine.capabilities} /></div>
+              <div className="catalog-badges">
+                <Badge tone={engine.availability === "ready" ? "good" : engine.availability === "degraded" ? "warn" : "muted"}>{engine.availability}</Badge>
+                <Badge tone={engine.compatibility === "compatible" ? "good" : "warn"}>{engine.compatibility}</Badge>
+                <span className="catalog-count">{engine.deploymentModes.join(", ")}</span>
+              </div>
+            </Link>
+          ))}
+        </div>}
+      </div>
+    </section>
+    <div className="dashboard-grid composition-detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Provider registry</h2><p>Model providers and credential requirements</p></div><Badge tone={providers && providers.length > 0 ? "good" : "muted"}>{providers?.length ?? 0}</Badge></div>
+        <div className="panel-body">
+          {providersState === "loading" && !providers && <div className="state-line">Loading providers...</div>}
+          {providersError && <div className="state-line error">{providersError}</div>}
+          {providers && providers.length === 0 && <div className="state-line empty">No providers reported by the Product API.</div>}
+          {providers && providers.length > 0 && <div className="catalog-list compact">
+            {providers.map(provider => (
+              <Link className="catalog-row" to={`/providers/${provider.id}`} key={provider.id}>
+                <div className="catalog-row-main"><b>{provider.name}</b><small className="mono">{provider.id}</small></div>
+                <div className="catalog-badges">
+                  <Badge tone={provider.availability === "available" ? "good" : provider.availability === "pending" ? "warn" : "muted"}>{provider.availability}</Badge>
+                  {provider.credentialRequired && <Badge tone="warn">credential required</Badge>}
+                  <Badge tone={provider.compatibility === "compatible" ? "good" : "warn"}>{provider.compatibility}</Badge>
+                </div>
+              </Link>
+            ))}
+          </div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Model catalog</h2><p>Models available for composition</p></div><Badge tone={models && models.length > 0 ? "good" : "muted"}>{models?.length ?? 0}</Badge></div>
+        <div className="panel-body">
+          {modelsState === "loading" && !models && <div className="state-line">Loading models...</div>}
+          {modelsError && <div className="state-line error">{modelsError}</div>}
+          {models && models.length === 0 && <div className="state-line empty">No models reported by the Product API.</div>}
+          {models && models.length > 0 && <div className="catalog-list compact">
+            {models.map(model => (
+              <div className="catalog-row" key={model.id}>
+                <div className="catalog-row-main"><b>{model.name}</b><small className="mono">{model.id}</small><CapabilityBadges capabilities={model.capabilities} /></div>
+                <div className="catalog-badges">
+                  <Badge tone={model.availability === "available" ? "good" : model.availability === "preview" ? "warn" : "muted"}>{model.availability}</Badge>
+                  {model.credentialRequired && <Badge tone="warn">credential required</Badge>}
+                  <Badge tone={model.compatibility === "compatible" ? "good" : "warn"}>{model.compatibility}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>}
+        </div>
+      </section>
+    </div>
+    <section className="panel">
+      <div className="panel-head"><div><h2>Selection actions</h2><p>Engine / Provider / Model selection for AgentComposition</p></div><Badge tone="muted">unsupported</Badge></div>
+      <p className="panel-note">Selecting an engine, provider or model for an AgentComposition is governed by the Product API and is not supported in this milestone. Compatibility shown here never implies deploy planning — deployment planning belongs to Operational Execution.</p>
+    </section>
+  </>;
+}
+
+function EngineDetail() {
+  const { engineId } = useParams();
+  if (!engineId) return <Navigate to="/engines" replace />;
+  return <EngineDetailSurface key={engineId} engineId={engineId} />;
+}
+
+function EngineDetailSurface({ engineId }: { engineId: string }) {
+  const { data: engine, loadState, loadError, stale, refresh } = useOperationalSummary<EngineSummary>(
+    () => productApi.getEngineDetail(engineId),
+    "Unable to load engine from Product API",
+    () => false,
+  );
+  if (loadState === "loading" && !engine) return <><Link className="back" to="/engines">← Engines</Link><CatalogLoading message="Loading engine..." /></>;
+  if (loadState === "error" && !engine) return <><Link className="back" to="/engines">← Engines</Link><CatalogError message={loadError ?? "Engine not found"} /></>;
+  if (!engine) return <div className="empty-state">Engine not found</div>;
+  return <>
+    <Link className="back" to="/engines">← Engines</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale engine snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing engine...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{engine.name}</h1><Status status={engine.availability} /></div>
+          <p className="mono">{engine.id} · {engine.type}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Engine</h2><p>Registry entry from the Product API</p></div></div>
+        <dl className="config-list">
+          <div><dt>Engine ID</dt><dd className="mono">{engine.id}</dd></div>
+          <div><dt>Name</dt><dd>{engine.name}</dd></div>
+          <div><dt>Type</dt><dd>{engine.type}</dd></div>
+          <div><dt>Availability</dt><dd><Status status={engine.availability} /></dd></div>
+          <div><dt>Compatibility</dt><dd><Status status={engine.compatibility} /></dd></div>
+          <div><dt>Credential required</dt><dd>No</dd></div>
+          <div><dt>Deployment modes</dt><dd>{engine.deploymentModes.join(", ")}</dd></div>
+          <div><dt>Used by agents</dt><dd>{engine.usageCount}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Engine capabilities</h2><p>Capabilities provided by this engine</p></div><Badge tone={engine.capabilities.length > 0 ? "good" : "muted"}>{engine.capabilities.length}</Badge></div>
+        <div className="panel-body"><IdList label="Capabilities" ids={engine.capabilities} /></div>
+      </section>
+      <UnsupportedActionsPanel actions={engine.availableActions} note="Engine selection for AgentComposition" />
+    </div>
+  </>;
+}
+
+function ProviderDetail() {
+  const { providerId } = useParams();
+  if (!providerId) return <Navigate to="/engines" replace />;
+  return <ProviderDetailSurface key={providerId} providerId={providerId} />;
+}
+
+function ProviderDetailSurface({ providerId }: { providerId: string }) {
+  const { data: provider, loadState, loadError, stale, refresh } = useOperationalSummary<ProviderSummary>(
+    () => productApi.getProviderDetail(providerId),
+    "Unable to load provider from Product API",
+    () => false,
+  );
+  if (loadState === "loading" && !provider) return <><Link className="back" to="/engines">← Engines</Link><CatalogLoading message="Loading provider..." /></>;
+  if (loadState === "error" && !provider) return <><Link className="back" to="/engines">← Engines</Link><CatalogError message={loadError ?? "Provider not found"} /></>;
+  if (!provider) return <div className="empty-state">Provider not found</div>;
+  return <>
+    <Link className="back" to="/engines">← Engines</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale provider snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing provider...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <div>
+          <div className="title-status"><h1>{provider.name}</h1><Status status={provider.availability} /></div>
+          <p className="mono">{provider.id} · {provider.type.join(", ")}</p>
+        </div>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Provider</h2><p>Registry entry from the Product API</p></div></div>
+        <dl className="config-list">
+          <div><dt>Provider ID</dt><dd className="mono">{provider.id}</dd></div>
+          <div><dt>Name</dt><dd>{provider.name}</dd></div>
+          <div><dt>Type</dt><dd>{provider.type.join(", ")}</dd></div>
+          <div><dt>Availability</dt><dd><Status status={provider.availability} /></dd></div>
+          <div><dt>Credential required</dt><dd>{provider.credentialRequired ? "Yes — visible requirement only; credentials are never exposed" : "No"}</dd></div>
+          <div><dt>Compatibility</dt><dd><Status status={provider.compatibility} /></dd></div>
+          <div><dt>Used by agents</dt><dd>{provider.usageCount}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Provider capabilities</h2><p>Capabilities provided by this provider</p></div><Badge tone={provider.capabilities.length > 0 ? "good" : "muted"}>{provider.capabilities.length}</Badge></div>
+        <div className="panel-body"><IdList label="Capabilities" ids={provider.capabilities} /></div>
+      </section>
+      <UnsupportedActionsPanel actions={provider.availableActions} note="Provider selection for AgentComposition" />
+    </div>
+  </>;
+}
+
 function GenericView({ view }: { view: View }) {
   return <>
     <header className="page-head compact"><div><p className="eyebrow">ACS CORE</p><h1>{view}</h1><p>Manage {view.toLowerCase()} available to this local workspace.</p></div><button className="primary">＋ New {view}</button></header>
@@ -1166,11 +2322,14 @@ export default function App() {
     setMobile(false);
   };
   const view = viewOfPath(location.pathname);
-  const agentDetail = location.pathname.startsWith("/agents/") && location.pathname !== "/agents";
+  const agentDetail = location.pathname.startsWith("/agents/") && location.pathname !== "/agents" && !location.pathname.includes("/composition");
+  const compositionRoute = location.pathname.includes("/composition");
   const title = location.pathname === "/agents/new"
     ? "Create Agent"
     : location.pathname.includes("/edit")
       ? "Edit Agent"
+      : compositionRoute
+        ? "Agent Composition"
       : agentDetail
         ? "Agent Detail"
         : (view ?? "ACS");
@@ -1199,10 +2358,22 @@ export default function App() {
             <Route path="/agents/new" element={<AgentCreate />} />
             <Route path="/agents/:agentId/edit" element={<AgentEdit />} />
             <Route path="/agents/:agentId" element={<AgentDetail />} />
-            <Route path="/roles" element={<GenericView view="Roles" />} />
-            <Route path="/profiles" element={<GenericView view="Profiles" />} />
-            <Route path="/skills" element={<GenericView view="Skills" />} />
-            <Route path="/plugins" element={<GenericView view="Tools & Plugins" />} />
+            <Route path="/agents/:agentId/composition" element={<AgentCompositionView />} />
+            <Route path="/composition" element={<CompositionOverview />} />
+            <Route path="/roles" element={<RoleCatalog />} />
+            <Route path="/roles/:roleId" element={<RoleDetail />} />
+            <Route path="/profiles" element={<ProfileCatalog />} />
+            <Route path="/profiles/:profileId" element={<ProfileDetail />} />
+            <Route path="/capabilities" element={<CapabilityCatalog />} />
+            <Route path="/capabilities/:capabilityId" element={<CapabilityDetail />} />
+            <Route path="/skills" element={<SkillCatalog />} />
+            <Route path="/skills/:skillId" element={<SkillDetail />} />
+            <Route path="/plugins" element={<ToolsPluginsCatalog />} />
+            <Route path="/tools/:toolId" element={<ToolDetail />} />
+            <Route path="/plugins/:pluginId" element={<PluginDetail />} />
+            <Route path="/engines" element={<EngineCatalog />} />
+            <Route path="/engines/:engineId" element={<EngineDetail />} />
+            <Route path="/providers/:providerId" element={<ProviderDetail />} />
             <Route path="/memory" element={<GenericView view="Memory" />} />
             <Route path="/runtime" element={<Runtime />} />
             <Route path="/logs" element={<Logs />} />

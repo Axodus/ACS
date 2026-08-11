@@ -3,6 +3,7 @@ import type {
   AgentLifecycleActionName,
   AgentLifecycleState,
   AgentRevisionHistoryRecord,
+  AgentCompositionResult,
   AgentService,
 } from "./agent-service.js";
 import { AgentLifecycleGuardError } from "./agent-service.js";
@@ -10,6 +11,7 @@ import type {
   AgentComposition,
   AgentDefinition,
   AgentRevision,
+  CompositionFinding,
   GovernedAgentStatus,
 } from "./unified-agent-model.js";
 import type { DeploymentService, DeploymentRecord, DeploymentRequest } from "./deployment-service.js";
@@ -17,9 +19,26 @@ import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord
 import type { AuditService, AuditEvent, AuditQueryFilter } from "./audit-service.js";
 import type { ExecutionTargetService } from "../targets/execution-target-service.js";
 import type { ModelProviderService } from "../intelligence/model-provider-service.js";
+import type {
+  ModelDefinition,
+  ModelProvider,
+  ModelProviderCapabilities,
+} from "../intelligence/model-provider.js";
+import { createCanonicalModelId } from "../intelligence/model-provider.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
+import type { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
 import { EngineSandboxOnlyError } from "../engines/engine-errors.js";
 import type { EngineService } from "../engines/engine-service.js";
+import type { AgentEngine, EngineCapabilities } from "../engines/agent-engine.js";
+import { NotFoundError } from "../errors.js";
+import type {
+  CompositionResourceService,
+  GovernedCapabilityResource,
+  GovernedProfileResource,
+  GovernedRoleResource,
+  GovernedSkillResource,
+  GovernedToolResource,
+} from "./composition-resources.js";
 import type { ExecutionWorkerRegistry } from "../workers/worker-registry.js";
 import type { WorkerAssignmentService } from "../workers/worker-assignment-service.js";
 import {
@@ -41,6 +60,8 @@ export interface ProductApiClientOptions {
   readonly workerRegistry?: ExecutionWorkerRegistry;
   readonly workerAssignmentService?: WorkerAssignmentService;
   readonly engineService?: EngineService;
+  readonly compositionResources?: CompositionResourceService;
+  readonly credentialRegistry?: CredentialConnectionRegistry;
   readonly baseUrl?: string;
 }
 
@@ -80,6 +101,31 @@ const OPERATIONAL_GUARDRAILS: ProductApiOperationalGuardrails = {
   readOnly: true,
   mutableOperations: false,
 };
+
+const COMPOSITION_MUTATION_UNSUPPORTED_REASON =
+  "Governed by Product API — composition mutations are not supported in this milestone.";
+
+function unsupportedCompositionAction(action: CompositionActionName, label: string): CompositionActionView {
+  return { action, label, available: false, reason: COMPOSITION_MUTATION_UNSUPPORTED_REASON };
+}
+
+const COMPOSITION_ACTIONS: readonly CompositionActionView[] = [
+  unsupportedCompositionAction("assignRole", "Assign role"),
+  unsupportedCompositionAction("adoptRole", "Adopt role revision"),
+  unsupportedCompositionAction("assignProfile", "Assign profile"),
+  unsupportedCompositionAction("adoptProfile", "Adopt profile revision"),
+  unsupportedCompositionAction("assignSkill", "Assign skill"),
+  unsupportedCompositionAction("unassignSkill", "Unassign skill"),
+  unsupportedCompositionAction("installSkill", "Install skill"),
+  unsupportedCompositionAction("removeSkill", "Remove skill"),
+  unsupportedCompositionAction("assignTool", "Assign tool"),
+  unsupportedCompositionAction("unassignTool", "Unassign tool"),
+  unsupportedCompositionAction("installPlugin", "Install plugin"),
+  unsupportedCompositionAction("removePlugin", "Remove plugin"),
+  unsupportedCompositionAction("selectEngine", "Select engine"),
+  unsupportedCompositionAction("selectProvider", "Select provider"),
+  unsupportedCompositionAction("selectModel", "Select model"),
+];
 
 export type AgentEnvironment = "sandbox";
 
@@ -206,6 +252,233 @@ export interface AgentOperationResult {
   readonly errors: readonly string[];
   readonly auditRef?: string;
   readonly checkedAt: number;
+}
+
+export type CompositionActionName =
+  | "assignRole"
+  | "adoptRole"
+  | "assignProfile"
+  | "adoptProfile"
+  | "assignSkill"
+  | "unassignSkill"
+  | "installSkill"
+  | "removeSkill"
+  | "assignTool"
+  | "unassignTool"
+  | "installPlugin"
+  | "removePlugin"
+  | "selectEngine"
+  | "selectProvider"
+  | "selectModel";
+
+export interface CompositionActionView {
+  readonly action: CompositionActionName;
+  readonly label: string;
+  readonly available: false;
+  readonly reason: string;
+  readonly requiresConfirmation?: boolean;
+}
+
+export interface CompositionSummary {
+  readonly checkedAt: number;
+  readonly stale: false;
+  readonly guardrails: ProductApiOperationalGuardrails;
+  readonly roleCount: number;
+  readonly profileCount: number;
+  readonly capabilityCount: number;
+  readonly skillCount: number;
+  readonly toolCount: number;
+  readonly pluginCount: number;
+  readonly engineCount: number;
+  readonly providerCount: number;
+  readonly modelCount?: number;
+  readonly warningCount: number;
+  readonly missingRequirementCount: number;
+  readonly conflictCount: number;
+}
+
+export interface RoleSummary {
+  readonly roleId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly capabilities: readonly string[];
+  readonly revision: number;
+  readonly usageCount: number;
+  readonly status: string;
+  readonly availableActions: readonly CompositionActionView[];
+}
+
+export interface ProfileSummary {
+  readonly profileId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly openClawCompatible: boolean;
+  readonly legacyProfileVisible: boolean;
+  readonly sections: readonly string[];
+  readonly revision: number;
+  readonly usageCount: number;
+  readonly status: string;
+  readonly availableActions: readonly CompositionActionView[];
+}
+
+export interface CapabilitySummary {
+  readonly capabilityId: string;
+  readonly name: string;
+  readonly source: string;
+  readonly type: string;
+  readonly level?: string;
+  readonly requirements: readonly string[];
+  readonly conflicts: readonly string[];
+  readonly usageCount: number;
+  readonly status: string;
+}
+
+export interface SkillSummary {
+  readonly skillId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly installed: boolean;
+  readonly assigned: boolean;
+  readonly capabilities: readonly string[];
+  readonly requirements: readonly string[];
+  readonly compatibility: "compatible" | "unverified" | "unavailable";
+  readonly usageCount: number;
+  readonly availableActions: readonly CompositionActionView[];
+}
+
+export interface ToolSummary {
+  readonly toolId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly assigned: boolean;
+  readonly capabilities: readonly string[];
+  readonly requirements: readonly string[];
+  readonly availability: "available" | "unavailable";
+  readonly usageCount: number;
+  readonly availableActions: readonly CompositionActionView[];
+}
+
+export interface PluginSummary {
+  readonly pluginId: string;
+  readonly packageId: string;
+  readonly name: string;
+  readonly source: string;
+  readonly installed: boolean;
+  readonly dependencies: readonly string[];
+  readonly compatibility: "compatible" | "unverified" | "unavailable";
+  readonly failureState: "none" | "unavailable";
+  readonly availableActions: readonly CompositionActionView[];
+}
+
+export interface PluginPackage {
+  readonly packageId: string;
+  readonly name: string;
+  readonly source: string;
+  readonly version?: string;
+  readonly status: "available" | "unavailable";
+}
+
+export interface PackageSource {
+  readonly sourceId: string;
+  readonly name: string;
+  readonly type: string;
+  readonly status: "available" | "unavailable";
+}
+
+export interface EngineSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly type: string;
+  readonly capabilities: readonly string[];
+  readonly deploymentModes: readonly string[];
+  readonly availability: "ready" | "degraded" | "unavailable" | "misconfigured" | "unverified";
+  readonly credentialRequired: false;
+  readonly compatibility: "compatible" | "unverified";
+  readonly usageCount: number;
+  readonly availableActions: readonly CompositionActionView[];
+}
+
+export interface ProviderSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly type: readonly string[];
+  readonly capabilities: readonly string[];
+  readonly availability: "available" | "pending" | "unavailable";
+  readonly credentialRequired: boolean;
+  readonly compatibility: "compatible" | "pending" | "not-configured";
+  readonly usageCount: number;
+  readonly availableActions: readonly CompositionActionView[];
+}
+
+export interface ModelSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly type: string;
+  readonly capabilities: readonly string[];
+  readonly availability: "available" | "preview" | "deprecated" | "unavailable";
+  readonly credentialRequired: boolean;
+  readonly compatibility: "compatible" | "pending" | "not-configured";
+  readonly usageCount: number;
+  readonly availableActions: readonly CompositionActionView[];
+}
+
+export interface CapabilitySourceEntry {
+  readonly capabilityId: string;
+  readonly name: string;
+  readonly sources: readonly string[];
+  readonly status: string;
+}
+
+export interface EffectiveCapabilities {
+  readonly agentId: string;
+  readonly capabilityIds: readonly string[];
+  readonly sources: readonly CapabilitySourceEntry[];
+  readonly checkedAt: number;
+}
+
+export interface CompatibilityReport {
+  readonly agentId: string;
+  readonly missingRequirements: readonly CompositionFinding[];
+  readonly conflicts: readonly CompositionFinding[];
+  readonly warnings: readonly CompositionFinding[];
+  readonly ready: boolean;
+  readonly checkedAt: number;
+}
+
+export interface AgentCompositionDetail {
+  readonly agentId: string;
+  readonly agentName: string;
+  readonly currentRevisionId: number;
+  readonly roleSummary?: RoleSummary;
+  readonly profileSummary?: ProfileSummary;
+  readonly effectiveCapabilities: readonly CapabilitySourceEntry[];
+  readonly skills: readonly SkillSummary[];
+  readonly tools: readonly ToolSummary[];
+  readonly plugins: readonly PluginSummary[];
+  readonly engine?: EngineSummary;
+  readonly provider?: ProviderSummary;
+  readonly model?: ModelSummary;
+  readonly compatibilitySummary: CompatibilityReport;
+  readonly missingRequirements: readonly CompositionFinding[];
+  readonly conflicts: readonly CompositionFinding[];
+  readonly readinessSummary: AgentReadinessSummary;
+  readonly availableActions: readonly CompositionActionView[];
+  readonly guardrails: ProductApiOperationalGuardrails;
+  readonly checkedAt: number;
+  readonly stale: false;
+}
+
+export interface CompositionOperationResult {
+  readonly ok: boolean;
+  readonly operation: string;
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly status: string;
+  readonly message: string;
+  readonly warnings: readonly string[];
+  readonly errors: readonly string[];
+  readonly auditRef?: string;
+  readonly completedAt: number;
 }
 
 export interface AgentCreateInput {
@@ -416,6 +689,8 @@ export class ProductApiClient {
   readonly #workerRegistry: ExecutionWorkerRegistry | undefined;
   readonly #workerAssignmentService: WorkerAssignmentService | undefined;
   readonly #engineService: EngineService | undefined;
+  readonly #compositionResources: CompositionResourceService | undefined;
+  readonly #credentialRegistry: CredentialConnectionRegistry | undefined;
   readonly #baseUrl: string | undefined;
 
   constructor(options: ProductApiClientOptions = {}) {
@@ -429,6 +704,8 @@ export class ProductApiClient {
     this.#workerRegistry = options.workerRegistry;
     this.#workerAssignmentService = options.workerAssignmentService;
     this.#engineService = options.engineService;
+    this.#compositionResources = options.compositionResources;
+    this.#credentialRegistry = options.credentialRegistry;
     this.#baseUrl = options.baseUrl;
   }
 
@@ -591,13 +868,6 @@ export class ProductApiClient {
     return [];
   }
 
-  async listProviders(): Promise<readonly unknown[]> {
-    if (this.#providerService) {
-      return this.#providerService.listProviders();
-    }
-    return [];
-  }
-
   async listRunners(): Promise<readonly unknown[]> {
     if (this.#runnerService) {
       return this.#runnerService.listRunners();
@@ -663,6 +933,214 @@ export class ProductApiClient {
       return this.#auditService.queryEvents(filter);
     }
     return [];
+  }
+
+  async getCompositionSummary(): Promise<CompositionSummary> {
+    const checkedAt = Date.now();
+    const models = await this.listModels();
+    const roleCount = this.#compositionResources?.listRoles().length ?? 0;
+    const profileCount = this.#compositionResources?.listProfiles().length ?? 0;
+    const capabilityCount = this.#compositionResources?.listCapabilities().length ?? 0;
+    const skillCount = this.#compositionResources?.listSkills().length ?? 0;
+    const toolCount = this.#compositionResources?.listTools().length ?? 0;
+    const engineCount = this.#engineService?.listEngines().length ?? 0;
+    const providerCount = this.#providerService?.listProviders().length ?? 0;
+    const findings = this.#compositionFindingsAggregate();
+    return {
+      checkedAt,
+      stale: false,
+      guardrails: OPERATIONAL_GUARDRAILS,
+      roleCount,
+      profileCount,
+      capabilityCount,
+      skillCount,
+      toolCount,
+      pluginCount: 0,
+      engineCount,
+      providerCount,
+      ...(models.length > 0 ? { modelCount: models.length } : {}),
+      warningCount: findings.warningCount,
+      missingRequirementCount: findings.missingRequirementCount,
+      conflictCount: findings.conflictCount,
+    };
+  }
+
+  async listRoles(): Promise<readonly RoleSummary[]> {
+    if (!this.#compositionResources) {
+      return [];
+    }
+    return this.#compositionResources.listRoles().map((role) => this.#roleSummary(role));
+  }
+
+  async getRoleDetail(roleId: string): Promise<RoleSummary> {
+    if (!this.#compositionResources) {
+      throw new NotFoundError("role", roleId);
+    }
+    return this.#roleSummary(this.#compositionResources.getRole(roleId));
+  }
+
+  async listProfiles(): Promise<readonly ProfileSummary[]> {
+    if (!this.#compositionResources) {
+      return [];
+    }
+    return this.#compositionResources.listProfiles().map((profile) => this.#profileSummary(profile));
+  }
+
+  async getProfileDetail(profileId: string): Promise<ProfileSummary> {
+    if (!this.#compositionResources) {
+      throw new NotFoundError("profile", profileId);
+    }
+    return this.#profileSummary(this.#compositionResources.getProfile(profileId));
+  }
+
+  async listCapabilities(): Promise<readonly CapabilitySummary[]> {
+    if (!this.#compositionResources) {
+      return [];
+    }
+    return this.#compositionResources.listCapabilities().map((capability) => this.#capabilitySummary(capability));
+  }
+
+  async getCapabilityDetail(capabilityId: string): Promise<CapabilitySummary> {
+    if (!this.#compositionResources) {
+      throw new NotFoundError("capability", capabilityId);
+    }
+    return this.#capabilitySummary(this.#compositionResources.getCapability(capabilityId));
+  }
+
+  async listSkills(): Promise<readonly SkillSummary[]> {
+    if (!this.#compositionResources) {
+      return [];
+    }
+    return this.#compositionResources.listSkills().map((skill) => this.#skillSummary(skill, false));
+  }
+
+  async getSkillDetail(skillId: string): Promise<SkillSummary> {
+    if (!this.#compositionResources) {
+      throw new NotFoundError("skill", skillId);
+    }
+    return this.#skillSummary(this.#compositionResources.getSkill(skillId), false);
+  }
+
+  async listTools(): Promise<readonly ToolSummary[]> {
+    if (!this.#compositionResources) {
+      return [];
+    }
+    return this.#compositionResources.listTools().map((tool) => this.#toolSummary(tool, false));
+  }
+
+  async getToolDetail(toolId: string): Promise<ToolSummary> {
+    if (!this.#compositionResources) {
+      throw new NotFoundError("tool", toolId);
+    }
+    return this.#toolSummary(this.#compositionResources.getTool(toolId), false);
+  }
+
+  async listPlugins(): Promise<readonly PluginSummary[]> {
+    return [];
+  }
+
+  async getPluginDetail(pluginId: string): Promise<PluginSummary> {
+    throw new NotFoundError("plugin", pluginId);
+  }
+
+  async listPluginPackages(): Promise<readonly PluginPackage[]> {
+    return [];
+  }
+
+  async listPackageSources(): Promise<readonly PackageSource[]> {
+    return [];
+  }
+
+  async listEngines(): Promise<readonly EngineSummary[]> {
+    if (!this.#engineService) {
+      return [];
+    }
+    const summaries: EngineSummary[] = [];
+    for (const engine of this.#engineService.listEngines()) {
+      summaries.push(await this.#engineSummary(engine));
+    }
+    return summaries;
+  }
+
+  async getEngineDetail(engineId: string): Promise<EngineSummary> {
+    if (!this.#engineService) {
+      throw new NotFoundError("engine", engineId);
+    }
+    return this.#engineSummary(this.#engineService.getEngine(engineId));
+  }
+
+  async listProviders(): Promise<readonly ProviderSummary[]> {
+    if (!this.#providerService) {
+      return [];
+    }
+    const summaries: ProviderSummary[] = [];
+    for (const provider of this.#providerService.listProviders()) {
+      summaries.push(await this.#providerSummary(provider));
+    }
+    return summaries;
+  }
+
+  async getProviderDetail(providerId: string): Promise<ProviderSummary> {
+    if (!this.#providerService) {
+      throw new NotFoundError("provider", providerId);
+    }
+    return this.#providerSummary(this.#providerService.getProvider(providerId));
+  }
+
+  async listModels(): Promise<readonly ModelSummary[]> {
+    if (!this.#providerService) {
+      return [];
+    }
+    const models: ModelSummary[] = [];
+    for (const provider of this.#providerService.listProviders()) {
+      let definitions: readonly ModelDefinition[] = [];
+      try {
+        definitions = await this.#providerService.listModels(provider.id);
+      } catch {
+        // Provider model catalogs may be temporarily unresolvable (e.g. pending
+        // credential). The Product API reports absence instead of fabricating
+        // model support.
+        definitions = [];
+      }
+      for (const definition of definitions) {
+        models.push(this.#modelSummary(definition, provider.id));
+      }
+    }
+    return models.sort((left, right) => left.id.localeCompare(right.id));
+  }
+
+  async getAgentComposition(agentId: string): Promise<AgentCompositionDetail | undefined> {
+    if (!this.#agentService || !this.#compositionResources) {
+      return undefined;
+    }
+    let result: AgentCompositionResult;
+    try {
+      result = this.#agentService.compose(agentId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return undefined;
+      }
+      throw error;
+    }
+    return this.#agentCompositionDetail(agentId, result);
+  }
+
+  async getAgentEffectiveCapabilities(agentId: string): Promise<EffectiveCapabilities | undefined> {
+    const detail = await this.getAgentComposition(agentId);
+    if (!detail) {
+      return undefined;
+    }
+    return {
+      agentId,
+      capabilityIds: detail.effectiveCapabilities.map((entry) => entry.capabilityId),
+      sources: detail.effectiveCapabilities,
+      checkedAt: detail.checkedAt,
+    };
+  }
+
+  async getAgentCompositionCompatibility(agentId: string): Promise<CompatibilityReport | undefined> {
+    const detail = await this.getAgentComposition(agentId);
+    return detail?.compatibilitySummary;
   }
 
   #listItem(revision: AgentRevision, checkedAt: number): AgentListItem {
@@ -887,6 +1365,395 @@ export class ProductApiClient {
       warnings: ["Governed by Product API"],
       errors: [message],
       checkedAt: Date.now(),
+    };
+  }
+
+  #compositionFindingsAggregate(): {
+    readonly warningCount: number;
+    readonly missingRequirementCount: number;
+    readonly conflictCount: number;
+  } {
+    if (!this.#agentService) {
+      return { warningCount: 0, missingRequirementCount: 0, conflictCount: 0 };
+    }
+    let warningCount = 0;
+    let missingRequirementCount = 0;
+    for (const revision of this.#agentService.list()) {
+      try {
+        const composition = this.#agentService.compose(revision.agentId).composition;
+        warningCount += composition.findings.filter((finding) => finding.severity === "warning").length;
+        missingRequirementCount += composition.findings.filter((finding) => finding.severity === "error").length;
+      } catch {
+        missingRequirementCount += 1;
+      }
+    }
+    // Conflict findings are not produced by the composition domains in this
+    // milestone; the Product API reports zero rather than inventing conflicts.
+    return { warningCount, missingRequirementCount, conflictCount: 0 };
+  }
+
+  #usageCount(predicate: (definition: AgentDefinition) => boolean): number {
+    if (!this.#agentService) {
+      return 0;
+    }
+    return this.#agentService.list().filter((revision) => predicate(revision.definition)).length;
+  }
+
+  #roleUsageCount(roleId: string): number {
+    return this.#usageCount((definition) => definition.roleId === roleId);
+  }
+
+  #profileUsageCount(profileId: string): number {
+    return this.#usageCount((definition) => definition.profileId === profileId);
+  }
+
+  #capabilityUsageCount(capabilityId: string): number {
+    if (!this.#agentService) {
+      return 0;
+    }
+    let count = 0;
+    for (const revision of this.#agentService.list()) {
+      try {
+        if (this.#agentService.compose(revision.agentId).composition.effective.capabilityIds.includes(capabilityId)) {
+          count += 1;
+        }
+      } catch {
+        // Unresolvable compositions surface through findings, not usage.
+      }
+    }
+    return count;
+  }
+
+  #skillUsageCount(skillId: string): number {
+    return this.#usageCount((definition) => definition.skillIds.includes(skillId));
+  }
+
+  #toolUsageCount(toolId: string): number {
+    return this.#usageCount((definition) => definition.toolIds.includes(toolId));
+  }
+
+  #providerUsageCount(providerId: string): number {
+    return this.#usageCount((definition) => {
+      const strategy = definition.modelStrategy;
+      if (!strategy) {
+        return false;
+      }
+      return [strategy.primary, ...strategy.fallbacks].some((reference) => reference.providerId === providerId);
+    });
+  }
+
+  #modelUsageCount(canonicalId: string): number {
+    return this.#usageCount((definition) => {
+      const strategy = definition.modelStrategy;
+      if (!strategy) {
+        return false;
+      }
+      return [strategy.primary, ...strategy.fallbacks].some(
+        (reference) => createCanonicalModelId(reference.providerId, reference.modelId) === canonicalId,
+      );
+    });
+  }
+
+  #roleSummary(role: GovernedRoleResource): RoleSummary {
+    return {
+      roleId: role.id,
+      name: role.displayName,
+      description: "",
+      capabilities: [...role.capabilityIds],
+      revision: role.revision,
+      usageCount: this.#roleUsageCount(role.id),
+      status: role.status,
+      availableActions: [],
+    };
+  }
+
+  #profileSummary(profile: GovernedProfileResource): ProfileSummary {
+    return {
+      profileId: profile.id,
+      name: profile.displayName,
+      description: "",
+      openClawCompatible: true,
+      legacyProfileVisible: false,
+      sections: ["identity", "soul", "user", "memory", "heartbeat"],
+      revision: profile.revision,
+      usageCount: this.#profileUsageCount(profile.id),
+      status: profile.status,
+      availableActions: [],
+    };
+  }
+
+  #capabilitySummary(capability: GovernedCapabilityResource): CapabilitySummary {
+    const level = typeof capability.metadata?.level === "string" ? capability.metadata.level : undefined;
+    return {
+      capabilityId: capability.id,
+      name: capability.displayName,
+      source: capability.category,
+      type: capability.category,
+      ...(level ? { level } : {}),
+      requirements: [],
+      conflicts: [],
+      usageCount: this.#capabilityUsageCount(capability.id),
+      status: capability.status,
+    };
+  }
+
+  #skillSummary(skill: GovernedSkillResource, assigned: boolean): SkillSummary {
+    return {
+      skillId: skill.id,
+      name: skill.displayName,
+      description: "",
+      installed: false,
+      assigned,
+      capabilities: [...skill.capabilityIds],
+      requirements: [],
+      compatibility: "unverified",
+      usageCount: this.#skillUsageCount(skill.id),
+      availableActions: [],
+    };
+  }
+
+  #assignedSkillSummary(skillId: string): SkillSummary {
+    if (!this.#compositionResources) {
+      return {
+        skillId,
+        name: skillId,
+        description: "",
+        installed: false,
+        assigned: true,
+        capabilities: [],
+        requirements: [],
+        compatibility: "unavailable",
+        usageCount: 0,
+        availableActions: [],
+      };
+    }
+    try {
+      return this.#skillSummary(this.#compositionResources.getSkill(skillId), true);
+    } catch {
+      return {
+        skillId,
+        name: skillId,
+        description: "",
+        installed: false,
+        assigned: true,
+        capabilities: [],
+        requirements: [],
+        compatibility: "unavailable",
+        usageCount: 0,
+        availableActions: [],
+      };
+    }
+  }
+
+  #toolSummary(tool: GovernedToolResource, assigned: boolean): ToolSummary {
+    return {
+      toolId: tool.id,
+      name: tool.displayName,
+      description: "",
+      assigned,
+      capabilities: [...tool.capabilityIds],
+      requirements: [],
+      availability: "available",
+      usageCount: this.#toolUsageCount(tool.id),
+      availableActions: [],
+    };
+  }
+
+  #assignedToolSummary(toolId: string): ToolSummary {
+    if (!this.#compositionResources) {
+      return {
+        toolId,
+        name: toolId,
+        description: "",
+        assigned: true,
+        capabilities: [],
+        requirements: [],
+        availability: "unavailable",
+        usageCount: 0,
+        availableActions: [],
+      };
+    }
+    try {
+      return this.#toolSummary(this.#compositionResources.getTool(toolId), true);
+    } catch {
+      return {
+        toolId,
+        name: toolId,
+        description: "",
+        assigned: true,
+        capabilities: [],
+        requirements: [],
+        availability: "unavailable",
+        usageCount: 0,
+        availableActions: [],
+      };
+    }
+  }
+
+  async #engineSummary(engine: AgentEngine): Promise<EngineSummary> {
+    let availability: EngineSummary["availability"] = "unverified";
+    let capabilities: readonly string[] = [];
+    let deploymentModes: readonly string[] = [];
+    if (this.#engineService) {
+      try {
+        availability = (await this.#engineService.health(engine.identity.id)).status;
+      } catch {
+        availability = "unavailable";
+      }
+      try {
+        const engineCapabilities: EngineCapabilities = await this.#engineService.capabilities(engine.identity.id);
+        capabilities = engineCapabilities.engineCapabilities;
+        deploymentModes = engineCapabilities.deploymentModes;
+      } catch {
+        capabilities = [];
+        deploymentModes = [];
+      }
+    }
+    return {
+      id: engine.identity.id,
+      name: engine.identity.id,
+      type: engine.identity.provider,
+      capabilities: [...capabilities],
+      deploymentModes: [...deploymentModes],
+      availability,
+      credentialRequired: false,
+      compatibility: availability === "ready" ? "compatible" : "unverified",
+      usageCount: 0,
+      availableActions: [],
+    };
+  }
+
+  async #providerSummary(provider: ModelProvider): Promise<ProviderSummary> {
+    let providerCapabilities: ModelProviderCapabilities | undefined;
+    if (this.#providerService) {
+      try {
+        providerCapabilities = await this.#providerService.capabilities(provider.id);
+      } catch {
+        providerCapabilities = undefined;
+      }
+    }
+    const connections = this.#credentialRegistry?.listByProvider(provider.id) ?? [];
+    const hasUsable = connections.some((connection) =>
+      connection.status === "configured" || connection.status === "valid" || connection.status === "active");
+    const hasPending = connections.some((connection) => connection.status === "pending");
+    return {
+      id: provider.id,
+      name: provider.displayName,
+      type: [...(providerCapabilities?.providerTypes ?? [])],
+      capabilities: [...(providerCapabilities?.supportedModelCapabilities ?? [])],
+      availability: hasUsable ? "available" : hasPending ? "pending" : "unavailable",
+      credentialRequired: connections.length > 0,
+      compatibility: hasUsable ? "compatible" : hasPending ? "pending" : "not-configured",
+      usageCount: this.#providerUsageCount(provider.id),
+      availableActions: [],
+    };
+  }
+
+  #modelSummary(model: ModelDefinition, providerId: string): ModelSummary {
+    const credentialRequired = (this.#credentialRegistry?.listByProvider(providerId).length ?? 0) > 0;
+    const compatibility: ModelSummary["compatibility"] =
+      model.availability === "available"
+        ? "compatible"
+        : model.availability === "preview"
+          ? "pending"
+          : "not-configured";
+    return {
+      id: model.canonicalId,
+      name: model.displayName,
+      type: providerId,
+      capabilities: [...model.capabilities.supports],
+      availability: model.availability,
+      credentialRequired,
+      compatibility,
+      usageCount: this.#modelUsageCount(model.canonicalId),
+      availableActions: [],
+    };
+  }
+
+  async #agentCompositionDetail(agentId: string, result: AgentCompositionResult): Promise<AgentCompositionDetail> {
+    const checkedAt = Date.now();
+    const revision = result.revision;
+    const composition = result.composition;
+    const definition = revision.definition;
+    const resources = this.#compositionResources;
+    const role = definition.roleId && resources ? resources.getRole(definition.roleId) : undefined;
+    const profile = definition.profileId && resources ? resources.getProfile(definition.profileId) : undefined;
+    const directCapabilities = new Set(definition.capabilityIds);
+    const roleCapabilities = new Set(role?.capabilityIds ?? []);
+    const profileCapabilities = new Set(profile?.capabilityIds ?? []);
+    const effectiveCapabilities: readonly CapabilitySourceEntry[] = composition.effective.capabilityIds.map((capabilityId) => {
+      const sources: string[] = [];
+      if (directCapabilities.has(capabilityId)) sources.push("agent");
+      if (roleCapabilities.has(capabilityId)) sources.push("role");
+      if (profileCapabilities.has(capabilityId)) sources.push("profile");
+      let name = capabilityId;
+      let status = "effective";
+      if (resources) {
+        try {
+          const capability = resources.getCapability(capabilityId);
+          name = capability.displayName;
+          status = capability.status;
+        } catch {
+          status = "unknown";
+        }
+      }
+      return { capabilityId, name, sources, status };
+    });
+    const skills = composition.effective.skillIds.map((skillId) => this.#assignedSkillSummary(skillId));
+    const tools = composition.effective.toolIds.map((toolId) => this.#assignedToolSummary(toolId));
+    const missingRequirements = composition.findings.filter((finding) => finding.severity === "error");
+    const warnings = composition.findings.filter((finding) => finding.severity === "warning");
+    const conflicts: readonly CompositionFinding[] = [];
+    const readinessSummary: AgentReadinessSummary = {
+      state: composition.ready ? "ready" : missingRequirements.length > 0 ? "blocked" : "partial",
+      blockerCount: missingRequirements.length,
+      warningCount: warnings.length,
+    };
+    const primary = composition.effective.modelStrategy?.primary;
+    let provider: ProviderSummary | undefined;
+    let model: ModelSummary | undefined;
+    if (primary && this.#providerService) {
+      try {
+        provider = await this.#providerSummary(this.#providerService.getProvider(primary.providerId));
+      } catch {
+        provider = undefined;
+      }
+      if (provider) {
+        try {
+          const modelDefinition = await this.#providerService.getModel(primary.providerId, primary.modelId);
+          model = this.#modelSummary(modelDefinition, primary.providerId);
+        } catch {
+          model = undefined;
+        }
+      }
+    }
+    return {
+      agentId,
+      agentName: definition.name,
+      currentRevisionId: revision.revision,
+      ...(role ? { roleSummary: this.#roleSummary(role) } : {}),
+      ...(profile ? { profileSummary: this.#profileSummary(profile) } : {}),
+      effectiveCapabilities,
+      skills,
+      tools,
+      plugins: [],
+      ...(provider ? { provider } : {}),
+      ...(model ? { model } : {}),
+      compatibilitySummary: {
+        agentId,
+        missingRequirements,
+        conflicts,
+        warnings,
+        ready: composition.ready,
+        checkedAt,
+      },
+      missingRequirements,
+      conflicts,
+      readinessSummary,
+      availableActions: COMPOSITION_ACTIONS,
+      guardrails: OPERATIONAL_GUARDRAILS,
+      checkedAt,
+      stale: false,
     };
   }
 
