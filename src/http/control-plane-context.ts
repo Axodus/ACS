@@ -24,6 +24,9 @@ import { OpenAiByokModelProvider } from "../intelligence/openai-byok-provider.js
 import { FetchProviderHttpTransport } from "../intelligence/byok-http-transport.js";
 import { OpenCodeRunner } from "../intelligence/opencode-runner.js";
 import { FetchOpenCodeTransport } from "../intelligence/opencode-transport.js";
+import { ExecutionWorkerRegistry } from "../workers/worker-registry.js";
+import { WorkerAssignmentService } from "../workers/worker-assignment-service.js";
+import { LocalExecutionWorker } from "../workers/local-worker.js";
 import type { BillingPolicy } from "../control-plane/neurons-economic-contract.js";
 import type { AgentDefinition } from "../control-plane/unified-agent-model.js";
 
@@ -39,6 +42,9 @@ export interface ControlPlaneContext {
   readonly runnerService: AgentRunnerService;
   readonly credentials: CredentialConnectionRegistry;
   readonly economicService: EconomicService;
+  readonly workerRegistry: ExecutionWorkerRegistry;
+  readonly workerAssignmentService: WorkerAssignmentService;
+  readonly localWorker: LocalExecutionWorker | null;
   close(): Promise<void>;
 }
 
@@ -75,6 +81,7 @@ export interface ControlPlaneContextOptions {
   readonly workspaceRoot?: string;
   readonly pythonCommand?: string;
   readonly timeoutMs?: number;
+  readonly startLocalWorker?: boolean;
 }
 
 function resolveDefaultOperationalRoots(options: ControlPlaneContextOptions): {
@@ -273,6 +280,30 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     auditService,
   });
 
+  // Worker infrastructure
+  const workerRegistry = new ExecutionWorkerRegistry();
+  const workerAssignmentService = new WorkerAssignmentService({
+    workerRegistry,
+    leaseSigningKey: "dev-lease-signing-key",
+    defaultLeaseTtlMs: 5 * 60 * 1000,
+  });
+
+  let localWorker: LocalExecutionWorker | null = null;
+  if (options.startLocalWorker !== false) {
+    localWorker = new LocalExecutionWorker({
+      workerRegistry,
+      assignmentService: workerAssignmentService,
+      engine,
+      targetId: "local-wsl",
+      workerId: "local-worker-01",
+      workerName: "Local DEV Worker",
+      workerVersion: "0.1.0",
+      auditService,
+      heartbeatIntervalMs: 30000,
+      maxConcurrentRuns: 2,
+    });
+  }
+
   return {
     engineRegistry,
     engineService: new EngineService(engineRegistry),
@@ -285,7 +316,13 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     runnerService: new AgentRunnerService(runnerRegistry),
     credentials,
     economicService,
+    workerRegistry,
+    workerAssignmentService,
+    localWorker,
     async close(): Promise<void> {
+      if (localWorker) {
+        await localWorker.stop();
+      }
       await engine.close();
     },
   };

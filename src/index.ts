@@ -106,6 +106,7 @@ export * from "./types.js";
 export * from "./license.js";
 export * from "./license-loss.js";
 export * from "./product-access-registry.js";
+export * from "./workers/index.js";
 export * from "./user-status.js";
 export * from "./workflows/index.js";
 
