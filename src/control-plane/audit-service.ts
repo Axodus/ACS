@@ -20,6 +20,8 @@ export interface AuditEvent {
   readonly eventType: AuditEventType | string;
   readonly timestamp: number;
   readonly correlationId: string;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
   readonly agentId?: string;
   readonly revision?: number;
   readonly deploymentId?: string;
@@ -33,6 +35,8 @@ export interface AuditEvent {
 
 export interface AuditQueryFilter {
   readonly correlationId?: string;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
   readonly agentId?: string;
   readonly deploymentId?: string;
   readonly runtimeInstanceId?: string;
@@ -73,6 +77,8 @@ export class AuditService {
   recordEvent(input: {
     eventType: AuditEventType | string;
     correlationId: string;
+    tenantId?: string;
+    workloadId?: string;
     agentId?: string;
     revision?: number;
     deploymentId?: string;
@@ -91,6 +97,8 @@ export class AuditService {
       eventType: input.eventType,
       timestamp: Date.now(),
       correlationId: input.correlationId,
+      ...(input.tenantId ? { tenantId: input.tenantId } : {}),
+      ...(input.workloadId ? { workloadId: input.workloadId } : {}),
       ...(input.agentId ? { agentId: input.agentId } : {}),
       ...(input.revision !== undefined ? { revision: input.revision } : {}),
       ...(input.deploymentId ? { deploymentId: input.deploymentId } : {}),
@@ -109,6 +117,8 @@ export class AuditService {
   queryEvents(filter: AuditQueryFilter): readonly AuditEvent[] {
     return this.#events.filter((evt) => {
       if (filter.correlationId && evt.correlationId !== filter.correlationId) return false;
+      if (filter.tenantId && evt.tenantId !== filter.tenantId) return false;
+      if (filter.workloadId && evt.workloadId !== filter.workloadId) return false;
       if (filter.agentId && evt.agentId !== filter.agentId) return false;
       if (filter.deploymentId && evt.deploymentId !== filter.deploymentId) return false;
       if (filter.runtimeInstanceId && evt.runtimeInstanceId !== filter.runtimeInstanceId) return false;

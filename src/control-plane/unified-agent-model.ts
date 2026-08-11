@@ -90,6 +90,8 @@ export interface ExecutionPlan {
   readonly agentId: string;
   readonly agentRevision: number;
   readonly compositionFingerprint: string;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
   readonly engineId: string;
   readonly engineRevision?: string;
   readonly executionTargetId: string;
@@ -100,6 +102,12 @@ export interface ExecutionPlan {
   readonly governancePolicyId?: string;
   readonly economicPolicyId?: string;
   readonly isolationMode?: string;
+  readonly sourceRoot?: string;
+  readonly runtimeRoot?: string;
+  readonly stateRoot?: string;
+  readonly configRoot?: string;
+  readonly artifactsRoot?: string;
+  readonly workspaceRoot?: string;
   readonly deploymentMode: DeploymentMode;
   readonly createdAt: number;
   readonly correlationId: string;
@@ -110,6 +118,8 @@ export interface AgentDeployment {
   readonly agentId: string;
   readonly agentRevision: number;
   readonly compositionFingerprint: string;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
   readonly executionTargetId: string;
   readonly deploymentMode: DeploymentMode;
   readonly createdAt: number;
@@ -120,6 +130,8 @@ export interface RuntimeInstance {
   readonly deploymentId: string;
   readonly status: RuntimeStatus;
   readonly observedAt: number;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
 }
 
 export interface ExecutionRun {
@@ -130,6 +142,8 @@ export interface ExecutionRun {
   readonly createdAt: number;
   readonly startedAt?: number;
   readonly completedAt?: number;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
 }
 
 const FORBIDDEN_SECRET_KEYS = new Set([

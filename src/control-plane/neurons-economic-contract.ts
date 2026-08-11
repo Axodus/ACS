@@ -46,6 +46,8 @@ export interface EconomicAccount {
   readonly ownerId: string;
   readonly mode: BillingResponsibilityMode;
   readonly assetCode: "NEURONS";
+  readonly tenantId?: string;
+  readonly workloadId?: string;
 }
 
 export interface BillingPolicy {
@@ -64,6 +66,8 @@ export interface UsageQuote {
   readonly estimatedByDimension: Readonly<Record<string, string>>;
   readonly total: NeuronsAmount;
   readonly expiresAt: number;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
 }
 
 export interface UsageReservation {
@@ -75,6 +79,8 @@ export interface UsageReservation {
   readonly expiresAt: number;
   readonly status: "reserved" | "released" | "settled";
   readonly idempotencyKey: string;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
 }
 
 export interface UsageRecord {
@@ -86,6 +92,8 @@ export interface UsageRecord {
   readonly unit: string;
   readonly source: string;
   readonly observedAt: number;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
@@ -96,6 +104,8 @@ export interface Settlement {
   readonly totalCharged: NeuronsAmount;
   readonly status: "pending" | "settled" | "partially_settled" | "failed" | "released";
   readonly idempotencyKey: string;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
 }
 
 export interface EconomicReceipt {
@@ -109,6 +119,8 @@ export interface EconomicReceipt {
   readonly totalReleased: NeuronsAmount;
   readonly mode: BillingResponsibilityMode;
   readonly status: EconomicRecordStatus;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
 }
 
 export interface SettlementProvider {
@@ -161,6 +173,8 @@ export class EconomicService {
       estimatedByDimension,
       total,
       expiresAt: input.expiresAt,
+      ...(input.account.tenantId ? { tenantId: input.account.tenantId } : {}),
+      ...(input.account.workloadId ? { workloadId: input.account.workloadId } : {}),
     };
     this.#quotes.set(quote.quoteId, quote);
     return quote;
@@ -179,6 +193,8 @@ export class EconomicService {
       expiresAt: input.expiresAt,
       status: "reserved",
       idempotencyKey: input.idempotencyKey,
+      ...(quote.tenantId ? { tenantId: quote.tenantId } : {}),
+      ...(quote.workloadId ? { workloadId: quote.workloadId } : {}),
     };
     this.#reservations.set(reservation.reservationId, reservation);
     return reservation;
@@ -223,6 +239,8 @@ export class EconomicService {
       totalCharged,
       status: released.equals(new NeuronsAmount(0n)) ? "settled" : "partially_settled",
       idempotencyKey: input.idempotencyKey,
+      ...(reservation.tenantId ? { tenantId: reservation.tenantId } : {}),
+      ...(reservation.workloadId ? { workloadId: reservation.workloadId } : {}),
     };
     await this.#settlementProvider.settle(settlement);
     this.#settlements.set(settlement.settlementId, settlement);
@@ -242,6 +260,8 @@ export class EconomicService {
       totalReleased: released,
       mode: this.#requireQuote(reservation.quoteId).mode,
       status: "settled",
+      ...(reservation.tenantId ? { tenantId: reservation.tenantId } : {}),
+      ...(reservation.workloadId ? { workloadId: reservation.workloadId } : {}),
     });
     return settlement;
   }

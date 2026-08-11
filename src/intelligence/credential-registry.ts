@@ -3,6 +3,7 @@ import type {
   CredentialConnection,
   CredentialConnectionStatus,
 } from "./credential-connection.js";
+import type { IsolationScope } from "../control-plane/isolation.js";
 
 export class CredentialConnectionRegistry {
   readonly #connections = new Map<string, CredentialConnection>();
@@ -18,6 +19,15 @@ export class CredentialConnectionRegistry {
   get(id: string): CredentialConnection {
     const connection = this.#connections.get(id);
     if (!connection) {
+      throw new NotFoundError("credential-connection", id);
+    }
+    return connection;
+  }
+
+  getForScope(id: string, scope: IsolationScope): CredentialConnection {
+    const connection = this.get(id);
+    const ownerTenantId = connection.owner.tenantId;
+    if (ownerTenantId && ownerTenantId !== scope.tenantId) {
       throw new NotFoundError("credential-connection", id);
     }
     return connection;

@@ -1,6 +1,7 @@
 import type { AgentEngine, RuntimeInstanceResult } from "../engines/agent-engine.js";
 import { EngineSandboxOnlyError, EngineRuntimeNotFoundError } from "../engines/engine-errors.js";
 import type { AuditService } from "./audit-service.js";
+import { assertSameIsolationScope, type IsolationScope } from "./isolation.js";
 
 export type RuntimeState =
   | "pending"
@@ -18,6 +19,7 @@ export interface StartRuntimeServiceRequest {
   readonly targetId?: string;
   readonly correlationId?: string;
   readonly actor?: string;
+  readonly scope?: IsolationScope;
 }
 
 export interface RuntimeInstanceRecord {
@@ -31,6 +33,7 @@ export interface RuntimeInstanceRecord {
   readonly stoppedAt?: number;
   readonly terminatedAt?: number;
   readonly updatedAt: number;
+  readonly scope?: IsolationScope;
 }
 
 export interface CreateExecutionRunRequest {
@@ -39,6 +42,7 @@ export interface CreateExecutionRunRequest {
   readonly executionPlanId: string;
   readonly correlationId?: string;
   readonly actor?: string;
+  readonly scope?: IsolationScope;
 }
 
 export interface ExecutionRunRecord {
@@ -49,6 +53,7 @@ export interface ExecutionRunRecord {
   readonly status: "pending" | "running" | "completed" | "failed" | "cancelled";
   readonly startedAt: number;
   readonly completedAt?: number;
+  readonly scope?: IsolationScope;
 }
 
 export interface DeploymentLookupRecord {
@@ -70,6 +75,7 @@ export class RuntimeLifecycleService {
   readonly #engine: AgentEngine;
   readonly #deploymentLookup: ((deploymentId: string) => DeploymentLookupRecord | undefined) | undefined;
   readonly #auditService: AuditService | undefined;
+  readonly #defaultScope: IsolationScope | undefined;
   readonly #runtimes = new Map<string, RuntimeInstanceRecord>();
   readonly #executionRuns = new Map<string, ExecutionRunRecord>();
 
@@ -77,10 +83,12 @@ export class RuntimeLifecycleService {
     engine: AgentEngine;
     deploymentLookup?: (deploymentId: string) => DeploymentLookupRecord | undefined;
     auditService?: AuditService;
+    scope?: IsolationScope;
   }) {
     this.#engine = options.engine;
     this.#deploymentLookup = options.deploymentLookup;
     this.#auditService = options.auditService;
+    this.#defaultScope = options.scope;
   }
 
   validateStateTransition(current: RuntimeState, next: RuntimeState): boolean {
@@ -95,6 +103,7 @@ export class RuntimeLifecycleService {
     const correlationId = request.correlationId ?? `runtime_${request.deploymentId}_${Date.now()}`;
     const actor = request.actor;
     const agentId = request.agentId;
+    const scope = request.scope ?? this.#defaultScope;
 
     try {
       if (mode !== "sandbox") {
@@ -131,6 +140,7 @@ export class RuntimeLifecycleService {
         status: "running",
         startedAt: result.startedAt,
         updatedAt: result.timestamp,
+        ...(scope ? { scope } : {}),
         ...(resultAgentId ? { agentId: resultAgentId } : {}),
       };
 
@@ -164,8 +174,13 @@ export class RuntimeLifecycleService {
     }
   }
 
-  async inspect(runtimeInstanceId: string): Promise<RuntimeInstanceRecord> {
+  async inspect(runtimeInstanceId: string, scope?: IsolationScope): Promise<RuntimeInstanceRecord> {
+    return this.inspectWithScope(runtimeInstanceId, scope ?? this.#defaultScope);
+  }
+
+  async inspectWithScope(runtimeInstanceId: string, scope?: IsolationScope): Promise<RuntimeInstanceRecord> {
     const local = this.#runtimes.get(runtimeInstanceId);
+    assertSameIsolationScope(scope ?? this.#defaultScope, local?.scope);
     if (this.#engine.inspectRuntime) {
       try {
         const result = await this.#engine.inspectRuntime(runtimeInstanceId);
@@ -179,6 +194,7 @@ export class RuntimeLifecycleService {
         if (!targetId) {
           throw new Error(`cannot resolve targetId for runtime ${runtimeInstanceId}`);
         }
+        const effectiveScope = scope ?? local?.scope;
         const updated: RuntimeInstanceRecord = {
           runtimeInstanceId: result.runtimeInstanceId,
           deploymentId,
@@ -187,6 +203,7 @@ export class RuntimeLifecycleService {
           status: (result.status as RuntimeState) || "running",
           startedAt: result.startedAt || local?.startedAt || Date.now(),
           updatedAt: result.timestamp,
+          ...(effectiveScope ? { scope: effectiveScope } : {}),
           ...(agentId ? { agentId } : {}),
           ...(stoppedAt !== undefined ? { stoppedAt } : {}),
           ...(terminatedAt !== undefined ? { terminatedAt } : {}),
@@ -208,8 +225,8 @@ export class RuntimeLifecycleService {
     return local;
   }
 
-  async stop(runtimeInstanceId: string): Promise<RuntimeInstanceRecord> {
-    const current = await this.inspect(runtimeInstanceId);
+  async stop(runtimeInstanceId: string, scope?: IsolationScope): Promise<RuntimeInstanceRecord> {
+    const current = await this.inspectWithScope(runtimeInstanceId, scope ?? this.#defaultScope);
     if (!this.validateStateTransition(current.status, "stopping")) {
       throw new Error(`Invalid runtime state transition from ${current.status} to stopping`);
     }
@@ -254,8 +271,8 @@ export class RuntimeLifecycleService {
     }
   }
 
-  async terminate(runtimeInstanceId: string): Promise<RuntimeInstanceRecord> {
-    const current = await this.inspect(runtimeInstanceId);
+  async terminate(runtimeInstanceId: string, scope?: IsolationScope): Promise<RuntimeInstanceRecord> {
+    const current = await this.inspectWithScope(runtimeInstanceId, scope ?? this.#defaultScope);
     if (!this.validateStateTransition(current.status, "terminated")) {
       throw new Error(`Invalid runtime state transition from ${current.status} to terminated`);
     }
@@ -305,6 +322,7 @@ export class RuntimeLifecycleService {
 
   createExecutionRun(request: CreateExecutionRunRequest): ExecutionRunRecord {
     const runId = `run_exec_${request.agentId}_${Date.now()}`;
+    const scope = request.scope ?? this.#defaultScope;
     const record: ExecutionRunRecord = {
       runId,
       runtimeInstanceId: request.runtimeInstanceId,
@@ -312,6 +330,7 @@ export class RuntimeLifecycleService {
       executionPlanId: request.executionPlanId,
       status: "running",
       startedAt: Date.now(),
+      ...(scope ? { scope } : {}),
     };
     this.#executionRuns.set(runId, record);
 
@@ -329,15 +348,34 @@ export class RuntimeLifecycleService {
     return record;
   }
 
-  getExecutionRun(runId: string): ExecutionRunRecord | undefined {
-    return this.#executionRuns.get(runId);
+  getExecutionRun(runId: string, scope?: IsolationScope): ExecutionRunRecord | undefined {
+    const run = this.#executionRuns.get(runId);
+    if (!run) return undefined;
+    assertSameIsolationScope(scope ?? this.#defaultScope, run.scope);
+    return run;
   }
 
-  listRuntimes(): readonly RuntimeInstanceRecord[] {
-    return Array.from(this.#runtimes.values());
+  listRuntimes(scope?: IsolationScope): readonly RuntimeInstanceRecord[] {
+    const effectiveScope = scope ?? this.#defaultScope;
+    return Array.from(this.#runtimes.values()).filter((record) => {
+      try {
+        assertSameIsolationScope(effectiveScope, record.scope);
+        return true;
+      } catch {
+        return false;
+      }
+    });
   }
 
-  listExecutionRuns(): readonly ExecutionRunRecord[] {
-    return Array.from(this.#executionRuns.values());
+  listExecutionRuns(scope?: IsolationScope): readonly ExecutionRunRecord[] {
+    const effectiveScope = scope ?? this.#defaultScope;
+    return Array.from(this.#executionRuns.values()).filter((record) => {
+      try {
+        assertSameIsolationScope(effectiveScope, record.scope);
+        return true;
+      } catch {
+        return false;
+      }
+    });
   }
 }

@@ -8,6 +8,7 @@ import type { AgentService } from "./agent-service.js";
 import { ExecutionPlanResolver } from "./execution-plan-resolver.js";
 import type { DeploymentMode } from "./unified-agent-model.js";
 import type { AuditService } from "./audit-service.js";
+import { assertSameIsolationScope, type IsolationScope } from "./isolation.js";
 
 export interface DeploymentRequest {
   readonly agentId: string;
@@ -18,6 +19,7 @@ export interface DeploymentRequest {
   readonly accountId?: string;
   readonly actor?: string;
   readonly correlationId?: string;
+  readonly scope?: IsolationScope;
 }
 
 export interface DeploymentRecord {
@@ -30,6 +32,7 @@ export interface DeploymentRecord {
   readonly artifactPath?: string;
   readonly reservationId?: string;
   readonly createdAt: number;
+  readonly scope?: IsolationScope;
 }
 
 export interface GovernanceDecision {
@@ -45,6 +48,7 @@ export class DeploymentService {
   readonly #agentService: AgentService;
   readonly #resolver: ExecutionPlanResolver;
   readonly #auditService: AuditService | undefined;
+  readonly #defaultScope: IsolationScope | undefined;
   readonly #deployments = new Map<string, DeploymentRecord>();
 
   static isDeploymentMode(value: string): value is DeploymentMode {
@@ -58,6 +62,7 @@ export class DeploymentService {
     agentService: AgentService;
     resolver: ExecutionPlanResolver;
     auditService?: AuditService;
+    scope?: IsolationScope;
   }) {
     this.#engine = options.engine;
     this.#targetService = options.targetService;
@@ -65,6 +70,7 @@ export class DeploymentService {
     this.#agentService = options.agentService;
     this.#resolver = options.resolver;
     this.#auditService = options.auditService;
+    this.#defaultScope = options.scope;
   }
 
   evaluateGovernance(mode: string): GovernanceDecision {
@@ -86,6 +92,7 @@ export class DeploymentService {
     const correlationId =
       request.correlationId ?? `deploy_${request.agentId}_r${request.revision}_${Date.now()}`;
     const actor = request.actor;
+    const scope = request.scope ?? this.#defaultScope;
 
     if (!DeploymentService.isDeploymentMode(request.deploymentMode)) {
       throw new PolicyRejectedError(`Invalid deployment mode: ${request.deploymentMode}`);
@@ -143,6 +150,8 @@ export class DeploymentService {
           ownerId: request.accountId,
           mode: "byok",
           assetCode: "NEURONS",
+          ...(scope?.tenantId ? { tenantId: scope.tenantId } : {}),
+          ...(scope?.workloadId ? { workloadId: scope.workloadId } : {}),
         },
         planId: `plan_${request.agentId}_r${request.revision}`,
         estimatedUsage: { "agent.runtime": 100n },
@@ -184,9 +193,10 @@ export class DeploymentService {
         agentRevision,
         composition,
         engineId: this.#engine.identity.id,
-       targetId: request.targetId,
+        targetId: request.targetId,
         deploymentMode: request.deploymentMode,
-       correlationId,
+        correlationId,
+        ...(scope ? { scope } : {}),
       });
 
       this.#auditService?.recordEvent({
@@ -239,6 +249,7 @@ export class DeploymentService {
         deploymentMode: result.deploymentMode,
         status: "deployed",
         createdAt: result.timestamp,
+        ...(scope ? { scope } : {}),
         ...(artifactPath ? { artifactPath } : {}),
         ...(reservationId ? { reservationId } : {}),
       };
@@ -295,11 +306,24 @@ export class DeploymentService {
     }
   }
 
-  getDeployment(deploymentId: string): DeploymentRecord | undefined {
-    return this.#deployments.get(deploymentId);
+  getDeployment(deploymentId: string, scope?: IsolationScope): DeploymentRecord | undefined {
+    const deployment = this.#deployments.get(deploymentId);
+    if (!deployment) {
+      return undefined;
+    }
+    assertSameIsolationScope(scope ?? this.#defaultScope, deployment.scope);
+    return deployment;
   }
 
-  listDeployments(): readonly DeploymentRecord[] {
-    return Array.from(this.#deployments.values());
+  listDeployments(scope?: IsolationScope): readonly DeploymentRecord[] {
+    const effectiveScope = scope ?? this.#defaultScope;
+    return Array.from(this.#deployments.values()).filter((deployment) => {
+      try {
+        assertSameIsolationScope(effectiveScope, deployment.scope);
+        return true;
+      } catch {
+        return false;
+      }
+    });
   }
 }

@@ -29,6 +29,13 @@ import { WorkerAssignmentService } from "../workers/worker-assignment-service.js
 import { LocalExecutionWorker } from "../workers/local-worker.js";
 import type { BillingPolicy } from "../control-plane/neurons-economic-contract.js";
 import type { AgentDefinition } from "../control-plane/unified-agent-model.js";
+import {
+  normalizeIsolationRoots,
+  normalizeIsolationScope,
+  type ControlPlaneIsolation,
+  type IsolationRoots,
+  type IsolationScope,
+} from "../control-plane/isolation.js";
 
 export interface ControlPlaneContext {
   readonly engineRegistry: EngineRegistry;
@@ -45,6 +52,7 @@ export interface ControlPlaneContext {
   readonly workerRegistry: ExecutionWorkerRegistry;
   readonly workerAssignmentService: WorkerAssignmentService;
   readonly localWorker: LocalExecutionWorker | null;
+  readonly isolation: ControlPlaneIsolation;
   close(): Promise<void>;
 }
 
@@ -79,6 +87,8 @@ export interface ControlPlaneContextOptions {
   readonly configRoot?: string;
   readonly artifactsRoot?: string;
   readonly workspaceRoot?: string;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
   readonly pythonCommand?: string;
   readonly timeoutMs?: number;
   readonly startLocalWorker?: boolean;
@@ -105,10 +115,25 @@ function resolveDefaultOperationalRoots(options: ControlPlaneContextOptions): {
 }
 
 export function createControlPlaneContext(options: ControlPlaneContextOptions = {}): ControlPlaneContext {
-  const roots = resolveDefaultOperationalRoots(options);
+  const defaultRoots = resolveDefaultOperationalRoots(options);
+  const roots = normalizeIsolationRoots({
+    sourceRoot: resolve(defaultRoots.acsRoot, "engines", "agentsai"),
+    runtimeRoot: defaultRoots.runtimeRoot,
+    stateRoot: defaultRoots.stateRoot,
+    configRoot: defaultRoots.configRoot,
+    artifactsRoot: defaultRoots.artifactsRoot,
+    workspaceRoot: defaultRoots.workspaceRoot,
+  });
+  const isolation: ControlPlaneIsolation = {
+    scope: normalizeIsolationScope({
+      tenantId: options.tenantId ?? "tenant-dev",
+      workloadId: options.workloadId ?? "workload-dev",
+    }),
+    roots,
+  };
   const engineRegistry = new EngineRegistry();
   const engine = options.engine ?? createOpenClawEngineFromManifest({
-    acsRoot: roots.acsRoot,
+    acsRoot: defaultRoots.acsRoot,
     runtimeRoot: roots.runtimeRoot,
     stateRoot: roots.stateRoot,
     configRoot: roots.configRoot,
@@ -273,11 +298,13 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     agentService,
     resolver: planResolver,
     auditService,
+    scope: isolation.scope,
   });
   const runtimeService = new RuntimeLifecycleService({
     engine,
     deploymentLookup: (deploymentId) => deploymentService.getDeployment(deploymentId),
     auditService,
+    scope: isolation.scope,
   });
 
   // Worker infrastructure
@@ -319,6 +346,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     workerRegistry,
     workerAssignmentService,
     localWorker,
+    isolation,
     async close(): Promise<void> {
       if (localWorker) {
         await localWorker.stop();
@@ -337,12 +365,12 @@ export function resolveOperationalRoots(options: ControlPlaneContextOptions = {}
   readonly workspaceRoot: string;
 } {
   const roots = resolveDefaultOperationalRoots(options);
-  return {
+  return normalizeIsolationRoots({
     sourceRoot: resolve(roots.acsRoot, "engines", "agentsai"),
     runtimeRoot: resolve(roots.runtimeRoot),
     stateRoot: resolve(roots.stateRoot),
     configRoot: resolve(roots.configRoot),
     artifactsRoot: resolve(roots.artifactsRoot),
     workspaceRoot: resolve(roots.workspaceRoot),
-  };
+  });
 }

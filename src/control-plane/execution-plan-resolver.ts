@@ -10,6 +10,7 @@ import { ModelProviderRegistry } from "../intelligence/model-provider-registry.j
 import { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
 import { AgentRunnerRegistry } from "../intelligence/agent-runner-registry.js";
 import { EngineRegistry } from "../engines/engine-registry.js";
+import type { IsolationScope } from "./isolation.js";
 import { createHash } from "node:crypto";
 
 export interface PlanResolutionRequest {
@@ -19,6 +20,7 @@ export interface PlanResolutionRequest {
   readonly targetId: string;
   readonly deploymentMode: DeploymentMode;
   readonly correlationId: string;
+  readonly scope?: IsolationScope;
 }
 
 export class ExecutionPlanResolver {
@@ -43,7 +45,7 @@ export class ExecutionPlanResolver {
   }
 
   async resolve(request: PlanResolutionRequest): Promise<ExecutionPlan> {
-    const { agentRevision, composition, engineId, targetId, deploymentMode, correlationId } = request;
+    const { agentRevision, composition, engineId, targetId, deploymentMode, correlationId, scope } = request;
 
     // 1. Validate Engine Existence
     const engine = this.#engines.get(engineId);
@@ -103,6 +105,8 @@ export class ExecutionPlanResolver {
        agentId: agentRevision.agentId,
        agentRevision: agentRevision.revision,
        compositionFingerprint: composition.fingerprint,
+       ...(scope?.tenantId ? { tenantId: scope.tenantId } : {}),
+       ...(scope?.workloadId ? { workloadId: scope.workloadId } : {}),
        engineId,
        ...(engineRevision ? { engineRevision } : {}),
        executionTargetId: targetId,
