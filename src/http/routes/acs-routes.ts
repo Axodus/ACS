@@ -7,6 +7,7 @@ import {
   inspectAuditReceipts,
   inspectCapabilities,
   inspectEmergencyStops,
+  inspectEpic10Readiness,
   inspectObservabilityStatus,
   inspectPerformanceRecords,
   inspectPolicyCheck,
@@ -223,6 +224,11 @@ export function routeAcsRequest(requestUrl: string, options: AcsRouteOptions = {
     if (path === "/acs/observability/status") {
       assertAllowedQueryParams(url, []);
       return { status: 200, body: ok(inspectObservabilityStatus(), [], options.correlationId, routeMeta) };
+    }
+
+    if (path === "/acs/epic-10/readiness") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(inspectEpic10Readiness(), [], options.correlationId, routeMeta) };
     }
 
     return fail("route not found", 404, "not_found", options.correlationId, undefined, routeMeta);

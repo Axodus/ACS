@@ -1,12 +1,54 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
 import test from "node:test";
 import {
   createAcsAuthContext,
-  createAcsHttpServer,
+  createAcsHttpHandler,
   createAcsRateLimitContext,
   routeAcsRequest,
 } from "../dist/index.js";
+import { createControlPlaneContext } from "../dist/http/control-plane-context.js";
+
+function createMockEngine() {
+  return {
+    identity: { id: "openclaw", provider: "agentsai" },
+    async close() {},
+  };
+}
+
+async function invokeHttpHandler(request) {
+  const context = createControlPlaneContext({
+    engine: createMockEngine(),
+    startLocalWorker: false,
+  });
+  const handler = createAcsHttpHandler(context);
+  const response = {
+    statusCode: 0,
+    headers: {},
+    bodyText: "",
+    writeHead(status, headers) {
+      this.statusCode = status;
+      this.headers = headers;
+      return this;
+    },
+    end(body) {
+      this.bodyText = typeof body === "string" ? body : Buffer.from(body ?? "").toString("utf8");
+    },
+  };
+
+  try {
+    await handler({
+      method: request.method ?? "GET",
+      url: request.url,
+      headers: request.headers ?? {},
+    }, response);
+    return {
+      status: response.statusCode,
+      body: JSON.parse(response.bodyText),
+    };
+  } finally {
+    await context.close();
+  }
+}
 
 test("auth context supports default, mock, unauthenticated, tenant-admin, and user wallet modes", () => {
   const disabled = createAcsAuthContext();
@@ -113,35 +155,25 @@ test("mock exceeded rate-limit returns structured error and preserves correlatio
   assert.equal(result.body.meta.rateLimit.exceeded, true);
 });
 
-test("HTTP server parses mock auth and rate-limit headers", async () => {
-  const { server } = await createAcsHttpServer();
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
+test("HTTP handler parses mock auth and rate-limit headers", async () => {
+  const result = await invokeHttpHandler({
+    url: "/acs/health",
+    headers: {
+      "x-correlation-id": "corr-server-auth",
+      "x-acs-auth-mode": "mock",
+      "x-acs-actor-type": "user",
+      "x-acs-actor-id": "0xlicensed",
+      "x-acs-wallet": "0xlicensed",
+      "x-acs-scopes": "acs:inspect",
+      "x-acs-authenticated": "true",
+      "x-acs-rate-limit-mode": "mock",
+      "x-acs-rate-limit-key": "wallet:0xlicensed",
+    },
+  });
 
-  try {
-    const address = server.address();
-    const response = await fetch(`http://127.0.0.1:${address.port}/acs/health`, {
-      headers: {
-        "x-correlation-id": "corr-server-auth",
-        "x-acs-auth-mode": "mock",
-        "x-acs-actor-type": "user",
-        "x-acs-actor-id": "0xlicensed",
-        "x-acs-wallet": "0xlicensed",
-        "x-acs-scopes": "acs:inspect",
-        "x-acs-authenticated": "true",
-        "x-acs-rate-limit-mode": "mock",
-        "x-acs-rate-limit-key": "wallet:0xlicensed",
-      },
-    });
-    const body = await response.json();
-
-    assert.equal(response.status, 200);
-    assert.equal(body.correlationId, "corr-server-auth");
-    assert.equal(body.meta.auth.actorType, "user");
-    assert.equal(body.meta.auth.wallet, "0xlicensed");
-    assert.equal(body.meta.rateLimit.enabled, true);
-  } finally {
-    server.close();
-    await once(server, "close");
-  }
+  assert.equal(result.status, 200);
+  assert.equal(result.body.correlationId, "corr-server-auth");
+  assert.equal(result.body.meta.auth.actorType, "user");
+  assert.equal(result.body.meta.auth.wallet, "0xlicensed");
+  assert.equal(result.body.meta.rateLimit.enabled, true);
 });

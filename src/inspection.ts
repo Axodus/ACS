@@ -76,6 +76,10 @@ import {
   type AcsReadinessDomain,
   type AcsReadinessStatus,
 } from "./readiness.js";
+import {
+  createEpic10ReadinessReport,
+  type Epic10ReadinessInspectionInput,
+} from "./control-plane/epic-10-readiness.js";
 import { evaluateProductAccess, type AcsProductAccessContext } from "./product-access-registry.js";
 import type { AcsTenantContext } from "./tenant-context.js";
 import { evaluateTenantServiceAccess } from "./tenant-service-registry.js";
@@ -111,6 +115,8 @@ export interface ReadinessRegistryInspectionFilter {
   readonly status?: AcsReadinessStatus;
   readonly blockedOnly?: boolean;
 }
+
+export interface Epic10ReadinessInspectionFilter extends Epic10ReadinessInspectionInput {}
 
 export interface PermissionStateInspectionFilter {
   readonly subject?: string;
@@ -284,6 +290,12 @@ export function inspectReadinessRegistryEntry(id: string) {
 export function inspectReadinessRegistrySummary() {
   return {
     summary: summarizeAcsReadinessRegistry(createAcsReadinessRegistryFixtures()),
+  };
+}
+
+export function inspectEpic10Readiness(filter: Epic10ReadinessInspectionFilter = {}) {
+  return {
+    readiness: createEpic10ReadinessReport(filter),
   };
 }
 

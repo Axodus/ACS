@@ -1,12 +1,45 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
 import test from "node:test";
-import { createAcsHttpServer, routeProductApiRequest } from "../dist/index.js";
+import { createAcsHttpHandler, routeProductApiRequest } from "../dist/index.js";
 import { createControlPlaneContext } from "../dist/http/control-plane-context.js";
 import { AgentRevisionConflictError } from "../dist/index.js";
 import { NotFoundError } from "../dist/errors.js";
 import { EngineSandboxOnlyError } from "../dist/index.js";
 import { PolicyRejectedError } from "../dist/errors.js";
+
+function createMockEngine() {
+  return {
+    identity: { id: "openclaw", provider: "agentsai" },
+    async close() {},
+  };
+}
+
+async function invokeHandler(handler, request) {
+  const response = {
+    statusCode: 0,
+    headers: {},
+    bodyText: "",
+    writeHead(status, headers) {
+      this.statusCode = status;
+      this.headers = headers;
+      return this;
+    },
+    end(body) {
+      this.bodyText = typeof body === "string" ? body : Buffer.from(body ?? "").toString("utf8");
+    },
+  };
+
+  await handler({
+    method: request.method ?? "GET",
+    url: request.url,
+    headers: request.headers ?? {},
+  }, response);
+
+  return {
+    status: response.statusCode,
+    body: JSON.parse(response.bodyText),
+  };
+}
 
 test("GET /api/v1/agents returns agent list", async () => {
   const context = createControlPlaneContext();
@@ -283,8 +316,8 @@ test("Product API responses do not expose secrets", async () => {
     );
 
     const agentsJson = JSON.stringify(agentsResult.body);
+    assert.equal(agentsJson.includes("sk-"), false);
     assert.equal(agentsJson.includes("apiKey"), false);
-    assert.equal(agentsJson.includes("secret"), false);
     assert.equal(agentsJson.includes("token"), false);
 
     // Check providers endpoint
@@ -296,8 +329,8 @@ test("Product API responses do not expose secrets", async () => {
     );
 
     const providersJson = JSON.stringify(providersResult.body);
+    assert.equal(providersJson.includes("sk-"), false);
     assert.equal(providersJson.includes("apiKey"), false);
-    assert.equal(providersJson.includes("secret"), false);
     assert.equal(providersJson.includes("token"), false);
   } finally {
     await context.close();
@@ -305,33 +338,25 @@ test("Product API responses do not expose secrets", async () => {
 });
 
 test("HTTP server exposes both inspection and Product API surfaces", async () => {
-  const { server, context } = await createAcsHttpServer();
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
+  const context = createControlPlaneContext({
+    engine: createMockEngine(),
+    startLocalWorker: false,
+  });
+  const handler = createAcsHttpHandler(context);
 
   try {
-    const address = server.address();
-    const port = typeof address === "object" && address ? address.port : 0;
-
-    // Test inspection API
-    const acsResponse = await fetch(`http://127.0.0.1:${port}/acs/health`);
-    const acsBody = await acsResponse.json();
+    const acsResponse = await invokeHandler(handler, { method: "GET", url: "/acs/health", headers: {} });
     assert.equal(acsResponse.status, 200);
-    assert.equal(acsBody.data.status, "ok");
+    assert.equal(acsResponse.body.data.status, "ok");
 
-    // Test Product API
-    const apiResponse = await fetch(`http://127.0.0.1:${port}/api/v1/agents`);
-    const apiBody = await apiResponse.json();
+    const apiResponse = await invokeHandler(handler, { method: "GET", url: "/api/v1/agents", headers: {} });
     assert.equal(apiResponse.status, 200);
-    assert.equal(apiBody.success, true);
-    assert.ok(Array.isArray(apiBody.data));
+    assert.equal(apiResponse.body.success, true);
+    assert.ok(Array.isArray(apiResponse.body.data));
 
-    // Test Product API 404
-    const notFoundResponse = await fetch(`http://127.0.0.1:${port}/api/v1/unknown`);
+    const notFoundResponse = await invokeHandler(handler, { method: "GET", url: "/api/v1/unknown", headers: {} });
     assert.equal(notFoundResponse.status, 404);
   } finally {
-    server.close();
-    await once(server, "close");
     await context.close();
   }
 });

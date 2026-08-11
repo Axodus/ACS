@@ -1,7 +1,49 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
 import test from "node:test";
-import { createAcsHttpServer, routeAcsRequest } from "../dist/index.js";
+import { createAcsHttpHandler, routeAcsRequest } from "../dist/index.js";
+import { createControlPlaneContext } from "../dist/http/control-plane-context.js";
+
+function createMockEngine() {
+  return {
+    identity: { id: "openclaw", provider: "agentsai" },
+    async close() {},
+  };
+}
+
+async function invokeHttpHandler(request) {
+  const context = createControlPlaneContext({
+    engine: createMockEngine(),
+    startLocalWorker: false,
+  });
+  const handler = createAcsHttpHandler(context);
+  const response = {
+    statusCode: 0,
+    headers: {},
+    bodyText: "",
+    writeHead(status, headers) {
+      this.statusCode = status;
+      this.headers = headers;
+      return this;
+    },
+    end(body) {
+      this.bodyText = typeof body === "string" ? body : Buffer.from(body ?? "").toString("utf8");
+    },
+  };
+
+  try {
+    await handler({
+      method: request.method ?? "GET",
+      url: request.url,
+      headers: request.headers ?? {},
+    }, response);
+    return {
+      status: response.statusCode,
+      body: JSON.parse(response.bodyText),
+    };
+  } finally {
+    await context.close();
+  }
+}
 
 test("capabilities endpoint returns JSON envelope", () => {
   const result = routeAcsRequest("/acs/capabilities?level=product");
@@ -77,40 +119,18 @@ test("HTTP inspection endpoints reject invalid filters without side effects", ()
   assert.equal(missingRoute.body.success, false);
 });
 
-test("HTTP server returns JSON for ACS health", async () => {
-  const { server } = await createAcsHttpServer();
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
+test("HTTP handler returns JSON for ACS health", async () => {
+  const result = await invokeHttpHandler({ url: "/acs/health" });
 
-  try {
-    const address = server.address();
-    const response = await fetch(`http://127.0.0.1:${address.port}/acs/health`);
-    const body = await response.json();
-
-    assert.equal(response.status, 200);
-    assert.equal(body.success, true);
-    assert.equal(body.data.status, "ok");
-  } finally {
-    server.close();
-    await once(server, "close");
-  }
+  assert.equal(result.status, 200);
+  assert.equal(result.body.success, true);
+  assert.equal(result.body.data.status, "ok");
 });
 
-test("HTTP server rejects non-GET methods", async () => {
-  const { server } = await createAcsHttpServer();
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
+test("HTTP handler rejects non-GET methods", async () => {
+  const result = await invokeHttpHandler({ url: "/acs/health", method: "DELETE" });
 
-  try {
-    const address = server.address();
-    const response = await fetch(`http://127.0.0.1:${address.port}/acs/health`, { method: "DELETE" });
-    const body = await response.json();
-
-    assert.equal(response.status, 405);
-    assert.equal(body.success, false);
-    assert.match(body.blockedReason, /method not allowed/);
-  } finally {
-    server.close();
-    await once(server, "close");
-  }
+  assert.equal(result.status, 405);
+  assert.equal(result.body.success, false);
+  assert.match(result.body.blockedReason, /method not allowed/);
 });
