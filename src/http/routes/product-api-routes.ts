@@ -1,4 +1,5 @@
 import { fail, ok, type AcsHttpEnvelopeMeta } from "../responses.js";
+import type { EventSeverity } from "../../control-plane/operational-evidence-service.js";
 import {
   AcsHttpValidationError,
   assertAllowedQueryParams,
@@ -60,6 +61,7 @@ export async function routeProductApiRequest(
     auditService: context.auditService,
     targetService: context.targetService,
     providerService: context.providerService,
+    economicService: context.economicService,
     runnerService: context.runnerService,
     workerRegistry: context.workerRegistry,
     workerAssignmentService: context.workerAssignmentService,
@@ -744,11 +746,470 @@ export async function routeProductApiRequest(
       return { status: 200, body: ok(runtime, [], options.correlationId, routeMeta) };
     }
 
-    // GET /api/v1/audit
-    if (apiPath === "audit") {
-      const filter = {};
-      const events = await api.queryAuditEvents(filter);
+    // ---- Milestone E: Operational Evidence & Economics ----
+
+    // GET /api/v1/events
+    if (apiPath === "events" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "deploymentId", "runtimeId", "executionRunId", "correlationId", "severity", "limit"]);
+      const rawEvQuery = buildEvidenceQuery(url);
+      const eventsQuery: { agentId?: string; deploymentId?: string; runtimeId?: string; executionRunId?: string; correlationId?: string; severity?: EventSeverity; limit?: number } = {
+        ...(rawEvQuery.agentId ? { agentId: rawEvQuery.agentId } : {}),
+        ...(rawEvQuery.deploymentId ? { deploymentId: rawEvQuery.deploymentId } : {}),
+        ...(rawEvQuery.runtimeId ? { runtimeId: rawEvQuery.runtimeId } : {}),
+        ...(rawEvQuery.executionRunId ? { executionRunId: rawEvQuery.executionRunId } : {}),
+        ...(rawEvQuery.correlationId ? { correlationId: rawEvQuery.correlationId } : {}),
+        ...(rawEvQuery.severity ? { severity: rawEvQuery.severity as EventSeverity } : {}),
+        ...(rawEvQuery.limit ? { limit: rawEvQuery.limit } : {}),
+      };
+      const events = await api.listEvents(eventsQuery);
       return { status: 200, body: ok(events, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "events") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // GET /api/v1/events/:eventId
+    if (segments[2] === "events" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const eventId = readPathSegment(segments, 3, "eventId");
+      const event = await api.getEventDetail(eventId);
+      if (!event) {
+        return fail(`event not found: ${eventId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(event, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "events" && segments.length === 4) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // GET /api/v1/logs and GET /api/v1/logs/:logId
+    if (apiPath === "logs" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "deploymentId", "runtimeId", "executionRunId", "correlationId", "severity", "limit"]);
+      const result = await api.listLogs({});
+      return { status: 200, body: ok(result, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "logs" && segments.length === 4 && request.method === "GET") {
+      const logId = readPathSegment(segments, 3, "logId");
+      const availability = await api.getLogAvailability();
+      return { status: 200, body: ok(availability, [], options.correlationId, routeMeta) };
+    }
+
+    // GET /api/v1/audit (operational audit trail)
+    if (apiPath === "audit" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "deploymentId", "runtimeId", "executionRunId", "correlationId", "limit"]);
+      const query = buildAuditQuery(url);
+      const entries = await api.listAuditEntries(query);
+      return { status: 200, body: ok(entries, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "audit/:auditId" && request.method === "GET") {
+      const auditId = readPathSegment(segments, 3, "auditId");
+      const entry = await api.getAuditEntry(auditId);
+      if (!entry) {
+        return fail(`audit entry not found: ${auditId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(entry, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "audit") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // Entity-scoped events and audit
+    if (segments[2] === "agents" && segments[3] && segments[4] === "events" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "severity", "limit"]);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const query = buildEvidenceQuery(url, agentId);
+      const events = await api.listAgentEvents(agentId);
+      return { status: 200, body: ok(events, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "agents" && segments[3] && segments[4] === "audit" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "limit"]);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const entries = await api.listAgentAudit(agentId);
+      return { status: 200, body: ok(entries, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "deployments" && segments[3] && segments[4] === "events" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "severity", "limit"]);
+      const deploymentId = readPathSegment(segments, 3, "deploymentId");
+      const events = await api.listDeploymentEvents(deploymentId);
+      return { status: 200, body: ok(events, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "deployments" && segments[3] && segments[4] === "audit" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "limit"]);
+      const deploymentId = readPathSegment(segments, 3, "deploymentId");
+      const entries = await api.listDeploymentAudit(deploymentId);
+      return { status: 200, body: ok(entries, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtimes" && segments[3] && segments[4] === "events" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "severity", "limit"]);
+      const runtimeId = readPathSegment(segments, 3, "runtimeId");
+      const events = await api.listRuntimeEvents(runtimeId);
+      return { status: 200, body: ok(events, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtimes" && segments[3] && segments[4] === "audit" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "limit"]);
+      const runtimeId = readPathSegment(segments, 3, "runtimeId");
+      const entries = await api.listRuntimeAudit(runtimeId);
+      return { status: 200, body: ok(entries, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "workers" && segments[3] && segments[4] === "events" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "severity", "limit"]);
+      const workerId = readPathSegment(segments, 3, "workerId");
+      const events = await api.listWorkerEvents(workerId);
+      return { status: 200, body: ok(events, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "workers" && segments[3] && segments[4] === "audit" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "limit"]);
+      const workerId = readPathSegment(segments, 3, "workerId");
+      const entries = await api.listWorkerAudit(workerId);
+      return { status: 200, body: ok(entries, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "events" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "severity", "limit"]);
+      const runId = readPathSegment(segments, 3, "runId");
+      const events = await api.listExecutionRunEvents(runId);
+      return { status: 200, body: ok(events, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "audit" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["correlationId", "limit"]);
+      const runId = readPathSegment(segments, 3, "runId");
+      const entries = await api.listExecutionRunAudit(runId);
+      return { status: 200, body: ok(entries, [], options.correlationId, routeMeta) };
+    }
+
+    // GET /api/v1/evidence and GET /api/v1/evidence/:evidenceId
+    if (apiPath === "evidence" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "deploymentId", "runtimeId", "executionRunId", "correlationId", "kind", "limit"]);
+      const rawQuery = buildEvidenceQuery(url);
+      const query: { agentId?: string; deploymentId?: string; runtimeId?: string; executionRunId?: string; correlationId?: string; limit?: number } = {
+        ...(rawQuery.agentId ? { agentId: rawQuery.agentId } : {}),
+        ...(rawQuery.deploymentId ? { deploymentId: rawQuery.deploymentId } : {}),
+        ...(rawQuery.runtimeId ? { runtimeId: rawQuery.runtimeId } : {}),
+        ...(rawQuery.executionRunId ? { executionRunId: rawQuery.executionRunId } : {}),
+        ...(rawQuery.correlationId ? { correlationId: rawQuery.correlationId } : {}),
+        ...(rawQuery.limit ? { limit: rawQuery.limit } : {}),
+      };
+      const evidence = await api.listEvidence(query);
+      return { status: 200, body: ok(evidence, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "evidence" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const evidenceId = readPathSegment(segments, 3, "evidenceId");
+      const record = await api.getEvidenceDetail(evidenceId);
+      if (!record) {
+        return fail(`evidence not found: ${evidenceId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(record, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "evidence") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // GET /api/v1/diagnostics and GET /api/v1/diagnostics/:diagnosticId
+    if (apiPath === "diagnostics" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "deploymentId", "runtimeId", "executionRunId", "correlationId", "limit"]);
+      const rawDiagQuery = buildEvidenceQuery(url);
+      const diagnosticsQuery: { agentId?: string; deploymentId?: string; runtimeId?: string; executionRunId?: string; correlationId?: string; kind?: never; limit?: number } = {
+        ...(rawDiagQuery.agentId ? { agentId: rawDiagQuery.agentId } : {}),
+        ...(rawDiagQuery.deploymentId ? { deploymentId: rawDiagQuery.deploymentId } : {}),
+        ...(rawDiagQuery.runtimeId ? { runtimeId: rawDiagQuery.runtimeId } : {}),
+        ...(rawDiagQuery.executionRunId ? { executionRunId: rawDiagQuery.executionRunId } : {}),
+        ...(rawDiagQuery.correlationId ? { correlationId: rawDiagQuery.correlationId } : {}),
+        ...(rawDiagQuery.limit ? { limit: rawDiagQuery.limit } : {}),
+      };
+      const diagnostics = await api.listDiagnostics(diagnosticsQuery);
+      return { status: 200, body: ok(diagnostics, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "diagnostics" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const diagnosticId = readPathSegment(segments, 3, "diagnosticId");
+      const report = await api.getDiagnosticDetail(diagnosticId);
+      if (!report) {
+        return fail(`diagnostic not found: ${diagnosticId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(report, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "diagnostics") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // GET /api/v1/readiness/evidence
+    if (apiPath === "readiness/evidence" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const evidence = await api.listReadinessEvidence();
+      return { status: 200, body: ok(evidence, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "readiness/evidence") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // Entity-scoped evidence
+    if (segments[2] === "agents" && segments[3] && segments[4] === "evidence" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const evidence = await api.listAgentEvidence(agentId);
+      return { status: 200, body: ok(evidence, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "deployments" && segments[3] && segments[4] === "evidence" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const deploymentId = readPathSegment(segments, 3, "deploymentId");
+      const evidence = await api.listDeploymentEvidence(deploymentId);
+      return { status: 200, body: ok(evidence, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtimes" && segments[3] && segments[4] === "evidence" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runtimeId = readPathSegment(segments, 3, "runtimeId");
+      const evidence = await api.listRuntimeEvidence(runtimeId);
+      return { status: 200, body: ok(evidence, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "workers" && segments[3] && segments[4] === "evidence" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const workerId = readPathSegment(segments, 3, "workerId");
+      const evidence = await api.listWorkerEvidence(workerId);
+      return { status: 200, body: ok(evidence, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "evidence" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runId = readPathSegment(segments, 3, "runId");
+      const evidence = await api.listExecutionRunEvidence(runId);
+      return { status: 200, body: ok(evidence, [], options.correlationId, routeMeta) };
+    }
+
+    // GET /api/v1/economics and GET /api/v1/economics/summary
+    if ((apiPath === "economics" || apiPath === "economics/summary") && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "deploymentId", "runtimeId", "executionRunId", "limit"]);
+      const query = buildEconomicQuery(url);
+      const summary = await api.getEconomicSummary(query);
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "economics" || apiPath === "economics/summary") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // Entity-scoped economics
+    if (segments[2] === "agents" && segments[3] && segments[4] === "economics" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const summary = await api.getAgentEconomics(agentId);
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "deployments" && segments[3] && segments[4] === "economics" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const deploymentId = readPathSegment(segments, 3, "deploymentId");
+      const summary = await api.getDeploymentEconomics(deploymentId);
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtimes" && segments[3] && segments[4] === "economics" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runtimeId = readPathSegment(segments, 3, "runtimeId");
+      const summary = await api.getRuntimeEconomics(runtimeId);
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runId = readPathSegment(segments, 3, "runId");
+      const summary = await api.getExecutionRunEconomics(runId);
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+
+    // GET /api/v1/economics/quotes and GET /api/v1/economics/quotes/:quoteId
+    if (apiPath === "economics/quotes" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "executionRunId", "limit"]);
+      const query: { agentId?: string; executionRunId?: string; limit?: number } = {};
+      const agentIdParam = url.searchParams.get("agentId");
+      if (agentIdParam) query.agentId = agentIdParam;
+      const runIdParam = url.searchParams.get("executionRunId");
+      if (runIdParam) query.executionRunId = runIdParam;
+      const limitParam = url.searchParams.get("limit");
+      if (limitParam) query.limit = parseInt(limitParam, 10);
+      const quotes = await api.listQuotes(query);
+      return { status: 200, body: ok(quotes, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "quotes" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const quoteId = readPathSegment(segments, 4, "quoteId");
+      const quote = await api.getQuoteDetail(quoteId);
+      if (!quote) {
+        return fail(`quote not found: ${quoteId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(quote, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "quotes" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/quotes") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // GET /api/v1/economics/reservations and GET /api/v1/economics/reservations/:reservationId
+    if (apiPath === "economics/reservations" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "executionRunId", "limit"]);
+      const query: { agentId?: string; executionRunId?: string; limit?: number } = {};
+      const agentIdParam = url.searchParams.get("agentId");
+      if (agentIdParam) query.agentId = agentIdParam;
+      const runIdParam = url.searchParams.get("executionRunId");
+      if (runIdParam) query.executionRunId = runIdParam;
+      const limitParam = url.searchParams.get("limit");
+      if (limitParam) query.limit = parseInt(limitParam, 10);
+      const reservations = await api.listReservations(query);
+      return { status: 200, body: ok(reservations, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "reservations" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const reservationId = readPathSegment(segments, 4, "reservationId");
+      const reservation = await api.getReservationDetail(reservationId);
+      if (!reservation) {
+        return fail(`reservation not found: ${reservationId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(reservation, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "reservations" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/reservations") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // Entity-scoped quotes
+    if (segments[2] === "agents" && segments[3] && segments[4] === "economics" && segments[5] === "quotes" && segments.length === 6 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const quotes = await api.listAgentQuotes(agentId);
+      return { status: 200, body: ok(quotes, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments[5] === "reservation" && segments.length === 6 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runId = readPathSegment(segments, 3, "runId");
+      const reservation = await api.getExecutionRunReservation(runId);
+      if (!reservation) {
+        return fail(`no reservation found for execution run: ${runId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(reservation, [], options.correlationId, routeMeta) };
+    }
+
+    // Economic mutation actions (governed — return 405 if unsupported)
+    if (segments[2] === "agents" && segments[3] && segments[4] === "economics" && segments[5] === "quote" && segments.length === 6 && request.method === "POST") {
+      return unsupportedEconomicMutation(options.correlationId, routeMeta, "quote");
+    }
+    if (segments[2] === "economics" && segments[3] === "quotes" && segments[4] && segments[5] === "reserve" && segments.length === 6 && request.method === "POST") {
+      return unsupportedEconomicMutation(options.correlationId, routeMeta, "reserve");
+    }
+    if (segments[2] === "economics" && segments[3] === "reservations" && segments[4] && segments[5] === "cancel" && segments.length === 6 && request.method === "POST") {
+      return unsupportedEconomicMutation(options.correlationId, routeMeta, "cancel");
+    }
+
+    // GET /api/v1/economics/metering and GET /api/v1/economics/metering/:meterId
+    if (apiPath === "economics/metering" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["agentId", "deploymentId", "runtimeId", "executionRunId", "limit"]);
+      const query = buildMeteringQuery(url);
+      const records = await api.listMeteringRecords(query);
+      return { status: 200, body: ok(records, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "metering" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const meterId = readPathSegment(segments, 4, "meterId");
+      const record = await api.getMeteringRecord(meterId);
+      if (!record) {
+        return fail(`metering record not found: ${meterId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(record, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "metering" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/metering") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // GET /api/v1/economics/settlements and GET /api/v1/economics/settlements/:settlementId
+    if (apiPath === "economics/settlements" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["settlementId", "meterId", "executionRunId", "limit"]);
+      const query: { settlementId?: string; meterId?: string; executionRunId?: string; limit?: number } = {};
+      const settlementIdParam = url.searchParams.get("settlementId");
+      if (settlementIdParam) query.settlementId = settlementIdParam;
+      const meterIdParam = url.searchParams.get("meterId");
+      if (meterIdParam) query.meterId = meterIdParam;
+      const runIdParam = url.searchParams.get("executionRunId");
+      if (runIdParam) query.executionRunId = runIdParam;
+      const limitParam = url.searchParams.get("limit");
+      if (limitParam) query.limit = parseInt(limitParam, 10);
+      const settlements = await api.listSettlements(query);
+      return { status: 200, body: ok(settlements, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "settlements" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const settlementId = readPathSegment(segments, 4, "settlementId");
+      const settlement = await api.getSettlementDetail(settlementId);
+      if (!settlement) {
+        return fail(`settlement not found: ${settlementId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(settlement, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "settlements" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/settlements") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // GET /api/v1/economics/receipts and GET /api/v1/economics/receipts/:receiptId
+    if (apiPath === "economics/receipts" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["settlementId", "executionRunId", "limit"]);
+      const query: { settlementId?: string; executionRunId?: string; limit?: number } = {};
+      const settlementIdParam = url.searchParams.get("settlementId");
+      if (settlementIdParam) query.settlementId = settlementIdParam;
+      const runIdParam = url.searchParams.get("executionRunId");
+      if (runIdParam) query.executionRunId = runIdParam;
+      const limitParam = url.searchParams.get("limit");
+      if (limitParam) query.limit = parseInt(limitParam, 10);
+      const receipts = await api.listReceipts(query);
+      return { status: 200, body: ok(receipts, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "receipts" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const receiptId = readPathSegment(segments, 4, "receiptId");
+      const receipt = await api.getReceiptDetail(receiptId);
+      if (!receipt) {
+        return fail(`receipt not found: ${receiptId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(receipt, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "receipts" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/receipts") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // Entity-scoped metering and settlement
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments[5] === "metering" && segments.length === 6 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runId = readPathSegment(segments, 3, "runId");
+      const records = await api.getExecutionRunMetering(runId);
+      return { status: 200, body: ok(records, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments[5] === "settlement" && segments.length === 6 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runId = readPathSegment(segments, 3, "runId");
+      const settlement = await api.getExecutionRunSettlement(runId);
+      if (!settlement) {
+        return fail(`settlement not found for execution run: ${runId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(settlement, [], options.correlationId, routeMeta) };
+    }
+
+    // Economic mutation: settle metering record (governed — return 405 if unsupported)
+    if (segments[2] === "economics" && segments[3] === "metering" && segments[4] && segments[5] === "settle" && segments.length === 6 && request.method === "POST") {
+      return unsupportedEconomicMutation(options.correlationId, routeMeta, "settle");
+    }
+
+    // GET /api/v1/economics/audit
+    if (apiPath === "economics/audit" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const entries = await api.listEconomicAudit();
+      return { status: 200, body: ok(entries, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "economics/audit") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
     return fail("route not found", 404, "not_found", options.correlationId, undefined, routeMeta);
@@ -803,6 +1264,77 @@ function unsupportedExecutionMutation(correlationId: string | undefined, meta: A
     { path, guidance: "Unsupported / Governed by Product API / Coming later" },
     meta,
   );
+}
+
+function unsupportedEconomicMutation(correlationId: string | undefined, meta: AcsHttpEnvelopeMeta, action: string) {
+  return fail(
+    `Economic ${action} is not supported in this milestone; governed by Product API`,
+    405,
+    "unsupported_action",
+    correlationId,
+    { action, guidance: "Unsupported / Governed by Product API / Economics is operational, not billing" },
+    meta,
+  );
+}
+
+function buildEvidenceQuery(url: URL, agentId?: string) {
+  const query: {
+    agentId?: string;
+    deploymentId?: string;
+    runtimeId?: string;
+    executionRunId?: string;
+    correlationId?: string;
+    severity?: string;
+    limit?: number;
+  } = { ...(agentId ? { agentId } : {}) };
+  const p = url.searchParams;
+  if (p.has("deploymentId")) query.deploymentId = p.get("deploymentId")!;
+  if (p.has("runtimeId")) query.runtimeId = p.get("runtimeId")!;
+  if (p.has("executionRunId")) query.executionRunId = p.get("executionRunId")!;
+  if (p.has("correlationId")) query.correlationId = p.get("correlationId")!;
+  if (p.has("severity")) query.severity = p.get("severity")!;
+  if (p.has("limit")) query.limit = parseInt(p.get("limit")!, 10);
+  return query;
+}
+
+function buildAuditQuery(url: URL) {
+  const query: {
+    agentId?: string;
+    deploymentId?: string;
+    runtimeId?: string;
+    executionRunId?: string;
+    correlationId?: string;
+    limit?: number;
+  } = {};
+  const p = url.searchParams;
+  if (p.has("agentId")) query.agentId = p.get("agentId")!;
+  if (p.has("deploymentId")) query.deploymentId = p.get("deploymentId")!;
+  if (p.has("runtimeId")) query.runtimeId = p.get("runtimeId")!;
+  if (p.has("executionRunId")) query.executionRunId = p.get("executionRunId")!;
+  if (p.has("correlationId")) query.correlationId = p.get("correlationId")!;
+  if (p.has("limit")) query.limit = parseInt(p.get("limit")!, 10);
+  return query;
+}
+
+function buildEconomicQuery(url: URL) {
+  const query: {
+    agentId?: string;
+    deploymentId?: string;
+    runtimeId?: string;
+    executionRunId?: string;
+    limit?: number;
+  } = {};
+  const p = url.searchParams;
+  if (p.has("agentId")) query.agentId = p.get("agentId")!;
+  if (p.has("deploymentId")) query.deploymentId = p.get("deploymentId")!;
+  if (p.has("runtimeId")) query.runtimeId = p.get("runtimeId")!;
+  if (p.has("executionRunId")) query.executionRunId = p.get("executionRunId")!;
+  if (p.has("limit")) query.limit = parseInt(p.get("limit")!, 10);
+  return query;
+}
+
+function buildMeteringQuery(url: URL) {
+  return buildEconomicQuery(url);
 }
 
 const AGENT_STATUS_VALUES: readonly GovernedAgentStatus[] = ["draft", "active", "disabled", "archived"];

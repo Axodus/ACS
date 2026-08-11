@@ -18,6 +18,33 @@ import type { DeploymentService, DeploymentRecord, DeploymentRequest } from "./d
 import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord, StartRuntimeServiceRequest } from "./runtime-lifecycle-service.js";
 import type { AuditService, AuditEvent, AuditQueryFilter } from "./audit-service.js";
 import type { ExecutionTargetService } from "../targets/execution-target-service.js";
+import type { EconomicService } from "./neurons-economic-contract.js";
+import { OperationalEvidenceService } from "./operational-evidence-service.js";
+import type {
+  AgentEconomicConsumption,
+  AuditEntry,
+  DiagnosticReport,
+  EconomicQuery,
+  EconomicSummary,
+  EvidenceQuery,
+  EvidenceRecord,
+  EventSummary,
+  LogAvailability,
+  LogSummary,
+  MeteringQuery,
+  MeteringRecord,
+  Quote,
+  QuoteQuery,
+  Receipt,
+  ReceiptQuery,
+  Reservation,
+  ReservationQuery,
+  Settlement,
+  SettlementQuery,
+  EventsQuery,
+  AuditQuery,
+ } from "./operational-evidence-service.js";
+
 import type { ModelProviderService } from "../intelligence/model-provider-service.js";
 import type {
   ModelDefinition,
@@ -56,6 +83,7 @@ export interface ProductApiClientOptions {
   readonly runtimeService?: RuntimeLifecycleService;
   readonly auditService?: AuditService;
   readonly targetService?: ExecutionTargetService;
+  readonly economicService?: EconomicService;
   readonly providerService?: ModelProviderService;
   readonly runnerService?: AgentRunnerService;
   readonly workerRegistry?: ExecutionWorkerRegistry;
@@ -870,7 +898,9 @@ export class ProductApiClient {
   readonly #runtimeService: RuntimeLifecycleService | undefined;
   readonly #auditService: AuditService | undefined;
   readonly #targetService: ExecutionTargetService | undefined;
+  readonly #economicService: EconomicService | undefined;
   readonly #providerService: ModelProviderService | undefined;
+  readonly #operationalEvidence: OperationalEvidenceService;
   readonly #runnerService: AgentRunnerService | undefined;
   readonly #workerRegistry: ExecutionWorkerRegistry | undefined;
   readonly #workerAssignmentService: WorkerAssignmentService | undefined;
@@ -885,6 +915,7 @@ export class ProductApiClient {
     this.#runtimeService = options.runtimeService;
     this.#auditService = options.auditService;
     this.#targetService = options.targetService;
+    this.#economicService = options.economicService;
     this.#providerService = options.providerService;
     this.#runnerService = options.runnerService;
     this.#workerRegistry = options.workerRegistry;
@@ -893,6 +924,21 @@ export class ProductApiClient {
     this.#compositionResources = options.compositionResources;
     this.#credentialRegistry = options.credentialRegistry;
     this.#baseUrl = options.baseUrl;
+
+    this.#operationalEvidence = new OperationalEvidenceService({
+      ...(options.auditService ? { auditService: options.auditService } : {}),
+      ...(options.economicService ? { economicService: options.economicService } : {}),
+      deploymentService: {
+        listDeployments: () => options.deploymentService?.listDeployments() ?? [],
+      },
+      runtimeService: {
+        listRuntimes: () => options.runtimeService?.listRuntimes() ?? [],
+        listExecutionRuns: () => options.runtimeService?.listExecutionRuns() ?? [],
+      },
+      agentService: {
+        list: () => options.agentService?.list() ?? [],
+      },
+    });
   }
 
   async listAgents(): Promise<readonly AgentListItem[]> {
@@ -1114,11 +1160,217 @@ export class ProductApiClient {
     return [];
   }
 
-  async queryAuditEvents(filter: AuditQueryFilter): Promise<readonly AuditEvent[]> {
-    if (this.#auditService) {
-      return this.#auditService.queryEvents(filter);
-    }
-    return [];
+ async queryAuditEvents(filter: AuditQueryFilter): Promise<readonly AuditEvent[]> {
+   if (this.#auditService) {
+     return this.#auditService.queryEvents(filter);
+   }
+   return [];
+ }
+
+  // --- Milestone E: Operational Evidence & Economics ---
+
+  async listEvents(query?: EventsQuery): Promise<readonly EventSummary[]> {
+    return this.#operationalEvidence.listEvents(query ?? {});
+  }
+
+  async getEventDetail(eventId: string): Promise<EventSummary | undefined> {
+    return this.#operationalEvidence.getEventDetail(eventId);
+  }
+
+  async listLogs(query?: EventsQuery): Promise<readonly LogSummary[]> {
+    return this.#operationalEvidence.listLogs(query ?? {});
+  }
+
+  async getLogAvailability(): Promise<LogAvailability> {
+    return this.#operationalEvidence.getLogAvailability();
+  }
+
+  async listAuditEntries(query?: AuditQuery): Promise<readonly AuditEntry[]> {
+    return this.#operationalEvidence.listAuditEntries(query ?? {});
+  }
+
+  async getAuditEntry(auditId: string): Promise<AuditEntry | undefined> {
+    return this.#operationalEvidence.getAuditEntry(auditId);
+  }
+
+  async listEvidence(query?: EvidenceQuery): Promise<readonly EvidenceRecord[]> {
+    return this.#operationalEvidence.listEvidence(query ?? {});
+  }
+
+  async getEvidenceDetail(evidenceId: string): Promise<EvidenceRecord | undefined> {
+    return this.#operationalEvidence.getEvidenceDetail(evidenceId);
+  }
+
+  async listDiagnostics(query?: EvidenceQuery): Promise<readonly DiagnosticReport[]> {
+    return this.#operationalEvidence.listDiagnostics(query);
+  }
+
+  async getDiagnosticDetail(diagnosticId: string): Promise<DiagnosticReport | undefined> {
+    return this.#operationalEvidence.getDiagnosticDetail(diagnosticId);
+  }
+
+  async listAgentEvidence(agentId: string): Promise<readonly EvidenceRecord[]> {
+    return this.#operationalEvidence.listEvidence({ agentId });
+  }
+
+  async listDeploymentEvidence(deploymentId: string): Promise<readonly EvidenceRecord[]> {
+    return this.#operationalEvidence.listEvidence({ deploymentId });
+  }
+
+  async listRuntimeEvidence(runtimeId: string): Promise<readonly EvidenceRecord[]> {
+    return this.#operationalEvidence.listEvidence({ runtimeId });
+  }
+
+  async listWorkerEvidence(workerId: string): Promise<readonly EvidenceRecord[]> {
+    return this.#operationalEvidence.listEvidence({});
+  }
+
+  async listExecutionRunEvidence(runId: string): Promise<readonly EvidenceRecord[]> {
+    return this.#operationalEvidence.listEvidence({ executionRunId: runId });
+  }
+
+  async listReadinessEvidence(): Promise<readonly EvidenceRecord[]> {
+    return this.#operationalEvidence.listEvidence({ limit: 1000 });
+  }
+
+  // --- Entity-scoped events ---
+
+  async listAgentEvents(agentId: string): Promise<readonly EventSummary[]> {
+    return this.#operationalEvidence.listEvents({ agentId });
+  }
+
+  async listDeploymentEvents(deploymentId: string): Promise<readonly EventSummary[]> {
+    return this.#operationalEvidence.listEvents({ deploymentId });
+  }
+
+  async listRuntimeEvents(runtimeId: string): Promise<readonly EventSummary[]> {
+    return this.#operationalEvidence.listEvents({ runtimeId });
+  }
+
+  async listWorkerEvents(workerId: string): Promise<readonly EventSummary[]> {
+    return this.#operationalEvidence.listEvents({ workerId });
+  }
+
+  async listExecutionRunEvents(runId: string): Promise<readonly EventSummary[]> {
+    return this.#operationalEvidence.listEvents({ executionRunId: runId });
+  }
+
+  // --- Entity-scoped audit ---
+
+  async listAgentAudit(agentId: string): Promise<readonly AuditEntry[]> {
+    return this.#operationalEvidence.listAuditEntries({ agentId });
+  }
+
+  async listDeploymentAudit(deploymentId: string): Promise<readonly AuditEntry[]> {
+    return this.#operationalEvidence.listAuditEntries({ deploymentId });
+  }
+
+  async listRuntimeAudit(runtimeId: string): Promise<readonly AuditEntry[]> {
+    return this.#operationalEvidence.listAuditEntries({ runtimeId });
+  }
+
+  async listWorkerAudit(workerId: string): Promise<readonly AuditEntry[]> {
+    return this.#operationalEvidence.listAuditEntries({ workerId });
+  }
+
+  async listExecutionRunAudit(runId: string): Promise<readonly AuditEntry[]> {
+    return this.#operationalEvidence.listAuditEntries({ executionRunId: runId });
+  }
+
+  async listEconomicAudit(): Promise<readonly AuditEntry[]> {
+    return this.#operationalEvidence.listEconomicAudit();
+  }
+
+  async getEconomicSummary(query?: EconomicQuery): Promise<EconomicSummary> {
+    return this.#operationalEvidence.getEconomicSummary(query);
+  }
+
+  async getAgentEconomics(agentId: string): Promise<EconomicSummary> {
+    return this.#operationalEvidence.getAgentEconomics(agentId);
+  }
+
+  async getDeploymentEconomics(deploymentId: string): Promise<EconomicSummary> {
+    return this.#operationalEvidence.getDeploymentEconomics(deploymentId);
+  }
+
+  async getRuntimeEconomics(runtimeId: string): Promise<EconomicSummary> {
+    return this.#operationalEvidence.getRuntimeEconomics(runtimeId);
+  }
+
+  async getExecutionRunEconomics(runId: string): Promise<EconomicSummary> {
+    return this.#operationalEvidence.getExecutionRunEconomics(runId);
+  }
+
+  async listQuotes(query?: QuoteQuery): Promise<readonly Quote[]> {
+    return this.#operationalEvidence.listQuotes(query);
+  }
+
+  async getQuoteDetail(quoteId: string): Promise<Quote | undefined> {
+    return this.#operationalEvidence.getQuoteDetail(quoteId);
+  }
+
+  async listReservations(query?: ReservationQuery): Promise<readonly Reservation[]> {
+    return this.#operationalEvidence.listReservations(query);
+  }
+
+  async getReservationDetail(reservationId: string): Promise<Reservation | undefined> {
+    return this.#operationalEvidence.getReservationDetail(reservationId);
+  }
+
+  async listAgentQuotes(agentId: string): Promise<readonly Quote[]> {
+    return this.#operationalEvidence.listAgentQuotes(agentId);
+  }
+
+  async getExecutionRunReservation(runId: string): Promise<Reservation | undefined> {
+    return this.#operationalEvidence.getExecutionRunReservation(runId);
+  }
+
+  async listMeteringRecords(query?: MeteringQuery): Promise<readonly MeteringRecord[]> {
+    return this.#operationalEvidence.listMeteringRecords(query);
+  }
+
+  async getMeteringRecord(meterId: string): Promise<MeteringRecord | undefined> {
+    return this.#operationalEvidence.getMeteringRecord(meterId);
+  }
+
+  async listSettlements(query?: SettlementQuery): Promise<readonly Settlement[]> {
+    return this.#operationalEvidence.listSettlements(query);
+  }
+
+  async getSettlementDetail(settlementId: string): Promise<Settlement | undefined> {
+    return this.#operationalEvidence.getSettlementDetail(settlementId);
+  }
+
+  async listReceipts(query?: ReceiptQuery): Promise<readonly Receipt[]> {
+    return this.#operationalEvidence.listReceipts(query);
+  }
+
+  async getReceiptDetail(receiptId: string): Promise<Receipt | undefined> {
+    return this.#operationalEvidence.getReceiptDetail(receiptId);
+  }
+
+  async getExecutionRunMetering(runId: string): Promise<readonly MeteringRecord[]> {
+    return this.#operationalEvidence.getExecutionRunMetering(runId);
+  }
+
+  async getExecutionRunSettlement(runId: string): Promise<Settlement | undefined> {
+    return this.#operationalEvidence.getExecutionRunSettlement(runId);
+  }
+
+  async createAgentQuote(agentId: string): Promise<{ ok: boolean; operation: string; entityType: string; entityId: string; status: string; message: string }> {
+    return this.#operationalEvidence.createAgentQuote(agentId, {});
+  }
+
+  async reserveQuote(quoteId: string): Promise<{ ok: boolean; operation: string; entityType: string; entityId: string; status: string; message: string }> {
+    return this.#operationalEvidence.reserveQuote(quoteId);
+  }
+
+  async cancelReservation(reservationId: string): Promise<{ ok: boolean; operation: string; entityType: string; entityId: string; status: string; message: string }> {
+    return this.#operationalEvidence.cancelReservation(reservationId);
+  }
+
+  async settleMeteringRecord(meterId: string): Promise<{ ok: boolean; operation: string; entityType: string; entityId: string; status: string; message: string }> {
+    return this.#operationalEvidence.settleMeteringRecord(meterId);
   }
 
   async listCredentials(): Promise<readonly CredentialSummary[]> {

@@ -53,6 +53,9 @@ import {
   type RoleSummary,
   type SkillSummary,
   type ToolSummary,
+  type EventRecord,
+  type AuditEntry,
+  type EconomicSummary,
 } from "./api/product-api";
 import "./operational.css";
 
@@ -70,6 +73,9 @@ type View =
   | "Memory"
   | "Runtime"
   | "Logs"
+  | "Operational Evidence"
+  | "Audit"
+  | "Economics"
   | "Settings";
 
 type ConnectivityState =
@@ -83,6 +89,7 @@ const navGroups: View[][] = [
   ["Skills", "Tools & Plugins"],
   ["Memory"],
   ["Runtime", "Logs"],
+  ["Operational Evidence", "Audit", "Economics"],
   ["Settings"],
 ];
 
@@ -100,6 +107,9 @@ const icons: Record<View, string> = {
   Memory: "◎",
   Runtime: "◉",
   Logs: "≡",
+  "Operational Evidence": "◍",
+  Audit: "◌",
+  Economics: "$",
   Settings: "⚙",
 };
 
@@ -117,6 +127,9 @@ const viewPaths: Record<View, string> = {
   Memory: "/memory",
   Runtime: "/runtime",
   Logs: "/logs",
+  "Operational Evidence": "/operational-evidence",
+  Audit: "/audit",
+  Economics: "/economics",
   Settings: "/settings",
 };
 
@@ -2374,9 +2387,62 @@ function Runtime() {
 }
 
 function Logs() {
+  const { data: events, loadState, loadError, stale, refresh } = useOperationalSummary<EventRecord[]>(
+    () => productApi.listEvents(),
+    "Unable to load events from Product API",
+    () => false,
+  );
+  const { data: audit } = useOperationalSummary<AuditEntry[]>(
+    () => productApi.listAuditEntries(),
+    "Unable to load audit trail from Product API",
+    () => false,
+  );
   return <>
-    <header className="page-head compact"><div><p className="eyebrow">OBSERVABILITY</p><h1>Logs</h1><p>Live events from ACS Core, agents and plugins.</p></div></header>
-    <div className="log-viewer"><div className="empty-state">Connected to Product API. Waiting for events...</div></div>
+    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Events, Audit & Economics</h1><p>Operational evidence from the Product API. Economics is operational, not billing.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span><span>Not billing</span></div>
+    {stale && <div className="stale-banner" role="status">Showing a stale evidence snapshot.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing evidence...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    <div className="dashboard-grid evidence-grid">
+      <section className="panel"><div className="panel-head"><div><h2>Events</h2><p>System and agent event inventory</p></div><Badge tone="muted">{events?.length ?? 0}</Badge></div><div className="timeline">{(events ?? []).slice(0, 10).map(event => <article className="timeline-row" key={event.eventId}><b>{event.type}</b><span>{event.severity}</span><small>{event.source}</small><p>{event.message}</p></article>)}</div></section>
+      <section className="panel"><div className="panel-head"><div><h2>Audit trail</h2><p>Governed operations and audit evidence</p></div><Badge tone="muted">{audit?.length ?? 0}</Badge></div><div className="timeline">{(audit ?? []).slice(0, 10).map(entry => <article className="timeline-row" key={entry.auditId}><b>{entry.operation}</b><span>{entry.status}</span><small>{entry.actor}</small><p>{entry.message}</p></article>)}</div></section>
+      <section className="panel"><div className="panel-head"><div><h2>Economics</h2><p>Operational economics summary</p></div></div><div className="state-line empty">Use the Economics view for quote, reservation, metering, settlement and receipts.</div></section>
+    </div>
+  </>;
+}
+
+function EvidenceView() {
+  return <Logs />;
+}
+
+function AuditView() {
+  return <Logs />;
+}
+
+function EconomicsView() {
+  const { data, loadState, loadError, stale, refresh } = useOperationalSummary<EconomicSummary>(
+    () => productApi.getEconomicSummary(),
+    "Unable to load economics from Product API",
+    () => false,
+  );
+  return <>
+    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL ECONOMICS</p><h1>Economics</h1><p>Quote, reservation, metering, settlement and receipts.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Economics is operational, not billing</span></div>
+    {stale && <div className="stale-banner" role="status">Showing a stale economics snapshot.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing economics...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    <div className="dashboard-grid evidence-grid">
+      <section className="panel"><div className="panel-head"><div><h2>Summary</h2><p>Source of truth: Product API</p></div></div><div className="summary-list">{data ? <>
+        <SummaryRow label="Currency" value={data.currency} />
+        <SummaryRow label="Context" value={data.neuronsContext} />
+        <SummaryRow label="Estimated" value={String(data.totalEstimated)} />
+        <SummaryRow label="Reserved" value={String(data.totalReserved)} />
+        <SummaryRow label="Metered" value={String(data.totalMetered)} />
+        <SummaryRow label="Settled" value={String(data.totalSettled)} />
+      </> : <div className="state-line empty">No economics available.</div>}</div></section>
+      <section className="panel"><div className="panel-head"><div><h2>Warnings</h2><p>Operational findings</p></div></div><div className="timeline">{(data?.warnings ?? []).map((warning: { severity: string; message: string }, index: number) => <article className="timeline-row" key={index}><b>{warning.severity}</b><p>{warning.message}</p></article>)}</div></section>
+      <section className="panel"><div className="panel-head"><div><h2>No billing notice</h2><p>Governed read-only economics</p></div></div><div className="state-line empty">Billing, invoices, payment rails and budgets are out of scope.</div></section>
+    </div>
   </>;
 }
 
@@ -2488,6 +2554,9 @@ export default function App() {
             <Route path="/memory" element={<GenericView view="Memory" />} />
             <Route path="/runtime" element={<Runtime />} />
             <Route path="/logs" element={<Logs />} />
+            <Route path="/operational-evidence" element={<EvidenceView />} />
+            <Route path="/audit" element={<AuditView />} />
+            <Route path="/economics" element={<EconomicsView />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

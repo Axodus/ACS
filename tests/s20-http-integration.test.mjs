@@ -1411,13 +1411,25 @@ test("operational execution routes expose read-only governed contracts", async (
     );
     assert.equal(noAdminSurface.status, 404);
 
-    const noEconomicsSurface = await routeProductApiRequest(
+    const economicsSurface = await routeProductApiRequest(
       { method: "GET", url: "/api/v1/economics", headers: {} },
       "/api/v1/economics",
       context,
-      { correlationId: "test_no_economics" },
+      { correlationId: "test_economics_surface" },
     );
-    assert.equal(noEconomicsSurface.status, 404);
+    assert.equal(economicsSurface.status, 200);
+    assert.equal(economicsSurface.body.success, true);
+    assert.equal(economicsSurface.body.data.neuronsContext, "operational");
+    assert.equal(economicsSurface.body.data.guardrails.notBilling, true);
+    assert.equal(economicsSurface.body.data.guardrails.productionReady, false);
+
+    const noTenantsSurface = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/tenants", headers: {} },
+      "/api/v1/tenants",
+      context,
+      { correlationId: "test_no_tenants" },
+    );
+    assert.equal(noTenantsSurface.status, 404);
   } finally {
     await context.close();
   }
