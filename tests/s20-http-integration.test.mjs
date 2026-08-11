@@ -14,6 +14,29 @@ function createMockEngine() {
   };
 }
 
+test("GET /api/v1/health reports Product API connectivity", async () => {
+  const context = createControlPlaneContext();
+  try {
+    const result = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/health", headers: {} },
+      "/api/v1/health",
+      context,
+      { correlationId: "test_health" },
+    );
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.success, true);
+    assert.deepEqual(result.body.data, {
+      service: "acs-product-api",
+      status: "ok",
+      mode: "inspection",
+      automation: "disabled",
+    });
+  } finally {
+    await context.close();
+  }
+});
+
 async function invokeHandler(handler, request) {
   const response = {
     statusCode: 0,

@@ -7,7 +7,8 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
-import { productApi } from "./api/product-api";
+import { productApi, productApiConfig, type ProductApiHealth } from "./api/product-api";
+import "./operational.css";
 
 type View =
   | "Dashboard"
@@ -32,6 +33,11 @@ type Agent = {
   revision: number;
   createdAt: number;
 };
+
+type ConnectivityState =
+  | { status: "loading"; health: null; error: null }
+  | { status: "ready"; health: ProductApiHealth; error: null }
+  | { status: "error"; health: null; error: string };
 
 const navGroups: View[][] = [
   ["Dashboard"],
@@ -244,9 +250,8 @@ function Settings() {
 }
 
 function AgentRoute() {
-  const { agentId } = useParams();
   const navigate = useNavigate();
-  return <AgentDetail agentId={agentId} back={() => navigate("/agents")} />;
+  return <AgentDetail back={() => navigate("/agents")} />;
 }
 
 export default function App() {
@@ -256,6 +261,21 @@ export default function App() {
   const [mobile, setMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const [connectivity, setConnectivity] = useState<ConnectivityState>({ status: "loading", health: null, error: null });
+
+  async function checkProductApi() {
+    setConnectivity({ status: "loading", health: null, error: null });
+    try {
+      const health = await productApi.health();
+      setConnectivity({ status: "ready", health, error: null });
+    } catch (error) {
+      setConnectivity({
+        status: "error",
+        health: null,
+        error: error instanceof Error ? error.message : "Product API is unavailable",
+      });
+    }
+  }
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
@@ -272,7 +292,10 @@ export default function App() {
     return () => removeEventListener("keydown", fn);
   }, []);
 
-  const openAgent = (a: Agent) => navigate(`/agents/${a.agentId}`);
+  useEffect(() => {
+    void checkProductApi();
+  }, []);
+
   const go = (v: View) => {
     navigate(viewPaths[v]);
     setMobile(false);
@@ -285,16 +308,18 @@ export default function App() {
     <div className={dark ? "app dark" : "app light"}>
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
         <div className="brand"><img src="/assets/Axodus_logo.svg" /><div><b>ACS</b><small>CONTROL PLANE</small></div><button className="mobile-close" onClick={() => setMobile(false)}>×</button></div>
-        <div className="workspace-switch"><span className="workspace-icon">⌘</span><div><b>Local workspace</b><small>~/.openclaw</small></div><span>⌄</span></div>
+        <div className="workspace-switch"><span className="workspace-icon">⌘</span><div><b>{productApiConfig.environment} environment</b><small>{productApiConfig.baseUrl}</small></div><span>⌄</span></div>
         <nav>{navGroups.map((g, i) => <div className="nav-group" key={i}>{g.map(v => <button className={!agentDetail && view === v ? "active" : ""} onClick={() => go(v)} key={v}><span>{icons[v]}</span>{v}{v === "Skills" && <i className="count">2</i>}</button>)}</div>)}</nav>
-        <div className="connection"><div><span className="openclaw-mark">🦞</span><div><b>OpenClaw</b><small><i /> Connected</small></div></div><span className="mono">v0.9.4</span></div>
+        <div className="connection"><div><span className="openclaw-mark">A</span><div><b>Product API</b><small><i /> {connectivity.status === "ready" ? "Connected" : connectivity.status === "loading" ? "Checking" : "Unavailable"}</small></div></div><span className="mono">/api/v1</span></div>
       </aside>
       <main className="main">
         <header className="topbar">
           <button className="menu" onClick={() => setMobile(true)}>☰</button>
           <div className="crumb"><span>ACS</span><i>/</i><b>{title}</b></div>
-          <div className="top-actions"><Status status="Runtime healthy" /><button className="command" onClick={() => setPalette(true)}>⌕ <span>Search ACS...</span><kbd>⌘ K</kbd></button><button className="icon-btn" onClick={() => setDark(!dark)}>{dark ? "☼" : "◐"}</button><button className="icon-btn notification">♢<i /></button></div>
+          <div className="top-actions"><Status status={connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Checking Product API" : "Product API unavailable"} /><button className="command" onClick={() => setPalette(true)}>⌕ <span>Search ACS...</span><kbd>⌘ K</kbd></button><button className="icon-btn" onClick={() => setDark(!dark)}>{dark ? "☼" : "◐"}</button><button className="icon-btn notification">♢<i /></button></div>
         </header>
+        {connectivity.status === "loading" && <div className="global-state loading-state" role="status">Connecting to Product API boundary...</div>}
+        {connectivity.status === "error" && <div className="global-state error-state" role="alert"><span>Product API unavailable: {connectivity.error}</span><button className="secondary" onClick={() => void checkProductApi()}>Retry</button></div>}
         <div className="content">
           <Routes>
             <Route path="/" element={<Dashboard setView={go} />} />
@@ -311,7 +336,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-        <footer><span><i /> OpenClaw connected</span><span className="mono">~/.openclaw</span><span>ACS Core v0.8.1</span></footer>
+        <footer><span><i /> {connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Connecting" : "Product API unavailable"}</span><span className="mono">{productApiConfig.environment}</span><span>ACS Control Plane</span></footer>
       </main>
       {wizard && <div className="modal-wrap"><div className="wizard"><div className="wizard-head"><h1>Create Agent</h1><button onClick={() => setWizard(false)}>×</button></div><div className="wizard-body"><p>Agent creation is handled via ACS CLI or governed Product API requests.</p></div></div></div>}
       {palette && <div className="palette-wrap" onClick={() => setPalette(false)}><div className="palette" onClick={e => e.stopPropagation()}><label>⌕<input autoFocus placeholder="Search ACS or run a command..." /></label><p>QUICK ACTIONS</p><button onClick={() => setWizard(true)}><span>＋</span><div><b>Create agent</b><small>Configure a new ACS agent</small></div><kbd>↵</kbd></button></div></div>}

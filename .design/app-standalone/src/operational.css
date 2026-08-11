@@ -1,0 +1,21 @@
+.global-state {
+  margin: 0 34px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 10px 14px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.loading-state { color: var(--secondary); }
+.error-state {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+  color: var(--amber);
+}
+
+@media (max-width: 720px) {
+  .global-state { margin: 0 16px; }
+}

@@ -52,6 +52,20 @@ export async function routeProductApiRequest(
   const apiPath = segments.slice(2).join("/");
 
   try {
+    // A01 exposes only boundary connectivity; it does not assert runtime readiness.
+    if (apiPath === "health") {
+      assertAllowedQueryParams(url, []);
+      return {
+        status: 200,
+        body: ok({
+          service: "acs-product-api",
+          status: "ok",
+          mode: "inspection",
+          automation: "disabled",
+        }, [], options.correlationId, routeMeta),
+      };
+    }
+
     // GET /api/v1/agents
     if (apiPath === "agents" && url.search === "") {
       assertAllowedQueryParams(url, []);
