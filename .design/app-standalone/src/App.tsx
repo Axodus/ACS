@@ -7,14 +7,25 @@ import {
   useLocation,
   useNavigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 import {
   productApi,
   productApiConfig,
-  type ApiAgent,
+  type AgentDefinition,
+  type AgentDetail,
+  type AgentDuplicateInput,
+  type AgentLifecycleActionName,
+  type AgentLifecycleActionView,
+  type AgentLifecycleStateView,
+  type AgentListItem,
+  type AgentOperationResult,
+  type AgentRevisionSummary,
+  type AgentSurfaceGuardrails,
   type DashboardFinding,
   type DashboardSummary,
   type GlobalReadinessSummary,
+  type GovernedAgentStatus,
   type ProductApiHealth,
   type ProductApiOperationalGuardrails,
   type ReadinessFinding,
@@ -33,8 +44,6 @@ type View =
   | "Runtime"
   | "Logs"
   | "Settings";
-
-type Agent = ApiAgent;
 
 type ConnectivityState =
   | { status: "loading"; health: null; error: null }
@@ -81,9 +90,32 @@ const viewPaths: Record<View, string> = {
 const viewOfPath = (path: string): View | null =>
   (Object.entries(viewPaths) as [View, string][]).find(([, p]) => p === path)?.[0] ?? null;
 
+const SAFE_IDENTIFIER = /^[a-zA-Z0-9._:-]+$/;
+
+function apiErrorMessage(error: unknown): string {
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return error instanceof Error ? error.message : "An unexpected API error occurred";
+}
+
 function Status({ status }: { status: string }) {
   const tone = /running|healthy|connected|installed|active/i.test(status) ? "good" : /warning|updating/i.test(status) ? "warn" : "muted";
   return <span className={`status ${tone}`}><i />{status}</span>;
+}
+
+function Badge({ tone, children }: { tone: "good" | "warn" | "muted"; children: ReactNode }) {
+  return <span className={`badge ${tone}`}>{children}</span>;
+}
+
+function ReadinessBadge({ summary }: { summary: AgentListItem["readinessSummary"] }) {
+  const tone = summary.state === "ready" ? "good" : summary.state === "partial" || summary.state === "blocked" ? "warn" : "muted";
+  return <Badge tone={tone}>{summary.state}</Badge>;
+}
+
+function Time({ value }: { value: number }) {
+  return <time dateTime={new Date(value).toISOString()}>{new Date(value).toLocaleString()}</time>;
 }
 
 function Metric({ label, value, note }: { label: string; value: string; note: string }) {
@@ -155,6 +187,15 @@ function OperationalModeNotice({ guardrails }: { guardrails?: ProductApiOperatio
     {guardrails.readOnly && <span>Read-only</span>}
     {guardrails.sandboxOnly && <span>Sandbox only</span>}
     {!guardrails.mutableOperations && <span>No mutable operations</span>}
+  </div>;
+}
+
+function AgentGuardrailBanner({ guardrails }: { guardrails: AgentSurfaceGuardrails }) {
+  return <div className="guardrail-banner" role="note">
+    <span>Inspection / control-plane mode</span>
+    <span>Sandbox only</span>
+    <span>Production ready = false</span>
+    <span>{guardrails.mutationScope} — mutations governed by Product API</span>
   </div>;
 }
 
@@ -427,98 +468,627 @@ function Dashboard() {
   </>;
 }
 
-function Agents() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
+function AgentCard({ agent }: { agent: AgentListItem }) {
+  return <article className={`agent-card inventory-card ${agent.archived ? "archived" : ""}`}>
+    <div className="card-title">
+      <span className={`avatar ${agent.archived ? "gray" : ""}`}>{agent.name.slice(0, 2).toUpperCase()}</span>
+      <div><h2>{agent.name}</h2><p className="mono">{agent.agentId} · {agent.environment}</p></div>
+      <div className="card-badges"><Status status={agent.status} />{agent.archived && <Badge tone="muted">archived</Badge>}</div>
+    </div>
+    <div className="card-specs">
+      <span>Revision<b className="mono">r{agent.currentRevisionId}</b></span>
+      <span>Readiness<b><ReadinessBadge summary={agent.readinessSummary} /></b></span>
+      <span>Deployment<b>{agent.deploymentSummary.state}</b></span>
+      <span>Runtime<b>{agent.runtimeSummary.state}</b></span>
+    </div>
+    <div className="cap-row">
+      <span>{agent.compositionSummary.ready ? "composition ready" : `composition blocked (${agent.compositionSummary.errorCount} errors)`}</span>
+      <span>{agent.readinessSummary.blockerCount} blockers</span>
+      <span>{agent.readinessSummary.warningCount} warnings</span>
+    </div>
+    <div className="card-actions">
+      <Link className="secondary action-link" to={`/agents/${agent.agentId}`}>Open agent</Link>
+      <span className="checked-at">checked {new Date(agent.checkedAt).toLocaleTimeString()}</span>
+    </div>
+  </article>;
+}
+
+function AgentInventory() {
+  const { data: agents, loadState, loadError, stale, refresh } = useOperationalSummary<AgentListItem[]>(
+    () => productApi.listAgents(),
+    "Unable to load agents from Product API",
+    list => list.some(agent => agent.checkedAt < Date.now() - 60_000),
+  );
   const [q, setQ] = useState("");
-  const navigate = useNavigate();
+  const [status, setStatus] = useState("all");
+  const [sort, setSort] = useState<"name" | "updatedAt" | "status">("name");
 
-  useEffect(() => {
-    productApi.listAgents()
-      .then(res => {
-        setAgents(res);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
-  const filtered = agents.filter(a => ((a.name ?? "") + a.agentId + (a.definition.roleId ?? "")).toLowerCase().includes(q.toLowerCase()));
-
-  if (loading) return <div className="loading-screen">Loading agents...</div>;
+  const query = q.trim().toLowerCase();
+  const filtered = (agents ?? [])
+    .filter(agent =>
+      (!query || agent.name.toLowerCase().includes(query) || agent.agentId.toLowerCase().includes(query))
+      && (status === "all" || agent.status === status))
+    .sort((left, right) =>
+      sort === "updatedAt"
+        ? right.updatedAt - left.updatedAt
+        : sort === "status"
+          ? left.status.localeCompare(right.status)
+          : left.name.localeCompare(right.name));
 
   return <>
-    <header className="page-head compact"><div><p className="eyebrow">INFRASTRUCTURE</p><h1>Agents</h1><p>Configure, validate, deploy and observe your agent fleet.</p></div><button className="primary">＋ Create agent</button></header>
-    <div className="toolbar"><label className="search">⌕<input value={q} onChange={e => setQ(e.target.value)} placeholder="Search agents..." /></label><button className="filter">Status⌄</button><button className="filter">Role⌄</button></div>
-    <section className="agent-cards">
-      {filtered.length === 0 ? <div className="empty-state">No agents found</div> : filtered.map(a => (
-        <article className="agent-card" key={a.agentId}>
-          <div className="card-title"><span className={`avatar ${a.status !== "running" ? "gray" : ""}`}>{a.name ? a.name.slice(0, 2).toUpperCase() : "??"}</span><div><h2>{a.name ?? "Unknown"}</h2><p className="mono">{a.agentId}</p></div><Status status={a.status} /></div>
-          <div className="card-specs"><span>Role<b>{a.definition.roleId ?? "unassigned"}</b></span><span>Profile<b>{a.definition.profileId ?? "unassigned"}</b></span><span>Revision<b>{a.revision}</b></span></div>
-          <div className="cap-row"><span>✦ {a.revision} skills</span><span>⌘ {a.revision} plugins</span><span>◎ Memory enabled</span></div>
-          <div className="card-actions"><button className="secondary" onClick={() => navigate(`/agents/${a.agentId}`)}>Open agent</button><button className="icon-btn">•••</button></div>
-        </article>
-      ))}
+    <header className="page-head compact">
+      <div><p className="eyebrow">AGENT LIFECYCLE</p><h1>Agents</h1><p>Operational inventory of agent definitions, revisions and lifecycle state from the Product API.</p></div>
+      <div className="head-actions">
+        <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+        <Link className="primary action-link" to="/agents/new">＋ Create agent</Link>
+      </div>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection / control-plane mode</span><span>Sandbox only</span><span>Governed by Product API</span></div>
+    {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agents...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    <div className="toolbar">
+      <label className="search">⌕<input value={q} onChange={e => setQ(e.target.value)} placeholder="Search agents by name or id..." /></label>
+      <select className="filter select-filter" value={status} onChange={e => setStatus(e.target.value)} aria-label="Filter by status">
+        <option value="all">All statuses</option>
+        <option value="draft">Draft</option>
+        <option value="active">Active</option>
+        <option value="disabled">Disabled</option>
+        <option value="archived">Archived</option>
+      </select>
+      <select className="filter select-filter" value={sort} onChange={e => setSort(e.target.value as "name" | "updatedAt" | "status")} aria-label="Sort agents">
+        <option value="name">Sort: name</option>
+        <option value="updatedAt">Sort: updated</option>
+        <option value="status">Sort: status</option>
+      </select>
+      <span className="env-chip">environment: sandbox</span>
+    </div>
+    {loadState === "loading" && !agents && <div className="loading-screen">Loading agents...</div>}
+    {loadState === "error" && !agents && <section className="panel"><div className="empty-state">Unable to load agents. Check Product API connectivity and retry.</div></section>}
+    {agents && agents.length === 0 && <section className="panel"><div className="empty-state">No agents registered yet. <Link className="surface-link" to="/agents/new">Create the first agent →</Link></div></section>}
+    {agents && agents.length > 0 && filtered.length === 0 && <section className="panel"><div className="empty-state">No agents match your search or filters.</div></section>}
+    {filtered.length > 0 && <section className="agent-cards inventory-grid">{filtered.map(agent => <AgentCard key={agent.agentId} agent={agent} />)}</section>}
+  </>;
+}
+
+function useAgentSurface(agentId: string) {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [data, setData] = useState<{
+    detail: AgentDetail;
+    revisions: AgentRevisionSummary[];
+    lifecycle: AgentLifecycleStateView;
+  } | null>(null);
+  const [loadState, setLoadState] = useState<DashboardLoadState>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+  const hasDataRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadError(null);
+    setLoadState(hasDataRef.current ? "refreshing" : "loading");
+    Promise.all([
+      productApi.getAgent(agentId),
+      productApi.getAgentRevisions(agentId),
+      productApi.getAgentLifecycle(agentId),
+    ])
+      .then(([detail, revisions, lifecycle]) => {
+        if (!cancelled) {
+          hasDataRef.current = true;
+          setData({ detail, revisions, lifecycle });
+          setStale(detail.stale);
+          setLoadState("ready");
+        }
+      })
+      .catch(error => {
+        if (!cancelled) {
+          if (hasDataRef.current) {
+            setStale(true);
+            setLoadState("ready");
+            setLoadError("Refresh failed; keeping previous agent data");
+          } else {
+            setLoadError(apiErrorMessage(error));
+            setLoadState("error");
+          }
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [agentId, refreshKey]);
+
+  return {
+    data,
+    loadState,
+    loadError,
+    stale,
+    refresh: () => setRefreshKey(k => k + 1),
+  };
+}
+
+function IdList({ label, ids }: { label: string; ids: readonly string[] }) {
+  if (ids.length === 0) return null;
+  return <div className="id-list"><span>{label}</span><div>{ids.map(id => <code key={id} className="mono">{id}</code>)}</div></div>;
+}
+
+function OperationResultBox({ result }: { result: AgentOperationResult }) {
+  return <div className={`operation-result ${result.ok ? "ok" : "failed"}`} role="status">
+    <div className="operation-result-head"><b>{result.ok ? "Operation succeeded" : "Operation failed"}</b><code className="mono">{result.operation}</code></div>
+    <p>{result.message}</p>
+    <dl className="config-list">
+      <div><dt>Entity</dt><dd className="mono">{result.entityId}</dd></div>
+      <div><dt>Status</dt><dd>{result.status}</dd></div>
+      <div><dt>Audit ref</dt><dd className="mono">{result.auditRef ?? "—"}</dd></div>
+      <div><dt>Checked at</dt><dd><Time value={result.checkedAt} /></dd></div>
+    </dl>
+    {result.warnings.length > 0 && <div className="warning-banner">{result.warnings.join("; ")}</div>}
+    {result.errors.length > 0 && <div className="error-banner">{result.errors.join("; ")}</div>}
+  </div>;
+}
+
+function AgentDetail() {
+  const { agentId } = useParams();
+  const navigate = useNavigate();
+  const { data, loadState, loadError, stale, refresh } = useAgentSurface(agentId ?? "");
+  const [confirming, setConfirming] = useState<AgentLifecycleActionView | null>(null);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateAgentId, setDuplicateAgentId] = useState("");
+  const [duplicateName, setDuplicateName] = useState("");
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState<AgentLifecycleActionName | null>(null);
+  const [operationResult, setOperationResult] = useState<AgentOperationResult | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
+
+  if (!agentId) return <Navigate to="/agents" replace />;
+
+  const detail = data?.detail ?? null;
+
+  async function runDirectAction(action: AgentLifecycleActionView) {
+    if (!detail) return;
+    setSubmitting(action.action);
+    setOperationError(null);
+    setOperationResult(null);
+    try {
+      let result: AgentOperationResult;
+      if (action.action === "archive") {
+        result = await productApi.archiveAgent(detail.agentId);
+      } else if (action.action === "restore") {
+        result = await productApi.restoreAgent(detail.agentId);
+      } else if (action.action === "delete") {
+        result = await productApi.deleteAgent(detail.agentId);
+      } else {
+        return;
+      }
+      setOperationResult(result);
+      refresh();
+    } catch (error) {
+      setOperationError(apiErrorMessage(error));
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  async function handleRevisionAction(action: "adopt" | "restore", revision: AgentRevisionSummary) {
+    if (!detail) return;
+    setSubmitting(action === "adopt" ? "adoptRevision" : "restoreRevision");
+    setOperationError(null);
+    setOperationResult(null);
+    try {
+      const result = action === "adopt"
+        ? await productApi.adoptAgentRevision(detail.agentId, revision.revisionId)
+        : await productApi.restoreAgentRevision(detail.agentId, revision.revisionId);
+      setOperationResult(result);
+      refresh();
+    } catch (error) {
+      setOperationError(apiErrorMessage(error));
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  async function handleDuplicate() {
+    if (!detail) return;
+    setSubmitting("duplicate");
+    setDuplicateError(null);
+    setOperationError(null);
+    setOperationResult(null);
+    try {
+      const input: AgentDuplicateInput = { newAgentId: duplicateAgentId.trim() };
+      if (duplicateName.trim()) input.name = duplicateName.trim();
+      const result = await productApi.duplicateAgent(detail.agentId, input);
+      setOperationResult(result);
+      setDuplicateOpen(false);
+      setDuplicateAgentId("");
+      setDuplicateName("");
+      refresh();
+    } catch (error) {
+      setDuplicateError(apiErrorMessage(error));
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  function handleActionClick(action: AgentLifecycleActionView) {
+    if (!detail) return;
+    if (action.action === "update") {
+      navigate(`/agents/${detail.agentId}/edit`);
+      return;
+    }
+    if (action.action === "createRevision") {
+      navigate(`/agents/${detail.agentId}/edit?mode=revision`);
+      return;
+    }
+    if (action.action === "adoptRevision" || action.action === "restoreRevision") {
+      document.getElementById("revisions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (action.action === "duplicate") {
+      setDuplicateOpen(true);
+      return;
+    }
+    if (action.action === "archive" || action.action === "delete") {
+      setConfirming(action);
+      return;
+    }
+    void runDirectAction(action);
+  }
+
+  if (loadState === "loading" && !detail) return <div className="loading-screen">Loading agent...</div>;
+  if (loadState === "error" && !detail) return <>
+    <Link className="back" to="/agents">← Agents</Link>
+    <section className="panel"><div className="empty-state">{loadError ?? "Agent not found"}</div></section>
+  </>;
+  if (!detail || !data) return <div className="empty-state">Agent not found</div>;
+
+  const definition = detail.agentDefinition;
+  const lifecycle = detail.lifecycleState;
+  const composition = detail.composition;
+
+  return <>
+    <Link className="back" to="/agents">← Agents</Link>
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agent state...</div>}
+    <header className="detail-head">
+      <div className="detail-id">
+        <span className={`avatar large ${lifecycle.archived ? "gray" : ""}`}>{definition.name.slice(0, 2).toUpperCase()}</span>
+        <div>
+          <div className="title-status"><h1>{definition.name}</h1><Status status={definition.status} /></div>
+          <p className="mono">{detail.agentId} · sandbox · current revision r{detail.currentRevision.revision}</p>
+        </div>
+      </div>
+      <div className="actions">
+        <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+        <Link className="primary action-link" to={`/agents/${detail.agentId}/edit`}>Edit</Link>
+      </div>
+    </header>
+    <AgentGuardrailBanner guardrails={detail.guardrails} />
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>AgentDefinition</h2><p>Identity and governed references</p></div></div>
+        <dl className="config-list">
+          <div><dt>Agent ID</dt><dd className="mono">{definition.agentId}</dd></div>
+          <div><dt>Name</dt><dd>{definition.name}</dd></div>
+          <div><dt>Status</dt><dd><Status status={definition.status} /></dd></div>
+          <div><dt>Role</dt><dd>{definition.roleId ? `${definition.roleId}${definition.roleRevision ? ` (r${definition.roleRevision})` : ""}` : "unassigned"}</dd></div>
+          <div><dt>Profile</dt><dd>{definition.profileId ? `${definition.profileId}${definition.profileRevision ? ` (r${definition.profileRevision})` : ""}` : "unassigned"}</dd></div>
+          <div><dt>Execution policy</dt><dd>{definition.executionPolicyId ?? "none"}</dd></div>
+        </dl>
+        <div className="panel-body">
+          <IdList label="Capabilities" ids={definition.capabilityIds} />
+          <IdList label="Skills" ids={definition.skillIds} />
+          <IdList label="Tools" ids={definition.toolIds} />
+          <IdList label="Credential connections" ids={definition.credentialConnectionIds} />
+          <IdList label="Runner preferences" ids={definition.runnerPreferences} />
+          {definition.modelStrategy && <div className="model-strategy"><b>Model strategy</b><code className="mono">{definition.modelStrategy.primary.providerId}/{definition.modelStrategy.primary.modelId}</code><small>fallbacks: {definition.modelStrategy.fallbacks.length}</small></div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Current revision</h2><p>Adopted AgentRevision</p></div><span className="tag">r{detail.currentRevision.revision}</span></div>
+        <dl className="config-list">
+          <div><dt>Revision</dt><dd className="mono">r{detail.currentRevision.revision}</dd></div>
+          <div><dt>Fingerprint</dt><dd className="mono hash">{detail.currentRevision.fingerprint}</dd></div>
+          <div><dt>Created</dt><dd><Time value={detail.currentRevision.createdAt} /></dd></div>
+          <div><dt>Updated</dt><dd><Time value={detail.currentRevision.updatedAt} /></dd></div>
+          <div><dt>Created by</dt><dd>{detail.currentRevision.createdBy ?? "unknown"}</dd></div>
+        </dl>
+      </section>
+      <section className="panel wide">
+        <div className="panel-head"><div><h2>Composition summary</h2><p>Effective AgentComposition from the Product API</p></div>{composition && <Badge tone={composition.ready ? "good" : "warn"}>{composition.ready ? "ready" : "not ready"}</Badge>}</div>
+        {composition
+          ? <>
+            <dl className="config-list">
+              <div><dt>Fingerprint</dt><dd className="mono hash">{composition.fingerprint}</dd></div>
+              <div><dt>Materialization</dt><dd>{composition.materialization ? `${composition.materialization.artifactType} · ${composition.materialization.artifactFingerprint}` : "none"}</dd></div>
+            </dl>
+            <div className="composition-refs">
+              <div><b>Requested</b><span>role: {composition.requested.roleId ?? "—"}</span><span>profile: {composition.requested.profileId ?? "—"}</span><span>capabilities: {composition.requested.capabilityIds.length}</span><span>skills: {composition.requested.skillIds.length}</span><span>tools: {composition.requested.toolIds.length}</span></div>
+              <div><b>Effective</b><span>role: {composition.effective.roleId ?? "—"}{composition.effective.roleRevision ? ` (r${composition.effective.roleRevision})` : ""}</span><span>profile: {composition.effective.profileId ?? "—"}{composition.effective.profileRevision ? ` (r${composition.effective.profileRevision})` : ""}</span><span>capabilities: {composition.effective.capabilityIds.length}</span><span>skills: {composition.effective.skillIds.length}</span><span>tools: {composition.effective.toolIds.length}</span></div>
+            </div>
+            {composition.findings.length > 0 && <div className="finding-list">{composition.findings.map(finding => <div className={`finding-row ${finding.severity}`} key={`${finding.code}-${finding.message}`}><span>{finding.severity}</span><p>{finding.message}</p></div>)}</div>}
+          </>
+          : <div className="state-line empty">{detail.compositionUnavailableReason ?? "Composition unavailable."}</div>}
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Readiness summary</h2><p>From the Product API — never recomputed in the UI</p></div><ReadinessBadge summary={detail.readinessSummary} /></div>
+        <dl className="config-list">
+          <div><dt>State</dt><dd>{detail.readinessSummary.state}</dd></div>
+          <div><dt>Blockers</dt><dd>{detail.readinessSummary.blockerCount}</dd></div>
+          <div><dt>Warnings</dt><dd>{detail.readinessSummary.warningCount}</dd></div>
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Deployment summary</h2><p>Sandbox deployment records</p></div><Badge tone={detail.deploymentSummary.state === "deployed" ? "good" : detail.deploymentSummary.state === "none" ? "muted" : "warn"}>{detail.deploymentSummary.state}</Badge></div>
+        <dl className="config-list">
+          <div><dt>State</dt><dd>{detail.deploymentSummary.state}</dd></div>
+          <div><dt>Records</dt><dd>{detail.deploymentSummary.count}</dd></div>
+        </dl>
+        <p className="panel-note">Display only — deployment operations belong to Operational Execution and are out of scope for this milestone.</p>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Runtime summary</h2><p>Runtime instance states</p></div><Badge tone={detail.runtimeSummary.state === "running" ? "good" : detail.runtimeSummary.state === "none" ? "muted" : "warn"}>{detail.runtimeSummary.state}</Badge></div>
+        <dl className="config-list">
+          <div><dt>State</dt><dd>{detail.runtimeSummary.state}</dd></div>
+          <div><dt>Instances</dt><dd>{detail.runtimeSummary.count}</dd></div>
+        </dl>
+        <p className="panel-note">Display only — runtime operations are out of scope for this milestone.</p>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Economic summary</h2><p>Read-only when available</p></div><Badge tone="muted">{detail.economicSummary.state}</Badge></div>
+        <div className="state-line empty">{detail.economicSummary.message} Economics is out of scope for Milestone B.</div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Audit summary</h2><p>Lifecycle-related audit events</p></div><Badge tone="muted">{detail.auditSummary.total} events</Badge></div>
+        <dl className="config-list">
+          <div><dt>Success</dt><dd>{detail.auditSummary.success}</dd></div>
+          <div><dt>Failure</dt><dd>{detail.auditSummary.failure}</dd></div>
+          <div><dt>Pending</dt><dd>{detail.auditSummary.pending}</dd></div>
+        </dl>
+        {detail.auditSummary.recent.length > 0 && <div className="audit-list">{detail.auditSummary.recent.map(event => <div className="audit-row" key={event.eventId}><div><b>{event.eventType}</b><small className="mono">{event.eventId}</small></div><span>{event.result ?? "—"}</span><small><Time value={event.timestamp} /></small></div>)}</div>}
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Lifecycle state</h2><p>Agent lifecycle status</p></div><Status status={lifecycle.status} /></div>
+        <dl className="config-list">
+          <div><dt>Current revision</dt><dd className="mono">r{lifecycle.currentRevision}</dd></div>
+          <div><dt>Archived</dt><dd>{lifecycle.archived ? "Yes" : "No"}</dd></div>
+          <div><dt>Protected</dt><dd>{lifecycle.protected ? "Yes — protected agents cannot be deleted" : "No"}</dd></div>
+          {lifecycle.archivedAt !== undefined && <div><dt>Archived at</dt><dd><Time value={lifecycle.archivedAt} /></dd></div>}
+          {lifecycle.restoredAt !== undefined && <div><dt>Restored at</dt><dd><Time value={lifecycle.restoredAt} /></dd></div>}
+        </dl>
+      </section>
+      <section className="panel wide" id="revisions">
+        <div className="panel-head"><div><h2>Revision history</h2><p>AgentRevision lifecycle records</p></div></div>
+        {data.revisions.length === 0
+          ? <div className="state-line empty">No revision history available.</div>
+          : <div className="revision-list">
+            {data.revisions.map(revision => (
+              <div className={`revision-row ${revision.status === "current" ? "current" : ""}`} key={revision.revisionId}>
+                <div className="revision-main">
+                  <div className="revision-top"><b className="mono">r{revision.revisionNumber}</b><Badge tone={revision.status === "current" ? "good" : "muted"}>{revision.status}</Badge>{revision.restoredFrom !== undefined && <span className="tag">restored from r{revision.restoredFrom}</span>}</div>
+                  <small>Created <Time value={revision.createdAt} />{revision.adoptedAt ? ` · Adopted ${new Date(revision.adoptedAt).toLocaleString()}` : ""}</small>
+                  {revision.changeSummary && <small>{revision.changeSummary}</small>}
+                  {revision.compositionHash && <code className="mono hash">{revision.compositionHash}</code>}
+                </div>
+                <div className="revision-actions">
+                  {revision.availableActions.map(action => (
+                    <button key={action.action} className="secondary" disabled={!action.available || submitting !== null} onClick={() => void handleRevisionAction(action.action, revision)} title={action.reason}>{action.action === "adopt" ? "Adopt" : "Restore"}</button>
+                  ))}
+                  {revision.availableActions[0]?.reason && <small className="action-reason">{revision.availableActions[0].reason}</small>}
+                </div>
+              </div>
+            ))}
+          </div>}
+      </section>
+      <section className="panel wide">
+        <div className="panel-head"><div><h2>Lifecycle actions</h2><p>Governed by the Product API — unsupported actions are never simulated</p></div></div>
+        <div className="action-grid">
+          {detail.availableActions.map(action => {
+            const destructive = action.action === "archive" || action.action === "delete";
+            return <div className={`action-tile ${action.available ? "" : "disabled"} ${destructive ? "destructive" : ""}`} key={action.action}>
+              <b>{action.label}</b>
+              {action.reason && <small className="action-reason">{action.reason}</small>}
+              {action.available
+                ? <button className={`secondary ${destructive ? "danger" : ""}`} disabled={submitting !== null} onClick={() => handleActionClick(action)}>{destructive ? `Confirm ${action.action}` : action.action === "adoptRevision" || action.action === "restoreRevision" ? "Open revision panel" : action.action === "update" ? "Edit agent" : action.action === "createRevision" ? "Create revision" : action.action === "duplicate" ? "Duplicate" : action.action === "restore" ? "Restore agent" : "Run"}</button>
+                : <span className="unavailable">Unavailable</span>}
+            </div>;
+          })}
+        </div>
+        {duplicateOpen && detail && (
+          <div className="duplicate-form">
+            <b>Duplicate {detail.agentId}</b>
+            <div className="form">
+              <label>New agent ID<input className="mono" value={duplicateAgentId} onChange={e => setDuplicateAgentId(e.target.value)} placeholder="e.g. mazikeen-copy" /></label>
+              <label>Name (optional)<input value={duplicateName} onChange={e => setDuplicateName(e.target.value)} placeholder={definition.name} /></label>
+            </div>
+            {duplicateError && <div className="error-banner" role="alert">{duplicateError}</div>}
+            <div className="confirm-actions">
+              <button className="secondary" onClick={() => { setDuplicateOpen(false); setDuplicateError(null); }}>Cancel</button>
+              <button className="primary" disabled={submitting !== null || !duplicateAgentId.trim()} onClick={() => void handleDuplicate()}>Duplicate</button>
+            </div>
+          </div>
+        )}
+        {operationResult && <OperationResultBox result={operationResult} />}
+        {operationError && <div className="error-banner" role="alert">{operationError}</div>}
+      </section>
+    </div>
+    {confirming && (
+      <div className="modal-wrap">
+        <div className="wizard confirm-dialog" role="dialog" aria-modal="true">
+          <div className="wizard-head"><h1>Confirm {confirming.label}</h1><button onClick={() => setConfirming(null)}>×</button></div>
+          <div className="wizard-body">
+            <p className="eyebrow">GOVERNED DESTRUCTIVE ACTION</p>
+            <p>This operation is governed by the Product API and is recorded in the audit trail. It cannot be undone from this surface.</p>
+            {lifecycle.protected && <div className="warning-banner">This agent is protected. The Product API blocks deletion of protected agents.</div>}
+            {confirming.action === "delete" && <div className="warning-banner">Deleting permanently removes the archived agent. The Product API validates dependencies before deletion.</div>}
+            {confirming.action === "archive" && <div className="warning-banner">Archiving prevents further edits and revisions. You can restore the agent later.</div>}
+            <div className="confirm-actions">
+              <button className="secondary" onClick={() => setConfirming(null)}>Cancel</button>
+              <button className="danger" disabled={submitting !== null} onClick={() => { const action = confirming; setConfirming(null); void runDirectAction(action); }}>{submitting === confirming.action ? "Working..." : `Confirm ${confirming.action}`}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </>;
+}
+
+type AgentFormMode = "create" | "edit" | "revision";
+
+function parseList(value: string): string[] {
+  return value.split(",").map(item => item.trim()).filter(Boolean);
+}
+
+function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string }) {
+  const navigate = useNavigate();
+  const [agentIdValue, setAgentIdValue] = useState("");
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState<GovernedAgentStatus>("draft");
+  const [roleId, setRoleId] = useState("");
+  const [profileId, setProfileId] = useState("");
+  const [capabilityIds, setCapabilityIds] = useState("");
+  const [skillIds, setSkillIds] = useState("");
+  const [toolIds, setToolIds] = useState("");
+  const [credentialConnectionIds, setCredentialConnectionIds] = useState("");
+  const [runnerPreferences, setRunnerPreferences] = useState("");
+  const [loadingDetail, setLoadingDetail] = useState(mode !== "create");
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<AgentDetail | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const prefilled = useRef(false);
+
+  useEffect(() => {
+    if (mode === "create" || !agentId || prefilled.current) return;
+    productApi.getAgent(agentId)
+      .then(next => {
+        prefilled.current = true;
+        setDetail(next);
+        setAgentIdValue(next.agentDefinition.agentId);
+        setName(next.agentDefinition.name);
+        setStatus(next.agentDefinition.status);
+        setRoleId(next.agentDefinition.roleId ?? "");
+        setProfileId(next.agentDefinition.profileId ?? "");
+        setCapabilityIds(next.agentDefinition.capabilityIds.join(", "));
+        setSkillIds(next.agentDefinition.skillIds.join(", "));
+        setToolIds(next.agentDefinition.toolIds.join(", "));
+        setCredentialConnectionIds(next.agentDefinition.credentialConnectionIds.join(", "));
+        setRunnerPreferences(next.agentDefinition.runnerPreferences.join(", "));
+        setLoadingDetail(false);
+      })
+      .catch(error => {
+        setDetailError(apiErrorMessage(error));
+        setLoadingDetail(false);
+      });
+  }, [mode, agentId]);
+
+  function validateForm(): string | null {
+    const identifier = agentIdValue.trim();
+    if (!identifier) return "Agent ID is required";
+    if (identifier.length > 160) return "Agent ID must be at most 160 characters";
+    if (!SAFE_IDENTIFIER.test(identifier)) return "Agent ID supports letters, numbers, dots, underscores, colons and dashes only";
+    if (!name.trim()) return "Name is required";
+    return null;
+  }
+
+  function buildDefinition(): AgentDefinition {
+    return {
+      agentId: agentIdValue.trim(),
+      name: name.trim(),
+      status,
+      capabilityIds: parseList(capabilityIds),
+      skillIds: parseList(skillIds),
+      toolIds: parseList(toolIds),
+      credentialConnectionIds: parseList(credentialConnectionIds),
+      runnerPreferences: parseList(runnerPreferences),
+      ...(roleId.trim() ? { roleId: roleId.trim() } : {}),
+      ...(profileId.trim() ? { profileId: profileId.trim() } : {}),
+    };
+  }
+
+  async function handleSubmit() {
+    const validationError = validateForm();
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const definition = buildDefinition();
+      if (mode === "create") {
+        const result = await productApi.createAgent({ definition, createdBy: "control-plane-ui" });
+        navigate(`/agents/${result.entityId}`);
+        return;
+      }
+      if (!agentId) {
+        setFormError("Agent id is missing");
+        setSubmitting(false);
+        return;
+      }
+      const expectedRevision = detail?.currentRevision.revision ?? 1;
+      if (mode === "revision") {
+        await productApi.createAgentRevision(agentId, { definition, expectedRevision, actor: "control-plane-ui" });
+      } else {
+        await productApi.updateAgent(agentId, { definition, expectedRevision, updatedBy: "control-plane-ui" });
+      }
+      navigate(`/agents/${agentId}`);
+    } catch (error) {
+      setFormError(apiErrorMessage(error));
+      setSubmitting(false);
+    }
+  }
+
+  if (loadingDetail) return <div className="loading-screen">Loading agent definition...</div>;
+  if (detailError) return <>
+    <Link className="back" to={agentId ? `/agents/${agentId}` : "/agents"}>← Back</Link>
+    <section className="panel"><div className="empty-state">{detailError}</div></section>
+  </>;
+
+  const backTarget = agentId ? `/agents/${agentId}` : "/agents";
+  const title = mode === "create" ? "Create Agent" : mode === "revision" ? "Create Revision" : "Edit Agent";
+  const expectedRevision = detail?.currentRevision.revision ?? 1;
+
+  return <>
+    <Link className="back" to={backTarget}>← Back</Link>
+    <header className="page-head compact">
+      <div><p className="eyebrow">AGENT LIFECYCLE</p><h1>{title}</h1><p>{mode === "revision" ? "Create a new AgentRevision from the current definition." : "Identity and composition references, validated by the Product API on submit."}</p></div>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection / control-plane mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Mutations governed by Product API</span></div>
+    {mode === "revision" && <div className="info-banner">A new revision is created from this definition. The Product API validates references and governance; readiness is not recomputed in the UI.</div>}
+    <section className="panel form-panel">
+      <div className="panel-head"><div><h2>{mode === "create" ? "Definition" : "Definition update"}</h2><p>Client-side validation is minimal — the Product API performs the real validation</p></div></div>
+      <div className="form">
+        <label>Agent ID{mode !== "create" && <small>Read-only — definition.agentId must match the agent</small>}<input className="mono" value={agentIdValue} readOnly={mode !== "create"} onChange={e => setAgentIdValue(e.target.value)} placeholder="e.g. mazikeen" /></label>
+        <label>Name<input value={name} onChange={e => setName(e.target.value)} placeholder="Agent display name" /></label>
+        <label>Status<select value={status} onChange={e => setStatus(e.target.value as GovernedAgentStatus)}><option value="draft">draft</option><option value="active">active</option><option value="disabled">disabled</option></select></label>
+        <label>Role ID<input className="mono" value={roleId} onChange={e => setRoleId(e.target.value)} placeholder="optional role reference" /></label>
+        <label>Profile ID<input className="mono" value={profileId} onChange={e => setProfileId(e.target.value)} placeholder="optional profile reference" /></label>
+        <label>Capability IDs<input className="mono" value={capabilityIds} onChange={e => setCapabilityIds(e.target.value)} placeholder="comma-separated ids" /></label>
+        <label>Skill IDs<input className="mono" value={skillIds} onChange={e => setSkillIds(e.target.value)} placeholder="comma-separated ids" /></label>
+        <label>Tool IDs<input className="mono" value={toolIds} onChange={e => setToolIds(e.target.value)} placeholder="comma-separated ids" /></label>
+        <label>Credential connections<input className="mono" value={credentialConnectionIds} onChange={e => setCredentialConnectionIds(e.target.value)} placeholder="comma-separated ids" /></label>
+        <label>Runner preferences<input className="mono" value={runnerPreferences} onChange={e => setRunnerPreferences(e.target.value)} placeholder="comma-separated ids" /></label>
+        {mode !== "create" && <div className="form-note">Saving applies to revision <b className="mono">r{expectedRevision}</b> (expectedRevision guard).</div>}
+      </div>
+      {formError && <div className="error-banner" role="alert">{formError}</div>}
+      <div className="form-actions">
+        <button className="secondary" disabled={submitting} onClick={() => navigate(backTarget)}>Cancel</button>
+        <button className="primary" disabled={submitting} onClick={() => void handleSubmit()}>{submitting ? "Saving..." : mode === "create" ? "Create agent" : mode === "revision" ? "Create revision" : "Save changes"}</button>
+      </div>
     </section>
   </>;
 }
 
-function AgentDetail({ back }: { back: () => void }) {
-  const { agentId } = useParams();
-  const [agent, setAgent] = useState<Agent | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("Overview");
-  const [deploying, setDeploying] = useState(false);
-  const [deployError, setDeployError] = useState<string | null>(null);
-
-  const tabs = ["Overview", "Profile", "Skills", "Plugins", "Memory", "Runtime", "Logs"];
-
-  useEffect(() => {
-    if (agentId) {
-      productApi.getAgent(agentId)
-        .then(res => {
-          setAgent(res);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }
-  }, [agentId]);
-
-  async function handleDeploy() {
-    if (!agent) return;
-    setDeploying(true);
-    setDeployError(null);
-    try {
-      await productApi.deployAgent(agent.agentId, {
-        revision: agent.revision,
-        composition: {},
-        targetId: "local-wsl",
-      });
-      alert("Deployment successful!");
-    } catch (error: unknown) {
-      setDeployError(error instanceof Error ? error.message : "Deployment failed");
-    } finally {
-      setDeploying(false);
-    }
-  }
-
-  if (loading) return <div className="loading-screen">Loading agent...</div>;
-  if (!agent) return <div className="empty-state">Agent not found</div>;
-
-  return <>
-    <button className="back" onClick={back}>← Agents</button>
-    <header className="detail-head"><div className="detail-id"><span className="avatar large">{agent.name ? agent.name.slice(0, 2).toUpperCase() : "??"}</span><div><div className="title-status"><h1>{agent.name ?? "Unknown"}</h1><Status status={agent.status} /></div><p className="mono">{agent.agentId} · {agent.definition.roleId ?? "unassigned"}</p></div></div><div className="actions"><button className="secondary">■ Stop</button><button className="secondary">▷ Test</button><button className="primary" disabled={deploying} onClick={handleDeploy}>{deploying ? "Deploying..." : "↑ Deploy"}</button><button className="icon-btn">•••</button></div></header>
-    <div className="tabs">{tabs.map(t => <button className={tab === t ? "active" : ""} onClick={() => setTab(t)} key={t}>{t}</button>)}</div>
-    {deployError && <div className="error-banner">{deployError}</div>}
-    {tab === "Profile" ? <ProfileEditor /> : <div className="detail-grid">
-      <section className="panel"><div className="panel-head"><div><h2>{tab === "Overview" ? "Configuration" : tab}</h2><p>{tab === "Overview" ? "Current agent specification" : `Attached ${tab.toLowerCase()} and configuration`}</p></div><button className="text-btn">Edit →</button></div><dl className="config-list"><div><dt>Agent ID</dt><dd className="mono">{agent.agentId}</dd></div><div><dt>Role</dt><dd>{agent.definition.roleId ?? "unassigned"}</dd></div><div><dt>Profile</dt><dd>{agent.definition.profileId ?? "unassigned"}</dd></div><div><dt>Revision</dt><dd>{agent.revision} <span className="tag">Current</span></dd></div></dl></section>
-      <section className="panel"><div className="panel-head"><div><h2>Runtime</h2><p>Live OpenClaw process</p></div><Status status={agent.status} /></div><dl className="config-list"><div><dt>Status</dt><dd>{agent.status}</dd></div><div><dt>Compatibility</dt><dd>OpenClaw <span className="check">✓</span></dd></div><div><dt>Process ID</dt><dd className="mono">--</dd></div><div><dt>Heartbeat</dt><dd>Every 30 seconds</dd></div></dl></section>
-      <section className="panel wide"><div className="panel-head"><div><h2>Capabilities</h2><p>Attached resources</p></div></div><div className="capabilities"><div><span>✦</span><b>{agent.revision}</b><small>Skills</small></div><div><span>⌘</span><b>{agent.revision}</b><small>Plugins</small></div><div><span>◎</span><b>On</b><small>Memory</small></div><div><span>◉</span><b>30s</b><small>Heartbeat</small></div></div></section>
-    </div>}
-  </>;
+function AgentCreate() {
+  return <AgentForm mode="create" />;
 }
 
-function ProfileEditor() {
-  return <section className="editor-shell"><div className="editor"><div className="editor-bar"><span className="mono">Profile Editor</span></div><pre>Profile content is currently read-only in this integration slice.</pre><div className="editor-actions"><button className="primary">Save revision</button></div></div></section>;
+function AgentEdit() {
+  const { agentId } = useParams();
+  const [searchParams] = useSearchParams();
+  const mode: AgentFormMode = searchParams.get("mode") === "revision" ? "revision" : "edit";
+  if (!agentId) return <Navigate to="/agents" replace />;
+  return <AgentForm mode={mode} agentId={agentId} />;
 }
 
 function GenericView({ view }: { view: View }) {
@@ -551,13 +1121,7 @@ function Settings() {
   </>;
 }
 
-function AgentRoute() {
-  const navigate = useNavigate();
-  return <AgentDetail back={() => navigate("/agents")} />;
-}
-
 export default function App() {
-  const [wizard, setWizard] = useState(false);
   const [palette, setPalette] = useState(false);
   const [dark, setDark] = useState(true);
   const [mobile, setMobile] = useState(false);
@@ -587,7 +1151,6 @@ export default function App() {
       }
       if (e.key === "Escape") {
         setPalette(false);
-        setWizard(false);
       }
     };
     addEventListener("keydown", fn);
@@ -604,7 +1167,13 @@ export default function App() {
   };
   const view = viewOfPath(location.pathname);
   const agentDetail = location.pathname.startsWith("/agents/") && location.pathname !== "/agents";
-  const title = agentDetail ? "Agent Detail" : (view ?? "ACS");
+  const title = location.pathname === "/agents/new"
+    ? "Create Agent"
+    : location.pathname.includes("/edit")
+      ? "Edit Agent"
+      : agentDetail
+        ? "Agent Detail"
+        : (view ?? "ACS");
 
   return (
     <div className={dark ? "app dark" : "app light"}>
@@ -626,8 +1195,10 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/readiness" element={<Readiness />} />
-            <Route path="/agents" element={<Agents />} />
-            <Route path="/agents/:agentId" element={<AgentRoute />} />
+            <Route path="/agents" element={<AgentInventory />} />
+            <Route path="/agents/new" element={<AgentCreate />} />
+            <Route path="/agents/:agentId/edit" element={<AgentEdit />} />
+            <Route path="/agents/:agentId" element={<AgentDetail />} />
             <Route path="/roles" element={<GenericView view="Roles" />} />
             <Route path="/profiles" element={<GenericView view="Profiles" />} />
             <Route path="/skills" element={<GenericView view="Skills" />} />
@@ -641,8 +1212,7 @@ export default function App() {
         </div>
         <footer><span><i /> {connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Connecting" : "Product API unavailable"}</span><span className="mono">{productApiConfig.environment}</span><span>ACS Control Plane</span></footer>
       </main>
-      {wizard && <div className="modal-wrap"><div className="wizard"><div className="wizard-head"><h1>Create Agent</h1><button onClick={() => setWizard(false)}>×</button></div><div className="wizard-body"><p>Agent creation is handled via ACS CLI or governed Product API requests.</p></div></div></div>}
-      {palette && <div className="palette-wrap" onClick={() => setPalette(false)}><div className="palette" onClick={e => e.stopPropagation()}><label>⌕<input autoFocus placeholder="Search ACS or run a command..." /></label><p>QUICK ACTIONS</p><button onClick={() => setWizard(true)}><span>＋</span><div><b>Create agent</b><small>Configure a new ACS agent</small></div><kbd>↵</kbd></button></div></div>}
+      {palette && <div className="palette-wrap" onClick={() => setPalette(false)}><div className="palette" onClick={e => e.stopPropagation()}><label>⌕<input autoFocus placeholder="Search ACS or run a command..." /></label><p>QUICK ACTIONS</p><button onClick={() => { setPalette(false); navigate("/agents/new"); }}><span>＋</span><div><b>Create agent</b><small>Open the governed Agent create form</small></div><kbd>↵</kbd></button></div></div>}
     </div>
   );
 }

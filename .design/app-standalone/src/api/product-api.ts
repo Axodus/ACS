@@ -7,16 +7,263 @@ export type ProductApiHealth = {
   automation: string;
 };
 
-export type ApiAgent = {
+export type GovernedAgentStatus = "draft" | "active" | "disabled" | "archived";
+export type AgentEnvironment = "sandbox";
+
+export type AgentCompositionSummary = {
+  ready: boolean;
+  errorCount: number;
+  warningCount: number;
+};
+
+export type AgentReadinessSummary = {
+  state: "ready" | "partial" | "blocked" | "unavailable";
+  blockerCount: number;
+  warningCount: number;
+};
+
+export type AgentDeploymentSummary = {
+  state: "none" | "deployed" | "failed" | "rejected";
+  count: number;
+};
+
+export type AgentRuntimeSummary = {
+  state: "none" | "running" | "stopped" | "failed" | "other";
+  count: number;
+};
+
+export type AgentModelReference = {
+  providerId: string;
+  modelId: string;
+  credentialConnectionId?: string;
+};
+
+export type AgentModelStrategy = {
+  primary: AgentModelReference;
+  fallbacks: AgentModelReference[];
+  runnerId?: string;
+  requiredCapabilities?: string[];
+};
+
+export type AgentDefinition = {
   agentId: string;
   name: string;
-  status: string;
-  definition: {
+  status: GovernedAgentStatus;
+  roleId?: string;
+  roleRevision?: number;
+  profileId?: string;
+  profileRevision?: number;
+  capabilityIds: string[];
+  skillIds: string[];
+  toolIds: string[];
+  modelStrategy?: AgentModelStrategy;
+  credentialConnectionIds: string[];
+  runnerPreferences: string[];
+  executionPolicyId?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type AgentRevision = {
+  agentId: string;
+  revision: number;
+  fingerprint: string;
+  definition: AgentDefinition;
+  createdAt: number;
+  updatedAt: number;
+  createdBy?: string;
+};
+
+export type CompositionFinding = {
+  code: string;
+  severity: "info" | "warning" | "error";
+  message: string;
+};
+
+export type AgentComposition = {
+  agentId: string;
+  revision: number;
+  fingerprint: string;
+  requested: {
     roleId?: string;
     profileId?: string;
+    capabilityIds: string[];
+    skillIds: string[];
+    toolIds: string[];
+    runnerPreferences: string[];
+    credentialConnectionIds: string[];
   };
-  revision: number;
+  effective: {
+    roleId?: string;
+    roleRevision?: number;
+    profileId?: string;
+    profileRevision?: number;
+    capabilityIds: string[];
+    skillIds: string[];
+    toolIds: string[];
+    runnerPreferences: string[];
+    credentialConnectionIds: string[];
+    modelStrategy?: AgentModelStrategy;
+  };
+  findings: CompositionFinding[];
+  ready: boolean;
+  materialization?: {
+    artifactType: "openclaw-compatible";
+    artifactFingerprint: string;
+  };
+};
+
+export type AgentAuditEvent = {
+  eventId: string;
+  eventType: string;
+  timestamp: number;
+  correlationId: string;
+  tenantId?: string;
+  workloadId?: string;
+  agentId?: string;
+  revision?: number;
+  deploymentId?: string;
+  runtimeInstanceId?: string;
+  executionRunId?: string;
+  actor?: string;
+  decision?: "allowed" | "denied" | "passed" | "failed";
+  result?: "success" | "failure" | "pending";
+  metadata?: Record<string, unknown>;
+};
+
+export type AgentListItem = {
+  agentId: string;
+  name: string;
+  status: GovernedAgentStatus;
+  environment: AgentEnvironment;
+  currentRevisionId: number;
+  compositionSummary: AgentCompositionSummary;
+  readinessSummary: AgentReadinessSummary;
+  deploymentSummary: AgentDeploymentSummary;
+  runtimeSummary: AgentRuntimeSummary;
+  archived: boolean;
+  updatedAt: number;
+  checkedAt: number;
+};
+
+export type AgentAuditSummary = {
+  total: number;
+  success: number;
+  failure: number;
+  pending: number;
+  recent: AgentAuditEvent[];
+};
+
+export type AgentEconomicSummary = {
+  state: "unavailable";
+  message: string;
+};
+
+export type AgentSurfaceGuardrails = {
+  inspectionMode: true;
+  sandboxOnly: true;
+  readOnly: false;
+  mutableOperations: true;
+  mutationScope: "agent-lifecycle";
+  productionReady: false;
+  sourceOfTruth: "product-api";
+};
+
+export type AgentLifecycleActionName =
+  | "update"
+  | "createRevision"
+  | "adoptRevision"
+  | "restoreRevision"
+  | "duplicate"
+  | "archive"
+  | "restore"
+  | "delete";
+
+export type AgentLifecycleActionView = {
+  action: AgentLifecycleActionName;
+  label: string;
+  available: boolean;
+  reason?: string;
+  requiresConfirmation?: boolean;
+};
+
+export type AgentLifecycleStateView = {
+  agentId: string;
+  currentRevision: number;
+  status: GovernedAgentStatus;
+  archived: boolean;
+  protected: boolean;
+  archivedAt?: number;
+  restoredAt?: number;
+};
+
+export type AgentDetail = {
+  agentId: string;
+  agentDefinition: AgentDefinition;
+  currentRevision: AgentRevision;
+  composition?: AgentComposition;
+  compositionUnavailableReason?: string;
+  readinessSummary: AgentReadinessSummary;
+  deploymentSummary: AgentDeploymentSummary;
+  runtimeSummary: AgentRuntimeSummary;
+  economicSummary: AgentEconomicSummary;
+  auditSummary: AgentAuditSummary;
+  lifecycleState: AgentLifecycleStateView;
+  availableActions: AgentLifecycleActionView[];
+  guardrails: AgentSurfaceGuardrails;
+  checkedAt: number;
+  stale: boolean;
+};
+
+export type AgentRevisionSummary = {
+  revisionId: string;
+  revisionNumber: number;
+  status: "current" | "adopted" | "historical";
   createdAt: number;
+  adoptedAt: number;
+  restoredFrom?: number;
+  compositionHash?: string;
+  changeSummary?: string;
+  availableActions: {
+    action: "adopt" | "restore";
+    available: boolean;
+    reason?: string;
+  }[];
+};
+
+export type AgentOperationResult = {
+  ok: boolean;
+  operation: string;
+  entityType: "agent";
+  entityId: string;
+  status: string;
+  message: string;
+  warnings: string[];
+  errors: string[];
+  auditRef?: string;
+  checkedAt: number;
+};
+
+export type AgentCreateInput = {
+  definition: AgentDefinition;
+  createdBy?: string;
+};
+
+export type UpdateAgentInput = {
+  definition: AgentDefinition;
+  expectedRevision: number;
+  updatedBy?: string;
+};
+
+export type AgentCreateRevisionInput = {
+  definition: AgentDefinition;
+  expectedRevision: number;
+  actor?: string;
+};
+
+export type AgentDuplicateInput = {
+  newAgentId: string;
+  name?: string;
+  actor?: string;
 };
 
 export type DashboardFinding = {
@@ -239,11 +486,77 @@ export const productApi = {
   },
 
   async listAgents() {
-    return request<ApiAgent[]>("/agents");
+    return request<AgentListItem[]>("/agents");
   },
 
   async getAgent(id: string) {
-    return request<ApiAgent>(`/agents/${id}`);
+    return request<AgentDetail>(`/agents/${id}`);
+  },
+
+  async getAgentRevisions(id: string) {
+    return request<AgentRevisionSummary[]>(`/agents/${id}/revisions`);
+  },
+
+  async getAgentLifecycle(id: string) {
+    return request<AgentLifecycleStateView>(`/agents/${id}/lifecycle`);
+  },
+
+  async createAgent(input: AgentCreateInput) {
+    return request<AgentOperationResult>("/agents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateAgent(agentId: string, input: UpdateAgentInput) {
+    return request<AgentOperationResult>(`/agents/${agentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async createAgentRevision(agentId: string, input: AgentCreateRevisionInput) {
+    return request<AgentOperationResult>(`/agents/${agentId}/revisions`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async adoptAgentRevision(agentId: string, revisionId: string) {
+    return request<AgentOperationResult>(`/agents/${agentId}/revisions/${revisionId}/adopt`, {
+      method: "POST",
+    });
+  },
+
+  async restoreAgentRevision(agentId: string, revisionId: string) {
+    return request<AgentOperationResult>(`/agents/${agentId}/revisions/${revisionId}/restore`, {
+      method: "POST",
+    });
+  },
+
+  async duplicateAgent(agentId: string, input: AgentDuplicateInput) {
+    return request<AgentOperationResult>(`/agents/${agentId}/duplicate`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archiveAgent(agentId: string) {
+    return request<AgentOperationResult>(`/agents/${agentId}/archive`, {
+      method: "POST",
+    });
+  },
+
+  async restoreAgent(agentId: string) {
+    return request<AgentOperationResult>(`/agents/${agentId}/restore`, {
+      method: "POST",
+    });
+  },
+
+  async deleteAgent(agentId: string) {
+    return request<AgentOperationResult>(`/agents/${agentId}`, {
+      method: "DELETE",
+    });
   },
 
   async listTargets() {

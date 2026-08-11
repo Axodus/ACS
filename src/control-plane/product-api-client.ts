@@ -1,5 +1,17 @@
-import type { AgentService } from "./agent-service.js";
-import type { AgentRevision } from "./unified-agent-model.js";
+import type {
+  AgentLifecycleActionAvailability,
+  AgentLifecycleActionName,
+  AgentLifecycleState,
+  AgentRevisionHistoryRecord,
+  AgentService,
+} from "./agent-service.js";
+import { AgentLifecycleGuardError } from "./agent-service.js";
+import type {
+  AgentComposition,
+  AgentDefinition,
+  AgentRevision,
+  GovernedAgentStatus,
+} from "./unified-agent-model.js";
 import type { DeploymentService, DeploymentRecord, DeploymentRequest } from "./deployment-service.js";
 import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord, StartRuntimeServiceRequest } from "./runtime-lifecycle-service.js";
 import type { AuditService, AuditEvent, AuditQueryFilter } from "./audit-service.js";
@@ -68,6 +80,207 @@ const OPERATIONAL_GUARDRAILS: ProductApiOperationalGuardrails = {
   readOnly: true,
   mutableOperations: false,
 };
+
+export type AgentEnvironment = "sandbox";
+
+export interface AgentCompositionSummary {
+  readonly ready: boolean;
+  readonly errorCount: number;
+  readonly warningCount: number;
+}
+
+export interface AgentReadinessSummary {
+  readonly state: "ready" | "partial" | "blocked" | "unavailable";
+  readonly blockerCount: number;
+  readonly warningCount: number;
+}
+
+export interface AgentDeploymentSummary {
+  readonly state: "none" | "deployed" | "failed" | "rejected";
+  readonly count: number;
+}
+
+export interface AgentRuntimeSummary {
+  readonly state: "none" | "running" | "stopped" | "failed" | "other";
+  readonly count: number;
+}
+
+export interface AgentListItem {
+  readonly agentId: string;
+  readonly name: string;
+  readonly status: GovernedAgentStatus;
+  readonly environment: AgentEnvironment;
+  readonly currentRevisionId: number;
+  readonly compositionSummary: AgentCompositionSummary;
+  readonly readinessSummary: AgentReadinessSummary;
+  readonly deploymentSummary: AgentDeploymentSummary;
+  readonly runtimeSummary: AgentRuntimeSummary;
+  readonly archived: boolean;
+  readonly updatedAt: number;
+  readonly checkedAt: number;
+}
+
+export interface AgentAuditSummary {
+  readonly total: number;
+  readonly success: number;
+  readonly failure: number;
+  readonly pending: number;
+  readonly recent: readonly AuditEvent[];
+}
+
+export interface AgentEconomicSummary {
+  readonly state: "unavailable";
+  readonly message: string;
+}
+
+export interface AgentSurfaceGuardrails {
+  readonly inspectionMode: true;
+  readonly sandboxOnly: true;
+  readonly readOnly: false;
+  readonly mutableOperations: true;
+  readonly mutationScope: "agent-lifecycle";
+  readonly productionReady: false;
+  readonly sourceOfTruth: "product-api";
+}
+
+export interface AgentLifecycleActionView {
+  readonly action: AgentLifecycleActionName;
+  readonly label: string;
+  readonly available: boolean;
+  readonly reason?: string;
+  readonly requiresConfirmation?: boolean;
+}
+
+export interface AgentLifecycleStateView {
+  readonly agentId: string;
+  readonly currentRevision: number;
+  readonly status: GovernedAgentStatus;
+  readonly archived: boolean;
+  readonly protected: boolean;
+  readonly archivedAt?: number;
+  readonly restoredAt?: number;
+}
+
+export interface AgentDetail {
+  readonly agentId: string;
+  readonly agentDefinition: AgentDefinition;
+  readonly currentRevision: AgentRevision;
+  readonly composition?: AgentComposition;
+  readonly compositionUnavailableReason?: string;
+  readonly readinessSummary: AgentReadinessSummary;
+  readonly deploymentSummary: AgentDeploymentSummary;
+  readonly runtimeSummary: AgentRuntimeSummary;
+  readonly economicSummary: AgentEconomicSummary;
+  readonly auditSummary: AgentAuditSummary;
+  readonly lifecycleState: AgentLifecycleStateView;
+  readonly availableActions: readonly AgentLifecycleActionView[];
+  readonly guardrails: AgentSurfaceGuardrails;
+  readonly checkedAt: number;
+  readonly stale: boolean;
+}
+
+export interface AgentRevisionSummary {
+  readonly revisionId: string;
+  readonly revisionNumber: number;
+  readonly status: "current" | "adopted" | "historical";
+  readonly createdAt: number;
+  readonly adoptedAt: number;
+  readonly restoredFrom?: number;
+  readonly compositionHash?: string;
+  readonly changeSummary?: string;
+  readonly availableActions: readonly {
+    readonly action: "adopt" | "restore";
+    readonly available: boolean;
+    readonly reason?: string;
+  }[];
+}
+
+export interface AgentOperationResult {
+  readonly ok: boolean;
+  readonly operation: string;
+  readonly entityType: "agent";
+  readonly entityId: string;
+  readonly status: string;
+  readonly message: string;
+  readonly warnings: readonly string[];
+  readonly errors: readonly string[];
+  readonly auditRef?: string;
+  readonly checkedAt: number;
+}
+
+export interface AgentCreateInput {
+  readonly definition: AgentDefinition;
+  readonly createdBy?: string;
+}
+
+export interface UpdateAgentInput {
+  readonly definition: AgentDefinition;
+  readonly expectedRevision: number;
+  readonly updatedBy?: string;
+}
+
+export interface AgentCreateRevisionInput {
+  readonly definition: AgentDefinition;
+  readonly expectedRevision: number;
+  readonly actor?: string;
+}
+
+export interface AgentDuplicateInput {
+  readonly newAgentId: string;
+  readonly name?: string;
+  readonly actor?: string;
+}
+
+const AGENT_SURFACE_GUARDRAILS: AgentSurfaceGuardrails = {
+  inspectionMode: true,
+  sandboxOnly: true,
+  readOnly: false,
+  mutableOperations: true,
+  mutationScope: "agent-lifecycle",
+  productionReady: false,
+  sourceOfTruth: "product-api",
+};
+
+const AGENT_ACTION_LABELS: Record<AgentLifecycleActionName, string> = {
+  update: "Edit agent",
+  createRevision: "Create revision",
+  adoptRevision: "Adopt revision",
+  restoreRevision: "Restore revision",
+  duplicate: "Duplicate agent",
+  archive: "Archive agent",
+  restore: "Restore agent",
+  delete: "Delete agent",
+};
+
+const AGENT_OPERATION_MESSAGES: Record<string, string> = {
+  create: "Agent created.",
+  update: "Agent updated.",
+  create_revision: "Revision created.",
+  adopt_revision: "Revision adopted.",
+  restore_revision: "Revision restored.",
+  duplicate: "Agent duplicated.",
+  archive: "Agent archived.",
+  restore: "Agent restored.",
+  delete: "Agent deleted.",
+};
+
+function parseRevisionId(value: string): number {
+  const match = /^(?:r)?(\d+)$/.exec(value.trim());
+  if (!match) {
+    throw new AgentLifecycleGuardError(`invalid revision id: ${value}`, {
+      code: "INVALID_REVISION_ID",
+      reason: "revision id must be a revision number such as r3 or 3",
+    });
+  }
+  const revisionNumber = Number.parseInt(match[1]!, 10);
+  if (!Number.isInteger(revisionNumber) || revisionNumber < 1) {
+    throw new AgentLifecycleGuardError(`invalid revision id: ${value}`, {
+      code: "INVALID_REVISION_ID",
+      reason: "revision id must be a positive revision number",
+    });
+  }
+  return revisionNumber;
+}
 
 export interface DashboardSummary {
   readonly system: {
@@ -219,22 +432,155 @@ export class ProductApiClient {
     this.#baseUrl = options.baseUrl;
   }
 
-  async listAgents(): Promise<readonly AgentRevision[]> {
-    if (this.#agentService) {
-      return this.#agentService.list();
+  async listAgents(): Promise<readonly AgentListItem[]> {
+    if (!this.#agentService) {
+      return [];
     }
-    return [];
+    const checkedAt = Date.now();
+    return this.#agentService.list().map((revision) => this.#listItem(revision, checkedAt));
   }
 
-  async getAgent(id: string): Promise<AgentRevision | undefined> {
-    if (this.#agentService) {
-      try {
-        return this.#agentService.get(id);
-      } catch {
-        return undefined;
-      }
+  async getAgent(id: string): Promise<AgentDetail | undefined> {
+    if (!this.#agentService) {
+      return undefined;
     }
-    return undefined;
+    try {
+      return this.#agentDetail(id);
+    } catch {
+      return undefined;
+    }
+  }
+
+  async getAgentDetail(agentId: string): Promise<AgentDetail | undefined> {
+    return this.getAgent(agentId);
+  }
+
+  async getAgentRevisions(agentId: string): Promise<readonly AgentRevisionSummary[]> {
+    if (!this.#agentService) {
+      return [];
+    }
+    const current = this.#agentService.get(agentId);
+    const lifecycle = this.#agentService.getLifecycleState(agentId);
+    return this.#agentService.getRevisionHistory(agentId)
+      .map((record) => this.#revisionSummary(record, current.revision, lifecycle.archived));
+  }
+
+  async getAgentLifecycle(agentId: string): Promise<AgentLifecycleStateView | undefined> {
+    if (!this.#agentService) {
+      return undefined;
+    }
+    try {
+      return this.#lifecycleView(this.#agentService.getLifecycleState(agentId));
+    } catch {
+      return undefined;
+    }
+  }
+
+  async createAgent(input: AgentCreateInput): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("create", input.definition.agentId, "Agent creation is not supported by this Product API slice.");
+    }
+    const revision = this.#agentService.create({
+      definition: input.definition,
+      createdAt: Date.now(),
+      ...(input.createdBy ? { createdBy: input.createdBy } : {}),
+    });
+    return this.#okResult("create", revision);
+  }
+
+  async updateAgent(agentId: string, input: UpdateAgentInput): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("update", agentId, "Agent updates are not supported by this Product API slice.");
+    }
+    const revision = this.#agentService.update(agentId, {
+      definition: input.definition,
+      expectedRevision: input.expectedRevision,
+      updatedAt: Date.now(),
+      ...(input.updatedBy ? { updatedBy: input.updatedBy } : {}),
+    });
+    return this.#okResult("update", revision);
+  }
+
+  async createAgentRevision(agentId: string, input: AgentCreateRevisionInput): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("create_revision", agentId, "Revision creation is not supported by this Product API slice.");
+    }
+    const revision = this.#agentService.createRevision({
+      agentId,
+      definition: input.definition,
+      expectedRevision: input.expectedRevision,
+      ...(input.actor ? { actor: input.actor } : {}),
+    });
+    return this.#okResult("create_revision", revision);
+  }
+
+  async adoptAgentRevision(agentId: string, revisionId: string): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("adopt_revision", agentId, "Revision adoption is not supported by this Product API slice.");
+    }
+    const revision = this.#agentService.adoptRevision(agentId, parseRevisionId(revisionId));
+    return this.#okResult("adopt_revision", revision);
+  }
+
+  async restoreAgentRevision(agentId: string, revisionId: string): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("restore_revision", agentId, "Revision restore is not supported by this Product API slice.");
+    }
+    const revision = this.#agentService.restoreRevision(agentId, parseRevisionId(revisionId));
+    return this.#okResult("restore_revision", revision);
+  }
+
+  async duplicateAgent(agentId: string, input: AgentDuplicateInput): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("duplicate", agentId, "Agent duplication is not supported by this Product API slice.");
+    }
+    const revision = this.#agentService.duplicateAgent(agentId, input);
+    return {
+      ...this.#okResult("duplicate", revision),
+      entityId: input.newAgentId,
+      message: `Agent duplicated as ${input.newAgentId}.`,
+    };
+  }
+
+  async archiveAgent(agentId: string): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("archive", agentId, "Agent archive is not supported by this Product API slice.");
+    }
+    const revision = this.#agentService.archiveAgent(agentId);
+    return this.#okResult("archive", revision);
+  }
+
+  async restoreAgent(agentId: string): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("restore", agentId, "Agent restore is not supported by this Product API slice.");
+    }
+    const revision = this.#agentService.restoreAgent(agentId);
+    return this.#okResult("restore", revision);
+  }
+
+  async deleteAgent(agentId: string): Promise<AgentOperationResult> {
+    if (!this.#agentService) {
+      return this.#unsupportedResult("delete", agentId, "Agent deletion is not supported by this Product API slice.");
+    }
+    const dependencies = this.#agentDependencies(agentId);
+    if (dependencies.length > 0) {
+      throw new AgentLifecycleGuardError(`cannot delete agent ${agentId}: referenced by ${dependencies.join(", ")}`, {
+        code: "AGENT_DEPENDENCIES_PRESENT",
+        reason: dependencies.join(", "),
+      });
+    }
+    const deleted = this.#agentService.deleteAgent(agentId);
+    return {
+      ok: true,
+      operation: "delete",
+      entityType: "agent",
+      entityId: agentId,
+      status: "deleted",
+      message: AGENT_OPERATION_MESSAGES.delete ?? "Agent deleted.",
+      warnings: [],
+      errors: [],
+      checkedAt: deleted.deletedAt,
+    };
   }
 
   async listTargets(): Promise<readonly unknown[]> {
@@ -317,6 +663,231 @@ export class ProductApiClient {
       return this.#auditService.queryEvents(filter);
     }
     return [];
+  }
+
+  #listItem(revision: AgentRevision, checkedAt: number): AgentListItem {
+    const composition = this.#compositionSummary(revision.agentId);
+    return {
+      agentId: revision.agentId,
+      name: revision.definition.name,
+      status: revision.definition.status,
+      environment: "sandbox",
+      currentRevisionId: revision.revision,
+      compositionSummary: composition.summary,
+      readinessSummary: composition.readiness,
+      deploymentSummary: this.#deploymentSummary(revision.agentId),
+      runtimeSummary: this.#runtimeSummary(revision.agentId),
+      archived: revision.definition.status === "archived",
+      updatedAt: revision.updatedAt,
+      checkedAt,
+    };
+  }
+
+  #agentDetail(agentId: string): AgentDetail {
+    const service = this.#agentService;
+    if (!service) {
+      throw new Error("AgentService not configured");
+    }
+    const checkedAt = Date.now();
+    const current = service.get(agentId);
+    const lifecycle = service.getLifecycleState(agentId);
+    const composition = this.#compositionSummary(agentId);
+    return {
+      agentId,
+      agentDefinition: current.definition,
+      currentRevision: current,
+      ...(composition.composition ? { composition: composition.composition } : {}),
+      ...(composition.unavailableReason ? { compositionUnavailableReason: composition.unavailableReason } : {}),
+      readinessSummary: composition.readiness,
+      deploymentSummary: this.#deploymentSummary(agentId),
+      runtimeSummary: this.#runtimeSummary(agentId),
+      economicSummary: {
+        state: "unavailable",
+        message: "Economic summaries are not exposed per agent in this slice.",
+      },
+      auditSummary: this.#auditSummary(agentId),
+      lifecycleState: this.#lifecycleView(lifecycle),
+      availableActions: this.#actionsWithDependencyReasons(lifecycle.availableActions, agentId),
+      guardrails: AGENT_SURFACE_GUARDRAILS,
+      checkedAt,
+      stale: false,
+    };
+  }
+
+  #compositionSummary(agentId: string): {
+    readonly summary: AgentCompositionSummary;
+    readonly readiness: AgentReadinessSummary;
+    readonly composition?: AgentComposition;
+    readonly unavailableReason?: string;
+  } {
+    try {
+      const result = this.#agentService!.compose(agentId);
+      const errorCount = result.composition.findings.filter((finding) => finding.severity === "error").length;
+      const warningCount = result.composition.findings.filter((finding) => finding.severity === "warning").length;
+      return {
+        summary: { ready: result.composition.ready, errorCount, warningCount },
+        readiness: {
+          state: result.composition.ready ? "ready" : errorCount > 0 ? "blocked" : "partial",
+          blockerCount: errorCount,
+          warningCount,
+        },
+        composition: result.composition,
+      };
+    } catch {
+      return {
+        summary: { ready: false, errorCount: 1, warningCount: 0 },
+        readiness: { state: "blocked", blockerCount: 1, warningCount: 0 },
+        unavailableReason: "Composition could not be resolved by the Product API.",
+      };
+    }
+  }
+
+  #deploymentSummary(agentId: string): AgentDeploymentSummary {
+    const deployments = (this.#deploymentService?.listDeployments() ?? []).filter((entry) => entry.agentId === agentId);
+    const state: AgentDeploymentSummary["state"] = deployments.length === 0
+      ? "none"
+      : deployments.some((entry) => entry.status === "deployed")
+        ? "deployed"
+        : deployments.some((entry) => entry.status === "failed")
+          ? "failed"
+          : "rejected";
+    return { state, count: deployments.length };
+  }
+
+  #runtimeSummary(agentId: string): AgentRuntimeSummary {
+    const runtimes = (this.#runtimeService?.listRuntimes() ?? []).filter((entry) => entry.agentId === agentId);
+    const state: AgentRuntimeSummary["state"] = runtimes.length === 0
+      ? "none"
+      : runtimes.some((entry) => entry.status === "running")
+        ? "running"
+        : runtimes.some((entry) => entry.status === "failed")
+          ? "failed"
+          : runtimes.some((entry) => entry.status === "stopped" || entry.status === "terminated")
+            ? "stopped"
+            : "other";
+    return { state, count: runtimes.length };
+  }
+
+  #auditSummary(agentId: string): AgentAuditSummary {
+    const events = [...(this.#auditService?.queryEvents({ agentId }) ?? [])]
+      .sort((left, right) => right.timestamp - left.timestamp);
+    return {
+      total: events.length,
+      success: events.filter((event) => event.result === "success").length,
+      failure: events.filter((event) => event.result === "failure").length,
+      pending: events.filter((event) => event.result === "pending").length,
+      recent: events.slice(0, 5),
+    };
+  }
+
+  #revisionSummary(
+    record: AgentRevisionHistoryRecord,
+    currentRevision: number,
+    archived: boolean,
+  ): AgentRevisionSummary {
+    const revisionNumber = record.revision.revision;
+    const isCurrent = revisionNumber === currentRevision;
+    const blockedReason = isCurrent
+      ? "This is the current revision."
+      : archived
+        ? "Archived agents cannot change revisions."
+        : undefined;
+    return {
+      revisionId: `r${revisionNumber}`,
+      revisionNumber,
+      status: isCurrent ? "current" : "adopted",
+      createdAt: record.revision.createdAt,
+      adoptedAt: record.adoptedAt,
+      ...(record.restoredFrom !== undefined ? { restoredFrom: record.restoredFrom } : {}),
+      compositionHash: record.revision.fingerprint,
+      ...(record.changeSummary ? { changeSummary: record.changeSummary } : {}),
+      availableActions: [
+        {
+          action: "adopt",
+          available: !isCurrent && !archived,
+          ...(blockedReason ? { reason: blockedReason } : {}),
+        },
+        {
+          action: "restore",
+          available: !isCurrent && !archived,
+          ...(blockedReason ? { reason: blockedReason } : {}),
+        },
+      ],
+    };
+  }
+
+  #lifecycleView(state: AgentLifecycleState): AgentLifecycleStateView {
+    return {
+      agentId: state.agentId,
+      currentRevision: state.currentRevision,
+      status: state.status,
+      archived: state.archived,
+      protected: state.protected,
+      ...(state.archivedAt !== undefined ? { archivedAt: state.archivedAt } : {}),
+      ...(state.restoredAt !== undefined ? { restoredAt: state.restoredAt } : {}),
+    };
+  }
+
+  #actionsWithDependencyReasons(
+    actions: readonly AgentLifecycleActionAvailability[],
+    agentId: string,
+  ): readonly AgentLifecycleActionView[] {
+    const dependencies = this.#agentDependencies(agentId);
+    return actions.map((entry) => {
+      const label = AGENT_ACTION_LABELS[entry.action];
+      if (entry.action === "delete" && entry.available && dependencies.length > 0) {
+        return {
+          ...entry,
+          label,
+          available: false,
+          reason: `Cannot delete: referenced by ${dependencies.join(", ")}.`,
+        };
+      }
+      return { ...entry, label };
+    });
+  }
+
+  #agentDependencies(agentId: string): readonly string[] {
+    const references: string[] = [];
+    for (const deployment of this.#deploymentService?.listDeployments() ?? []) {
+      if (deployment.agentId === agentId) {
+        references.push(`deployment:${deployment.deploymentId}`);
+      }
+    }
+    for (const runtime of this.#runtimeService?.listRuntimes() ?? []) {
+      if (runtime.agentId === agentId) {
+        references.push(`runtime:${runtime.runtimeInstanceId}`);
+      }
+    }
+    return references;
+  }
+
+  #okResult(operation: string, revision: AgentRevision): AgentOperationResult {
+    return {
+      ok: true,
+      operation,
+      entityType: "agent",
+      entityId: revision.agentId,
+      status: revision.definition.status,
+      message: AGENT_OPERATION_MESSAGES[operation] ?? `Operation ${operation} completed.`,
+      warnings: [],
+      errors: [],
+      checkedAt: Date.now(),
+    };
+  }
+
+  #unsupportedResult(operation: string, entityId: string, message: string): AgentOperationResult {
+    return {
+      ok: false,
+      operation,
+      entityType: "agent",
+      entityId,
+      status: "unsupported",
+      message,
+      warnings: ["Governed by Product API"],
+      errors: [message],
+      checkedAt: Date.now(),
+    };
   }
 
   async #probeRuntimeConnectivity(): Promise<{
