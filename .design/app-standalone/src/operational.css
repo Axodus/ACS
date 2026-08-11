@@ -38,6 +38,7 @@
 }
 
 .state-ready .card-state { color: var(--green); }
+.state-refreshing .card-state { color: var(--secondary); }
 .state-error .card-state, .state-empty .card-state { color: var(--amber); }
 .card-body {
   padding: 14px 16px 16px;
@@ -325,6 +326,56 @@
   font-size: 12px;
   margin-bottom: 14px;
   padding: 10px 13px;
+}
+
+.mode-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mode-notice span {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 999px;
+  color: var(--secondary);
+  font-size: 11px;
+  letter-spacing: .08em;
+  padding: 5px 10px;
+  text-transform: uppercase;
+}
+
+.stale-banner,
+.refresh-banner {
+  border-radius: 7px;
+  font-size: 12px;
+  margin-bottom: 14px;
+  padding: 10px 13px;
+}
+
+.stale-banner {
+  background: color-mix(in srgb, var(--amber) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--amber) 42%, var(--border));
+  color: var(--amber);
+}
+
+.refresh-banner {
+  background: color-mix(in srgb, var(--green) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--green) 38%, var(--border));
+  color: var(--green);
+}
+
+.surface-link {
+  color: var(--green);
+  display: inline-block;
+  font-size: 12px;
+  margin-top: 4px;
+  text-decoration: none;
+}
+
+.surface-link:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 720px) {

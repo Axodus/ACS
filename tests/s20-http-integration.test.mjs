@@ -49,7 +49,10 @@ test("GET /api/v1/health reports Product API connectivity", async () => {
 });
 
 test("GET /api/v1/dashboard returns a read-only operational summary", async () => {
-  const context = createControlPlaneContext();
+  const context = createControlPlaneContext({
+    engine: createMockEngine(),
+    startLocalWorker: false,
+  });
   try {
     const result = await routeProductApiRequest(
       { method: "GET", url: "/api/v1/dashboard", headers: {} },
@@ -68,6 +71,16 @@ test("GET /api/v1/dashboard returns a read-only operational summary", async () =
     assert.equal(summary.system.automation, "disabled");
     assert.equal(summary.system.readOnly, true);
     assert.equal(typeof summary.system.generatedAt, "number");
+    assert.equal(typeof summary.system.checkedAt, "number");
+    assert.equal(typeof summary.system.stale, "boolean");
+    assert.equal(summary.system.refreshWindowMs, 30_000);
+    assert.equal(typeof summary.system.stateAgeMs, "number");
+    assert.deepEqual(summary.system.guardrails, {
+      inspectionMode: true,
+      sandboxOnly: true,
+      readOnly: true,
+      mutableOperations: false,
+    });
     assert.equal(typeof summary.agents.total, "number");
     assert.equal(typeof summary.deployments.total, "number");
     assert.equal(typeof summary.runtimes.total, "number");
@@ -75,6 +88,12 @@ test("GET /api/v1/dashboard returns a read-only operational summary", async () =
     assert.equal(typeof summary.executionRuns.total, "number");
     assert.ok(Array.isArray(summary.blockers));
     assert.ok(Array.isArray(summary.warnings));
+    assert.equal(typeof summary.readiness.blockerCount, "number");
+    assert.equal(typeof summary.readiness.warningCount, "number");
+    assert.equal(typeof summary.readiness.evidenceCount, "number");
+    assert.equal(typeof summary.readiness.checkedAt, "number");
+    assert.equal(typeof summary.runtime.checkedAt, "number");
+    assert.ok(["connected", "degraded", "unavailable", "unverified"].includes(summary.runtime.connectivity));
   } finally {
     await context.close();
   }
@@ -99,16 +118,30 @@ test("GET /api/v1/readiness returns a read-only readiness inspection", async () 
     const summary = result.body.data;
     assert.equal(summary.mode, "inspection");
     assert.equal(summary.readOnly, true);
+    assert.equal(typeof summary.stale, "boolean");
+    assert.equal(summary.refreshWindowMs, 30_000);
+    assert.equal(typeof summary.stateAgeMs, "number");
+    assert.deepEqual(summary.guardrails, {
+      inspectionMode: true,
+      sandboxOnly: true,
+      readOnly: true,
+      mutableOperations: false,
+    });
     assert.equal(summary.productApi.service, "acs-product-api");
     assert.equal(summary.productApi.status, "ok");
     assert.equal(summary.productApi.mode, "inspection");
     assert.equal(summary.productApi.automation, "disabled");
+    assert.equal(summary.productApi.checkMode, "inspection-read-only");
     assert.equal(summary.runtime.connectivity, "connected");
+    assert.equal(typeof summary.runtime.checkedAt, "number");
     assert.equal(summary.readiness.devReady, true);
     assert.equal(summary.readiness.distributedRuntimeReady, false);
     assert.equal(summary.readiness.productionReady, false);
     assert.equal(summary.readiness.status, "blocked");
     assert.ok(summary.readiness.blockerCount > 0);
+    assert.equal(typeof summary.readiness.warningCount, "number");
+    assert.equal(typeof summary.readiness.evidenceCount, "number");
+    assert.equal(typeof summary.readiness.refreshedAt, "number");
     assert.ok(Array.isArray(summary.readinessFlags));
     assert.ok(summary.readinessFlags.length > 0);
     assert.equal(summary.readinessFlags.find(flag => flag.id === "production").status, "blocked");

@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  Link,
   Navigate,
   Route,
   Routes,
@@ -15,6 +16,7 @@ import {
   type DashboardSummary,
   type GlobalReadinessSummary,
   type ProductApiHealth,
+  type ProductApiOperationalGuardrails,
   type ReadinessFinding,
 } from "./api/product-api";
 import "./operational.css";
@@ -88,8 +90,73 @@ function Metric({ label, value, note }: { label: string; value: string; note: st
   return <article className="metric"><div className="metric-top"><span>{label}</span><span className="metric-mark">↗</span></div><strong>{value}</strong><small>{note}</small></article>;
 }
 
-type DashboardLoadState = "loading" | "ready" | "error";
+type DashboardLoadState = "loading" | "refreshing" | "ready" | "error";
 type DashboardCardState = DashboardLoadState | "empty";
+
+function useOperationalSummary<T>(
+  fetcher: () => Promise<T>,
+  emptyError: string,
+  isStale: (data: T) => boolean,
+) {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [data, setData] = useState<T | null>(null);
+  const [loadState, setLoadState] = useState<DashboardLoadState>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+  const hasDataRef = useRef(false);
+  const fetcherRef = useRef(fetcher);
+  const isStaleRef = useRef(isStale);
+  fetcherRef.current = fetcher;
+  isStaleRef.current = isStale;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadError(null);
+    setLoadState(hasDataRef.current ? "refreshing" : "loading");
+    fetcherRef.current()
+      .then(next => {
+        if (!cancelled) {
+          hasDataRef.current = true;
+          setData(next);
+          setStale(isStaleRef.current(next));
+          setLoadState("ready");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          if (hasDataRef.current) {
+            setStale(true);
+            setLoadState("ready");
+            setLoadError(emptyError.replace("Unable to load", "Refresh failed; keeping previous"));
+          } else {
+            setLoadError(emptyError);
+            setLoadState("error");
+          }
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  return {
+    data,
+    loadState,
+    loadError,
+    stale,
+    refresh: () => setRefreshKey(k => k + 1),
+  };
+}
+
+function OperationalModeNotice({ guardrails }: { guardrails?: ProductApiOperationalGuardrails }) {
+  if (!guardrails) return null;
+  return <div className="mode-notice" role="note">
+    {guardrails.inspectionMode && <span>Inspection mode</span>}
+    {guardrails.readOnly && <span>Read-only</span>}
+    {guardrails.sandboxOnly && <span>Sandbox only</span>}
+    {!guardrails.mutableOperations && <span>No mutable operations</span>}
+  </div>;
+}
 
 function DashboardCard({ title, meta, state, emptyMessage, children }: {
   title: string;
@@ -98,14 +165,15 @@ function DashboardCard({ title, meta, state, emptyMessage, children }: {
   emptyMessage?: string;
   children?: ReactNode;
 }) {
-  const label = state === "loading" ? "..." : state === "error" ? "error" : state === "empty" ? "empty" : "ready";
+  const label = state === "loading" ? "..." : state === "refreshing" ? "refresh" : state === "error" ? "error" : state === "empty" ? "empty" : "ready";
   return <section className={`panel dashboard-card state-${state}`}>
     <div className="panel-head"><div><h2>{title}</h2><p>{meta}</p></div><span className="card-state">{label}</span></div>
     <div className="card-body">
       {state === "loading" && <div className="state-line">Loading operational state...</div>}
+      {state === "refreshing" && <div className="state-line">Refreshing operational state...</div>}
       {state === "error" && <div className="state-line error">Unable to load this card. Check Product API connectivity and retry.</div>}
       {state === "empty" && <div className="state-line empty">{emptyMessage ?? "No data available"}</div>}
-      {state === "ready" && children}
+      {(state === "ready" || state === "refreshing") && children}
     </div>
   </section>;
 }
@@ -151,69 +219,65 @@ function ReadinessFlagCard({ title, meta, flag, state }: {
 }
 
 function Readiness() {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [summary, setSummary] = useState<GlobalReadinessSummary | null>(null);
-  const [loadState, setLoadState] = useState<DashboardLoadState>("loading");
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadState("loading");
-    setLoadError(null);
-    productApi.getGlobalReadinessSummary()
-      .then(data => {
-        if (!cancelled) {
-          setSummary(data);
-          setLoadState("ready");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLoadError("Unable to load readiness from Product API");
-          setLoadState("error");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey]);
+  const { data: summary, loadState, loadError, stale, refresh } = useOperationalSummary<GlobalReadinessSummary>(
+    () => productApi.getGlobalReadinessSummary(),
+    "Unable to load readiness from Product API",
+    data => data.stale,
+  );
 
   const cardState = (count: number | undefined): DashboardCardState => {
-    if (loadState === "loading") return "loading";
-    if (loadState === "error") return "error";
+    if (!summary && loadState === "loading") return "loading";
+    if (!summary && loadState === "error") return "error";
+    if (summary && loadState === "refreshing") return "refreshing";
     return count !== undefined && count > 0 ? "ready" : "empty";
   };
+  const readyState: DashboardLoadState = summary ? (loadState === "refreshing" ? "refreshing" : "ready") : loadState;
   const flag = (id: string) => summary?.readinessFlags.find(item => item.id === id);
-  const updatedAt = summary ? new Date(summary.generatedAt).toLocaleTimeString() : "--";
+  const checkedAt = summary ? new Date(summary.productApi.checkedAt).toLocaleTimeString() : "--";
   const connectivityTone = summary?.runtime.connectivity === "connected" ? "good" : summary?.runtime.connectivity === "degraded" ? "warn" : "muted";
+  const blockerTone = summary && summary.readiness.blockerCount > 0 ? "warn" : "good";
 
   return <>
     <header className="page-head compact dashboard-head">
       <div><p className="eyebrow">OPERATIONAL AWARENESS</p><h1>Global Readiness & Health</h1><p>Read-only inspection of ACS readiness, blockers, evidence and Product API health.</p></div>
-      <button className="secondary" disabled={loadState === "loading"} onClick={() => setRefreshKey(k => k + 1)}>{loadState === "error" ? "Retry" : "Recheck"}</button>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Rechecking" : "Recheck"}</button>
     </header>
-    {loadError && <div className="error-banner">{loadError}</div>}
+    <OperationalModeNotice guardrails={summary?.guardrails} />
+    {stale && <div className="stale-banner" role="status">Showing a stale readiness snapshot. Recheck to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Rechecking readiness and health...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     <div className="dashboard-grid readiness-grid">
-      <DashboardCard title="Product API health" meta="Boundary and inspection mode" state={loadState}>
+      <DashboardCard title="Product API health" meta="Boundary and inspection mode" state={readyState}>
         <div className="summary-list">
           <SummaryRow label="Service" value={summary?.productApi.service ?? "--"} />
           <SummaryRow label="Status" value={summary?.productApi.status ?? "--"} tone="good" />
           <SummaryRow label="Mode" value={summary?.productApi.mode ?? "--"} />
           <SummaryRow label="Automation" value={summary?.productApi.automation ?? "--"} />
           <SummaryRow label="Access" value="read-only" />
-          <SummaryRow label="Checked" value={updatedAt} />
+          <SummaryRow label="Check mode" value={summary?.productApi.checkMode ?? "--"} />
+          <SummaryRow label="Checked" value={checkedAt} />
         </div>
+      </DashboardCard>
+      <DashboardCard title="System dashboard" meta="Operational blockers and warnings" state={readyState}>
+        <div className="summary-list">
+          <SummaryRow label="Readiness" value={summary?.readiness.status ?? "--"} tone={blockerTone} />
+          <SummaryRow label="Blockers" value={summary?.readiness.blockerCount ?? 0} tone={blockerTone} />
+          <SummaryRow label="Warnings" value={summary?.readiness.warningCount ?? 0} />
+          <SummaryRow label="Evidence domains" value={summary?.readiness.evidenceCount ?? 0} />
+        </div>
+        <Link className="surface-link" to="/">Open system dashboard →</Link>
       </DashboardCard>
       <DashboardCard title="Runtime connectivity" meta="Engine probe results" state={cardState(summary?.runtime.engines.length)} emptyMessage="No engines probed">
         <div className="summary-list">
           <SummaryRow label="Connectivity" value={summary?.runtime.connectivity ?? "--"} tone={connectivityTone} />
           <SummaryRow label="Engines" value={summary?.runtime.engines.length ?? 0} />
+          <SummaryRow label="Checked" value={summary ? new Date(summary.runtime.checkedAt).toLocaleTimeString() : "--"} />
         </div>
         {summary && summary.runtime.engines.length > 0 && <div className="engine-list">{summary.runtime.engines.map(engine => <span key={engine.id}><i />{engine.id}<code>{engine.status}</code></span>)}</div>}
       </DashboardCard>
-      <ReadinessFlagCard title="DEV readiness" meta="Local control plane capability" flag={flag("dev")} state={loadState} />
-      <ReadinessFlagCard title="Distributed Runtime readiness" meta="Engine and target capability" flag={flag("distributed-runtime")} state={loadState} />
-      <ReadinessFlagCard title="Production readiness" meta="Production blockers and evidence" flag={flag("production")} state={loadState} />
+      <ReadinessFlagCard title="DEV readiness" meta="Local control plane capability" flag={flag("dev")} state={readyState} />
+      <ReadinessFlagCard title="Distributed Runtime readiness" meta="Engine and target capability" flag={flag("distributed-runtime")} state={readyState} />
+      <ReadinessFlagCard title="Production readiness" meta="Production blockers and evidence" flag={flag("production")} state={readyState} />
     </div>
     <div className="dashboard-grid readiness-grid">
       <DashboardCard title="Health indicators" meta="Live Product API health signals" state={cardState(summary?.healthIndicators.length)} emptyMessage="No health indicators available">
@@ -224,6 +288,14 @@ function Readiness() {
       <DashboardCard title="Component status" meta="Consolidated domain readiness" state={cardState(summary?.components.length)} emptyMessage="No component status available">
         <div className="component-list">
           {summary?.components.map(component => <div className="component-row" key={component.domain}><div><b>{component.domain}</b><small>{component.currentState}</small></div><ReadinessStatus status={component.status} /></div>)}
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Snapshot consistency" meta="Refresh and stale-state contract" state={readyState}>
+        <div className="summary-list">
+          <SummaryRow label="State" value={stale ? "Stale" : "Fresh"} tone={stale ? "warn" : "good"} />
+          <SummaryRow label="Refresh window" value={`${summary?.refreshWindowMs ?? 0}ms`} />
+          <SummaryRow label="Snapshot age" value={`${summary?.stateAgeMs ?? 0}ms`} />
+          <SummaryRow label="Read-only" value="Guaranteed" tone="good" />
         </div>
       </DashboardCard>
       <DashboardCard title="Readiness blockers" meta="Production-blocking findings" state={cardState(summary?.blockers.length)} emptyMessage="No readiness blockers">
@@ -242,56 +314,62 @@ function Readiness() {
 }
 
 function Dashboard() {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [loadState, setLoadState] = useState<DashboardLoadState>("loading");
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadState("loading");
-    setLoadError(null);
-    productApi.getDashboardSummary()
-      .then(data => {
-        if (!cancelled) {
-          setSummary(data);
-          setLoadState("ready");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLoadError("Unable to load dashboard summary from Product API");
-          setLoadState("error");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey]);
+  const { data: summary, loadState, loadError, stale, refresh } = useOperationalSummary<DashboardSummary>(
+    () => productApi.getDashboardSummary(),
+    "Unable to load dashboard summary from Product API",
+    data => data.system.stale,
+  );
 
   const cardState = (count: number | undefined): DashboardCardState => {
-    if (loadState === "loading") return "loading";
-    if (loadState === "error") return "error";
+    if (!summary && loadState === "loading") return "loading";
+    if (!summary && loadState === "error") return "error";
+    if (summary && loadState === "refreshing") return "refreshing";
     return count !== undefined && count > 0 ? "ready" : "empty";
   };
 
-  const updatedAt = summary ? new Date(summary.system.generatedAt).toLocaleTimeString() : "--";
+  const readyState: DashboardLoadState = summary ? (loadState === "refreshing" ? "refreshing" : "ready") : loadState;
+  const generatedAt = summary ? new Date(summary.system.generatedAt).toLocaleTimeString() : "--";
+  const checkedAt = summary ? new Date(summary.system.checkedAt).toLocaleTimeString() : "--";
+  const connectivityTone = summary?.runtime.connectivity === "connected" ? "good" : summary?.runtime.connectivity === "degraded" ? "warn" : "muted";
+  const readinessTone = summary && summary.readiness.blockerCount > 0 ? "warn" : "good";
 
   return <>
     <header className="page-head compact dashboard-head">
       <div><p className="eyebrow">OPERATIONAL AWARENESS</p><h1>System Dashboard</h1><p>Aggregated ACS state from the Product API. Read-only surface.</p></div>
-      <button className="secondary" disabled={loadState === "loading"} onClick={() => setRefreshKey(k => k + 1)}>{loadState === "error" ? "Retry" : "Refresh"}</button>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
     </header>
-    {loadError && <div className="error-banner">{loadError}</div>}
+    <OperationalModeNotice guardrails={summary?.system.guardrails} />
+    {stale && <div className="stale-banner" role="status">Showing a stale dashboard snapshot. Refresh to recover live state.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing dashboard and readiness...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     <div className="dashboard-grid">
-      <DashboardCard title="System overview" meta="Product API boundary" state={loadState}>
+      <DashboardCard title="System overview" meta="Product API boundary" state={readyState}>
         <div className="summary-list">
           <SummaryRow label="Service" value={summary?.system.service ?? "--"} />
           <SummaryRow label="Status" value="Connected" tone="good" />
           <SummaryRow label="Mode" value={summary?.system.mode ?? "--"} />
           <SummaryRow label="Automation" value={summary?.system.automation ?? "--"} />
           <SummaryRow label="Access" value="read-only" />
-          <SummaryRow label="Generated" value={updatedAt} />
+          <SummaryRow label="Generated" value={generatedAt} />
+          <SummaryRow label="Checked" value={checkedAt} />
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Readiness" meta="Milestone A operational state" state={readyState}>
+        <div className="summary-list">
+          <SummaryRow label="State" value={summary?.readiness.state ?? "--"} tone={readinessTone} />
+          <SummaryRow label="Blockers" value={summary?.readiness.blockerCount ?? 0} tone={readinessTone} />
+          <SummaryRow label="Warnings" value={summary?.readiness.warningCount ?? 0} />
+          <SummaryRow label="Evidence domains" value={summary?.readiness.evidenceCount ?? 0} />
+          <SummaryRow label="Runtime" value={summary?.runtime.connectivity ?? "--"} tone={connectivityTone} />
+        </div>
+        <Link className="surface-link" to="/readiness">Open global readiness →</Link>
+      </DashboardCard>
+      <DashboardCard title="Snapshot consistency" meta="Refresh and stale-state contract" state={readyState}>
+        <div className="summary-list">
+          <SummaryRow label="State" value={stale ? "Stale" : "Fresh"} tone={stale ? "warn" : "good"} />
+          <SummaryRow label="Refresh window" value={`${summary?.system.refreshWindowMs ?? 0}ms`} />
+          <SummaryRow label="Snapshot age" value={`${summary?.system.stateAgeMs ?? 0}ms`} />
+          <SummaryRow label="Read-only" value="Guaranteed" tone="good" />
         </div>
       </DashboardCard>
       <DashboardCard title="Agent summary" meta="Registered agent definitions" state={cardState(summary?.agents.total)} emptyMessage="No agents registered">

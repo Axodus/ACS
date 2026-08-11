@@ -39,6 +39,36 @@ export interface DashboardFinding {
   readonly message: string;
 }
 
+export type ProductApiRuntimeConnectivity = "connected" | "degraded" | "unavailable" | "unverified";
+
+export type ProductApiHealthStatus = "ok" | "degraded" | "unavailable" | "unverified";
+
+export type ProductApiReadinessFlagStatus = "ready" | "partial" | "blocked" | "unverified";
+
+export interface ProductApiOperationalGuardrails {
+  readonly inspectionMode: true;
+  readonly sandboxOnly: true;
+  readonly readOnly: true;
+  readonly mutableOperations: false;
+}
+
+export interface ProductApiReadinessLink {
+  readonly state: ProductApiReadinessFlagStatus;
+  readonly blockerCount: number;
+  readonly warningCount: number;
+  readonly evidenceCount: number;
+  readonly checkedAt: number;
+}
+
+const OPERATIONAL_REFRESH_WINDOW_MS = 30_000;
+
+const OPERATIONAL_GUARDRAILS: ProductApiOperationalGuardrails = {
+  inspectionMode: true,
+  sandboxOnly: true,
+  readOnly: true,
+  mutableOperations: false,
+};
+
 export interface DashboardSummary {
   readonly system: {
     readonly service: string;
@@ -47,6 +77,11 @@ export interface DashboardSummary {
     readonly automation: string;
     readonly readOnly: true;
     readonly generatedAt: number;
+    readonly checkedAt: number;
+    readonly stale: boolean;
+    readonly refreshWindowMs: number;
+    readonly stateAgeMs: number;
+    readonly guardrails: ProductApiOperationalGuardrails;
   };
   readonly agents: {
     readonly total: number;
@@ -92,24 +127,28 @@ export interface DashboardSummary {
   };
   readonly blockers: readonly DashboardFinding[];
   readonly warnings: readonly DashboardFinding[];
+  readonly readiness: ProductApiReadinessLink;
+  readonly runtime: {
+    readonly connectivity: ProductApiRuntimeConnectivity;
+    readonly checkedAt: number;
+  };
 }
-
-export type ProductApiRuntimeConnectivity = "connected" | "degraded" | "unavailable" | "unverified";
-
-export type ProductApiHealthStatus = "ok" | "degraded" | "unavailable" | "unverified";
-
-export type ProductApiReadinessFlagStatus = "ready" | "partial" | "blocked" | "unverified";
 
 export interface GlobalReadinessSummary {
   readonly generatedAt: number;
   readonly mode: "inspection";
   readonly readOnly: true;
+  readonly stale: boolean;
+  readonly refreshWindowMs: number;
+  readonly stateAgeMs: number;
+  readonly guardrails: ProductApiOperationalGuardrails;
   readonly productApi: {
     readonly service: string;
     readonly status: "ok";
     readonly mode: string;
     readonly automation: string;
     readonly checkedAt: number;
+    readonly checkMode: "inspection-read-only";
   };
   readonly runtime: {
     readonly connectivity: ProductApiRuntimeConnectivity;
@@ -138,6 +177,9 @@ export interface GlobalReadinessSummary {
     readonly productionReady: boolean;
     readonly status: Epic10ReadinessStatus;
     readonly blockerCount: number;
+    readonly warningCount: number;
+    readonly evidenceCount: number;
+    readonly refreshedAt: number;
   };
   readonly components: readonly {
     readonly domain: string;
@@ -453,16 +495,24 @@ export class ProductApiClient {
       },
     ];
 
+    const stateAgeMs = Math.max(0, Date.now() - generatedAt);
+    const stale = workers.some((worker) => worker.stale) || targets.some((target) => target.stale);
+
     return {
       generatedAt,
       mode: "inspection",
       readOnly: true,
+      stale,
+      refreshWindowMs: OPERATIONAL_REFRESH_WINDOW_MS,
+      stateAgeMs,
+      guardrails: OPERATIONAL_GUARDRAILS,
       productApi: {
         service: "acs-product-api",
         status: "ok",
         mode: "inspection",
         automation: "disabled",
         checkedAt: generatedAt,
+        checkMode: "inspection-read-only",
       },
       runtime,
       healthIndicators,
@@ -473,6 +523,9 @@ export class ProductApiClient {
         productionReady: report.summary.productionReady,
         status: blockers.length > 0 ? "blocked" : "partial",
         blockerCount: blockers.length,
+        warningCount: warnings.length,
+        evidenceCount: report.domains.length,
+        refreshedAt: generatedAt,
       },
       components: report.domains.map(({ domain, status, currentState, requiredState }) => ({
         domain,
@@ -487,6 +540,8 @@ export class ProductApiClient {
   }
 
   async getDashboardSummary(): Promise<DashboardSummary> {
+    const generatedAt = Date.now();
+    const readinessSummary = await this.getGlobalReadinessSummary();
     const agents = this.#agentService?.list() ?? [];
     const deployments = this.#deploymentService?.listDeployments() ?? [];
     const runtimes = this.#runtimeService?.listRuntimes() ?? [];
@@ -629,6 +684,29 @@ export class ProductApiClient {
       }
     }
 
+    for (const finding of readinessSummary.blockers) {
+      blockers.push({
+        code: `READINESS_BLOCKER_${finding.domain.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_${finding.component.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`,
+        severity: "error",
+        domain: finding.domain,
+        message: finding.reason,
+      });
+    }
+
+    for (const finding of readinessSummary.warnings) {
+      warnings.push({
+        code: `READINESS_WARNING_${finding.domain.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_${finding.component.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`,
+        severity: "warning",
+        domain: finding.domain,
+        message: finding.reason,
+      });
+    }
+
+    const stateAgeMs = Math.max(0, Date.now() - generatedAt);
+    const stale = stateAgeMs > OPERATIONAL_REFRESH_WINDOW_MS
+      || workers.some((worker) => worker.stale)
+      || (this.#targetService?.list() ?? []).some((target) => target.stale);
+
     return {
       system: {
         service: "acs-product-api",
@@ -636,7 +714,12 @@ export class ProductApiClient {
         mode: "inspection",
         automation: "disabled",
         readOnly: true,
-        generatedAt: Date.now(),
+        generatedAt,
+        checkedAt: readinessSummary.runtime.checkedAt,
+        stale,
+        refreshWindowMs: OPERATIONAL_REFRESH_WINDOW_MS,
+        stateAgeMs,
+        guardrails: OPERATIONAL_GUARDRAILS,
       },
       agents: {
         total: agents.length,
@@ -663,6 +746,17 @@ export class ProductApiClient {
       },
       blockers,
       warnings,
+      readiness: {
+        state: readinessSummary.readiness.status,
+        blockerCount: readinessSummary.readiness.blockerCount,
+        warningCount: readinessSummary.readiness.warningCount,
+        evidenceCount: readinessSummary.readiness.evidenceCount,
+        checkedAt: readinessSummary.generatedAt,
+      },
+      runtime: {
+        connectivity: readinessSummary.runtime.connectivity,
+        checkedAt: readinessSummary.runtime.checkedAt,
+      },
     };
   }
 }

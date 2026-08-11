@@ -26,6 +26,21 @@ export type DashboardFinding = {
   message: string;
 };
 
+export type ProductApiOperationalGuardrails = {
+  inspectionMode: true;
+  sandboxOnly: true;
+  readOnly: true;
+  mutableOperations: false;
+};
+
+export type ProductApiReadinessLink = {
+  state: "ready" | "partial" | "blocked" | "unverified";
+  blockerCount: number;
+  warningCount: number;
+  evidenceCount: number;
+  checkedAt: number;
+};
+
 export type DashboardSummary = {
   system: {
     service: string;
@@ -34,6 +49,11 @@ export type DashboardSummary = {
     automation: string;
     readOnly: true;
     generatedAt: number;
+    checkedAt: number;
+    stale: boolean;
+    refreshWindowMs: number;
+    stateAgeMs: number;
+    guardrails: ProductApiOperationalGuardrails;
   };
   agents: {
     total: number;
@@ -87,6 +107,11 @@ export type DashboardSummary = {
   };
   blockers: DashboardFinding[];
   warnings: DashboardFinding[];
+  readiness: ProductApiReadinessLink;
+  runtime: {
+    connectivity: ProductApiRuntimeConnectivity;
+    checkedAt: number;
+  };
 };
 
 export type ProductApiRuntimeConnectivity = "connected" | "degraded" | "unavailable" | "unverified";
@@ -119,12 +144,17 @@ export type GlobalReadinessSummary = {
   generatedAt: number;
   mode: "inspection";
   readOnly: true;
+  stale: boolean;
+  refreshWindowMs: number;
+  stateAgeMs: number;
+  guardrails: ProductApiOperationalGuardrails;
   productApi: {
     service: string;
     status: "ok";
     mode: string;
     automation: string;
     checkedAt: number;
+    checkMode: "inspection-read-only";
   };
   runtime: {
     connectivity: ProductApiRuntimeConnectivity;
@@ -153,6 +183,9 @@ export type GlobalReadinessSummary = {
     productionReady: boolean;
     status: "ready" | "partial" | "blocked";
     blockerCount: number;
+    warningCount: number;
+    evidenceCount: number;
+    refreshedAt: number;
   };
   components: {
     domain: string;
