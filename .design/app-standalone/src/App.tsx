@@ -23,6 +23,7 @@ import {
   type AgentOperationResult,
   type AgentRevisionSummary,
   type AgentSurfaceGuardrails,
+  type AgentReadinessDetail,
   type CapabilitySummary,
   type CompositionActionView,
   type CompositionFinding,
@@ -32,6 +33,14 @@ import {
   type EngineSummary,
   type GlobalReadinessSummary,
   type GovernedAgentStatus,
+  type CredentialSummary,
+  type ProviderConnectionSummary,
+  type DeploymentPlan,
+  type ExecutionPlan,
+  type DeploymentSummary,
+  type RuntimeSummary,
+  type ExecutionRunSummary,
+  type WorkerSummary,
   type ModelSummary,
   type PackageSource,
   type PluginPackage,
@@ -49,6 +58,7 @@ import "./operational.css";
 
 type View =
   | "Dashboard"
+  | "Operational Execution"
   | "Readiness"
   | "Composition"
   | "Agents"
@@ -68,7 +78,7 @@ type ConnectivityState =
   | { status: "error"; health: null; error: string };
 
 const navGroups: View[][] = [
-  ["Dashboard", "Readiness", "Composition"],
+  ["Dashboard", "Operational Execution", "Readiness", "Composition"],
   ["Agents", "Roles", "Profiles", "Capabilities"],
   ["Skills", "Tools & Plugins"],
   ["Memory"],
@@ -78,6 +88,7 @@ const navGroups: View[][] = [
 
 const icons: Record<View, string> = {
   Dashboard: "⌂",
+  "Operational Execution": "⟡",
   Readiness: "✓",
   Composition: "◈",
   Agents: "◫",
@@ -94,6 +105,7 @@ const icons: Record<View, string> = {
 
 const viewPaths: Record<View, string> = {
   Dashboard: "/",
+  "Operational Execution": "/operational-execution",
   Readiness: "/readiness",
   Composition: "/composition",
   Agents: "/agents",
@@ -746,6 +758,104 @@ function useAgentSurface(agentId: string) {
     stale,
     refresh: () => setRefreshKey(k => k + 1),
   };
+}
+
+function OperationalExecution() {
+  const credentials = useOperationalSummary<CredentialSummary[]>(
+    () => productApi.listCredentials(),
+    "Unable to load credentials",
+    () => false,
+  );
+  const connections = useOperationalSummary<ProviderConnectionSummary[]>(
+    () => productApi.listProviderConnections(),
+    "Unable to load provider connections",
+    () => false,
+  );
+  const readiness = useOperationalSummary<AgentReadinessDetail>(
+    () => productApi.getAgentReadiness("dev-agent-sandbox"),
+    "Unable to load operational readiness",
+    data => data.stale,
+  );
+  const plans = useOperationalSummary<[DeploymentPlan | null, ExecutionPlan | null]>(
+    async () => [await productApi.getAgentDeploymentPlan("dev-agent-sandbox"), await productApi.getAgentExecutionPlan("dev-agent-sandbox")],
+    "Unable to load deployment planning",
+    () => false,
+  );
+  const deployments = useOperationalSummary<DeploymentSummary[]>(
+    () => productApi.listDeployments(),
+    "Unable to load deployments",
+    () => false,
+  );
+  const runtimes = useOperationalSummary<RuntimeSummary[]>(
+    () => productApi.listRuntimes(),
+    "Unable to load runtimes",
+    () => false,
+  );
+  const runs = useOperationalSummary<ExecutionRunSummary[]>(
+    () => productApi.listExecutionRuns(),
+    "Unable to load execution runs",
+    () => false,
+  );
+  const workers = useOperationalSummary<WorkerSummary[]>(
+    () => productApi.listWorkers(),
+    "Unable to load workers",
+    () => false,
+  );
+
+  return <>
+    <header className="page-head compact dashboard-head">
+      <div><p className="eyebrow">OPERATIONAL EXECUTION</p><h1>Governed execution surface</h1><p>Read-only operational projections from the Product API. No raw secrets, no direct runtime access.</p></div>
+      <button className="secondary" onClick={() => { credentials.refresh(); connections.refresh(); readiness.refresh(); plans.refresh(); deployments.refresh(); runtimes.refresh(); runs.refresh(); workers.refresh(); }}>Refresh all</button>
+    </header>
+    <OperationalModeNotice guardrails={credentials.data?.[0]?.guardrails ?? connections.data?.[0]?.guardrails} />
+    <div className="dashboard-grid execution-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Credentials</h2><p>Redacted secret references and validation state</p></div><Badge tone={credentials.data?.length ? "good" : "muted"}>{credentials.data?.length ?? 0}</Badge></div>
+        <div className="panel-body">
+          {credentials.data?.length ? credentials.data.map(item => <div className="catalog-row" key={item.credentialId}><div className="catalog-row-main"><b>{item.providerName}</b><small className="mono">{item.credentialId}</small><p>{item.secretRefRedacted} · {item.status} · validated={String(item.validated)}</p></div><Badge tone={item.validated ? "good" : "warn"}>{item.validated ? "validated" : "unvalidated"}</Badge></div>) : <div className="state-line empty">No credentials reported</div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Provider connections</h2><p>Health and authentication state</p></div><Badge tone={connections.data?.length ? "good" : "muted"}>{connections.data?.length ?? 0}</Badge></div>
+        <div className="panel-body">
+          {connections.data?.length ? connections.data.map(item => <div className="catalog-row" key={item.connectionId}><div className="catalog-row-main"><b>{item.providerName}</b><small className="mono">{item.connectionId}</small><p>{item.health} · {item.authState} · {item.availability}</p></div><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.health}</Badge></div>) : <div className="state-line empty">No provider connections reported</div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Readiness</h2><p>Operational readiness categories and blockers</p></div><Badge tone={readiness.data?.ready ? "good" : "warn"}>{readiness.data?.status ?? "unavailable"}</Badge></div>
+        <div className="panel-body">
+          {readiness.data ? <>
+            <SummaryRow label="Agent" value={readiness.data.agentName} />
+            <SummaryRow label="Blockers" value={readiness.data.blockers.length} />
+            <SummaryRow label="Warnings" value={readiness.data.warnings.length} />
+            {readiness.data.categories.map(category => <div className="finding-row" key={category.id}><span>{category.status}</span><div className="finding-content"><b>{category.label}</b><p>{category.blockerCount} blockers · {category.warningCount} warnings</p></div></div>)}
+          </> : <div className="state-line empty">No readiness data</div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Deployment plan</h2><p>Preview only, governed by Product API</p></div></div>
+        <div className="panel-body">
+          {plans.data?.[0] ? <><SummaryRow label="Plan" value={plans.data[0].planId} /><SummaryRow label="Target" value={plans.data[0].target} /><SummaryRow label="Engine" value={plans.data[0].engine} /><SummaryRow label="Eligible" value={String(plans.data[0].eligible)} /></> : <div className="state-line empty">No deployment plan</div>}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Deployments</h2><p>Deployment inventory</p></div><Badge tone={deployments.data?.length ? "good" : "muted"}>{deployments.data?.length ?? 0}</Badge></div>
+        <div className="panel-body">{deployments.data?.length ? deployments.data.map(item => <div className="catalog-row" key={item.deploymentId}><div className="catalog-row-main"><b>{item.deploymentId}</b><small>{item.agentId} · {item.status}</small></div><Badge tone={item.active ? "good" : "muted"}>{item.active ? "active" : "inactive"}</Badge></div>) : <div className="state-line empty">No deployments</div>}</div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Runtimes</h2><p>Runtime inventory and health</p></div><Badge tone={runtimes.data?.length ? "good" : "muted"}>{runtimes.data?.length ?? 0}</Badge></div>
+        <div className="panel-body">{runtimes.data?.length ? runtimes.data.map(item => <div className="catalog-row" key={item.runtimeId}><div className="catalog-row-main"><b>{item.runtimeId}</b><small>{item.target} · {item.status} · {item.health}</small></div><Badge tone={item.health === "healthy" ? "good" : "warn"}>{item.reconciliationState}</Badge></div>) : <div className="state-line empty">No runtimes</div>}</div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Execution runs</h2><p>ExecutionRun history</p></div><Badge tone={runs.data?.length ? "good" : "muted"}>{runs.data?.length ?? 0}</Badge></div>
+        <div className="panel-body">{runs.data?.length ? runs.data.slice(0, 8).map(item => <div className="catalog-row" key={item.runId}><div className="catalog-row-main"><b>{item.runId}</b><small>{item.runtimeId} · {item.status} · {item.resultSummary ?? item.failureReason ?? "n/a"}</small></div><span className="catalog-count">{new Date(item.startedAt).toLocaleTimeString()}</span></div>) : <div className="state-line empty">No execution runs</div>}</div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Workers</h2><p>Capacity and workload visibility</p></div><Badge tone={workers.data?.length ? "good" : "muted"}>{workers.data?.length ?? 0}</Badge></div>
+        <div className="panel-body">{workers.data?.length ? workers.data.map(item => <div className="catalog-row" key={item.workerId}><div className="catalog-row-main"><b>{item.workerId}</b><small>{item.status} · {item.health} · capacity {item.availableCapacity}/{item.capacity}</small></div><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.reconciliationState}</Badge></div>) : <div className="state-line empty">No workers</div>}</div>
+      </section>
+    </div>
+  </>;
 }
 
 function IdList({ label, ids }: { label: string; ids: readonly string[] }) {
@@ -2353,6 +2463,7 @@ export default function App() {
         <div className="content">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/operational-execution" element={<OperationalExecution />} />
             <Route path="/readiness" element={<Readiness />} />
             <Route path="/agents" element={<AgentInventory />} />
             <Route path="/agents/new" element={<AgentCreate />} />

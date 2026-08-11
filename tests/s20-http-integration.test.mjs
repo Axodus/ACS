@@ -1287,3 +1287,138 @@ test("agent detail preserves sandbox and readiness context", async () => {
     await context.close();
   }
 });
+
+test("operational execution routes expose read-only governed contracts", async () => {
+  const context = createControlPlaneContext({
+    engine: createMockEngine(),
+    startLocalWorker: false,
+  });
+  try {
+    const credentialList = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/credentials", headers: {} },
+      "/api/v1/credentials",
+      context,
+      { correlationId: "test_credentials" },
+    );
+    assert.equal(credentialList.status, 200);
+    assert.ok(Array.isArray(credentialList.body.data));
+    assert.equal(JSON.stringify(credentialList.body).includes("sk-"), false);
+    assert.equal(JSON.stringify(credentialList.body).includes("apiKey"), false);
+
+    const connectionList = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/provider-connections", headers: {} },
+      "/api/v1/provider-connections",
+      context,
+      { correlationId: "test_connections" },
+    );
+    assert.equal(connectionList.status, 200);
+    assert.ok(Array.isArray(connectionList.body.data));
+
+    const readiness = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/agents/dev-agent-sandbox/readiness", headers: {} },
+      "/api/v1/agents/dev-agent-sandbox/readiness",
+      context,
+      { correlationId: "test_readiness_surface" },
+    );
+    assert.equal(readiness.status, 200);
+    assert.equal(readiness.body.data.agentId, "dev-agent-sandbox");
+    assert.ok(Array.isArray(readiness.body.data.categories));
+
+    const deploymentPlan = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/agents/dev-agent-sandbox/deployment-plan", headers: {} },
+      "/api/v1/agents/dev-agent-sandbox/deployment-plan",
+      context,
+      { correlationId: "test_deployment_plan" },
+    );
+    assert.equal(deploymentPlan.status, 200);
+    assert.equal(deploymentPlan.body.data.agentId, "dev-agent-sandbox");
+
+    const executionPlan = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/agents/dev-agent-sandbox/execution-plan", headers: {} },
+      "/api/v1/agents/dev-agent-sandbox/execution-plan",
+      context,
+      { correlationId: "test_execution_plan" },
+    );
+    assert.equal(executionPlan.status, 200);
+    assert.equal(executionPlan.body.data.agentId, "dev-agent-sandbox");
+
+    const deployments = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/deployments", headers: {} },
+      "/api/v1/deployments",
+      context,
+      { correlationId: "test_deployments" },
+    );
+    assert.equal(deployments.status, 200);
+    assert.ok(Array.isArray(deployments.body.data));
+
+    const runtimes = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/runtimes", headers: {} },
+      "/api/v1/runtimes",
+      context,
+      { correlationId: "test_runtimes" },
+    );
+    assert.equal(runtimes.status, 200);
+    assert.ok(Array.isArray(runtimes.body.data));
+
+    const executionRuns = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/execution-runs", headers: {} },
+      "/api/v1/execution-runs",
+      context,
+      { correlationId: "test_execution_runs" },
+    );
+    assert.equal(executionRuns.status, 200);
+    assert.ok(Array.isArray(executionRuns.body.data));
+
+    const workers = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/workers", headers: {} },
+      "/api/v1/workers",
+      context,
+      { correlationId: "test_workers" },
+    );
+    assert.equal(workers.status, 200);
+    assert.ok(Array.isArray(workers.body.data));
+
+    const unsupportedCredentials = await routeProductApiRequest(
+      { method: "POST", url: "/api/v1/credentials/cred_dev_openai_byok/validate", headers: {} },
+      "/api/v1/credentials/cred_dev_openai_byok/validate",
+      context,
+      { correlationId: "test_credentials_validate" },
+    );
+    assert.equal(unsupportedCredentials.status, 405);
+    assert.equal(unsupportedCredentials.body.error.code, "unsupported_action");
+
+    const unsupportedRuntimeStop = await routeProductApiRequest(
+      { method: "POST", url: "/api/v1/runtimes/runtime-1/stop", headers: {} },
+      "/api/v1/runtimes/runtime-1/stop",
+      context,
+      { correlationId: "test_runtime_stop_unsupported" },
+    );
+    assert.equal(unsupportedRuntimeStop.status, 405);
+
+    const unsupportedWorkerDrain = await routeProductApiRequest(
+      { method: "POST", url: "/api/v1/workers/worker-1/drain", headers: {} },
+      "/api/v1/workers/worker-1/drain",
+      context,
+      { correlationId: "test_worker_drain_unsupported" },
+    );
+    assert.equal(unsupportedWorkerDrain.status, 405);
+
+    const noAdminSurface = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/tenants", headers: {} },
+      "/api/v1/tenants",
+      context,
+      { correlationId: "test_no_tenants" },
+    );
+    assert.equal(noAdminSurface.status, 404);
+
+    const noEconomicsSurface = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/economics", headers: {} },
+      "/api/v1/economics",
+      context,
+      { correlationId: "test_no_economics" },
+    );
+    assert.equal(noEconomicsSurface.status, 404);
+  } finally {
+    await context.close();
+  }
+});

@@ -672,6 +672,182 @@ export type GlobalReadinessSummary = {
   evidence: ReadinessDomainReport[];
 };
 
+export type OperationalFinding = {
+  code: string;
+  severity: "error" | "warning" | "info";
+  domain: string;
+  component: string;
+  message: string;
+  recommendedRemediation?: string;
+};
+
+export type OperationalEvidence = {
+  domain: string;
+  component: string;
+  status: "ready" | "partial" | "blocked";
+  currentState: string;
+  requiredState: string;
+  evidenceRefs: string[];
+};
+
+export type OperationActionView = {
+  action: string;
+  label: string;
+  available: boolean;
+  reason?: string;
+  requiresConfirmation?: boolean;
+  destructive?: boolean;
+};
+
+export type CredentialSummary = {
+  credentialId: string;
+  providerId: string;
+  providerName: string;
+  status: string;
+  usageCount: number;
+  secretRefRedacted: string;
+  validated: boolean;
+  lastValidatedAt?: number;
+  availableActions: OperationActionView[];
+  guardrails: ProductApiOperationalGuardrails;
+};
+
+export type ProviderConnectionSummary = {
+  connectionId: string;
+  providerId: string;
+  providerName: string;
+  credentialId: string;
+  health: "healthy" | "degraded" | "unavailable" | "unverified";
+  authState: string;
+  availability: "available" | "pending" | "unavailable";
+  lastCheckedAt: number;
+  errors: string[];
+  availableActions: OperationActionView[];
+  guardrails: ProductApiOperationalGuardrails;
+};
+
+export type ReadinessCategory = {
+  id: string;
+  label: string;
+  status: "ready" | "partial" | "blocked" | "unavailable";
+  blockerCount: number;
+  warningCount: number;
+  findings: OperationalFinding[];
+};
+
+export type AgentReadinessDetail = {
+  agentId: string;
+  agentName: string;
+  currentRevisionId: number;
+  ready: boolean;
+  status: "ready" | "partial" | "blocked" | "unavailable";
+  categories: ReadinessCategory[];
+  blockers: OperationalFinding[];
+  warnings: OperationalFinding[];
+  evidence: OperationalEvidence[];
+  economicReadinessSummary: AgentEconomicSummary;
+  availableActions: OperationActionView[];
+  guardrails: ProductApiOperationalGuardrails;
+  checkedAt: number;
+  stale: boolean;
+};
+
+export type DeploymentPlan = {
+  planId: string;
+  agentId: string;
+  revisionId: number;
+  target: string;
+  engine: string;
+  provider: string;
+  workerRequirements: string[];
+  credentialRequirements: string[];
+  policyEvaluation: string[];
+  sandboxConstraints: string[];
+  economicReadinessSummary: AgentEconomicSummary;
+  eligible: boolean;
+  blockers: OperationalFinding[];
+  warnings: OperationalFinding[];
+  evidence: OperationalEvidence[];
+  availableActions: OperationActionView[];
+  createdAt: number;
+  expiresAt?: number;
+};
+
+export type ExecutionPlan = DeploymentPlan;
+
+export type DeploymentSummary = {
+  deploymentId: string;
+  agentId: string;
+  revisionId: number;
+  status: "deployed" | "failed" | "rejected" | "pending" | "stopped";
+  target: string;
+  engine: string;
+  workerId?: string;
+  runtimeId?: string;
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
+  lastOperation?: string;
+  errors: string[];
+  availableActions: OperationActionView[];
+  guardrails: ProductApiOperationalGuardrails;
+};
+
+export type RuntimeSummary = {
+  runtimeId: string;
+  deploymentId: string;
+  agentId: string;
+  workerId: string;
+  target: string;
+  engine: string;
+  status: "pending" | "starting" | "running" | "stopping" | "stopped" | "failed" | "terminated";
+  health: "healthy" | "degraded" | "unhealthy" | "unknown";
+  ageMs: number;
+  lastActivityAt?: number;
+  isolationState: "isolated" | "shared" | "unknown";
+  driftState: "none" | "drifted" | "unknown";
+  reconciliationState: "none" | "pending" | "reconciling" | "reconciled" | "failed";
+  failureState: "none" | "failed" | "recovering";
+  availableActions: OperationActionView[];
+  guardrails: ProductApiOperationalGuardrails;
+};
+
+export type ExecutionRunSummary = {
+  runId: string;
+  runtimeId: string;
+  deploymentId: string;
+  agentId: string;
+  revisionId: number;
+  workerId: string;
+  target: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  startedAt: number;
+  endedAt?: number;
+  durationMs?: number;
+  resultSummary?: string;
+  failureReason?: string;
+  availableActions: OperationActionView[];
+  guardrails: ProductApiOperationalGuardrails;
+};
+
+export type WorkerSummary = {
+  workerId: string;
+  status: "registered" | "available" | "unavailable" | "degraded" | "stale";
+  health: "healthy" | "degraded" | "unhealthy" | "unknown";
+  environment: string;
+  capabilities: string[];
+  capacity: number;
+  availableCapacity: number;
+  workloadCount: number;
+  targetSupport: string[];
+  tenantIsolation: boolean;
+  workloadIsolation: boolean;
+  failureState: "none" | "failed" | "recovering";
+  reconciliationState: "none" | "pending" | "reconciling" | "reconciled" | "failed";
+  availableActions: OperationActionView[];
+  guardrails: ProductApiOperationalGuardrails;
+};
+
 export const productApiConfig = {
   baseUrl: API_BASE_URL,
   environment: import.meta.env.VITE_ACS_ENVIRONMENT ?? "local",
@@ -710,6 +886,55 @@ export const productApi = {
 
   async getGlobalReadinessSummary() {
     return request<GlobalReadinessSummary>("/readiness");
+  },
+
+  async listCredentials() {
+    return request<CredentialSummary[]>("/credentials");
+  },
+  async getCredentialDetail(id: string) {
+    return request<CredentialSummary>(`/credentials/${id}`);
+  },
+  async listProviderConnections() {
+    return request<ProviderConnectionSummary[]>("/provider-connections");
+  },
+  async getProviderConnectionDetail(id: string) {
+    return request<ProviderConnectionSummary>(`/provider-connections/${id}`);
+  },
+  async getAgentReadiness(agentId: string) {
+    return request<AgentReadinessDetail>(`/agents/${agentId}/readiness`);
+  },
+  async getAgentDeploymentPlan(agentId: string) {
+    return request<DeploymentPlan>(`/agents/${agentId}/deployment-plan`);
+  },
+  async getAgentExecutionPlan(agentId: string) {
+    return request<ExecutionPlan>(`/agents/${agentId}/execution-plan`);
+  },
+  async listDeployments() {
+    return request<DeploymentSummary[]>("/deployments");
+  },
+  async getDeploymentDetail(id: string) {
+    return request<DeploymentSummary>(`/deployments/${id}`);
+  },
+  async listRuntimes() {
+    return request<RuntimeSummary[]>("/runtimes");
+  },
+  async getRuntimeDetail(id: string) {
+    return request<RuntimeSummary>(`/runtimes/${id}`);
+  },
+  async listExecutionRuns() {
+    return request<ExecutionRunSummary[]>("/execution-runs");
+  },
+  async getExecutionRunDetail(id: string) {
+    return request<ExecutionRunSummary>(`/execution-runs/${id}`);
+  },
+  async listWorkers() {
+    return request<WorkerSummary[]>("/workers");
+  },
+  async getWorkerDetail(id: string) {
+    return request<WorkerSummary>(`/workers/${id}`);
+  },
+  async listWorkerWorkloads(id: string) {
+    return request<unknown[]>(`/workers/${id}/workloads`);
   },
 
   async listAgents() {

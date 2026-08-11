@@ -12,6 +12,14 @@ import type {
   AgentCreateRevisionInput,
   AgentDuplicateInput,
   AgentListItem,
+  AgentReadinessDetail,
+  DeploymentPlan,
+  DeploymentSummary,
+  ExecutionRunSummary,
+  ProviderConnectionSummary,
+  CredentialSummary,
+  RuntimeSummary,
+  WorkerSummary,
   UpdateAgentInput,
 } from "../../control-plane/product-api-client.js";
 import { DuplicateRegistrationError, NotFoundError } from "../../errors.js";
@@ -506,6 +514,196 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // GET /api/v1/credentials and GET /api/v1/credentials/:credentialId
+    if (segments[2] === "credentials" && segments.length === 3 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const credentials = await api.listCredentials();
+      return { status: 200, body: ok(credentials, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "credentials" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const credentialId = readPathSegment(segments, 3, "credentialId");
+      const credential = await api.getCredentialDetail(credentialId);
+      if (!credential) {
+        return fail(`credential not found: ${credentialId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(credential, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "credentials") {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // GET /api/v1/provider-connections and GET /api/v1/provider-connections/:connectionId
+    if (apiPath === "provider-connections" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const connections = await api.listProviderConnections();
+      return { status: 200, body: ok(connections, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "provider-connections" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const connectionId = readPathSegment(segments, 3, "connectionId");
+      const connection = await api.getProviderConnectionDetail(connectionId);
+      if (!connection) {
+        return fail(`provider connection not found: ${connectionId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(connection, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "provider-connections") {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // GET /api/v1/agents/:agentId/readiness
+    if (segments[2] === "agents" && segments[3] && segments[4] === "readiness" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const readiness = await api.getAgentReadiness(agentId);
+      if (!readiness) {
+        return fail(`agent not found: ${agentId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(readiness, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "agents" && segments[3] && segments[4] === "readiness" && segments.length === 5) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // GET /api/v1/agents/:agentId/deployment-plan and /execution-plan
+    if (segments[2] === "agents" && segments[3] && (segments[4] === "deployment-plan" || segments[4] === "execution-plan") && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const plan = segments[4] === "deployment-plan" ? await api.getAgentDeploymentPlan(agentId) : await api.getAgentExecutionPlan(agentId);
+      if (!plan) {
+        return fail(`agent not found: ${agentId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(plan, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "agents" && segments[3] && (segments[4] === "deployment-plan" || segments[4] === "execution-plan") && segments.length === 5) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+    if (segments[2] === "agents" && segments[3] && segments[4] === "deploy" && segments.length === 5) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+    if (apiPath === "deployment-plans" && request.method === "GET") {
+      return fail("deployment plan lookup requires an agent-scoped route in this milestone", 404, "not_found", options.correlationId, undefined, routeMeta);
+    }
+    if (segments[2] === "deployment-plans" && segments.length === 4 && request.method === "GET") {
+      return fail("deployment plan lookup requires an agent-scoped route in this milestone", 404, "not_found", options.correlationId, undefined, routeMeta);
+    }
+    if (segments[2] === "deployment-plans") {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // GET /api/v1/deployments and GET /api/v1/deployments/:deploymentId
+    if (apiPath === "deployments" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const deployments = await api.listDeploymentSummaries();
+      return { status: 200, body: ok(deployments, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "deployments" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const deploymentId = readPathSegment(segments, 3, "deploymentId");
+      const deployment = await api.getDeploymentSummary(deploymentId);
+      if (!deployment) {
+        return fail(`deployment not found: ${deploymentId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(deployment, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "deployments") {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // GET /api/v1/runtimes and GET /api/v1/runtimes/:runtimeId
+    if (apiPath === "runtimes" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runtimes = await api.listRuntimeSummaries();
+      return { status: 200, body: ok(runtimes, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtimes" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runtimeId = readPathSegment(segments, 3, "runtimeId");
+      const runtime = await api.getRuntimeSummary(runtimeId);
+      if (!runtime) {
+        return fail(`runtime not found: ${runtimeId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(runtime, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtimes" && segments.length === 4) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+    if (segments[2] === "runtimes" && segments[3] && ["start", "stop", "restart"].includes(segments[4] ?? "") && segments.length === 5) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // GET /api/v1/execution-runs and GET /api/v1/execution-runs/:runId
+    if (apiPath === "execution-runs" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runs = await api.listExecutionRunSummaries();
+      return { status: 200, body: ok(runs, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runId = readPathSegment(segments, 3, "runId");
+      const run = await api.getExecutionRunSummary(runId);
+      if (!run) {
+        return fail(`execution run not found: ${runId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(run, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs") {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // GET /api/v1/agents/:agentId/execution-runs
+    if (segments[2] === "agents" && segments[3] && segments[4] === "execution-runs" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const runs = await api.listAgentExecutionRunSummaries(agentId);
+      return { status: 200, body: ok(runs, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "agents" && segments[3] && segments[4] === "execution-runs" && segments.length === 5) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // GET /api/v1/workers and GET /api/v1/workers/:workerId
+    if (apiPath === "workers" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const workers = await api.listWorkerSummaries();
+      return { status: 200, body: ok(workers, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "workers" && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const workerId = readPathSegment(segments, 3, "workerId");
+      const worker = await api.getWorkerSummary(workerId);
+      if (!worker) {
+        return fail(`worker not found: ${workerId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(worker, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "workers" && segments[3] && segments[4] === "workloads" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const workerId = readPathSegment(segments, 3, "workerId");
+      const workloads = await api.listWorkerWorkloads(workerId);
+      return { status: 200, body: ok(workloads, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "workers" && segments.length === 4) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+    if (segments[2] === "workers" && segments[3] && segments[4] === "workloads" && segments.length === 5) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // Unsupported governed mutations
+    if (
+      (segments[2] === "credentials" && segments.length >= 4 && request.method !== "GET")
+      || (segments[2] === "provider-connections" && segments.length >= 4 && request.method !== "GET")
+      || (segments[2] === "agents" && segments[4] && ["readiness", "deployment-plan", "execution-plan", "deployments", "execution-runs"].includes(segments[4]) && request.method !== "GET")
+      || (segments[2] === "deployments" && request.method !== "GET")
+      || (segments[2] === "runtimes" && request.method !== "GET")
+      || (segments[2] === "execution-runs" && request.method !== "GET")
+      || (segments[2] === "workers" && request.method !== "GET")
+    ) {
+      return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
     // GET /api/v1/runners
     if (apiPath === "runners") {
       assertAllowedQueryParams(url, []);
@@ -588,6 +786,17 @@ function methodNotAllowed(correlationId: string | undefined, meta: AcsHttpEnvelo
 function unsupportedCompositionMutation(correlationId: string | undefined, meta: AcsHttpEnvelopeMeta, path: string) {
   return fail(
     `${path} is not supported in this milestone; composition mutations are governed by the Product API`,
+    405,
+    "unsupported_action",
+    correlationId,
+    { path, guidance: "Unsupported / Governed by Product API / Coming later" },
+    meta,
+  );
+}
+
+function unsupportedExecutionMutation(correlationId: string | undefined, meta: AcsHttpEnvelopeMeta, path: string) {
+  return fail(
+    `${path} is not supported in this milestone; operational execution mutations are governed by the Product API`,
     405,
     "unsupported_action",
     correlationId,
