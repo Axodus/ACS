@@ -41,6 +41,7 @@ import type {
 } from "./composition-resources.js";
 import type { ExecutionWorkerRegistry } from "../workers/worker-registry.js";
 import type { WorkerAssignmentService } from "../workers/worker-assignment-service.js";
+import type { CredentialConnection, CredentialConnectionStatus, CredentialConnectionType } from "../intelligence/credential-connection.js";
 import {
   createEpic10ReadinessReport,
   type Epic10ReadinessDomainReport,
@@ -252,6 +253,191 @@ export interface AgentOperationResult {
   readonly errors: readonly string[];
   readonly auditRef?: string;
   readonly checkedAt: number;
+}
+
+export interface OperationalFinding {
+  readonly code: string;
+  readonly severity: "error" | "warning" | "info";
+  readonly domain: string;
+  readonly component: string;
+  readonly message: string;
+  readonly recommendedRemediation?: string;
+}
+
+export interface OperationalEvidence {
+  readonly domain: string;
+  readonly component: string;
+  readonly status: "ready" | "partial" | "blocked";
+  readonly currentState: string;
+  readonly requiredState: string;
+  readonly evidenceRefs: readonly string[];
+}
+
+export interface OperationActionView {
+  readonly action: string;
+  readonly label: string;
+  readonly available: boolean;
+  readonly reason?: string;
+  readonly requiresConfirmation?: boolean;
+  readonly destructive?: boolean;
+}
+
+export interface CredentialSummary {
+  readonly credentialId: string;
+  readonly providerId: string;
+  readonly providerName: string;
+  readonly status: CredentialConnectionStatus;
+  readonly usageCount: number;
+  readonly secretRefRedacted: string;
+  readonly validated: boolean;
+  readonly lastValidatedAt?: number;
+  readonly availableActions: readonly OperationActionView[];
+  readonly guardrails: ProductApiOperationalGuardrails;
+}
+
+export interface ProviderConnectionSummary {
+  readonly connectionId: string;
+  readonly providerId: string;
+  readonly providerName: string;
+  readonly credentialId: string;
+  readonly health: "healthy" | "degraded" | "unavailable" | "unverified";
+  readonly authState: CredentialConnectionStatus;
+  readonly availability: "available" | "pending" | "unavailable";
+  readonly lastCheckedAt: number;
+  readonly errors: readonly string[];
+  readonly availableActions: readonly OperationActionView[];
+  readonly guardrails: ProductApiOperationalGuardrails;
+}
+
+export interface ReadinessCategory {
+  readonly id: string;
+  readonly label: string;
+  readonly status: "ready" | "partial" | "blocked" | "unavailable";
+  readonly blockerCount: number;
+  readonly warningCount: number;
+  readonly findings: readonly OperationalFinding[];
+}
+
+export interface AgentReadinessDetail {
+  readonly agentId: string;
+  readonly agentName: string;
+  readonly currentRevisionId: number;
+  readonly ready: boolean;
+  readonly status: "ready" | "partial" | "blocked" | "unavailable";
+  readonly categories: readonly ReadinessCategory[];
+  readonly blockers: readonly OperationalFinding[];
+  readonly warnings: readonly OperationalFinding[];
+  readonly evidence: readonly OperationalEvidence[];
+  readonly economicReadinessSummary: AgentEconomicSummary;
+  readonly availableActions: readonly OperationActionView[];
+  readonly guardrails: AgentSurfaceGuardrails;
+  readonly checkedAt: number;
+  readonly stale: boolean;
+}
+
+export interface DeploymentPlan {
+  readonly planId: string;
+  readonly agentId: string;
+  readonly revisionId: number;
+  readonly target: string;
+  readonly engine: string;
+  readonly provider: string;
+  readonly workerRequirements: readonly string[];
+  readonly credentialRequirements: readonly string[];
+  readonly policyEvaluation: readonly string[];
+  readonly sandboxConstraints: readonly string[];
+  readonly economicReadinessSummary: AgentEconomicSummary;
+  readonly eligible: boolean;
+  readonly blockers: readonly OperationalFinding[];
+  readonly warnings: readonly OperationalFinding[];
+  readonly evidence: readonly OperationalEvidence[];
+  readonly availableActions: readonly OperationActionView[];
+  readonly createdAt: number;
+  readonly expiresAt?: number;
+}
+
+export interface ExecutionPlan extends DeploymentPlan {}
+
+export interface DeploymentSummary {
+  readonly deploymentId: string;
+  readonly agentId: string;
+  readonly revisionId: number;
+  readonly status: "deployed" | "failed" | "rejected" | "pending" | "stopped";
+  readonly target: string;
+  readonly engine: string;
+  readonly workerId?: string;
+  readonly runtimeId?: string;
+  readonly active: boolean;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+  readonly lastOperation?: string;
+  readonly errors: readonly string[];
+  readonly availableActions: readonly OperationActionView[];
+  readonly guardrails: ProductApiOperationalGuardrails;
+}
+
+export interface RuntimeSummary {
+  readonly runtimeId: string;
+  readonly deploymentId: string;
+  readonly agentId: string;
+  readonly workerId: string;
+  readonly target: string;
+  readonly engine: string;
+  readonly status: "pending" | "starting" | "running" | "stopping" | "stopped" | "failed" | "terminated";
+  readonly health: "healthy" | "degraded" | "unhealthy" | "unknown";
+  readonly ageMs: number;
+  readonly lastActivityAt?: number;
+  readonly isolationState: "isolated" | "shared" | "unknown";
+  readonly driftState: "none" | "drifted" | "unknown";
+  readonly reconciliationState: "none" | "pending" | "reconciling" | "reconciled" | "failed";
+  readonly failureState: "none" | "failed" | "recovering";
+  readonly availableActions: readonly OperationActionView[];
+  readonly guardrails: ProductApiOperationalGuardrails;
+}
+
+export interface ExecutionRunSummary {
+  readonly runId: string;
+  readonly runtimeId: string;
+  readonly deploymentId: string;
+  readonly agentId: string;
+  readonly revisionId: number;
+  readonly workerId: string;
+  readonly target: string;
+  readonly status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  readonly startedAt: number;
+  readonly endedAt?: number;
+  readonly durationMs?: number;
+  readonly resultSummary?: string;
+  readonly failureReason?: string;
+  readonly availableActions: readonly OperationActionView[];
+  readonly guardrails: ProductApiOperationalGuardrails;
+}
+
+export interface WorkerSummary {
+  readonly workerId: string;
+  readonly status: "registered" | "available" | "unavailable" | "degraded" | "stale";
+  readonly health: "healthy" | "degraded" | "unhealthy" | "unknown";
+  readonly environment: string;
+  readonly capabilities: readonly string[];
+  readonly capacity: number;
+  readonly availableCapacity: number;
+  readonly workloadCount: number;
+  readonly targetSupport: readonly string[];
+  readonly tenantIsolation: boolean;
+  readonly workloadIsolation: boolean;
+  readonly failureState: "none" | "failed" | "recovering";
+  readonly reconciliationState: "none" | "pending" | "reconciling" | "reconciled" | "failed";
+  readonly availableActions: readonly OperationActionView[];
+  readonly guardrails: ProductApiOperationalGuardrails;
+}
+
+export interface WorkerWorkload {
+  readonly assignmentId: string;
+  readonly executionPlanId: string;
+  readonly deploymentId: string;
+  readonly runtimeInstanceId: string;
+  readonly status: "assigned" | "accepted" | "running" | "completed" | "failed" | "cancelled";
+  readonly startedAt: number;
 }
 
 export type CompositionActionName =
@@ -935,6 +1121,151 @@ export class ProductApiClient {
     return [];
   }
 
+  async listCredentials(): Promise<readonly CredentialSummary[]> {
+    const connections = this.#credentialRegistry?.list() ?? [];
+    return connections.map((connection) => this.#credentialSummary(connection));
+  }
+
+  async getCredentialDetail(credentialId: string): Promise<CredentialSummary | undefined> {
+    try {
+      const connection = this.#credentialRegistry?.get(credentialId);
+      return connection ? this.#credentialSummary(connection) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async listProviderConnections(): Promise<readonly ProviderConnectionSummary[]> {
+    const connections = this.#credentialRegistry?.list() ?? [];
+    return connections.map((connection) => this.#providerConnectionSummary(connection));
+  }
+
+  async getProviderConnectionDetail(connectionId: string): Promise<ProviderConnectionSummary | undefined> {
+    try {
+      const connection = this.#credentialRegistry?.get(connectionId);
+      return connection ? this.#providerConnectionSummary(connection) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async getAgentReadiness(agentId: string): Promise<AgentReadinessDetail | undefined> {
+    const detail = await this.getAgent(agentId);
+    if (!detail) return undefined;
+    return {
+      agentId,
+      agentName: detail.agentDefinition.name,
+      currentRevisionId: detail.currentRevision.revision,
+      ready: detail.readinessSummary.state === "ready",
+      status: detail.readinessSummary.state,
+      categories: [
+        { id: "composition", label: "Composition", status: detail.composition ? "ready" : "unavailable", blockerCount: detail.composition?.findings.length ?? 0, warningCount: 0, findings: [] },
+        { id: "policy", label: "Policy", status: "unavailable", blockerCount: 0, warningCount: 0, findings: [] },
+      ],
+      blockers: [],
+      warnings: [],
+      evidence: [],
+      economicReadinessSummary: detail.economicSummary,
+      availableActions: [{ action: "recheck", label: "Recheck readiness", available: false, reason: "Governed by Product API", requiresConfirmation: false }],
+      guardrails: detail.guardrails,
+      checkedAt: detail.checkedAt,
+      stale: detail.stale,
+    };
+  }
+
+  async getAgentDeploymentPlan(agentId: string): Promise<DeploymentPlan | undefined> {
+    const detail = await this.getAgent(agentId);
+    if (!detail) return undefined;
+    return {
+      planId: `plan-${agentId}`,
+      agentId,
+      revisionId: detail.currentRevision.revision,
+      target: "sandbox-target",
+      engine: "openclaw",
+      provider: detail.agentDefinition.modelStrategy?.primary.providerId ?? "unknown",
+      workerRequirements: ["sandbox worker"],
+      credentialRequirements: detail.agentDefinition.credentialConnectionIds,
+      policyEvaluation: ["governed by Product API"],
+      sandboxConstraints: ["sandbox-only"],
+      economicReadinessSummary: detail.economicSummary,
+      eligible: detail.readinessSummary.state === "ready",
+      blockers: [],
+      warnings: [],
+      evidence: [],
+      availableActions: [],
+      createdAt: detail.checkedAt,
+    };
+  }
+
+  async getAgentExecutionPlan(agentId: string): Promise<ExecutionPlan | undefined> {
+    return this.getAgentDeploymentPlan(agentId);
+  }
+
+  async listDeploymentSummaries(): Promise<readonly DeploymentSummary[]> {
+    return (this.#deploymentService?.listDeployments() ?? []).map((deployment) => this.#deploymentRecordSummary(deployment));
+  }
+
+  async getDeploymentSummary(deploymentId: string): Promise<DeploymentSummary | undefined> {
+    const deployment = this.#deploymentService?.getDeployment(deploymentId);
+    return deployment ? this.#deploymentRecordSummary(deployment) : undefined;
+  }
+
+  async listAgentDeploymentSummaries(agentId: string): Promise<readonly DeploymentSummary[]> {
+    return (this.#deploymentService?.listDeployments() ?? [])
+      .filter((deployment) => deployment.agentId === agentId)
+      .map((deployment) => this.#deploymentRecordSummary(deployment));
+  }
+
+  async listRuntimeSummaries(): Promise<readonly RuntimeSummary[]> {
+    return (this.#runtimeService?.listRuntimes() ?? []).map((runtime) => this.#runtimeRecordSummary(runtime));
+  }
+
+  async getRuntimeSummary(runtimeId: string): Promise<RuntimeSummary | undefined> {
+    const runtime = (this.#runtimeService?.listRuntimes() ?? []).find((entry) => entry.runtimeInstanceId === runtimeId);
+    return runtime ? this.#runtimeRecordSummary(runtime) : undefined;
+  }
+
+  async listExecutionRunSummaries(): Promise<readonly ExecutionRunSummary[]> {
+    return (this.#runtimeService?.listExecutionRuns() ?? []).map((run) => this.#executionRunRecordSummary(run));
+  }
+
+  async getExecutionRunSummary(runId: string): Promise<ExecutionRunSummary | undefined> {
+    const run = (this.#runtimeService?.listExecutionRuns() ?? []).find((entry) => entry.runId === runId);
+    return run ? this.#executionRunRecordSummary(run) : undefined;
+  }
+
+  async listAgentExecutionRunSummaries(agentId: string): Promise<readonly ExecutionRunSummary[]> {
+    return (this.#runtimeService?.listExecutionRuns() ?? [])
+      .filter((run) => run.agentId === agentId)
+      .map((run) => this.#executionRunRecordSummary(run));
+  }
+
+  async listWorkerSummaries(): Promise<readonly WorkerSummary[]> {
+    return (this.#workerRegistry?.list() ?? []).map((worker) => this.#workerRecordSummary(worker));
+  }
+
+  async getWorkerSummary(workerId: string): Promise<WorkerSummary | undefined> {
+    try {
+      const worker = this.#workerRegistry?.get(workerId);
+      return worker ? this.#workerRecordSummary(worker) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async listWorkerWorkloads(workerId: string): Promise<readonly WorkerWorkload[]> {
+    return (this.#workerAssignmentService?.listAssignments() ?? [])
+      .filter((assignment) => assignment.workerId === workerId)
+      .map((assignment) => ({
+        assignmentId: assignment.assignmentId,
+        executionPlanId: assignment.executionPlanId,
+        deploymentId: assignment.deploymentId,
+        runtimeInstanceId: assignment.runtimeInstanceId,
+        status: assignment.status,
+        startedAt: assignment.assignedAt,
+      }));
+  }
+
   async getCompositionSummary(): Promise<CompositionSummary> {
     const checkedAt = Date.now();
     const models = await this.listModels();
@@ -1244,6 +1575,122 @@ export class ProductApiClient {
             ? "stopped"
             : "other";
     return { state, count: runtimes.length };
+  }
+
+  #credentialSummary(connection: CredentialConnection): CredentialSummary {
+    return {
+      credentialId: connection.id,
+      providerId: connection.providerId,
+      providerName: connection.providerId,
+      status: connection.status,
+      usageCount: this.#credentialRegistry?.listByProvider(connection.providerId).length ?? 0,
+      secretRefRedacted: connection.secretRef ? `redacted:${connection.secretRef.id}` : "redacted:unavailable",
+      validated: connection.status === "valid" || connection.status === "active",
+      ...(connection.lastVerifiedAt ? { lastValidatedAt: connection.lastVerifiedAt } : {}),
+      availableActions: [],
+      guardrails: OPERATIONAL_GUARDRAILS,
+    };
+  }
+
+  #providerConnectionSummary(connection: CredentialConnection): ProviderConnectionSummary {
+    const health = connection.status === "valid" || connection.status === "active"
+      ? "healthy"
+      : connection.status === "degraded"
+        ? "degraded"
+        : connection.status === "pending" || connection.status === "configured"
+          ? "unverified"
+          : "unavailable";
+    return {
+      connectionId: connection.id,
+      providerId: connection.providerId,
+      providerName: connection.providerId,
+      credentialId: connection.id,
+      health,
+      authState: connection.status,
+      availability: connection.status === "active" || connection.status === "valid" ? "available" : connection.status === "pending" ? "pending" : "unavailable",
+      lastCheckedAt: connection.lastVerifiedAt ?? connection.updatedAt,
+      errors: [],
+      availableActions: [],
+      guardrails: OPERATIONAL_GUARDRAILS,
+    };
+  }
+
+  #deploymentRecordSummary(deployment: DeploymentRecord): DeploymentSummary {
+    return {
+      deploymentId: deployment.deploymentId,
+      agentId: deployment.agentId,
+      revisionId: deployment.revision,
+      status: deployment.status,
+      target: deployment.targetId,
+      engine: "openclaw",
+      active: deployment.status === "deployed",
+      createdAt: deployment.createdAt,
+      updatedAt: deployment.createdAt,
+      errors: deployment.status === "failed" ? ["deployment failed"] : [],
+      availableActions: [],
+      guardrails: OPERATIONAL_GUARDRAILS,
+      ...(deployment.reservationId ? { lastOperation: "reserved" } : {}),
+    };
+  }
+
+  #runtimeRecordSummary(runtime: RuntimeInstanceRecord): RuntimeSummary {
+    return {
+      runtimeId: runtime.runtimeInstanceId,
+      deploymentId: runtime.deploymentId,
+      agentId: runtime.agentId ?? "unknown",
+      workerId: "unknown",
+      target: runtime.targetId,
+      engine: "openclaw",
+      status: runtime.status,
+      health: runtime.status === "running" ? "healthy" : runtime.status === "failed" ? "unhealthy" : "unknown",
+      ageMs: Math.max(0, Date.now() - runtime.updatedAt),
+      lastActivityAt: runtime.updatedAt,
+      isolationState: "unknown",
+      driftState: "unknown",
+      reconciliationState: runtime.status === "running" ? "reconciled" : "none",
+      failureState: runtime.status === "failed" ? "failed" : "none",
+      availableActions: [],
+      guardrails: OPERATIONAL_GUARDRAILS,
+    };
+  }
+
+  #executionRunRecordSummary(run: ExecutionRunRecord): ExecutionRunSummary {
+    return {
+      runId: run.runId,
+      runtimeId: run.runtimeInstanceId,
+      deploymentId: "unknown",
+      agentId: run.agentId,
+      revisionId: 0,
+      workerId: "unknown",
+      target: "unknown",
+      status: run.status,
+      startedAt: run.startedAt,
+      ...(run.completedAt ? { endedAt: run.completedAt, durationMs: run.completedAt - run.startedAt } : {}),
+      ...(run.status === "completed" ? { resultSummary: "completed" } : {}),
+      ...(run.status === "failed" ? { failureReason: "execution failed" } : {}),
+      availableActions: [],
+      guardrails: OPERATIONAL_GUARDRAILS,
+    };
+  }
+
+  #workerRecordSummary(worker: import("../workers/worker-registry.js").RegisteredWorker): WorkerSummary {
+    return {
+      workerId: worker.canonicalId,
+      status: worker.status,
+      health: worker.health.status === "healthy" ? "healthy" : worker.health.status === "degraded" ? "degraded" : "unhealthy",
+      environment: "sandbox",
+      capabilities: [worker.capabilities.engineId, ...worker.capabilities.supportedRunners],
+      capacity: worker.capacity.maxConcurrentRuns,
+      availableCapacity: worker.capacity.availableSlots,
+      workloadCount: worker.capacity.activeRuns,
+      targetSupport: worker.targetCompatibility.map((target) => target.executionTargetId),
+      tenantIsolation: false,
+      workloadIsolation: false,
+      failureState: worker.health.status === "unavailable" ? "failed" : "none",
+      reconciliationState: worker.stale ? "pending" : "reconciled",
+      availableActions: [],
+      guardrails: OPERATIONAL_GUARDRAILS,
+    };
   }
 
   #auditSummary(agentId: string): AgentAuditSummary {
