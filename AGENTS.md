@@ -7,6 +7,7 @@ This repository is the ACS control-plane workspace. Agents working here must tre
 - Read the relevant EPIC docs before changing code or documentation.
 - Prefer incremental, flow-based work over module-by-module rewrites.
 - Keep backend domain truth in the control plane; do not reimplement EPIC-10 domains in the surface layer.
+- Treat `./static` as out of scope for EPIC-11 work unless a task explicitly says otherwise; keep control-plane changes focused on the app and backend.
 - Validate each change with the smallest useful test or check before moving on.
 - Do not assume Production Readiness unless the docs and evidence explicitly support it.
 

@@ -20,6 +20,7 @@ Read these files first when working on EPIC-11:
 - Treat `S01–S39` as traceable request groups, not fixed architectural boundaries.
 - Preserve loading, empty, error, pending, warning, blocked, and recovery states in every surface.
 - Do not reimplement EPIC-10 domains in the surface docs or implementation guidance.
+- Treat `./static` as out of scope for EPIC-11 execution unless a request explicitly calls for it; keep the epic centered on the Control Plane app and backend.
 - Keep Economics boundary-open until the planning/refinement phase explicitly resolves it.
 - Treat multi-tenancy, advanced administration, fleet scaling, and advanced observability as likely EPIC-12 or later unless a doc explicitly pulls them into scope.
 
