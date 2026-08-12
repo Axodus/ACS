@@ -480,6 +480,129 @@ export type ProductionReadinessReport = {
   sourceEvidence: readonly string[];
 };
 
+export type GovernanceActorState =
+  | "authenticated"
+  | "unauthenticated"
+  | "system"
+  | "local_operator"
+  | "simulated"
+  | "unknown";
+
+export type AccessDecisionCategory =
+  | "allowed"
+  | "denied"
+  | "unsupported"
+  | "unavailable"
+  | "deferred"
+  | "not_evaluated";
+
+export type AccessEnforcementState = "enforced" | "projected" | "planned";
+
+export type PermissionAuthorityState =
+  | "allowed"
+  | "denied"
+  | "unsupported"
+  | "unavailable"
+  | "deferred"
+  | "requires_production_auth"
+  | "requires_admin_boundary"
+  | "requires_tenant_boundary";
+
+export type PermissionBaselineCategory =
+  | "read_control_plane"
+  | "read_agents"
+  | "mutate_agents"
+  | "read_composition"
+  | "read_execution"
+  | "mutate_execution"
+  | "read_evidence"
+  | "read_economics"
+  | "read_system"
+  | "mutate_system"
+  | "admin_boundary"
+  | "tenant_boundary"
+  | "secret_boundary";
+
+export type AccessDecision = {
+  id: string;
+  actor: string;
+  permission: string;
+  action: string;
+  entityReference: string;
+  decision: AccessDecisionCategory;
+  reason: string;
+  timestamp: string;
+  gateDependency: string;
+  enforcement: AccessEnforcementState;
+  correlationId?: string;
+};
+
+export type PermissionBaselineItem = {
+  category: PermissionBaselineCategory;
+  label: string;
+  readAuthority: PermissionAuthorityState;
+  mutationAuthority: PermissionAuthorityState;
+  state: "allowed" | "blocked" | "unavailable" | "deferred" | "unsupported";
+  reason: string;
+  readinessGates: readonly string[];
+};
+
+export type AuthoritySurface = {
+  surface: string;
+  label: string;
+  readAuthority: PermissionAuthorityState;
+  mutationAuthority: PermissionAuthorityState;
+  reason: string;
+  notes: readonly string[];
+};
+
+export type GovernanceBoundaryReport = {
+  checkedAt: string;
+  claim: "not_claimed";
+  actorBoundary: {
+    state: GovernanceActorState;
+    source: string;
+    displayName: string;
+    productionAuthClaimed: false;
+    caveats: readonly string[];
+  };
+  permissionBaseline: readonly PermissionBaselineItem[];
+  readMutateAuthority: readonly AuthoritySurface[];
+  tenantBoundary: {
+    state: "single_tenant" | "tenant_aware" | "multi_tenant_observed" | "tenant_admin_unavailable" | "unknown";
+    tenantAdminReady: false;
+    isolationIndicators: readonly string[];
+    caveats: readonly string[];
+  };
+  administrationBoundary: {
+    administrationReady: false;
+    state: "read_only" | "inspection_only" | "unsupported" | "unavailable" | "deferred";
+    allowedActions: readonly string[];
+    deniedActions: readonly AccessDecision[];
+    unsupportedActions: readonly AccessDecision[];
+    deferredActions: readonly string[];
+  };
+  accessDecisions: readonly AccessDecision[];
+  deniedStates: readonly AccessDecision[];
+  unsupportedActions: readonly AccessDecision[];
+  auditCorrelation: {
+    state: "available" | "partial" | "planned" | "unavailable";
+    note: string;
+    evidence: readonly string[];
+  };
+  readinessGateDependencies: readonly string[];
+  claimDiscipline: {
+    productionReadyClaimAllowed: false;
+    billingReadyClaimAllowed: false;
+    administrationReadyClaimAllowed: false;
+    tenantGovernanceReadyClaimAllowed: false;
+    reason: string;
+  };
+  caveats: readonly string[];
+  deferredItems: readonly string[];
+  sourceEvidence: readonly string[];
+};
+
 export type Epic11AcceptanceCheck = {
   id: string;
   label: string;
@@ -1648,5 +1771,9 @@ export const productApi = {
 
   async getProductionReadinessReport() {
     return request<ProductionReadinessReport>("/system/production-readiness");
+  },
+
+  async getGovernanceBoundaryReport() {
+    return request<GovernanceBoundaryReport>("/system/governance-boundary");
   },
 };

@@ -115,6 +115,7 @@ export * from "./control-plane/epic-10-readiness.js";
 export * from "./control-plane/environment-readiness.js";
 export * from "./control-plane/persistence-readiness.js";
 export * from "./control-plane/production-readiness.js";
+export * from "./control-plane/governance-boundary.js";
 export * from "./control-plane/secrets-boundary.js";
 export * from "./control-plane/isolation.js";
 

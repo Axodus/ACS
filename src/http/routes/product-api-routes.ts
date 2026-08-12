@@ -1254,6 +1254,11 @@ export async function routeProductApiRequest(
       const report = await api.getProductionReadinessReport();
       return { status: 200, body: ok(report, [], options.correlationId, routeMeta) };
     }
+    if (apiPath === "system/governance-boundary" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const report = await api.getGovernanceBoundaryReport();
+      return { status: 200, body: ok(report, [], options.correlationId, routeMeta) };
+    }
     if (segments[2] === "system" && segments[3]) {
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }

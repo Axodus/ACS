@@ -79,6 +79,7 @@ import {
 } from "./epic-10-readiness.js";
 import { resolveCurrentEnvironment } from "./environment-readiness.js";
 import { createProductionReadinessReport, type ProductionReadinessReport } from "./production-readiness.js";
+import { createGovernanceBoundaryReport, type GovernanceBoundaryReport } from "./governance-boundary.js";
 
 export interface ProductApiClientOptions {
   readonly agentService?: AgentService;
@@ -2980,6 +2981,24 @@ export class ProductApiClient {
       secretBackend: "memory",
       settlementBackend: "memory",
       browserAcceptance: "not_started",
+    });
+  }
+
+  async getGovernanceBoundaryReport(): Promise<GovernanceBoundaryReport> {
+    const workers = this.#workerRegistry?.list() ?? [];
+    const isolationIndicators = workers.flatMap((worker) => {
+      const modes = worker.capabilities.supportedIsolationModes.filter(
+        (mode) => mode === "tenant" || mode.includes("tenant") || mode === "workload" || mode.includes("workload"),
+      );
+      return modes.length > 0 ? [`${worker.canonicalId}: ${modes.join(", ")}`] : [];
+    });
+
+    return createGovernanceBoundaryReport({
+      actorState: "unauthenticated",
+      tenantState: "tenant_aware",
+      tenantAdminReady: false,
+      auditCorrelation: this.#auditService ? "planned" : "unavailable",
+      isolationIndicators,
     });
   }
 

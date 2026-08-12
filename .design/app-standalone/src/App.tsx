@@ -71,6 +71,7 @@ import {
   type SystemTenantsView,
   type Epic11AcceptanceReport,
   type ProductionReadinessReport,
+  type GovernanceBoundaryReport,
 } from "./api/product-api";
 import "./operational.css";
 
@@ -2857,6 +2858,11 @@ function GovernanceView() {
     "Unable to load EPIC-11 acceptance report from Product API",
     () => false,
   );
+  const governanceBoundary = useOperationalSummary<GovernanceBoundaryReport>(
+    () => productApi.getGovernanceBoundaryReport(),
+    "Unable to load governance boundary from Product API",
+    () => false,
+  );
 
   const refreshAll = () => {
     readiness.refresh();
@@ -2866,6 +2872,7 @@ function GovernanceView() {
     administration.refresh();
     tenants.refresh();
     acceptance.refresh();
+    governanceBoundary.refresh();
   };
 
   return <>
@@ -2874,6 +2881,7 @@ function GovernanceView() {
       <button className="secondary" onClick={refreshAll}>Refresh all</button>
     </header>
     {staleBanner(guardrails, "system guardrails")}
+    {staleBanner(governanceBoundary, "governance boundary")}
     <div className="flow-group">
       <div className="flow-group-head"><h2>System guardrails</h2><p>Operational mode reported by the Product API — never inferred by this surface.</p></div>
       <div className="dashboard-grid execution-grid">
@@ -3031,6 +3039,142 @@ function GovernanceView() {
         </section>
         <SummaryCard title="Source evidence" meta="Files used for the readiness projection" state={readiness.data?.sourceEvidence.length ? "ready" : readiness.loadState} emptyMessage="No source evidence reported.">
           {readiness.data && <IdList label="Evidence" ids={readiness.data.sourceEvidence} />}
+        </SummaryCard>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Governance & access boundary</h2><p>Actor, permission, read vs mutate, tenant awareness and administration limits reported by the Product API.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel wide">
+          <div className="panel-head"><div><h2>Actor boundary</h2><p>Current actor identity and authentication limits</p></div><Badge tone={governanceBoundary.data?.actorBoundary.state === "authenticated" ? "good" : "warn"}>{governanceBoundary.data?.actorBoundary.state ?? "unavailable"}</Badge></div>
+          <div className="panel-body">
+            {governanceBoundary.data ? <>
+              <div className="guardrail-banner" role="note"><span>Production Auth Claimed: NO</span><span>Administration Ready: NO</span><span>Tenant Governance Ready: NO</span><span>Claim: {governanceBoundary.data.claim}</span></div>
+              <div className="summary-list">
+                <SummaryRow label="Actor state" value={governanceBoundary.data.actorBoundary.state} />
+                <SummaryRow label="Display name" value={governanceBoundary.data.actorBoundary.displayName} />
+                <SummaryRow label="Source" value={governanceBoundary.data.actorBoundary.source} />
+                <SummaryRow label="Production auth claimed" value="NO" tone="warn" />
+              </div>
+              <TimelineList items={governanceBoundary.data.actorBoundary.caveats.map((caveat, index) => ({ id: `actor-caveat-${index}`, title: "Actor caveat", detail: caveat, tone: "warn" }))} />
+            </> : <PanelStateLine state={governanceBoundary.loadState} error={governanceBoundary.loadError} emptyMessage="No actor boundary reported by the Product API." />}
+            {governanceBoundary.loadState === "error" && <ErrorBanner error={governanceBoundary.loadError} />}
+          </div>
+        </section>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <DashboardCard title="Permission baseline" meta="Representational permission categories" state={governanceBoundary.data ? "ready" : governanceBoundary.loadState} emptyMessage="No permission baseline reported.">
+          {governanceBoundary.data && <div className="catalog-list">
+            {governanceBoundary.data.permissionBaseline.map(permission => (
+              <div className="catalog-row" key={permission.category}>
+                <div className="catalog-row-main">
+                  <b>{permission.label}</b>
+                  <small className="mono">{permission.category} · read: {permission.readAuthority} · mutate: {permission.mutationAuthority}</small>
+                  <p>{permission.reason}</p>
+                </div>
+                <Badge tone={permission.state === "allowed" ? "good" : permission.state === "blocked" ? "warn" : "muted"}>{permission.state}</Badge>
+              </div>
+            ))}
+          </div>}
+        </DashboardCard>
+        <DashboardCard title="Read vs mutate authority" meta="Surfaces that may be inspected or mutated" state={governanceBoundary.data ? "ready" : governanceBoundary.loadState} emptyMessage="No authority surfaces reported.">
+          {governanceBoundary.data && <div className="catalog-list">
+            {governanceBoundary.data.readMutateAuthority.map(surface => (
+              <div className="catalog-row" key={surface.surface}>
+                <div className="catalog-row-main">
+                  <b>{surface.label}</b>
+                  <small className="mono">{surface.surface} · read: {surface.readAuthority} · mutate: {surface.mutationAuthority}</small>
+                  <p>{surface.reason}</p>
+                  {surface.notes.length > 0 && <small>{surface.notes.join(" · ")}</small>}
+                </div>
+              </div>
+            ))}
+          </div>}
+        </DashboardCard>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Tenant boundary</h2><p>Tenant-aware visibility without tenant administration</p></div><Badge tone={governanceBoundary.data?.tenantBoundary.tenantAdminReady ? "warn" : "muted"}>{governanceBoundary.data?.tenantBoundary.state ?? "unavailable"}</Badge></div>
+          <div className="panel-body">
+            {governanceBoundary.data ? <>
+              <div className="summary-list">
+                <SummaryRow label="Tenant state" value={governanceBoundary.data.tenantBoundary.state} />
+                <SummaryRow label="Tenant admin ready" value="NO" tone="warn" />
+                <SummaryRow label="Isolation indicators" value={governanceBoundary.data.tenantBoundary.isolationIndicators.length} />
+              </div>
+              <p className="panel-note">Tenant-aware visibility exists, but tenant administration is not available in EPIC-12.</p>
+              <IdList label="Declared isolation" ids={governanceBoundary.data.tenantBoundary.isolationIndicators} />
+              <TimelineList items={governanceBoundary.data.tenantBoundary.caveats.map((caveat, index) => ({ id: `tenant-caveat-${index}`, title: "Tenant caveat", detail: caveat, tone: "warn" }))} />
+            </> : <PanelStateLine state={governanceBoundary.loadState} error={governanceBoundary.loadError} emptyMessage="No tenant boundary reported by the Product API." />}
+            {governanceBoundary.loadState === "error" && <ErrorBanner error={governanceBoundary.loadError} />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Administration boundary</h2><p>Read-only visibility; production administration remains future scope</p></div><Badge tone="warn">{governanceBoundary.data?.administrationBoundary.state ?? "unavailable"}</Badge></div>
+          <div className="panel-body">
+            {governanceBoundary.data ? <>
+              <div className="summary-list">
+                <SummaryRow label="Administration ready" value="NO" tone="warn" />
+                <SummaryRow label="State" value={governanceBoundary.data.administrationBoundary.state} />
+                <SummaryRow label="Allowed actions" value={governanceBoundary.data.administrationBoundary.allowedActions.length} />
+              </div>
+              <IdList label="Allowed inspection actions" ids={governanceBoundary.data.administrationBoundary.allowedActions} />
+              <TimelineList items={governanceBoundary.data.administrationBoundary.deniedActions.map((entry, index) => ({ id: `admin-denied-${index}`, title: `${entry.permission} · ${entry.action}`, meta: entry.gateDependency, detail: entry.reason, tone: "warn" }))} />
+              <TimelineList items={governanceBoundary.data.administrationBoundary.unsupportedActions.map((entry, index) => ({ id: `admin-unsupported-${index}`, title: `${entry.permission} · ${entry.action}`, meta: entry.gateDependency, detail: entry.reason, tone: "muted" }))} />
+              <IdList label="Deferred administration" ids={governanceBoundary.data.administrationBoundary.deferredActions} />
+            </> : <PanelStateLine state={governanceBoundary.loadState} error={governanceBoundary.loadError} emptyMessage="No administration boundary reported by the Product API." />}
+            {governanceBoundary.loadState === "error" && <ErrorBanner error={governanceBoundary.loadError} />}
+          </div>
+        </section>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <DashboardCard title="Access decisions" meta="Allowed, denied, unsupported and deferred decisions" state={governanceBoundary.data?.accessDecisions.length ? "ready" : governanceBoundary.loadState} emptyMessage="No access decisions reported.">
+          {governanceBoundary.data && <TimelineList items={governanceBoundary.data.accessDecisions.map(entry => ({
+            id: entry.id,
+            title: `${entry.permission} · ${entry.action}`,
+            meta: `${entry.decision} · ${entry.enforcement} · ${entry.gateDependency}`,
+            detail: entry.reason,
+            tone: entry.decision === "allowed" ? "good" : entry.decision === "denied" ? "warn" : "muted",
+          }))} />}
+        </DashboardCard>
+        <DashboardCard title="Audit / evidence correlation" meta="Honest status of access decision traceability" state={governanceBoundary.data ? "ready" : governanceBoundary.loadState} emptyMessage="No audit correlation status reported.">
+          {governanceBoundary.data && <>
+            <div className="summary-list">
+              <SummaryRow label="Correlation state" value={governanceBoundary.data.auditCorrelation.state} />
+            </div>
+            <p className="panel-note">{governanceBoundary.data.auditCorrelation.note}</p>
+            <IdList label="Evidence" ids={governanceBoundary.data.auditCorrelation.evidence} />
+          </>}
+        </DashboardCard>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <SummaryCard title="Claim discipline" meta="Claims that this milestone cannot make" state={governanceBoundary.data ? "ready" : governanceBoundary.loadState} emptyMessage="No claim discipline reported.">
+          {governanceBoundary.data && <>
+            <div className="summary-list">
+              <SummaryRow label="Production ready claim" value="NO" tone="warn" />
+              <SummaryRow label="Billing ready claim" value="NO" tone="warn" />
+              <SummaryRow label="Administration ready claim" value="NO" tone="warn" />
+              <SummaryRow label="Tenant governance ready claim" value="NO" tone="warn" />
+            </div>
+            <p className="panel-note">{governanceBoundary.data.claimDiscipline.reason}</p>
+          </>}
+        </SummaryCard>
+        <DashboardCard title="Readiness gate dependencies" meta="Gates consumed by this governance projection" state={governanceBoundary.data?.readinessGateDependencies.length ? "ready" : governanceBoundary.loadState} emptyMessage="No readiness gate dependencies reported.">
+          {governanceBoundary.data && <IdList label="Gates" ids={governanceBoundary.data.readinessGateDependencies} />}
+        </DashboardCard>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Caveats & deferred scope</h2><p>Honest limits of the current boundary</p></div></div>
+          <div className="panel-body">
+            {governanceBoundary.data ? <>
+              <TimelineList items={governanceBoundary.data.caveats.map((caveat, index) => ({ id: `governance-caveat-${index}`, title: "Caveat", detail: caveat, tone: "warn" }))} />
+              <IdList label="Deferred items" ids={governanceBoundary.data.deferredItems} />
+            </> : <PanelStateLine state={governanceBoundary.loadState} error={governanceBoundary.loadError} emptyMessage="No caveats reported by the Product API." />}
+          </div>
+        </section>
+        <SummaryCard title="Source evidence" meta="Files and contracts used for the governance projection" state={governanceBoundary.data?.sourceEvidence.length ? "ready" : governanceBoundary.loadState} emptyMessage="No source evidence reported.">
+          {governanceBoundary.data && <IdList label="Evidence" ids={governanceBoundary.data.sourceEvidence} />}
         </SummaryCard>
       </div>
     </div>
