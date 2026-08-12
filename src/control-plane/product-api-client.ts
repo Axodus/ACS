@@ -80,6 +80,7 @@ import {
 import { resolveCurrentEnvironment } from "./environment-readiness.js";
 import { createProductionReadinessReport, type ProductionReadinessReport } from "./production-readiness.js";
 import { createGovernanceBoundaryReport, type GovernanceBoundaryReport } from "./governance-boundary.js";
+import { createOperationalReliabilityReport, type OperationalReliabilityReport } from "./operational-reliability.js";
 
 export interface ProductApiClientOptions {
   readonly agentService?: AgentService;
@@ -2999,6 +3000,18 @@ export class ProductApiClient {
       tenantAdminReady: false,
       auditCorrelation: this.#auditService ? "planned" : "unavailable",
       isolationIndicators,
+    });
+  }
+
+  async getOperationalReliabilityReport(): Promise<OperationalReliabilityReport> {
+    return createOperationalReliabilityReport({
+      deployments: this.#deploymentService?.listDeployments() ?? [],
+      runtimes: this.#runtimeService?.listRuntimes() ?? [],
+      executionRuns: this.#runtimeService?.listExecutionRuns() ?? [],
+      workers: this.#workerRegistry?.list() ?? [],
+      assignments: this.#workerAssignmentService?.listAssignments() ?? [],
+      targets: this.#targetService?.list() ?? [],
+      auditAvailable: Boolean(this.#auditService),
     });
   }
 

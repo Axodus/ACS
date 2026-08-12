@@ -603,6 +603,222 @@ export type GovernanceBoundaryReport = {
   sourceEvidence: readonly string[];
 };
 
+export type OperationalReliabilityOperationState =
+  | "queued"
+  | "pending"
+  | "running"
+  | "waiting"
+  | "recovering"
+  | "retrying"
+  | "succeeded"
+  | "failed"
+  | "blocked"
+  | "cancelled"
+  | "stale"
+  | "unknown"
+  | "unsupported"
+  | "unavailable"
+  | "deferred";
+
+export type OperationalReliabilityOperationType =
+  | "agent_lifecycle"
+  | "composition_validation"
+  | "readiness_check"
+  | "deployment_plan"
+  | "deploy"
+  | "runtime_start"
+  | "runtime_stop"
+  | "execution_run"
+  | "worker_assignment"
+  | "worker_recovery"
+  | "evidence_collection"
+  | "economic_reservation";
+
+export type OperationalReliabilitySeverity =
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "informational";
+
+export type OperationalReliabilityTruthLayer =
+  | "control_plane_assertion"
+  | "runtime_observation"
+  | "external_execution_target";
+
+export type OperationalReliabilityFinding = {
+  code: string;
+  severity: OperationalReliabilitySeverity;
+  message: string;
+  responsibleDomain: string;
+  dependsOnFutureMilestone?: string;
+  evidence?: string;
+};
+
+export type OperationalStateModelItem = {
+  type: OperationalReliabilityOperationType;
+  label: string;
+  state: "supported" | "unsupported" | "unavailable" | "deferred" | "not_applicable";
+  reason: string;
+  evidence: readonly string[];
+};
+
+export type LongRunningOperation = {
+  id: string;
+  type: OperationalReliabilityOperationType;
+  targetEntity: string;
+  state: OperationalReliabilityOperationState;
+  createdAt: number;
+  startedAt?: number;
+  updatedAt: number;
+  completedAt?: number;
+  progress?: string;
+  retryAvailability: "available" | "unavailable" | "unsupported" | "planned";
+  cancellationAvailability: "available" | "unavailable" | "unsupported" | "planned";
+  recoveryAvailability: "available" | "unavailable" | "unsupported" | "planned";
+  evidence: readonly string[];
+  runtimeDependency: string;
+  workerDependency: string;
+  stale: boolean;
+  caveats: readonly string[];
+  reason?: string;
+};
+
+export type OperationalResult = {
+  id: string;
+  operationId: string;
+  outcome: "succeeded" | "failed" | "blocked" | "cancelled" | "pending" | "unknown";
+  failureCategory?: string;
+  failureReason?: string;
+  retryable: boolean;
+  recoveryStatus: "not_required" | "available" | "in_progress" | "succeeded" | "failed" | "blocked" | "unsupported" | "unavailable" | "planned" | "unknown";
+  nextAction?: string;
+  evidence: readonly string[];
+  correlationId?: string;
+};
+
+export type RuntimeConfidenceState =
+  | "ready"
+  | "starting"
+  | "running"
+  | "stopping"
+  | "stopped"
+  | "degraded"
+  | "failed"
+  | "recovering"
+  | "stale"
+  | "unknown"
+  | "unsupported"
+  | "unavailable";
+
+export type WorkerConfidenceState =
+  | "available"
+  | "busy"
+  | "assigned"
+  | "idle"
+  | "degraded"
+  | "failed"
+  | "recovering"
+  | "stale"
+  | "offline"
+  | "unknown"
+  | "unsupported"
+  | "unavailable";
+
+export type ReliabilityConfidenceLevel = "high" | "medium" | "low" | "none" | "unknown";
+
+export type RuntimeConfidenceItem = {
+  id: string;
+  state: RuntimeConfidenceState;
+  healthState: "healthy" | "degraded" | "unavailable" | "unknown";
+  confidenceLevel: ReliabilityConfidenceLevel;
+  lastObservedTime: string;
+  sourceOfObservation: OperationalReliabilityTruthLayer;
+  sourceEvidence: readonly string[];
+  executionTargetDependency: string;
+  stale: boolean;
+  activeOperations: number;
+  failedOperations: number;
+  recoveringOperations: number;
+  caveats: readonly string[];
+  unsupportedControls: readonly string[];
+};
+
+export type WorkerConfidenceItem = {
+  id: string;
+  state: WorkerConfidenceState;
+  workloadState: "idle" | "busy" | "unknown";
+  assignmentStatus: string;
+  targetDependency: string;
+  healthState: "healthy" | "degraded" | "unavailable" | "unknown";
+  confidenceLevel: ReliabilityConfidenceLevel;
+  lastHeartbeatAt?: string;
+  lastObservedTime: string;
+  stale: boolean;
+  activeWorkload: number;
+  failedWorkload: number;
+  recoverySupport: "available" | "unavailable" | "unsupported" | "planned";
+  capacitySummary: string;
+  caveats: readonly string[];
+  unsupportedOperations: readonly string[];
+};
+
+export type DistributedScenarioResult = {
+  id: string;
+  label: string;
+  status: "supported" | "partial" | "unsupported" | "unavailable" | "deferred";
+  reason: string;
+  evidence: readonly string[];
+};
+
+export type RecoverySemanticsItem = {
+  id: string;
+  label: string;
+  state: "available" | "partial" | "unavailable" | "unsupported" | "planned" | "deferred";
+  reason: string;
+  evidence: readonly string[];
+};
+
+export type OperationalReliabilityReport = {
+  checkedAt: string;
+  operationalReliabilityReady: false;
+  productionReady: false;
+  claim: "not_claimed";
+  summary: {
+    operationsTracked: number;
+    running: number;
+    succeeded: number;
+    failed: number;
+    blocked: number;
+    stale: number;
+    recovering: number;
+    unsupported: number;
+    unavailable: number;
+  };
+  operationStateModel: readonly OperationalStateModelItem[];
+  longRunningOperations: readonly LongRunningOperation[];
+  operationResults: readonly OperationalResult[];
+  runtimeConfidence: readonly RuntimeConfidenceItem[];
+  workerConfidence: readonly WorkerConfidenceItem[];
+  distributedOperations: {
+    status: "supported" | "partial" | "unsupported" | "unavailable" | "deferred";
+    scenarios: readonly DistributedScenarioResult[];
+    caveats: readonly string[];
+  };
+  recoverySemantics: readonly RecoverySemanticsItem[];
+  blockers: readonly OperationalReliabilityFinding[];
+  warnings: readonly OperationalReliabilityFinding[];
+  caveats: readonly OperationalReliabilityFinding[];
+  deferredItems: readonly OperationalReliabilityFinding[];
+  readinessGateDependencies: readonly string[];
+  sourceEvidence: readonly string[];
+  claimDiscipline: {
+    productionReadyClaimAllowed: false;
+    operationalReliabilityReadyClaimAllowed: false;
+    reason: string;
+  };
+};
+
 export type Epic11AcceptanceCheck = {
   id: string;
   label: string;
@@ -1775,5 +1991,9 @@ export const productApi = {
 
   async getGovernanceBoundaryReport() {
     return request<GovernanceBoundaryReport>("/system/governance-boundary");
+  },
+
+  async getOperationalReliabilityReport() {
+    return request<OperationalReliabilityReport>("/system/operational-reliability");
   },
 };

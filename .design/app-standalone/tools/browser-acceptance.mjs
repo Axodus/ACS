@@ -13,6 +13,7 @@ const ROUTES = [
   "/",
   "/readiness",
   "/system",
+  "/system/operational-reliability",
   "/agents",
   "/composition",
   "/operational-execution",
