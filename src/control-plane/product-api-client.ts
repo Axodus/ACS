@@ -3004,18 +3004,29 @@ export class ProductApiClient {
   }
 
   async getOperationalReliabilityReport(): Promise<OperationalReliabilityReport> {
-    return createOperationalReliabilityReport({
-      deployments: this.#deploymentService?.listDeployments() ?? [],
-      runtimes: this.#runtimeService?.listRuntimes() ?? [],
-      executionRuns: this.#runtimeService?.listExecutionRuns() ?? [],
-      workers: this.#workerRegistry?.list() ?? [],
-      assignments: this.#workerAssignmentService?.listAssignments() ?? [],
-      targets: this.#targetService?.list() ?? [],
-      auditAvailable: Boolean(this.#auditService),
-    });
-  }
+   return createOperationalReliabilityReport({
+     deployments: this.#deploymentService?.listDeployments() ?? [],
+     runtimes: this.#runtimeService?.listRuntimes() ?? [],
+     executionRuns: this.#runtimeService?.listExecutionRuns() ?? [],
+     workers: this.#workerRegistry?.list() ?? [],
+     assignments: this.#workerAssignmentService?.listAssignments() ?? [],
+     targets: this.#targetService?.list() ?? [],
+     auditAvailable: Boolean(this.#auditService),
+   });
+ }
 
-  async getSystemGuardrails(): Promise<SystemGuardrailsView> {
+ async getObservabilityReport(): Promise<ObservabilityReport> {
+    const signals: ObservabilitySignals = {
+      events: await this.listEvents({}),
+      auditEntries: await this.listAuditEntries({}),
+      evidence: await this.listEvidence({}),
+      diagnostics: await this.listDiagnostics({}),
+      logAvailability: await this.getLogAvailability(),
+    };
+    return createObservabilityReport(signals);
+ }
+
+ async getSystemGuardrails(): Promise<SystemGuardrailsView> {
     return {
       inspectionMode: true,
       sandboxOnly: true,
@@ -3140,3 +3151,4 @@ export class ProductApiClient {
     return getEpic11AcceptanceReport();
   }
 }
+import { createObservabilityReport, type ObservabilityReport, type ObservabilitySignals } from "./observability.js";

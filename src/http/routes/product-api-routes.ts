@@ -1260,8 +1260,13 @@ export async function routeProductApiRequest(
       return { status: 200, body: ok(report, [], options.correlationId, routeMeta) };
     }
     if (apiPath === "system/operational-reliability" && request.method === "GET") {
+     assertAllowedQueryParams(url, []);
+     const report = await api.getOperationalReliabilityReport();
+     return { status: 200, body: ok(report, [], options.correlationId, routeMeta) };
+   }
+    if (apiPath === "system/observability" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
-      const report = await api.getOperationalReliabilityReport();
+      const report = await api.getObservabilityReport();
       return { status: 200, body: ok(report, [], options.correlationId, routeMeta) };
     }
     if (segments[2] === "system" && segments[3]) {
