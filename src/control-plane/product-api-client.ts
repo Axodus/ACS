@@ -77,6 +77,8 @@ import {
   type Epic10ReadinessSignals,
   type Epic10ReadinessStatus,
 } from "./epic-10-readiness.js";
+import { resolveCurrentEnvironment } from "./environment-readiness.js";
+import { createProductionReadinessReport, type ProductionReadinessReport } from "./production-readiness.js";
 
 export interface ProductApiClientOptions {
   readonly agentService?: AgentService;
@@ -2948,6 +2950,38 @@ export class ProductApiClient {
   }
 
   // ---- Milestone F: Governance / System boundary (read-only) ----
+
+  async getProductionReadinessReport(): Promise<ProductionReadinessReport> {
+    const summary = await this.getGlobalReadinessSummary();
+    const workers = this.#workerRegistry?.list() ?? [];
+    const targets = this.#targetService?.list() ?? [];
+    const workerStatus: "available" | "unavailable" | "stale" | "unverified" = workers.length === 0
+      ? "unavailable"
+      : workers.some((worker) => worker.status === "available")
+        ? "available"
+        : workers.some((worker) => worker.stale)
+          ? "stale"
+          : "unavailable";
+    const targetStatus: "ready" | "degraded" | "unavailable" | "unverified" = targets.length === 0
+      ? "unavailable"
+      : targets.every((target) => target.status === "ready" && !target.stale)
+        ? "ready"
+        : targets.some((target) => target.status === "ready" && !target.stale)
+          ? "degraded"
+          : "unavailable";
+
+    return createProductionReadinessReport({
+      environment: resolveCurrentEnvironment(),
+      runtimeConnectivity: summary.runtime.connectivity,
+      workerStatus,
+      targetStatus,
+      authMode: "disabled",
+      persistenceBackend: "memory",
+      secretBackend: "memory",
+      settlementBackend: "memory",
+      browserAcceptance: "not_started",
+    });
+  }
 
   async getSystemGuardrails(): Promise<SystemGuardrailsView> {
     return {

@@ -112,6 +112,10 @@ export * from "./workflows/index.js";
 
 export * from "./control-plane/deployment-service.js";
 export * from "./control-plane/epic-10-readiness.js";
+export * from "./control-plane/environment-readiness.js";
+export * from "./control-plane/persistence-readiness.js";
+export * from "./control-plane/production-readiness.js";
+export * from "./control-plane/secrets-boundary.js";
 export * from "./control-plane/isolation.js";
 
 export * from "./control-plane/runtime-lifecycle-service.js";

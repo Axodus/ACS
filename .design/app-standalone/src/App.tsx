@@ -70,6 +70,7 @@ import {
   type SystemAdministrationView,
   type SystemTenantsView,
   type Epic11AcceptanceReport,
+  type ProductionReadinessReport,
 } from "./api/product-api";
 import "./operational.css";
 
@@ -2787,7 +2788,45 @@ function EconomicsView() {
   </>;
 }
 
+function ProductionReadinessGateRow({ gate }: { gate: ProductionReadinessReport["gates"][number] }) {
+  const tone = gate.status === "pass" ? "good" : gate.status === "partial" ? "warn" : "muted";
+  return <div className="catalog-row" key={gate.id}>
+    <div className="catalog-row-main">
+      <b>{gate.label}</b>
+      <small className="mono">{gate.id} · {gate.responsibleDomain} · {gate.blockers.length} blockers</small>
+      <p>{gate.dependencyOnFutureMilestones.join(" · ") || "No future milestone dependency"}</p>
+    </div>
+    <Badge tone={tone}>{gate.status}</Badge>
+  </div>;
+}
+
+function ProductionReadinessTimeline({
+  title,
+  meta,
+  items,
+  state,
+  error,
+  emptyMessage,
+}: {
+  title: string;
+  meta: string;
+  items: TimelineItem[];
+  state: DashboardLoadState;
+  error: string | null;
+  emptyMessage: string;
+}) {
+  return <DashboardCard title={title} meta={meta} state={items.length > 0 ? "ready" : state} emptyMessage={emptyMessage}>
+    {items.length > 0 && <TimelineList items={items} />}
+    {state === "error" && <ErrorBanner error={error} />}
+  </DashboardCard>;
+}
+
 function GovernanceView() {
+  const readiness = useOperationalSummary<ProductionReadinessReport>(
+    () => productApi.getProductionReadinessReport(),
+    "Unable to load production readiness from Product API",
+    () => false,
+  );
   const guardrails = useOperationalSummary<SystemGuardrailsView>(
     () => productApi.getSystemGuardrails(),
     "Unable to load system guardrails from Product API",
@@ -2820,6 +2859,7 @@ function GovernanceView() {
   );
 
   const refreshAll = () => {
+    readiness.refresh();
     guardrails.refresh();
     configuration.refresh();
     policies.refresh();
@@ -2854,6 +2894,144 @@ function GovernanceView() {
             {guardrails.loadState === "error" && <ErrorBanner error={guardrails.loadError} />}
           </div>
         </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Production readiness</h2><p>Readiness gates and boundaries projected by the Product API. This is evidence, not a production claim.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel wide">
+          <div className="panel-head"><div><h2>Readiness status</h2><p>Current gate projection</p></div><Badge tone={readiness.data?.status === "blocked" || readiness.data?.status === "partial" ? "warn" : "muted"}>{readiness.data?.status ?? "unavailable"}</Badge></div>
+          <div className="panel-body">
+            {readiness.data ? <>
+              <div className="guardrail-banner" role="note"><span>Production Ready: NO / not yet claimed</span><span>Billing Ready: NO</span><span>Administration Ready: NO</span><span>Tenant Governance Ready: NO</span><span>Source of truth: product-api</span></div>
+              <div className="summary-list">
+                <SummaryRow label="Production ready" value="NO / not yet claimed" tone="warn" />
+                <SummaryRow label="Claim" value={readiness.data.claim} tone="warn" />
+                <SummaryRow label="Environment" value={readiness.data.environment.current} />
+                <SummaryRow label="Checked" value={new Date(readiness.data.checkedAt).toLocaleString()} />
+                <SummaryRow label="Gates" value={readiness.data.summary.totalGates} />
+                <SummaryRow label="Passed" value={readiness.data.summary.passed} tone="good" />
+                <SummaryRow label="Partial" value={readiness.data.summary.partial} />
+                <SummaryRow label="Blocked" value={readiness.data.summary.blocked} tone="warn" />
+                <SummaryRow label="Deferred" value={readiness.data.summary.deferred} />
+              </div>
+              <p className="panel-note">{readiness.data.claimDiscipline.reason}</p>
+            </> : <PanelStateLine state={readiness.loadState} error={readiness.loadError} emptyMessage="No production readiness reported by the Product API." />}
+            {readiness.loadState === "error" && <ErrorBanner error={readiness.loadError} />}
+          </div>
+        </section>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <DashboardCard title="Readiness gates" meta="G01-G13 gate status" state={readiness.data ? "ready" : readiness.loadState} emptyMessage="No readiness gates reported">
+          {readiness.data && <div className="catalog-list">{readiness.data.gates.map(gate => <ProductionReadinessGateRow gate={gate} key={gate.id} />)}</div>}
+        </DashboardCard>
+        <ProductionReadinessTimeline
+          title="Blockers"
+          meta="Production-blocking findings"
+          items={(readiness.data?.blockers ?? []).map((finding, index) => ({
+            id: `${finding.gateId}-${finding.code}-${index}`,
+            title: `${finding.gateId} · ${finding.code}`,
+            meta: `${finding.severity} · ${finding.responsibleDomain}`,
+            detail: finding.message,
+            tone: finding.severity === "critical" || finding.severity === "high" ? "warn" : undefined,
+          }))}
+          state={readiness.loadState}
+          error={readiness.loadError}
+          emptyMessage="No blockers reported."
+        />
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <ProductionReadinessTimeline
+          title="Warnings"
+          meta="Non-blocking readiness findings"
+          items={(readiness.data?.warnings ?? []).map((finding, index) => ({
+            id: `${finding.gateId}-${finding.code}-${index}`,
+            title: `${finding.gateId} · ${finding.code}`,
+            meta: `${finding.severity} · ${finding.responsibleDomain}`,
+            detail: finding.message,
+            tone: finding.severity === "critical" || finding.severity === "high" ? "warn" : undefined,
+          }))}
+          state={readiness.loadState}
+          error={readiness.loadError}
+          emptyMessage="No warnings reported."
+        />
+        <ProductionReadinessTimeline
+          title="Caveats"
+          meta="Honest limits of the current gate"
+          items={(readiness.data?.caveats ?? []).map((finding, index) => ({
+            id: `${finding.gateId}-${finding.code}-${index}`,
+            title: `${finding.gateId} · ${finding.code}`,
+            meta: `${finding.severity} · ${finding.responsibleDomain}`,
+            detail: finding.message,
+            tone: "warn",
+          }))}
+          state={readiness.loadState}
+          error={readiness.loadError}
+          emptyMessage="No caveats reported."
+        />
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <ProductionReadinessTimeline
+          title="Deferred items"
+          meta="Future milestone or EPIC scope"
+          items={(readiness.data?.deferredItems ?? []).map((finding, index) => ({
+            id: `${finding.gateId}-${finding.code}-${index}`,
+            title: `${finding.gateId} · ${finding.code}`,
+            meta: `${finding.severity} · ${finding.dependsOnFutureMilestone ?? "future scope"}`,
+            detail: finding.message,
+            tone: "muted",
+          }))}
+          state={readiness.loadState}
+          error={readiness.loadError}
+          emptyMessage="No deferred items reported."
+        />
+        <SummaryCard title="Next milestone dependencies" meta="Required follow-up milestones" state={readiness.data?.nextMilestoneDependencies.length ? "ready" : readiness.loadState} emptyMessage="No next milestone dependencies reported.">
+          {readiness.data && <TimelineList items={readiness.data.nextMilestoneDependencies.map((dependency, index) => ({ id: `dependency-${index}`, title: dependency }))} />}
+        </SummaryCard>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <DashboardCard title="Environment inventory" meta="Recognized environments and claim limits" state={readiness.data ? "ready" : readiness.loadState} emptyMessage="No environment inventory reported">
+          {readiness.data && <TimelineList items={readiness.data.environment.recognized.map(environment => ({
+            id: environment.id,
+            title: environment.id,
+            meta: environment.purpose,
+            detail: environment.claimLimitations,
+            tone: environment.id === readiness.data?.environment.current ? "warn" : "muted",
+          }))} />}
+        </DashboardCard>
+        <DashboardCard title="Persistence inventory" meta="Durability and production-claim readiness" state={readiness.data ? "ready" : readiness.loadState} emptyMessage="No persistence inventory reported">
+          {readiness.data && <TimelineList items={readiness.data.persistenceInventory.map(item => ({
+            id: item.domain,
+            title: item.domain,
+            meta: `${item.classification} · survives restart: ${String(item.survivesRestart)}`,
+            detail: item.note,
+            tone: item.usableForProductionClaim ? "good" : "muted",
+          }))} />}
+        </DashboardCard>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Secrets boundary</h2><p>Redacted, referenced, or unavailable</p></div><Badge tone="muted">no raw secrets</Badge></div>
+          <div className="panel-body">
+            {readiness.data ? <>
+              <div className="summary-list">
+                <SummaryRow label="Storage" value={readiness.data.secretsBoundary.storage} tone="warn" />
+                <SummaryRow label="Reference mode" value={readiness.data.secretsBoundary.referenceMode} />
+                <SummaryRow label="UI disclosure" value={readiness.data.secretsBoundary.uiDisclosure} />
+                <SummaryRow label="API disclosure" value={readiness.data.secretsBoundary.apiDisclosure} />
+                <SummaryRow label="No-secret-leak validation" value={readiness.data.secretsBoundary.noSecretLeakValidation} />
+                <SummaryRow label="Raw secrets exposed" value={String(readiness.data.secretsBoundary.rawSecretsExposed)} tone="good" />
+              </div>
+              <IdList label="Redaction expectations" ids={readiness.data.secretsBoundary.redactionExpectations} />
+              <IdList label="Unsupported operations" ids={readiness.data.secretsBoundary.unsupportedOperations} />
+              <TimelineList items={readiness.data.secretsBoundary.productionBlockers.map((message, index) => ({ id: `secret-blocker-${index}`, title: "Production blocker", detail: message, tone: "warn" }))} />
+            </> : <PanelStateLine state={readiness.loadState} error={readiness.loadError} emptyMessage="No secrets boundary reported." />}
+            {readiness.loadState === "error" && <ErrorBanner error={readiness.loadError} />}
+          </div>
+        </section>
+        <SummaryCard title="Source evidence" meta="Files used for the readiness projection" state={readiness.data?.sourceEvidence.length ? "ready" : readiness.loadState} emptyMessage="No source evidence reported.">
+          {readiness.data && <IdList label="Evidence" ids={readiness.data.sourceEvidence} />}
+        </SummaryCard>
       </div>
     </div>
     <div className="flow-group">

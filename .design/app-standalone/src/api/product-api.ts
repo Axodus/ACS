@@ -344,6 +344,142 @@ export type SystemTenantsView = {
   notes: readonly string[];
 };
 
+export type RecognizedEnvironment =
+  | "local"
+  | "development"
+  | "sandbox"
+  | "test"
+  | "staging"
+  | "production"
+  | "unknown";
+
+export type EnvironmentReadiness = {
+  id: RecognizedEnvironment;
+  purpose: string;
+  supportedOperations: readonly string[];
+  prohibitedOperations: readonly string[];
+  persistenceExpectation: string;
+  secretsExpectation: string;
+  externalTargetAccess: string;
+  safetyConstraints: readonly string[];
+  readinessImplications: string;
+  claimLimitations: string;
+};
+
+export type PersistenceClassification =
+  | "durable"
+  | "ephemeral"
+  | "computed"
+  | "seeded"
+  | "mocked"
+  | "read_only_projection"
+  | "external_observed"
+  | "unknown";
+
+export type PersistenceReadinessItem = {
+  domain: string;
+  classification: PersistenceClassification;
+  survivesRestart: boolean;
+  projectionOnly: boolean;
+  dependsOnExternalRuntime: boolean;
+  usableForProductionClaim: boolean;
+  needsFuturePersistence: boolean;
+  note: string;
+};
+
+export type SecretBoundaryStorage = "memory" | "filesystem" | "not_configured" | "unavailable";
+
+export type SecretsBoundarySummary = {
+  storage: SecretBoundaryStorage;
+  referenceMode: "redacted_reference" | "unavailable" | "not_configured";
+  environmentInjection: string;
+  uiDisclosure: "redacted_only" | "blocked";
+  apiDisclosure: "redacted_only" | "blocked";
+  logsDisclosure: "redacted_only" | "blocked";
+  evidenceDisclosure: "redacted_only" | "blocked";
+  auditDisclosure: "redacted_only" | "blocked";
+  redactionExpectations: readonly string[];
+  noSecretLeakValidation: "required" | "blocked" | "not_run";
+  unsupportedOperations: readonly string[];
+  productionBlockers: readonly string[];
+  rawSecretsExposed: false;
+};
+
+export type ProductionReadinessGateStatus =
+  | "pass"
+  | "partial"
+  | "blocked"
+  | "not_started"
+  | "deferred"
+  | "not_applicable";
+
+export type ProductionReadinessSeverity =
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "informational";
+
+export type ProductionReadinessFinding = {
+  code: string;
+  gateId: string;
+  severity: ProductionReadinessSeverity;
+  message: string;
+  responsibleDomain: string;
+  dependsOnFutureMilestone?: string;
+  evidence?: string;
+};
+
+export type ProductionReadinessGate = {
+  id: string;
+  label: string;
+  status: ProductionReadinessGateStatus;
+  severity: ProductionReadinessSeverity;
+  evidence: readonly string[];
+  blockers: readonly ProductionReadinessFinding[];
+  warnings: readonly ProductionReadinessFinding[];
+  caveats: readonly ProductionReadinessFinding[];
+  deferredItems: readonly ProductionReadinessFinding[];
+  responsibleDomain: string;
+  dependencyOnFutureMilestones: readonly string[];
+  canPassInEpic12: boolean;
+};
+
+export type ProductionReadinessReport = {
+  checkedAt: string;
+  environment: {
+    current: RecognizedEnvironment;
+    recognized: readonly EnvironmentReadiness[];
+  };
+  productionReady: false;
+  claim: "not_claimed";
+  status: "blocked" | "partial" | "not_started" | "deferred";
+  summary: {
+    totalGates: number;
+    passed: number;
+    partial: number;
+    blocked: number;
+    deferred: number;
+    notStarted: number;
+  };
+  gates: readonly ProductionReadinessGate[];
+  blockers: readonly ProductionReadinessFinding[];
+  warnings: readonly ProductionReadinessFinding[];
+  caveats: readonly ProductionReadinessFinding[];
+  deferredItems: readonly ProductionReadinessFinding[];
+  persistenceInventory: readonly PersistenceReadinessItem[];
+  secretsBoundary: SecretsBoundarySummary;
+  claimDiscipline: {
+    productionReadyClaimAllowed: false;
+    billingReadyClaimAllowed: false;
+    administrationReadyClaimAllowed: false;
+    tenantGovernanceReadyClaimAllowed: false;
+    reason: string;
+  };
+  nextMilestoneDependencies: readonly string[];
+  sourceEvidence: readonly string[];
+};
+
 export type Epic11AcceptanceCheck = {
   id: string;
   label: string;
@@ -1508,5 +1644,9 @@ export const productApi = {
 
   async getEpic11AcceptanceReport() {
     return request<Epic11AcceptanceReport>("/system/acceptance");
+  },
+
+  async getProductionReadinessReport() {
+    return request<ProductionReadinessReport>("/system/production-readiness");
   },
 };
