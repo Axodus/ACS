@@ -1,37 +1,66 @@
 # EPIC-12 Boundary Review
 
-## EPIC-12 belongs here
+## Belongs To EPIC-12
 
-- production readiness foundation
-- authentication and authorization boundaries
-- tenant and administration boundaries, if explicitly chosen
-- production secrets handling
-- browser and visual acceptance hardening
-- accessibility and responsive QA
-- operational observability expansion
-- incident-oriented visibility
-- economics boundary closure
+Items in this section are directly aligned to production readiness and
+operational hardening. They may become milestones or milestone workstreams after
+Planner refinement.
+
+- authentication boundary;
+- authorization / RBAC baseline;
+- production secrets handling;
+- persistence readiness;
+- environment separation;
+- browser acceptance harness;
+- visual acceptance discipline;
+- accessibility and responsive validation;
+- operational reliability for long-running operations;
+- worker/runtime maturity where it affects control-plane trust;
+- observability and evidence expansion;
+- evidence correlation across actor, request, entity, time, and operation;
+- economics boundary decision;
+- governance and administration boundary definition.
 
 ## Candidate for EPIC-13 or later
 
-- full production billing product
-- enterprise tenant administration suite
-- advanced worker fleet management
-- autoscaling and runtime orchestration automation
-- deep incident response workflow tooling
-- broad compliance program tooling
-- productized forecasting and financial planning
+These items must not enter EPIC-12 automatically. They require explicit scope
+approval and should usually be deferred unless the Planner narrows EPIC-12
+around one of them.
+
+- complete billing product;
+- invoices;
+- payment rails;
+- enterprise tenant administration suite;
+- full tenant governance console;
+- advanced worker fleet management;
+- autoscaling;
+- runtime orchestration automation beyond readiness needs;
+- full incident management platform;
+- compliance program tooling;
+- productized financial forecasting;
+- finance planning workflows.
 
 ## Continuous hardening
 
-- honest unsupported states
-- loading / empty / error / pending / recovery states
-- correlation IDs
-- regression validation
-- explicit data absence handling
-- secure disclosure boundaries
+These items should be observed throughout EPIC-12. They do not automatically
+become standalone milestones.
 
-## Open decisions
+- honest unsupported states;
+- loading / empty / error / pending / recovery states;
+- no secret leakage;
+- correlation IDs;
+- regression validation;
+- explicit data absence handling;
+- partial-data and unavailable-data language;
+- production claim discipline;
+- safe disclosure boundaries;
+- distinction between control-plane state, runtime state, and external execution
+  targets.
+
+## Requires Prior Technical Decision
+
+These items must not advance into implementation sequencing without an explicit
+Planner decision and documented rationale.
 
 ### Economics boundary
 
@@ -42,7 +71,7 @@ Decide whether Economics remains:
 
 The planner MUST justify the choice before any implementation sequence is locked.
 
-### Administration boundary
+### Administration / Tenant boundary
 
 Decide whether EPIC-12 is:
 
@@ -52,7 +81,7 @@ Decide whether EPIC-12 is:
 
 Do not assume administration scope without explicit approval and evidence.
 
-### Browser verification scope
+### Browser acceptance scope
 
 Decide whether the epic requires:
 
@@ -62,6 +91,44 @@ Decide whether the epic requires:
 - responsive cross-viewport acceptance
 
 The answer affects the milestone gates and the definition of readiness.
+
+### Auth / RBAC model
+
+Decide the minimum baseline for:
+
+- authenticated actor identity;
+- role or permission model;
+- read vs mutate authority;
+- denied-state behavior;
+- audit and evidence correlation.
+
+### Secrets boundary
+
+Decide the production boundary for:
+
+- secret storage;
+- environment injection;
+- redaction;
+- UI disclosure;
+- logs and evidence safety.
+
+### Persistence readiness
+
+Decide which state must be durable before EPIC-12 can close any readiness
+blocker. This includes what may remain mock, seed, sandbox, read-only, or
+ephemeral.
+
+### Observability depth
+
+Decide the required depth for:
+
+- logs;
+- diagnostics;
+- traces;
+- alerts;
+- health;
+- retention assumptions;
+- correlation across evidence surfaces.
 
 ## EPIC-11 dependency
 
@@ -77,3 +144,15 @@ EPIC-12 assumes the EPIC-11 surface and closure report remain valid for:
 If a candidate EPIC-12 item is actually an unfinished EPIC-11 gap, it MUST be
 identified explicitly instead of being relabeled as new work.
 
+## Do Not Reopen
+
+EPIC-12 planning must not:
+
+- reopen EPIC-11;
+- reimplement EPIC-10;
+- transform EPIC-12 into a generic UI backlog;
+- declare Production Ready without evidence;
+- transform Economics into billing without an explicit decision;
+- transform Administration into a tenant console without an explicit decision;
+- treat browser acceptance as passed without browser evidence;
+- collapse runtime/workers/external execution targets into control-plane state.

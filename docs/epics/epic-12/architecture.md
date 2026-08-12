@@ -20,7 +20,7 @@ Runtime / Workers / External Execution Targets
 ## 2. Organizing rule
 
 ```text
-Fluxo > Modulo > Tela
+Fluxo > Módulo > Tela
 ```
 
 The epic should be decomposed by readiness and governance flows, not by
@@ -92,4 +92,3 @@ Economics Closure
   chooses to claim readiness beyond internal inspection.
 - Do not collapse tenant, admin, and operator roles into one undifferentiated
   authority model.
-

@@ -32,7 +32,7 @@ not from the implementation convenience of a single module or screen.
 The flow boundary remains:
 
 ```text
-Fluxo > Modulo > Tela
+Fluxo > Módulo > Tela
 ```
 
 ## 3. Execution principles
@@ -151,4 +151,3 @@ The next agent should turn this plan into:
 - story map
 - milestone index
 - explicit deferred-scope register
-
