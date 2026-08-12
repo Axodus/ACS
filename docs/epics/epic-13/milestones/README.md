@@ -4,6 +4,9 @@ Status: PLANNING
 
 These milestones are planning artifacts only. They are not executable specs yet.
 
+The Executive Plan (`../EPIC-13_Executive_Plan.md`) is the decision source of
+truth before any milestone becomes executable.
+
 ## Index
 
 | Milestone | Sprint | Status | File |

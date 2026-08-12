@@ -3,7 +3,8 @@
 ## Current status
 
 - S00 — Normative Planning Package: PASS
-- S01 — Executive Planning Baseline: in progress / pending until commit
+- S01 — Executive Planning Baseline: PASS
+- S02 — Executive Plan: in progress / pending until commit
 - Functional implementation: none
 - Billing Ready: NO / not yet claimed
 - Payment Ready: NO / not yet claimed
@@ -29,10 +30,14 @@ EPIC-13 turns the EPIC-12 economics boundary into a governed planning boundary
 for Billing & Financial Operations. The work remains docs-only until explicit
 executive approval moves it into implementation.
 
+Executive Plan created: yes. The boundary is now fixed enough to execute S03
+without reopening EPIC-12 or claiming financial readiness.
+
 ## Known decisions
 
 - EPIC-13 centers on Billing & Financial Operations.
-- S01 remains planning-only.
+- S01 remains planning-only and is complete.
+- S02 defines the executive boundary and roadmap.
 - No billing/payment/invoice/tenant billing readiness claim is allowed.
 - No real money movement is allowed.
 - Product API remains source of truth.
@@ -54,9 +59,11 @@ executive approval moves it into implementation.
 
 ## Recommended next sprint
 
-EPIC-13 / S02 — Executive Plan
+EPIC-13 / S03 — Billing Boundary & Financial Truth
 
-S02 should decide:
+S03 should implement the first read-only billing boundary projection.
+
+S02 decided:
 
 - central mission
 - billing boundary depth
@@ -141,8 +148,8 @@ S02 should decide:
 
 ## Coder instructions for S02
 
-- Keep S02 docs-only.
+- Keep S03 docs-only.
 - Do not edit EPIC-12.
-- Decide the executive boundary before any implementation planning.
+- Use the Executive Plan as the decision record for S03 and beyond.
 - Maintain Product API as the source of truth.
 - Preserve all claim discipline language.

@@ -2,8 +2,10 @@
 
 ## Mission
 
-Establish the initial normative planning package for ACS Billing & Financial
-Operations.
+Establish the governed Billing & Financial Operations boundary for ACS,
+transforming EPIC-12 economic evidence into explicit planning and execution
+tracks for financial truth, billing, invoicing, payment rails, tenant
+accountability, receipts, settlement, reconciliation, audit, and compliance.
 
 ## Planning package status
 
@@ -85,8 +87,8 @@ Production Financial Operations: NO / not yet claimed
 
 ## Next step
 
-Produce the first executive planning pass for EPIC-13 and then refine the
-milestone boundary.
+Execute `./EPIC-13_Executive_Plan.md` as the canonical decision record, then
+start S03 — Billing Boundary & Financial Truth.
 
 ## Artifact inventory
 
@@ -105,8 +107,8 @@ milestone boundary.
 
 ```text
 S00 — Normative Planning Package: PASS
-S01 — Executive Planning Baseline: PASS after commit / PENDING before commit
-S02 — Executive Plan: PENDING
+S01 — Executive Planning Baseline: PASS
+S02 — Executive Plan: PASS after commit / PENDING before commit
 S03 — Billing Boundary & Financial Truth: PENDING
 S04 — Pricing, Quote & Invoice Contracts: PENDING
 S05 — Payment Rails Boundary: PENDING
@@ -142,4 +144,4 @@ S11 — EPIC-13 Closure Report: PENDING
 
 ## Next sprint pointer
 
-EPIC-13 / S02 — Executive Plan
+EPIC-13 / S03 — Billing Boundary & Financial Truth
