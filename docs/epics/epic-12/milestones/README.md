@@ -3,6 +3,10 @@
 This directory contains the planning-oriented breakdown of EPIC-12 by
 readiness and hardening flow.
 
+The governing executive definition is the [EPIC-12 Executive Plan](../EPIC-12_Executive_Plan.md).
+It resolves the S01 decisions, sets the default dependency order, and defines
+the first executable milestone and request package.
+
 These files are **planning docs**, not final sprint specifications. They give
 the Planner candidate milestones, dependencies, risks, validation expectations,
 and open decisions for the next executive planning pass.

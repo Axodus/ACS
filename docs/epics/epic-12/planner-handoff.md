@@ -1,7 +1,13 @@
 # EPIC-12 Planner Handoff
 
-This handoff is for the Planner that will produce the EPIC-12 Executive Plan.
-It converts the S00 baseline into decisions, outputs, and acceptance constraints.
+This handoff is for the Planner that produces and maintains the
+[EPIC-12 Executive Plan](./EPIC-12_Executive_Plan.md). It converts the S00
+baseline into decisions, outputs, and acceptance constraints.
+
+S01 completion artifact: [EPIC-12_Executive_Plan.md](./EPIC-12_Executive_Plan.md).
+The executive plan is now the governing source for milestone order and the
+first executable request package; this handoff remains the decision checklist
+for future refinements.
 
 ## Strategic Decision
 
@@ -58,18 +64,18 @@ EPIC-12 must apply AEES as milestone-first execution planning:
 - do not treat an isolated request as milestone `PASS`;
 - keep approval, readiness, activation, and evidence as separate labels.
 
-## Probable First Milestone
+## First Executable Milestone
 
-The likely first executable milestone is:
+The accepted first executable milestone is:
 
 ```text
 M01 - Production Readiness Foundation
 ```
 
-This is not frozen. The Planner may reorder if the dependency graph shows that
-Browser Acceptance, Auth/RBAC, Persistence, or Secrets decisions must be
-resolved first. Any change must preserve `Readiness > Control > Visibility >
-Hardening`.
+The executive plan records the default dependency order. A later Planner may
+reorder milestones only if the dependency graph justifies it, the executive
+plan is updated, and the rationale preserves `Readiness > Control > Visibility
+> Hardening`.
 
 ## Inputs To Read Before Planning
 

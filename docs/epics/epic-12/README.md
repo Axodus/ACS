@@ -47,14 +47,15 @@ instead of reopening EPIC-11.
 1. [AGENTS.md](./AGENTS.md)
 2. [README.md](./README.md)
 3. [EPIC-12 Strategic Operational Plan](./EPIC-12_Strategic_Operational_Plan.md)
-4. [Architecture](./architecture.md)
-5. [Contracts](./contracts.md)
-6. [Boundary Review](./boundary-review.md)
-7. [Stories](./stories.md)
-8. [Candidate Inventory](./candidate-inventory.md)
-9. [Planner Handoff](./planner-handoff.md)
-10. [Milestones Index](./milestones/README.md)
-11. [Milestone Files](./milestones/)
+4. [EPIC-12 Executive Plan](./EPIC-12_Executive_Plan.md)
+5. [Architecture](./architecture.md)
+6. [Contracts](./contracts.md)
+7. [Boundary Review](./boundary-review.md)
+8. [Stories](./stories.md)
+9. [Candidate Inventory](./candidate-inventory.md)
+10. [Planner Handoff](./planner-handoff.md)
+11. [Milestones Index](./milestones/README.md)
+12. [Milestone Files](./milestones/)
 
 ## What Is Already Decided
 
@@ -130,8 +131,9 @@ S00 is complete when a new Planner can answer:
 
 ## Next Expected Step
 
-The next step after S00 is the **EPIC-12 Executive Plan**. The Planner should use
-[planner-handoff.md](./planner-handoff.md) and
-[candidate-inventory.md](./candidate-inventory.md) to produce final mission,
-macro-phases, milestone order, dependency graph, validation strategy, deferred
-scope register, first executable milestone, and first sprint/request package.
+The S01 output is the [EPIC-12 Executive Plan](./EPIC-12_Executive_Plan.md).
+The Planner should use [planner-handoff.md](./planner-handoff.md) and
+[candidate-inventory.md](./candidate-inventory.md) to produce and maintain the
+final mission, macro-phases, milestone order, dependency graph, validation
+strategy, deferred scope register, first executable milestone, and first
+sprint/request package.
