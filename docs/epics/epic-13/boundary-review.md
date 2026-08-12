@@ -1,6 +1,6 @@
 # EPIC-13 Boundary Review
 
-## Belongs to EPIC-13 candidate scope
+## Resolved planning boundaries
 
 - billing boundary
 - financial truth
@@ -15,6 +15,8 @@
 - billing UX and operator surface
 - billing readiness gates
 
+## Open executive decisions
+
 ## Requires explicit decision
 
 | Decision | Options | Pending? |
@@ -25,6 +27,20 @@
 | Multi-currency handling | Yes / No | Yes |
 | Subscription / plan management | Yes / No | Yes |
 | Enterprise tenant billing suite | Yes / No | Yes |
+
+## Must not implement before decision
+
+- real payment processor integration
+- legal/tax invoice compliance
+- refunds
+- chargebacks
+- multi-currency
+- subscription/plan management
+- pricing configuration
+- tenant billing readiness
+- external accounting integrations
+- real payment capture
+- production financial operation claim
 
 ## Candidate for EPIC-14+
 
@@ -37,10 +53,11 @@
 - financial forecasting
 - enterprise billing suite
 
-## Explicit non-goals until approved
+## Claim discipline risks
 
 - no real money movement
 - no payment capture
+- no simulated billing success
 - no legal/tax invoice claim
 - no tenant billing ready claim
 - no billing ready claim

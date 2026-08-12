@@ -1,21 +1,24 @@
 # EPIC-13 Milestones
 
-Status: PLANNED
+Status: PLANNING
 
 These milestones are planning artifacts only. They are not executable specs yet.
 
 ## Index
 
-| Milestone | Status | Intended Focus |
-|---|---|---|
-| M01 — Billing Boundary & Financial Truth | PLANNED | Define financial truth contracts and billable event boundary. |
-| M02 — Pricing, Quote & Invoice Contracts | PLANNED | Formalize pricing models and invoice artifact boundary. |
-| M03 — Payment Rails Boundary | PLANNED | Map payment-provider boundaries and state lifecycles. |
-| M04 — Tenant Billing & Account Responsibility | PLANNED | Clarify tenant-level accountability. |
-| M05 — Receipts, Settlement & Reconciliation | PLANNED | Define evidence contracts. |
-| M06 — Financial Audit, Compliance & Risk | PLANNED | Establish audit-trail and compliance gates. |
-| M07 — Billing UX & Operator Acceptance | PLANNED | Sketch IA and acceptance baseline. |
-| M08 — Final Hardening & Closure | PLANNED | Consolidate readiness gates and closure report. |
+| Milestone | Sprint | Status | File |
+|---|---:|---|---|
+| M01 — Billing Boundary & Financial Truth | S03 | PLANNING | ./M01-billing-boundary-financial-truth.md |
+| M02 — Pricing, Quote & Invoice Contracts | S04 | PLANNING | ./M02-pricing-quote-invoice-contracts.md |
+| M03 — Payment Rails Boundary | S05 | PLANNING | ./M03-payment-rails-boundary.md |
+| M04 — Tenant Billing & Account Responsibility | S06 | PLANNING | ./M04-tenant-billing-account-responsibility.md |
+| M05 — Receipts, Settlement & Reconciliation | S07 | PLANNING | ./M05-receipts-settlement-reconciliation.md |
+| M06 — Financial Audit, Compliance & Risk | S08 | PLANNING | ./M06-financial-audit-compliance-risk.md |
+| M07 — Billing UX & Operator Acceptance | S09 | PLANNING | ./M07-billing-ux-operator-acceptance.md |
+| M08 — Final Hardening & Closure | S10 | PLANNING | ./M08-final-hardening-closure.md |
+
+S00 and S01 are planning foundation sprints. S02 is the Executive Plan.
+S03-S10 are milestone implementation candidates. S11 is the closure report.
 
 ## Read order
 
