@@ -56,6 +56,7 @@ instead of reopening EPIC-11.
 10. [Planner Handoff](./planner-handoff.md)
 11. [Milestones Index](./milestones/README.md)
 12. [Milestone Files](./milestones/)
+13. [EPIC-12 Closure Report](./epic-12-closure-report.md)
 
 ## What Is Already Decided
 
