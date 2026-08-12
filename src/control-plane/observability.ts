@@ -455,9 +455,7 @@ export function createObservabilityReport(
       deferredImprovements: [],
     },
     {
-      name: "diagnostics"
-      caveats: ["Diagnostics are derived from audit events with findings; support is contingent on audit service availability."],
-      deferredImprovements: ["enhanced diagnostic categorization"],
+      name: "diagnostics",
       type: "diagnostic",
       domain: "diagnostics",
       authorityLevel: "derived",
