@@ -8,20 +8,37 @@ export interface AcsHttpEnvelopeMeta {
   readonly rateLimit?: AcsRateLimitContext;
 }
 
+export type AcsHttpErrorSeverity = "info" | "warning" | "error";
+
+export interface AcsHttpErrorBody {
+  readonly code: string;
+  readonly message: string;
+  readonly reason?: string;
+  readonly details?: unknown;
+  readonly entityRefs?: readonly string[];
+  readonly retryable?: boolean;
+  readonly severity?: AcsHttpErrorSeverity;
+  readonly guardrails?: readonly string[];
+}
+
 export interface AcsHttpEnvelope<T> {
   readonly success: boolean;
   readonly version: string;
   readonly correlationId: string;
   readonly timestamp: string;
   readonly data?: T;
-  readonly error?: {
-    readonly code: string;
-    readonly message: string;
-    readonly details?: unknown;
-  };
+  readonly error?: AcsHttpErrorBody;
   readonly meta?: AcsHttpEnvelopeMeta;
   readonly warnings?: readonly string[];
   readonly blockedReason?: string;
+}
+
+export interface AcsHttpFailureOptions {
+  readonly reason?: string;
+  readonly entityRefs?: readonly string[];
+  readonly retryable?: boolean;
+  readonly severity?: AcsHttpErrorSeverity;
+  readonly guardrails?: readonly string[];
 }
 
 export function ok<T>(
@@ -48,7 +65,12 @@ export function fail(
   correlationId = createCorrelationId(),
   details?: unknown,
   meta?: AcsHttpEnvelopeMeta,
+  reason?: string,
+  options: AcsHttpFailureOptions = {},
 ): { readonly status: number; readonly body: AcsHttpEnvelope<null> } {
+  const resolvedReason = reason ?? (code === "not_found" ? "not_found" : undefined);
+  const resolvedRetryable = options.retryable ?? (code === "not_found" ? false : undefined);
+  const resolvedSeverity = options.severity ?? (code === "not_found" ? "error" : undefined);
   return {
     status,
     body: {
@@ -60,6 +82,11 @@ export function fail(
         code,
         message,
         ...(details !== undefined ? { details } : {}),
+        ...(resolvedReason !== undefined ? { reason: resolvedReason } : {}),
+        ...(options.entityRefs !== undefined ? { entityRefs: options.entityRefs } : {}),
+        ...(resolvedRetryable !== undefined ? { retryable: resolvedRetryable } : {}),
+        ...(resolvedSeverity !== undefined ? { severity: resolvedSeverity } : {}),
+        ...(options.guardrails !== undefined ? { guardrails: options.guardrails } : {}),
       },
       ...(meta ? { meta } : {}),
       blockedReason: message,

@@ -280,6 +280,102 @@ export type ProductApiOperationalGuardrails = {
   mutableOperations: false;
 };
 
+export type ProductApiErrorSeverity = "info" | "warning" | "error" | "critical";
+
+export type ProductApiError = {
+  code: string;
+  message: string;
+  reason?: string;
+  details?: unknown;
+  entityRefs?: readonly string[];
+  retryable?: boolean;
+  severity?: ProductApiErrorSeverity;
+  guardrails?: readonly string[];
+  correlationId?: string;
+  status: number;
+};
+
+export type SystemGuardrailsView = {
+  inspectionMode: true;
+  sandboxOnly: true;
+  readOnly: true;
+  mutableOperations: false;
+  productionReady: false;
+  sourceOfTruth: "product-api";
+  futureScope: readonly string[];
+  administration: { status: "unavailable"; scope: "future"; reason: string };
+  tenants: { status: "future_scope"; reason: string };
+};
+
+export type SystemConfigurationView = {
+  mode: "inspection";
+  automation: "disabled";
+  readOnly: true;
+  persistenceBackend: "memory";
+  secretBackend: "memory";
+  settlementBackend: "memory";
+  refreshWindowMs: number;
+  notices: readonly string[];
+};
+
+export type SystemPolicyVisibility = {
+  id: string;
+  label: string;
+  availability: "read_only" | "governed_by_product_api" | "unavailable";
+  note: string;
+};
+
+export type SystemAdministrationView = {
+  status: "unavailable";
+  scope: "future";
+  reason: string;
+  notes: readonly string[];
+};
+
+export type SystemTenantsView = {
+  status: "future_scope";
+  reason: string;
+  isolationVisibility: readonly {
+    workerId: string;
+    declaredIsolationModes: readonly string[];
+    tenantIsolation: boolean;
+    workloadIsolation: boolean;
+  }[];
+  notes: readonly string[];
+};
+
+export type Epic11AcceptanceCheck = {
+  id: string;
+  label: string;
+  status: "pass" | "caveat" | "not_run";
+  evidence: string;
+};
+
+export type Epic11MilestoneStatus = {
+  id: string;
+  label: string;
+  status: "PASS" | "PASS_WITH_CAVEAT";
+  evidence: string;
+};
+
+export type Epic11AcceptanceReport = {
+  epic: "epic-11";
+  milestone: "F";
+  title: string;
+  milestoneStatuses: readonly Epic11MilestoneStatus[];
+  supportedSurfaces: readonly string[];
+  knownCaveats: readonly string[];
+  productionReadiness: {
+    ready: false;
+    status: "not_claimed";
+    note: string;
+  };
+  deferredItems: readonly string[];
+  validationSummary: readonly Epic11AcceptanceCheck[];
+  guardrails: ProductApiOperationalGuardrails & { productionReady: false; sourceOfTruth: "product-api" };
+  checkedAt: string;
+};
+
 export type EntityReference = {
   entityType: string;
   entityId: string;
@@ -1042,6 +1138,26 @@ export const productApiConfig = {
   environment: import.meta.env.VITE_ACS_ENVIRONMENT ?? "local",
 };
 
+export function normalizeApiError(payload: unknown, status: number): ProductApiError {
+  const error =
+    payload && typeof payload === "object"
+      ? (payload as { error?: { code?: unknown; message?: unknown; reason?: unknown; details?: unknown; entityRefs?: unknown; retryable?: unknown; severity?: unknown; guardrails?: unknown; correlationId?: unknown } })
+      : null;
+  const raw = error?.error;
+  return {
+    code: typeof raw?.code === "string" && raw.code ? raw.code : status === 404 ? "not_found" : "api_error",
+    message: typeof raw?.message === "string" && raw.message ? raw.message : "An unexpected API error occurred",
+    reason: typeof raw?.reason === "string" ? raw.reason : undefined,
+    details: raw?.details,
+    entityRefs: Array.isArray(raw?.entityRefs) ? raw.entityRefs.filter((ref): ref is string => typeof ref === "string") : undefined,
+    retryable: typeof raw?.retryable === "boolean" ? raw.retryable : undefined,
+    severity: typeof raw?.severity === "string" ? (raw.severity as ProductApiErrorSeverity) : undefined,
+    guardrails: Array.isArray(raw?.guardrails) ? raw.guardrails.filter((ref): ref is string => typeof ref === "string") : undefined,
+    correlationId: typeof raw?.correlationId === "string" ? raw.correlationId : undefined,
+    status,
+  };
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -1051,17 +1167,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
 
-  const json = await response.json();
+  const json = (await response.json().catch(() => null)) as { data?: T; error?: unknown } | null;
 
   if (!response.ok) {
-    throw {
-      status: response.status,
-      error: json.error,
-      message: json.error?.message ?? "An unexpected API error occurred",
-    };
+    throw normalizeApiError(json, response.status);
   }
 
-  return json.data;
+  return json?.data as T;
 }
 
 export const productApi = {
@@ -1372,5 +1484,29 @@ export const productApi = {
 
   async queryAudit() {
     return request<unknown[]>("/audit");
+  },
+
+  async getSystemGuardrails() {
+    return request<SystemGuardrailsView>("/system/guardrails");
+  },
+
+  async getSystemConfiguration() {
+    return request<SystemConfigurationView>("/system/configuration");
+  },
+
+  async listSystemPolicies() {
+    return request<SystemPolicyVisibility[]>("/system/policies");
+  },
+
+  async getSystemAdministration() {
+    return request<SystemAdministrationView>("/system/administration");
+  },
+
+  async getSystemTenants() {
+    return request<SystemTenantsView>("/system/tenants");
+  },
+
+  async getEpic11AcceptanceReport() {
+    return request<Epic11AcceptanceReport>("/system/acceptance");
   },
 };

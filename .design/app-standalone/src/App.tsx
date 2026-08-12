@@ -56,6 +56,20 @@ import {
   type EventRecord,
   type AuditEntry,
   type EconomicSummary,
+  type EvidenceRecord,
+  type DiagnosticReport,
+  type Quote,
+  type Reservation,
+  type MeteringRecord,
+  type Settlement,
+  type Receipt,
+  type EntityReference,
+  type SystemGuardrailsView,
+  type SystemConfigurationView,
+  type SystemPolicyVisibility,
+  type SystemAdministrationView,
+  type SystemTenantsView,
+  type Epic11AcceptanceReport,
 } from "./api/product-api";
 import "./operational.css";
 
@@ -76,6 +90,7 @@ type View =
   | "Operational Evidence"
   | "Audit"
   | "Economics"
+  | "Governance & System"
   | "Settings";
 
 type ConnectivityState =
@@ -84,13 +99,13 @@ type ConnectivityState =
   | { status: "error"; health: null; error: string };
 
 const navGroups: View[][] = [
-  ["Dashboard", "Operational Execution", "Readiness", "Composition"],
-  ["Agents", "Roles", "Profiles", "Capabilities"],
-  ["Skills", "Tools & Plugins"],
-  ["Memory"],
-  ["Runtime", "Logs"],
-  ["Operational Evidence", "Audit", "Economics"],
-  ["Settings"],
+  ["Dashboard", "Readiness"],
+  ["Agents"],
+  ["Composition", "Roles", "Profiles", "Capabilities", "Skills", "Tools & Plugins"],
+  ["Operational Execution", "Runtime"],
+  ["Operational Evidence", "Audit", "Logs"],
+  ["Economics"],
+  ["Governance & System", "Settings"],
 ];
 
 const icons: Record<View, string> = {
@@ -110,6 +125,7 @@ const icons: Record<View, string> = {
   "Operational Evidence": "◍",
   Audit: "◌",
   Economics: "$",
+  "Governance & System": "⚖",
   Settings: "⚙",
 };
 
@@ -130,6 +146,7 @@ const viewPaths: Record<View, string> = {
   "Operational Evidence": "/operational-evidence",
   Audit: "/audit",
   Economics: "/economics",
+  "Governance & System": "/system",
   Settings: "/settings",
 };
 
@@ -144,8 +161,11 @@ const SAFE_IDENTIFIER = /^[a-zA-Z0-9._:-]+$/;
 
 function apiErrorMessage(error: unknown): string {
   if (error && typeof error === "object") {
-    const message = (error as { message?: unknown }).message;
+    const candidate = error as { message?: unknown; reason?: unknown; code?: unknown };
+    const message = candidate.message;
     if (typeof message === "string" && message) return message;
+    if (typeof candidate.code === "string" && candidate.code) return `API error ${candidate.code}`;
+    if (typeof candidate.reason === "string" && candidate.reason) return candidate.reason;
   }
   return error instanceof Error ? error.message : "An unexpected API error occurred";
 }
@@ -188,8 +208,10 @@ function useOperationalSummary<T>(
   const hasDataRef = useRef(false);
   const fetcherRef = useRef(fetcher);
   const isStaleRef = useRef(isStale);
+  const emptyErrorRef = useRef(emptyError);
   fetcherRef.current = fetcher;
   isStaleRef.current = isStale;
+  emptyErrorRef.current = emptyError;
 
   useEffect(() => {
     let cancelled = false;
@@ -209,9 +231,9 @@ function useOperationalSummary<T>(
           if (hasDataRef.current) {
             setStale(true);
             setLoadState("ready");
-            setLoadError(emptyError.replace("Unable to load", "Refresh failed; keeping previous"));
+            setLoadError(emptyErrorRef.current.replace("Unable to load", "Refresh failed; keeping previous"));
           } else {
-            setLoadError(emptyError);
+            setLoadError(emptyErrorRef.current);
             setLoadState("error");
           }
         }
@@ -275,6 +297,92 @@ function SummaryRow({ label, value, tone }: { label: string; value: string | num
 
 function FindingRow({ finding }: { finding: DashboardFinding }) {
   return <div className={`finding-row ${finding.severity}`}><span>{finding.severity}</span><p>{finding.message}</p></div>;
+}
+
+/* ---------------------------------------------------------------------------
+ * Milestone F — shared operational state patterns
+ * ------------------------------------------------------------------------- */
+
+function PanelStateLine({ state, error, emptyMessage }: {
+  state: DashboardLoadState;
+  error: string | null;
+  emptyMessage?: string;
+}) {
+  if (state === "loading") return <div className="state-line">Loading operational state...</div>;
+  if (state === "error") return <div className="state-line error">{error ?? "Unable to load this surface from the Product API."}</div>;
+  return <div className="state-line empty">{emptyMessage ?? "No data available"}</div>;
+}
+
+function ErrorBanner({ error }: { error: string | null }) {
+  if (!error) return null;
+  return <div className="error-banner" role="alert">{error}</div>;
+}
+
+function EmptyState({ message, children }: { message: string; children?: ReactNode }) {
+  return <div className="state-line empty">{message}{children}</div>;
+}
+
+function SummaryCard({ title, meta, state, emptyMessage, children }: {
+  title: string;
+  meta: string;
+  state?: DashboardCardState;
+  emptyMessage?: string;
+  children: ReactNode;
+}) {
+  return <section className={`panel summary-card${state ? ` state-${state}` : ""}`}>
+    <div className="panel-head"><div><h2>{title}</h2><p>{meta}</p></div></div>
+    <div className="panel-body">{state === "empty" ? <EmptyState message={emptyMessage ?? "No data available"} /> : children}</div>
+  </section>;
+}
+
+function BlockedPanel({ title, note, reason }: { title: string; note: string; reason: string }) {
+  return <section className="panel blocked-panel">
+    <div className="panel-head"><div><h2>{title}</h2><p>{note}</p></div><Badge tone="warn">blocked</Badge></div>
+    <p className="panel-note">{reason}</p>
+  </section>;
+}
+
+function UnsupportedPanel({ title, note, reason }: { title: string; note: string; reason: string }) {
+  return <section className="panel unsupported-panel">
+    <div className="panel-head"><div><h2>{title}</h2><p>{note}</p></div><Badge tone="muted">unsupported</Badge></div>
+    <p className="panel-note">{reason}</p>
+  </section>;
+}
+
+type TimelineItem = {
+  id: string;
+  title: string;
+  meta?: string;
+  detail?: string;
+  tone?: "good" | "warn" | "muted";
+};
+
+function TimelineList({ items, limit }: { items: TimelineItem[]; limit?: number }) {
+  const visible = limit !== undefined ? items.slice(0, limit) : items;
+  if (visible.length === 0) return <div className="state-line empty">No records available from the Product API.</div>;
+  return <div className="timeline">
+    {visible.map(item => (
+      <article className="timeline-row" key={item.id}>
+        <div className="timeline-row-top"><b>{item.title}</b>{item.tone ? <Badge tone={item.tone}>{item.tone}</Badge> : null}</div>
+        {item.meta && <small>{item.meta}</small>}
+        {item.detail && <p>{item.detail}</p>}
+      </article>
+    ))}
+  </div>;
+}
+
+function EntityRefList({ refs }: { refs?: readonly EntityReference[] }) {
+  if (!refs || refs.length === 0) return null;
+  return <div className="entity-ref-list"><span>References</span><div>
+    {refs.map(ref => <code key={`${ref.entityType}:${ref.entityId}`} className="mono">{ref.entityType}:{ref.entityId}</code>)}
+  </div></div>;
+}
+
+function CrossLinks({ links }: { links: { to: string; label: string }[] }) {
+  if (links.length === 0) return null;
+  return <div className="cross-links" role="navigation">
+    {links.map(link => <Link className="detail-link" to={link.to} key={link.to}>{link.label} →</Link>)}
+  </div>;
 }
 
 /* ---------------------------------------------------------------------------
@@ -815,59 +923,123 @@ function OperationalExecution() {
     () => false,
   );
 
+  const refreshAll = () => {
+    credentials.refresh();
+    connections.refresh();
+    readiness.refresh();
+    plans.refresh();
+    deployments.refresh();
+    runtimes.refresh();
+    runs.refresh();
+    workers.refresh();
+  };
+
   return <>
     <header className="page-head compact dashboard-head">
       <div><p className="eyebrow">OPERATIONAL EXECUTION</p><h1>Governed execution surface</h1><p>Read-only operational projections from the Product API. No raw secrets, no direct runtime access.</p></div>
-      <button className="secondary" onClick={() => { credentials.refresh(); connections.refresh(); readiness.refresh(); plans.refresh(); deployments.refresh(); runtimes.refresh(); runs.refresh(); workers.refresh(); }}>Refresh all</button>
+      <button className="secondary" onClick={refreshAll}>Refresh all</button>
     </header>
     <OperationalModeNotice guardrails={credentials.data?.[0]?.guardrails ?? connections.data?.[0]?.guardrails} />
-    <div className="dashboard-grid execution-grid">
-      <section className="panel">
-        <div className="panel-head"><div><h2>Credentials</h2><p>Redacted secret references and validation state</p></div><Badge tone={credentials.data?.length ? "good" : "muted"}>{credentials.data?.length ?? 0}</Badge></div>
-        <div className="panel-body">
-          {credentials.data?.length ? credentials.data.map(item => <div className="catalog-row" key={item.credentialId}><div className="catalog-row-main"><b>{item.providerName}</b><small className="mono">{item.credentialId}</small><p>{item.secretRefRedacted} · {item.status} · validated={String(item.validated)}</p></div><Badge tone={item.validated ? "good" : "warn"}>{item.validated ? "validated" : "unvalidated"}</Badge></div>) : <div className="state-line empty">No credentials reported</div>}
-        </div>
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Provider connections</h2><p>Health and authentication state</p></div><Badge tone={connections.data?.length ? "good" : "muted"}>{connections.data?.length ?? 0}</Badge></div>
-        <div className="panel-body">
-          {connections.data?.length ? connections.data.map(item => <div className="catalog-row" key={item.connectionId}><div className="catalog-row-main"><b>{item.providerName}</b><small className="mono">{item.connectionId}</small><p>{item.health} · {item.authState} · {item.availability}</p></div><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.health}</Badge></div>) : <div className="state-line empty">No provider connections reported</div>}
-        </div>
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Readiness</h2><p>Operational readiness categories and blockers</p></div><Badge tone={readiness.data?.ready ? "good" : "warn"}>{readiness.data?.status ?? "unavailable"}</Badge></div>
-        <div className="panel-body">
-          {readiness.data ? <>
-            <SummaryRow label="Agent" value={readiness.data.agentName} />
-            <SummaryRow label="Blockers" value={readiness.data.blockers.length} />
-            <SummaryRow label="Warnings" value={readiness.data.warnings.length} />
-            {readiness.data.categories.map(category => <div className="finding-row" key={category.id}><span>{category.status}</span><div className="finding-content"><b>{category.label}</b><p>{category.blockerCount} blockers · {category.warningCount} warnings</p></div></div>)}
-          </> : <div className="state-line empty">No readiness data</div>}
-        </div>
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Deployment plan</h2><p>Preview only, governed by Product API</p></div></div>
-        <div className="panel-body">
-          {plans.data?.[0] ? <><SummaryRow label="Plan" value={plans.data[0].planId} /><SummaryRow label="Target" value={plans.data[0].target} /><SummaryRow label="Engine" value={plans.data[0].engine} /><SummaryRow label="Eligible" value={String(plans.data[0].eligible)} /></> : <div className="state-line empty">No deployment plan</div>}
-        </div>
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Deployments</h2><p>Deployment inventory</p></div><Badge tone={deployments.data?.length ? "good" : "muted"}>{deployments.data?.length ?? 0}</Badge></div>
-        <div className="panel-body">{deployments.data?.length ? deployments.data.map(item => <div className="catalog-row" key={item.deploymentId}><div className="catalog-row-main"><b>{item.deploymentId}</b><small>{item.agentId} · {item.status}</small></div><Badge tone={item.active ? "good" : "muted"}>{item.active ? "active" : "inactive"}</Badge></div>) : <div className="state-line empty">No deployments</div>}</div>
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Runtimes</h2><p>Runtime inventory and health</p></div><Badge tone={runtimes.data?.length ? "good" : "muted"}>{runtimes.data?.length ?? 0}</Badge></div>
-        <div className="panel-body">{runtimes.data?.length ? runtimes.data.map(item => <div className="catalog-row" key={item.runtimeId}><div className="catalog-row-main"><b>{item.runtimeId}</b><small>{item.target} · {item.status} · {item.health}</small></div><Badge tone={item.health === "healthy" ? "good" : "warn"}>{item.reconciliationState}</Badge></div>) : <div className="state-line empty">No runtimes</div>}</div>
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Execution runs</h2><p>ExecutionRun history</p></div><Badge tone={runs.data?.length ? "good" : "muted"}>{runs.data?.length ?? 0}</Badge></div>
-        <div className="panel-body">{runs.data?.length ? runs.data.slice(0, 8).map(item => <div className="catalog-row" key={item.runId}><div className="catalog-row-main"><b>{item.runId}</b><small>{item.runtimeId} · {item.status} · {item.resultSummary ?? item.failureReason ?? "n/a"}</small></div><span className="catalog-count">{new Date(item.startedAt).toLocaleTimeString()}</span></div>) : <div className="state-line empty">No execution runs</div>}</div>
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Workers</h2><p>Capacity and workload visibility</p></div><Badge tone={workers.data?.length ? "good" : "muted"}>{workers.data?.length ?? 0}</Badge></div>
-        <div className="panel-body">{workers.data?.length ? workers.data.map(item => <div className="catalog-row" key={item.workerId}><div className="catalog-row-main"><b>{item.workerId}</b><small>{item.status} · {item.health} · capacity {item.availableCapacity}/{item.capacity}</small></div><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.reconciliationState}</Badge></div>) : <div className="state-line empty">No workers</div>}</div>
-      </section>
+    {staleBanner(credentials, "credentials")}
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Access & connections</h2><p>Credentials and provider connections — redacted references only, never secret material.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Credentials</h2><p>Redacted secret references and validation state</p></div><Badge tone={credentials.data?.length ? "good" : "muted"}>{credentials.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {credentials.data?.length
+              ? credentials.data.map(item => <div className="catalog-row" key={item.credentialId}><div className="catalog-row-main"><b>{item.providerName}</b><small className="mono">{item.credentialId}</small><p>{item.secretRefRedacted} · {item.status} · validated={String(item.validated)}</p></div><Badge tone={item.validated ? "good" : "warn"}>{item.validated ? "validated" : "unvalidated"}</Badge></div>)
+              : <PanelStateLine state={credentials.loadState} error={credentials.loadError} emptyMessage="No credentials reported" />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Provider connections</h2><p>Health and authentication state</p></div><Badge tone={connections.data?.length ? "good" : "muted"}>{connections.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {connections.data?.length
+              ? connections.data.map(item => <div className="catalog-row" key={item.connectionId}><div className="catalog-row-main"><b>{item.providerName}</b><small className="mono">{item.connectionId}</small><p>{item.health} · {item.authState} · {item.availability}</p></div><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.health}</Badge></div>)
+              : <PanelStateLine state={connections.loadState} error={connections.loadError} emptyMessage="No provider connections reported" />}
+          </div>
+        </section>
+      </div>
     </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Readiness & planning</h2><p>Operational readiness and deployment previews for the sandbox agent — Product API is the source of truth.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Operational readiness</h2><p>Readiness categories and blockers</p></div><Badge tone={readiness.data?.ready ? "good" : "warn"}>{readiness.data?.status ?? "unavailable"}</Badge></div>
+          <div className="panel-body">
+            {readiness.data
+              ? <>
+                <SummaryRow label="Agent" value={readiness.data.agentName} />
+                <SummaryRow label="Blockers" value={readiness.data.blockers.length} />
+                <SummaryRow label="Warnings" value={readiness.data.warnings.length} />
+                {readiness.data.categories.map(category => <div className="finding-row" key={category.id}><span>{category.status}</span><div className="finding-content"><b>{category.label}</b><p>{category.blockerCount} blockers · {category.warningCount} warnings</p></div></div>)}
+              </>
+              : <PanelStateLine state={readiness.loadState} error={readiness.loadError} emptyMessage="No readiness data" />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Deployment plan</h2><p>Preview only, governed by Product API</p></div><Badge tone={plans.data?.[0]?.eligible ? "good" : "muted"}>{plans.data?.[0]?.eligible ? "eligible" : "preview"}</Badge></div>
+          <div className="panel-body">
+            {plans.data?.[0]
+              ? <><SummaryRow label="Plan" value={plans.data[0].planId} /><SummaryRow label="Target" value={plans.data[0].target} /><SummaryRow label="Engine" value={plans.data[0].engine} /><SummaryRow label="Eligible" value={String(plans.data[0].eligible)} /><SummaryRow label="Blockers" value={plans.data[0].blockers.length} /></>
+              : <PanelStateLine state={plans.loadState} error={plans.loadError} emptyMessage="No deployment plan available" />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Deployments & runtimes</h2><p>Deployment records, runtime instances and execution runs. Runtime control actions are not exposed in this milestone.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Deployments</h2><p>Sandbox deployment inventory</p></div><Badge tone={deployments.data?.length ? "good" : "muted"}>{deployments.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {deployments.data?.length
+              ? deployments.data.map(item => <div className="catalog-row" key={item.deploymentId}><div className="catalog-row-main"><b>{item.deploymentId}</b><small>{item.status} · {item.engine} · {item.target}</small></div><div className="catalog-badges"><Badge tone={item.active ? "good" : "muted"}>{item.active ? "active" : "inactive"}</Badge><Link className="detail-link" to={`/agents/${item.agentId}`}>agent</Link></div></div>)
+              : <PanelStateLine state={deployments.loadState} error={deployments.loadError} emptyMessage="No deployments recorded" />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Runtimes</h2><p>Runtime inventory, health and reconciliation</p></div><Badge tone={runtimes.data?.length ? "good" : "muted"}>{runtimes.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {runtimes.data?.length
+              ? runtimes.data.map(item => <div className="catalog-row" key={item.runtimeId}><div className="catalog-row-main"><b>{item.runtimeId}</b><small>{item.status} · {item.health} · {item.target}</small><p>reconciliation: {item.reconciliationState} · isolation: {item.isolationState} · drift: {item.driftState}</p></div><div className="catalog-badges"><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.health}</Badge><Link className="detail-link" to={`/agents/${item.agentId}`}>agent</Link></div></div>)
+              : <PanelStateLine state={runtimes.loadState} error={runtimes.loadError} emptyMessage="No runtime instances" />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Execution runs</h2><p>ExecutionRun history — recent first</p></div><Badge tone={runs.data?.length ? "good" : "muted"}>{runs.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {runs.data?.length
+              ? runs.data.slice(0, 8).map(item => <div className="catalog-row" key={item.runId}><div className="catalog-row-main"><b>{item.runId}</b><small>{item.status} · runtime {item.runtimeId}</small><p>{item.resultSummary ?? item.failureReason ?? "n/a"}</p></div><span className="catalog-count">{new Date(item.startedAt).toLocaleTimeString()}</span></div>)
+              : <PanelStateLine state={runs.loadState} error={runs.loadError} emptyMessage="No execution runs recorded" />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Workers</h2><p>Worker capacity, health and isolation visibility. Advanced fleet scheduling is future scope.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Workers</h2><p>Capacity, health and workload visibility</p></div><Badge tone={workers.data?.length ? "good" : "muted"}>{workers.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {workers.data?.length
+              ? workers.data.map(item => <div className="catalog-row" key={item.workerId}><div className="catalog-row-main"><b>{item.workerId}</b><small>{item.status} · {item.health} · capacity {item.availableCapacity}/{item.capacity}</small><p>failure: {item.failureState} · reconciliation: {item.reconciliationState} · tenant isolation: {item.tenantIsolation ? "yes" : "no"} · workload isolation: {item.workloadIsolation ? "yes" : "no"}</p></div><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.reconciliationState}</Badge></div>)
+              : <PanelStateLine state={workers.loadState} error={workers.loadError} emptyMessage="No workers registered" />}
+          </div>
+        </section>
+        <UnsupportedPanel title="Worker operations" note="Fleet controls in this milestone" reason="Worker registration, autoscaling and advanced fleet scheduling are future scope. Worker state is displayed from the Product API and is never mutated from this surface." />
+      </div>
+    </div>
+    <div className="flow-group-note">Every block above is a read-only projection. Deployment, runtime, worker and readiness truth stays in the Product API — nothing here is recomputed by the UI.</div>
+  </>;
+}
+
+function staleBanner(state: { stale: boolean; loadState: DashboardLoadState; loadError: string | null }, subject: string) {
+  return <>
+    {state.stale && <div className="stale-banner" role="status">Showing a stale {subject} snapshot. Refresh to recover live state.</div>}
+    {state.loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing {subject}...</div>}
+    {state.loadError && <div className="error-banner" role="alert">{state.loadError}</div>}
   </>;
 }
 
@@ -2378,11 +2550,50 @@ function GenericView({ view }: { view: View }) {
 }
 
 function Runtime() {
+  const runtimes = useOperationalSummary<RuntimeSummary[]>(
+    () => productApi.listRuntimes(),
+    "Unable to load runtime instances from Product API",
+    () => false,
+  );
+  const workers = useOperationalSummary<WorkerSummary[]>(
+    () => productApi.listWorkers(),
+    "Unable to load workers from Product API",
+    () => false,
+  );
   return <>
-    <header className="page-head compact"><div><p className="eyebrow">OPENCLAW</p><h1>Runtime</h1><p>Process health, compatibility and deployed agents.</p></div></header>
-    <section className="runtime-hero panel"><div className="runtime-big"><div className="core">ACS<small>CORE</small></div><div><p className="eyebrow">OPENCLAW RUNTIME</p><h2>Connectivity Status</h2><p>Verify API connectivity in the Dashboard.</p></div></div></section>
-    <section className="runtime-stats"><Metric label="Uptime" value="--" note="Connected" /><Metric label="Agents" value="--" note="Check list" /><Metric label="Heartbeats" value="--" note="Check logs" /></section>
-    <section className="panel"><div className="panel-head"><div><h2>Running agents</h2><p>Live processes managed by OpenClaw</p></div></div><div className="empty-state">No live agent data available.</div></section>
+    <header className="page-head compact">
+      <div><p className="eyebrow">OPERATIONAL EXECUTION</p><h1>Runtime</h1><p>Runtime instance and worker state reported by the Product API. Direct process access is not available in this milestone.</p></div>
+      <button className="secondary" disabled={runtimes.loadState === "loading" || runtimes.loadState === "refreshing"} onClick={runtimes.refresh}>{runtimes.loadError ? "Retry" : runtimes.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Runtime state governed by Product API</span><span>Production ready = false</span></div>
+    {staleBanner(runtimes, "runtime")}
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Runtime instances</h2><p>Deployment-backed runtime records with health, isolation, drift and reconciliation state.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel wide">
+          <div className="panel-head"><div><h2>Runtime instances</h2><p>Read-only inventory from the Product API</p></div><Badge tone={runtimes.data?.length ? "good" : "muted"}>{runtimes.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {runtimes.data?.length
+              ? runtimes.data.map(item => <div className="catalog-row" key={item.runtimeId}><div className="catalog-row-main"><b>{item.runtimeId}</b><small>{item.status} · {item.health} · {item.target} · {item.engine}</small><p>reconciliation: {item.reconciliationState} · isolation: {item.isolationState} · drift: {item.driftState} · failure: {item.failureState}</p></div><div className="catalog-badges"><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.health}</Badge><Link className="detail-link" to={`/agents/${item.agentId}`}>agent →</Link></div></div>)
+              : <PanelStateLine state={runtimes.loadState} error={runtimes.loadError} emptyMessage="No runtime instances recorded" />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Workers</h2><p>Worker health and reconciliation visibility for runtime execution.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Workers</h2><p>Capacity and failure visibility</p></div><Badge tone={workers.data?.length ? "good" : "muted"}>{workers.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {workers.data?.length
+              ? workers.data.map(item => <div className="catalog-row" key={item.workerId}><div className="catalog-row-main"><b>{item.workerId}</b><small>{item.status} · {item.health} · capacity {item.availableCapacity}/{item.capacity}</small></div><Badge tone={item.health === "healthy" ? "good" : item.health === "degraded" ? "warn" : "muted"}>{item.failureState}</Badge></div>)
+              : <PanelStateLine state={workers.loadState} error={workers.loadError} emptyMessage="No workers registered" />}
+          </div>
+        </section>
+        <UnsupportedPanel title="Runtime control" note="Start, stop and direct process access" reason="Runtime control actions are not supported in this milestone. Runtime state is reported by the Product API and is never mutated from this surface." />
+      </div>
+    </div>
   </>;
 }
 
@@ -2392,31 +2603,80 @@ function Logs() {
     "Unable to load events from Product API",
     () => false,
   );
-  const { data: audit } = useOperationalSummary<AuditEntry[]>(
+  return <>
+    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Events & Logs</h1><p>System and agent event inventory from the Product API.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span><span>Not billing</span></div>
+    {stale && <div className="stale-banner" role="status">Showing a stale evidence snapshot.</div>}
+    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing evidence...</div>}
+    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    <CrossLinks links={[{ to: "/operational-evidence", label: "Operational evidence" }, { to: "/audit", label: "Audit trail" }, { to: "/economics", label: "Economics" }]} />
+    <section className="panel">
+      <div className="panel-head"><div><h2>Events</h2><p>System and agent event inventory</p></div><Badge tone="muted">{events?.length ?? 0}</Badge></div>
+      <div className="panel-body">
+        <TimelineList limit={10} items={(events ?? []).map(event => ({ id: event.eventId, title: event.type, meta: `${event.severity} · ${event.source} · ${new Date(event.createdAt).toLocaleTimeString()}`, detail: event.message, tone: event.severity === "error" || event.severity === "critical" ? "warn" : undefined }))} />
+      </div>
+    </section>
+  </>;
+}
+
+function EvidenceView() {
+  const { data: evidence, loadState, loadError, stale, refresh } = useOperationalSummary<EvidenceRecord[]>(
+    () => productApi.listEvidence(),
+    "Unable to load evidence from Product API",
+    () => false,
+  );
+  const { data: diagnostics } = useOperationalSummary<DiagnosticReport[]>(
+    () => productApi.listDiagnostics(),
+    "Unable to load diagnostics from Product API",
+    () => false,
+  );
+  return <>
+    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Operational Evidence</h1><p>Evidence records and diagnostic findings reported by the Product API. Evidence truth is never recomputed in the UI.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span></div>
+    {staleBanner({ stale, loadState, loadError }, "evidence")}
+    <CrossLinks links={[{ to: "/logs", label: "Events & logs" }, { to: "/audit", label: "Audit trail" }, { to: "/economics", label: "Economics" }]} />
+    <div className="dashboard-grid evidence-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Evidence records</h2><p>Operational evidence inventory</p></div><Badge tone="muted">{evidence?.length ?? 0}</Badge></div>
+        <div className="panel-body">
+          <TimelineList limit={10} items={(evidence ?? []).map(item => ({ id: item.evidenceId, title: item.title, meta: `${item.kind} · ${item.source} · ${new Date(item.createdAt).toLocaleTimeString()}`, detail: item.summary }))} />
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Diagnostics</h2><p>Readiness diagnostics and recommended actions</p></div><Badge tone="muted">{diagnostics?.length ?? 0}</Badge></div>
+        <div className="panel-body">
+          <TimelineList limit={10} items={(diagnostics ?? []).map(item => ({ id: item.diagnosticId, title: item.status, meta: new Date(item.createdAt).toLocaleTimeString(), detail: item.summary, tone: item.status === "pass" ? "good" : item.status === "fail" || item.status === "error" ? "warn" : "muted" }))} />
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Traceability</h2><p>Follow the operational flow</p></div></div>
+        <div className="panel-body">
+          <p className="panel-note">Evidence links Agents → Composition → Execution → Economics. Each surface renders Product API projections only.</p>
+          <CrossLinks links={[{ to: "/agents", label: "Agents" }, { to: "/operational-execution", label: "Execution" }, { to: "/economics", label: "Economics" }]} />
+        </div>
+      </section>
+    </div>
+  </>;
+}
+
+function AuditView() {
+  const { data: audit, loadState, loadError, stale, refresh } = useOperationalSummary<AuditEntry[]>(
     () => productApi.listAuditEntries(),
     "Unable to load audit trail from Product API",
     () => false,
   );
   return <>
-    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Events, Audit & Economics</h1><p>Operational evidence from the Product API. Economics is operational, not billing.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
-    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span><span>Not billing</span></div>
-    {stale && <div className="stale-banner" role="status">Showing a stale evidence snapshot.</div>}
-    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing evidence...</div>}
-    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
-    <div className="dashboard-grid evidence-grid">
-      <section className="panel"><div className="panel-head"><div><h2>Events</h2><p>System and agent event inventory</p></div><Badge tone="muted">{events?.length ?? 0}</Badge></div><div className="timeline">{(events ?? []).slice(0, 10).map(event => <article className="timeline-row" key={event.eventId}><b>{event.type}</b><span>{event.severity}</span><small>{event.source}</small><p>{event.message}</p></article>)}</div></section>
-      <section className="panel"><div className="panel-head"><div><h2>Audit trail</h2><p>Governed operations and audit evidence</p></div><Badge tone="muted">{audit?.length ?? 0}</Badge></div><div className="timeline">{(audit ?? []).slice(0, 10).map(entry => <article className="timeline-row" key={entry.auditId}><b>{entry.operation}</b><span>{entry.status}</span><small>{entry.actor}</small><p>{entry.message}</p></article>)}</div></section>
-      <section className="panel"><div className="panel-head"><div><h2>Economics</h2><p>Operational economics summary</p></div></div><div className="state-line empty">Use the Economics view for quote, reservation, metering, settlement and receipts.</div></section>
-    </div>
+    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Audit trail</h1><p>Governed operations and audit evidence from the Product API. Audit truth is never recomputed in the UI.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Audit truth governed by Product API</span></div>
+    {staleBanner({ stale, loadState, loadError }, "audit")}
+    <CrossLinks links={[{ to: "/logs", label: "Events & logs" }, { to: "/operational-evidence", label: "Evidence" }, { to: "/economics", label: "Economics" }]} />
+    <section className="panel">
+      <div className="panel-head"><div><h2>Audit entries</h2><p>Governed operations history</p></div><Badge tone="muted">{audit?.length ?? 0}</Badge></div>
+      <div className="panel-body">
+        <TimelineList limit={12} items={(audit ?? []).map(entry => ({ id: entry.auditId, title: entry.operation, meta: `${entry.status} · ${entry.actor} · ${entry.entityType}:${entry.entityId} · ${new Date(entry.createdAt).toLocaleTimeString()}`, detail: entry.message, tone: entry.status === "failure" ? "warn" : entry.status === "success" ? "good" : "muted" }))} />
+      </div>
+    </section>
   </>;
-}
-
-function EvidenceView() {
-  return <Logs />;
-}
-
-function AuditView() {
-  return <Logs />;
 }
 
 function EconomicsView() {
@@ -2425,23 +2685,327 @@ function EconomicsView() {
     "Unable to load economics from Product API",
     () => false,
   );
+  const quotes = useOperationalSummary<Quote[]>(
+    () => productApi.listQuotes(),
+    "Unable to load quotes from Product API",
+    () => false,
+  );
+  const reservations = useOperationalSummary<Reservation[]>(
+    () => productApi.listReservations(),
+    "Unable to load reservations from Product API",
+    () => false,
+  );
+  const metering = useOperationalSummary<MeteringRecord[]>(
+    () => productApi.listMeteringRecords(),
+    "Unable to load metering records from Product API",
+    () => false,
+  );
+  const settlements = useOperationalSummary<Settlement[]>(
+    () => productApi.listSettlements(),
+    "Unable to load settlements from Product API",
+    () => false,
+  );
+  const receipts = useOperationalSummary<Receipt[]>(
+    () => productApi.listReceipts(),
+    "Unable to load receipts from Product API",
+    () => false,
+  );
   return <>
-    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL ECONOMICS</p><h1>Economics</h1><p>Quote, reservation, metering, settlement and receipts.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL ECONOMICS</p><h1>Economics</h1><p>Operational quote, reservation, metering, settlement and receipt visibility. This is operational metering, not billing.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Economics is operational, not billing</span></div>
-    {stale && <div className="stale-banner" role="status">Showing a stale economics snapshot.</div>}
-    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing economics...</div>}
-    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
-    <div className="dashboard-grid evidence-grid">
-      <section className="panel"><div className="panel-head"><div><h2>Summary</h2><p>Source of truth: Product API</p></div></div><div className="summary-list">{data ? <>
-        <SummaryRow label="Currency" value={data.currency} />
-        <SummaryRow label="Context" value={data.neuronsContext} />
-        <SummaryRow label="Estimated" value={String(data.totalEstimated)} />
-        <SummaryRow label="Reserved" value={String(data.totalReserved)} />
-        <SummaryRow label="Metered" value={String(data.totalMetered)} />
-        <SummaryRow label="Settled" value={String(data.totalSettled)} />
-      </> : <div className="state-line empty">No economics available.</div>}</div></section>
-      <section className="panel"><div className="panel-head"><div><h2>Warnings</h2><p>Operational findings</p></div></div><div className="timeline">{(data?.warnings ?? []).map((warning: { severity: string; message: string }, index: number) => <article className="timeline-row" key={index}><b>{warning.severity}</b><p>{warning.message}</p></article>)}</div></section>
-      <section className="panel"><div className="panel-head"><div><h2>No billing notice</h2><p>Governed read-only economics</p></div></div><div className="state-line empty">Billing, invoices, payment rails and budgets are out of scope.</div></section>
+    {staleBanner({ stale, loadState, loadError }, "economics")}
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Economic summary</h2><p>Totals are projected by the Product API — never recomputed in the UI.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Summary</h2><p>Source of truth: Product API</p></div></div>
+          <div className="panel-body">
+            {data
+              ? <div className="summary-list">
+                <SummaryRow label="Currency" value={data.currency} />
+                <SummaryRow label="Context" value={data.neuronsContext} />
+                <SummaryRow label="Estimated" value={String(data.totalEstimated)} />
+                <SummaryRow label="Reserved" value={String(data.totalReserved)} />
+                <SummaryRow label="Metered" value={String(data.totalMetered)} />
+                <SummaryRow label="Settled" value={String(data.totalSettled)} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No economics available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Warnings</h2><p>Operational findings</p></div></div>
+          <div className="panel-body">
+            <TimelineList items={(data?.warnings ?? []).map((warning, index) => ({ id: `warning-${index}`, title: warning.severity, detail: warning.message, tone: warning.severity === "error" ? "warn" : undefined }))} />
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Quote & reservation</h2><p>Operational cost visibility before execution. Not a billing flow.</p></div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Quotes</h2><p>Operational quotes</p></div><Badge tone="muted">{quotes.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(quotes.data ?? []).map(item => ({ id: item.quoteId, title: item.quoteId, meta: `${item.status} · ${item.agentId} · ${item.amount} ${item.unit}`, detail: item.eligibility.eligible ? "eligible" : `not eligible: ${item.eligibility.reasons.join("; ")}`, tone: item.eligibility.eligible ? "good" : "warn" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Reservations</h2><p>Operational reservations</p></div><Badge tone="muted">{reservations.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(reservations.data ?? []).map(item => ({ id: item.reservationId, title: item.reservationId, meta: `${item.status} · ${item.agentId} · ${item.amount} ${item.unit}`, detail: item.failureReason ?? `quote ${item.quoteId}`, tone: item.status === "reserved" || item.status === "confirmed" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Metering, settlement & receipts</h2><p>Execution-level operational accounting. No invoices, payment rails or budgets.</p></div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Metering</h2><p>Usage records per execution run</p></div><Badge tone="muted">{metering.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(metering.data ?? []).map(item => ({ id: item.meterId, title: item.meterId, meta: `${item.status} · ${item.executionRunId} · ${item.amount} ${item.unit}`, detail: item.target, tone: item.status === "settled" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Settlements</h2><p>Settlement records</p></div><Badge tone="muted">{settlements.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(settlements.data ?? []).map(item => ({ id: item.settlementId, title: item.settlementId, meta: `${item.status} · ${item.executionRunId} · ${item.amount} ${item.unit}`, detail: item.failureReason ?? "settled", tone: item.status === "settled" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Receipts</h2><p>Issued receipts</p></div><Badge tone="muted">{receipts.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(receipts.data ?? []).map(item => ({ id: item.receiptId, title: item.receiptId, meta: `${item.status} · ${item.executionRunId} · ${item.amount} ${item.unit}`, detail: item.summary, tone: item.status === "issued" || item.status === "settled" ? "good" : "warn" }))} />
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Boundary</h2><p>What Economics is not.</p></div>
+      <section className="panel blocked-panel"><div className="panel-head"><div><h2>Not billing</h2><p>Governed read-only economics</p></div><Badge tone="muted">no billing product</Badge></div><p className="panel-note">Billing, invoices, payment rails, tenant billing and budgets are out of scope. This surface reports operational metering and reservation visibility only.</p></section>
+    </div>
+  </>;
+}
+
+function GovernanceView() {
+  const guardrails = useOperationalSummary<SystemGuardrailsView>(
+    () => productApi.getSystemGuardrails(),
+    "Unable to load system guardrails from Product API",
+    () => false,
+  );
+  const configuration = useOperationalSummary<SystemConfigurationView>(
+    () => productApi.getSystemConfiguration(),
+    "Unable to load system configuration from Product API",
+    () => false,
+  );
+  const policies = useOperationalSummary<SystemPolicyVisibility[]>(
+    () => productApi.listSystemPolicies(),
+    "Unable to load policy visibility from Product API",
+    () => false,
+  );
+  const administration = useOperationalSummary<SystemAdministrationView>(
+    () => productApi.getSystemAdministration(),
+    "Unable to load administration boundary from Product API",
+    () => false,
+  );
+  const tenants = useOperationalSummary<SystemTenantsView>(
+    () => productApi.getSystemTenants(),
+    "Unable to load tenant visibility from Product API",
+    () => false,
+  );
+  const acceptance = useOperationalSummary<Epic11AcceptanceReport>(
+    () => productApi.getEpic11AcceptanceReport(),
+    "Unable to load EPIC-11 acceptance report from Product API",
+    () => false,
+  );
+
+  const refreshAll = () => {
+    guardrails.refresh();
+    configuration.refresh();
+    policies.refresh();
+    administration.refresh();
+    tenants.refresh();
+    acceptance.refresh();
+  };
+
+  return <>
+    <header className="page-head compact">
+      <div><p className="eyebrow">GOVERNANCE & SYSTEM</p><h1>Control plane boundaries</h1><p>Read-only guardrails, policy and configuration visibility. Administration and tenant management remain future scope.</p></div>
+      <button className="secondary" onClick={refreshAll}>Refresh all</button>
+    </header>
+    {staleBanner(guardrails, "system guardrails")}
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>System guardrails</h2><p>Operational mode reported by the Product API — never inferred by this surface.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel wide">
+          <div className="panel-head"><div><h2>Guardrail state</h2><p>Inspection, sandbox and read-only boundaries</p></div><Badge tone="warn">production ready = false</Badge></div>
+          <div className="panel-body">
+            {guardrails.data ? <>
+              <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>No mutable operations</span><span>Source of truth: product-api</span></div>
+              <div className="summary-list">
+                <SummaryRow label="Inspection mode" value={String(guardrails.data.inspectionMode)} tone="good" />
+                <SummaryRow label="Sandbox only" value={String(guardrails.data.sandboxOnly)} tone="good" />
+                <SummaryRow label="Read-only" value={String(guardrails.data.readOnly)} tone="good" />
+                <SummaryRow label="Mutable operations" value={String(guardrails.data.mutableOperations)} tone="warn" />
+                <SummaryRow label="Production ready" value={String(guardrails.data.productionReady)} tone="warn" />
+              </div>
+              <p className="panel-note">Future scope: {guardrails.data.futureScope.join(" · ")}</p>
+            </> : <PanelStateLine state={guardrails.loadState} error={guardrails.loadError} emptyMessage="No guardrail data reported by the Product API." />}
+            {guardrails.loadState === "error" && <ErrorBanner error={guardrails.loadError} />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Administration boundary</h2><p>Production administration is explicitly out of scope for EPIC-11.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Administration</h2><p>Boundary visibility without mutations</p></div><Badge tone="muted">unavailable</Badge></div>
+          <div className="panel-body">
+            {administration.data ? <>
+              <p className="panel-note">{administration.data.reason}</p>
+              <IdList label="Boundary notes" ids={administration.data.notes} />
+            </> : <PanelStateLine state={administration.loadState} error={administration.loadError} emptyMessage="No administration boundary reported." />}
+            {administration.loadState === "error" && <ErrorBanner error={administration.loadError} />}
+          </div>
+        </section>
+        <BlockedPanel title="Administration operations" note="RBAC, tenant and secrets administration" reason={administration.data?.reason ?? "Production administration is future scope; no mutations are exposed from this surface."} />
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Tenants & isolation</h2><p>Advanced tenant management is future scope; only Product API isolation visibility is exposed.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel wide">
+          <div className="panel-head"><div><h2>Isolation visibility</h2><p>Declared worker isolation modes, reported by the Product API</p></div><Badge tone="muted">future scope</Badge></div>
+          <div className="panel-body">
+            {tenants.data ? <>
+              <p className="panel-note">{tenants.data.reason}</p>
+              {tenants.data.isolationVisibility.length ? (
+                <div className="catalog-list">
+                  {tenants.data.isolationVisibility.map(worker => (
+                    <div className="catalog-row" key={worker.workerId}>
+                      <div className="catalog-row-main"><b className="mono">{worker.workerId}</b><small>tenant isolation: {String(worker.tenantIsolation)} · workload isolation: {String(worker.workloadIsolation)}</small><p>declared modes: {worker.declaredIsolationModes.join(", ") || "none declared"}</p></div>
+                      <Badge tone={worker.tenantIsolation || worker.workloadIsolation ? "good" : "muted"}>{worker.tenantIsolation || worker.workloadIsolation ? "isolated" : "declared"}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : <EmptyState message="No worker isolation data reported by the Product API." />}
+              <EntityRefList refs={tenants.data.isolationVisibility.map(worker => ({ entityType: "worker", entityId: worker.workerId }))} />
+            </> : <PanelStateLine state={tenants.loadState} error={tenants.loadError} emptyMessage="No tenant visibility reported." />}
+            {tenants.loadState === "error" && <ErrorBanner error={tenants.loadError} />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Policies</h2><p>Policy visibility only — mutations are governed by the Product API or deferred to a future EPIC.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel wide">
+          <div className="panel-head"><div><h2>Policy visibility</h2><p>Read-only policy inventory</p></div><Badge tone="muted">{policies.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            {policies.data?.length ? (
+              <div className="catalog-list">
+                {policies.data.map(policy => (
+                  <div className="catalog-row" key={policy.id}>
+                    <div className="catalog-row-main"><b>{policy.label}</b><small className="mono">{policy.id}</small><p>{policy.note}</p></div>
+                    <Badge tone={policy.availability === "unavailable" ? "muted" : "good"}>{policy.availability}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : <PanelStateLine state={policies.loadState} error={policies.loadError} emptyMessage="No policy visibility reported." />}
+            {policies.loadState === "error" && <ErrorBanner error={policies.loadError} />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Configuration</h2><p>Read-only configuration visibility. No settings mutation in this milestone.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <SummaryCard title="Configuration visibility" meta="Inspection mode, memory backends" state={configuration.data ? "ready" : configuration.loadState}>
+          {configuration.data ? <>
+            <div className="metrics">
+              <Metric label="Mode" value={configuration.data.mode} note={configuration.data.readOnly ? "read-only" : "mutable"} />
+              <Metric label="Automation" value={configuration.data.automation} note="manual refresh only" />
+              <Metric label="Refresh window" value={`${configuration.data.refreshWindowMs}ms`} note="snapshot cadence" />
+              <Metric label="Persistence" value={configuration.data.persistenceBackend} note="memory only" />
+            </div>
+            <div className="id-list">
+              <span>Backends</span>
+              <div>
+                <code className="mono">secrets: {configuration.data.secretBackend}</code>
+                <code className="mono">settlement: {configuration.data.settlementBackend}</code>
+              </div>
+            </div>
+            {configuration.data.notices.map(note => <p className="panel-note" key={note}>{note}</p>)}
+          </> : <PanelStateLine state={configuration.loadState} error={configuration.loadError} emptyMessage="No configuration reported by the Product API." />}
+          {configuration.loadState === "error" && <ErrorBanner error={configuration.loadError} />}
+        </SummaryCard>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>EPIC-11 acceptance</h2><p>Read-only milestone gate projection. It reports what was validated and never fabricates checks.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Milestone status</h2><p>{acceptance.data?.title ?? "Acceptance report"}</p></div><Badge tone={acceptance.data?.milestoneStatuses.some(milestone => milestone.status === "PASS_WITH_CAVEAT") ? "warn" : "good"}>{acceptance.data?.milestone ?? "F"}</Badge></div>
+          <div className="panel-body">
+            {acceptance.data ? (
+              <div className="catalog-list">
+                {acceptance.data.milestoneStatuses.map(milestone => (
+                  <div className="catalog-row" key={milestone.id}>
+                    <div className="catalog-row-main"><b>{milestone.label}</b><small>{milestone.evidence}</small></div>
+                    <Badge tone={milestone.status === "PASS" ? "good" : "warn"}>{milestone.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : <PanelStateLine state={acceptance.loadState} error={acceptance.loadError} emptyMessage="No acceptance report available." />}
+            {acceptance.loadState === "error" && <ErrorBanner error={acceptance.loadError} />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Validation summary</h2><p>Checks performed at milestone close</p></div></div>
+          <div className="panel-body">
+            {acceptance.data ? <>
+              <div className="summary-list">
+                <SummaryRow label="Production ready" value={String(acceptance.data.productionReadiness.ready)} tone="warn" />
+                <SummaryRow label="Readiness status" value={acceptance.data.productionReadiness.status} tone="warn" />
+                <SummaryRow label="Supported surfaces" value={acceptance.data.supportedSurfaces.length} />
+                <SummaryRow label="Deferred items" value={acceptance.data.deferredItems.length} />
+              </div>
+              <p className="panel-note">{acceptance.data.productionReadiness.note}</p>
+              <TimelineList items={acceptance.data.validationSummary.map(check => ({ id: check.id, title: check.label, meta: check.status, detail: check.evidence, tone: check.status === "pass" ? "good" : check.status === "caveat" ? "warn" : "muted" }))} />
+            </> : <PanelStateLine state={acceptance.loadState} error={acceptance.loadError} emptyMessage="No acceptance report available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Known caveats & deferred scope</h2><p>Honest boundary of the EPIC-11 gate.</p></div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Known caveats</h2><p>What the gate did not run</p></div></div>
+          <div className="panel-body">
+            {acceptance.data ? (acceptance.data.knownCaveats.length
+              ? <TimelineList items={acceptance.data.knownCaveats.map((caveat, index) => ({ id: `caveat-${index}`, title: "Caveat", detail: caveat, tone: "warn" }))} />
+              : <EmptyState message="No caveats recorded." />) : <PanelStateLine state={acceptance.loadState} error={acceptance.loadError} emptyMessage="No acceptance report available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Deferred items</h2><p>Future EPIC scope</p></div></div>
+          <div className="panel-body">
+            {acceptance.data ? (acceptance.data.deferredItems.length
+              ? <TimelineList items={acceptance.data.deferredItems.map((item, index) => ({ id: `deferred-${index}`, title: item }))} />
+              : <EmptyState message="No deferred items recorded." />) : <PanelStateLine state={acceptance.loadState} error={acceptance.loadError} emptyMessage="No acceptance report available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Supported surfaces</h2><p>EPIC-11 operational surface</p></div></div>
+          <div className="panel-body">
+            {acceptance.data ? (acceptance.data.supportedSurfaces.length
+              ? <TimelineList items={acceptance.data.supportedSurfaces.map((surface, index) => ({ id: `surface-${index}`, title: surface }))} />
+              : <EmptyState message="No supported surfaces reported." />) : <PanelStateLine state={acceptance.loadState} error={acceptance.loadError} emptyMessage="No acceptance report available." />}
+          </div>
+        </section>
+      </div>
     </div>
   </>;
 }
@@ -2557,6 +3121,7 @@ export default function App() {
             <Route path="/operational-evidence" element={<EvidenceView />} />
             <Route path="/audit" element={<AuditView />} />
             <Route path="/economics" element={<EconomicsView />} />
+            <Route path="/system" element={<GovernanceView />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

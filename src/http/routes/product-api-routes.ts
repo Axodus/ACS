@@ -23,7 +23,7 @@ import type {
   WorkerSummary,
   UpdateAgentInput,
 } from "../../control-plane/product-api-client.js";
-import { DuplicateRegistrationError, NotFoundError } from "../../errors.js";
+import { DuplicateRegistrationError, NotFoundError, PolicyRejectedError, toEntityRef } from "../../errors.js";
 import { AgentLifecycleGuardError, AgentRevisionConflictError } from "../../control-plane/agent-service.js";
 import type {
   AgentDefinition,
@@ -347,18 +347,19 @@ export async function routeProductApiRequest(
     // POST /api/v1/agents/:agentId/deploy
     if (segments[2] === "agents" && segments[3] && segments[4] === "deploy" && request.method === "POST") {
       const agentId = readPathSegment(segments, 3, "agentId");
-      const body = await readJsonBody(request);
+      const body = readBodyRecord(await readJsonBody(request));
+      const mode = typeof body.mode === "string" ? body.mode : "";
 
-      if (!isDeploymentMode(body.mode)) {
-        return fail(`invalid deploymentMode: ${body.mode}`, 400, "invalid_request", options.correlationId, undefined, routeMeta);
+      if (!isDeploymentMode(mode)) {
+        return fail(`invalid deploymentMode: ${mode}`, 400, "invalid_request", options.correlationId, undefined, routeMeta);
       }
 
       const requestData: DeploymentRequest = {
         agentId,
-        revision: body.revision,
-        composition: body.composition,
-        deploymentMode: body.mode,
-        targetId: body.targetId,
+        revision: typeof body.revision === "number" ? body.revision : 1,
+        composition: isPlainObject(body.composition) ? body.composition as Record<string, unknown> : {},
+        deploymentMode: mode,
+        targetId: typeof body.targetId === "string" ? body.targetId : "local",
       };
 
       const deployment = await api.deployAgent(requestData);
@@ -727,13 +728,13 @@ export async function routeProductApiRequest(
     // POST /api/v1/runtimes/:runtimeInstanceId/start
     if (segments[2] === "runtimes" && segments[3] && segments[4] === "start") {
       const runtimeInstanceId = readPathSegment(segments, 3, "runtimeInstanceId");
-      const body = await readJsonBody(request);
+      const body = readBodyRecord(await readJsonBody(request));
       const requestData = {
-        deploymentId: body.deploymentId ?? "",
+        deploymentId: typeof body.deploymentId === "string" ? body.deploymentId : "",
         runtimeInstanceId,
         deploymentMode: "sandbox",
-        ...(body.agentId ? { agentId: body.agentId } : {}),
-        ...(body.targetId ? { targetId: body.targetId } : {}),
+        ...(typeof body.agentId === "string" && body.agentId ? { agentId: body.agentId } : {}),
+        ...(typeof body.targetId === "string" && body.targetId ? { targetId: body.targetId } : {}),
       };
       const runtime = await api.startRuntime(requestData);
       return { status: 200, body: ok(runtime, [], options.correlationId, routeMeta) };
@@ -1212,13 +1213,53 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // ---- Milestone F: Governance / System boundary (read-only) ----
+    //
+    // These projections expose guardrails, policy visibility, configuration
+    // visibility, administration/tenants boundaries and the EPIC-11
+    // acceptance report. They are read-only: they never mutate state and they
+    // never claim production readiness.
+    if (apiPath === "system/guardrails" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const view = await api.getSystemGuardrails();
+      return { status: 200, body: ok(view, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/configuration" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const view = await api.getSystemConfiguration();
+      return { status: 200, body: ok(view, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/policies" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const view = await api.getSystemPolicies();
+      return { status: 200, body: ok(view, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/administration" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const view = await api.getSystemAdministration();
+      return { status: 200, body: ok(view, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/tenants" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const view = await api.getSystemTenants();
+      return { status: 200, body: ok(view, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/acceptance" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const report = await api.getEpic11AcceptanceReport();
+      return { status: 200, body: ok(report, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "system" && segments[3]) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     return fail("route not found", 404, "not_found", options.correlationId, undefined, routeMeta);
   } catch (error) {
     return mapDomainErrorToHttp(error, options.correlationId, routeMeta);
   }
 }
 
-async function readJsonBody(request: IncomingMessage): Promise<any> {
+async function readJsonBody(request: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     let data = "";
     request.on("data", (chunk) => { data += chunk; });
@@ -1241,6 +1282,8 @@ function methodNotAllowed(correlationId: string | undefined, meta: AcsHttpEnvelo
     correlationId,
     { allowed },
     meta,
+    "method_not_allowed",
+    { retryable: false, severity: "warning" },
   );
 }
 
@@ -1252,6 +1295,8 @@ function unsupportedCompositionMutation(correlationId: string | undefined, meta:
     correlationId,
     { path, guidance: "Unsupported / Governed by Product API / Coming later" },
     meta,
+    "unsupported_action",
+    { retryable: false, severity: "warning", guardrails: ["read_only", "governed_by_product_api"] },
   );
 }
 
@@ -1263,6 +1308,8 @@ function unsupportedExecutionMutation(correlationId: string | undefined, meta: A
     correlationId,
     { path, guidance: "Unsupported / Governed by Product API / Coming later" },
     meta,
+    "unsupported_action",
+    { retryable: false, severity: "warning", guardrails: ["read_only", "governed_by_product_api"] },
   );
 }
 
@@ -1274,6 +1321,8 @@ function unsupportedEconomicMutation(correlationId: string | undefined, meta: Ac
     correlationId,
     { action, guidance: "Unsupported / Governed by Product API / Economics is operational, not billing" },
     meta,
+    "unsupported_action",
+    { retryable: false, severity: "warning", guardrails: ["not_billing", "governed_by_product_api"] },
   );
 }
 
@@ -1495,25 +1544,66 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined, meta: AcsHttpEnvelopeMeta) {
   if (error instanceof NotFoundError) {
-    return fail(error.message, 404, "not_found", correlationId, undefined, meta);
+    return fail(
+      error.message,
+      404,
+      "not_found",
+      correlationId,
+      { kind: error.kind, id: error.id },
+      meta,
+      "not_found",
+      { entityRefs: [toEntityRef(error.kind, error.id)], retryable: false, severity: "error" },
+    );
   }
   if (error instanceof DuplicateRegistrationError) {
-    return fail(error.message, 409, "conflict", correlationId, undefined, meta);
+    return fail(error.message, 409, "conflict", correlationId, undefined, meta, "conflict", {
+      retryable: false,
+      severity: "error",
+    });
   }
   if (error instanceof AgentRevisionConflictError) {
-    return fail(error.message, 409, "conflict", correlationId, undefined, meta);
+    return fail(error.message, 409, "conflict", correlationId, undefined, meta, "stale_revision", {
+      retryable: true,
+      severity: "warning",
+      guardrails: ["refresh_before_retry"],
+    });
   }
   if (error instanceof AgentLifecycleGuardError) {
-    return fail(error.message, 409, "agent_lifecycle_guard", correlationId, error.details, meta);
+    const reason = typeof error.details.reason === "string" ? error.details.reason : "blocked_by_lifecycle";
+    return fail(error.message, 409, "agent_lifecycle_guard", correlationId, error.details, meta, reason, {
+      retryable: false,
+      severity: "warning",
+      guardrails: ["blocked_with_reason"],
+    });
   }
   if (error instanceof EngineSandboxOnlyError) {
-    return fail(error.message, 403, "forbidden", correlationId, error.details, meta);
+    return fail(error.message, 403, "forbidden", correlationId, error.details, meta, "blocked_by_sandbox", {
+      retryable: false,
+      severity: "warning",
+      guardrails: ["sandbox_only"],
+    });
   }
   if (error instanceof AcsHttpValidationError) {
-    return fail(error.message, 400, error.code, correlationId, error.details, meta);
+    return fail(error.message, 400, error.code, correlationId, error.details, meta, "validation_error", {
+      retryable: false,
+      severity: "error",
+    });
+  }
+  if (error instanceof PolicyRejectedError) {
+    return fail(error.message, 403, "policy_rejected", correlationId, undefined, meta, "blocked_by_policy", {
+      retryable: false,
+      severity: "warning",
+      guardrails: ["governance"],
+    });
   }
   if (error instanceof Error) {
-    return fail(error.message, 500, "internal_error", correlationId, undefined, meta);
+    return fail(error.message, 500, "internal_error", correlationId, undefined, meta, "runtime_failure", {
+      retryable: true,
+      severity: "error",
+    });
   }
-  return fail("unknown product API error", 500, "internal_error", correlationId, undefined, meta);
+  return fail("unknown product API error", 500, "internal_error", correlationId, undefined, meta, "runtime_failure", {
+    retryable: true,
+    severity: "error",
+  });
 }

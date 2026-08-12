@@ -58,6 +58,7 @@ import { EngineSandboxOnlyError } from "../engines/engine-errors.js";
 import type { EngineService } from "../engines/engine-service.js";
 import type { AgentEngine, EngineCapabilities } from "../engines/agent-engine.js";
 import { NotFoundError } from "../errors.js";
+import { getEpic11AcceptanceReport, type Epic11AcceptanceReport } from "./epic-11-acceptance.js";
 import type {
   CompositionResourceService,
   GovernedCapabilityResource,
@@ -216,6 +217,55 @@ export interface AgentSurfaceGuardrails {
   readonly mutationScope: "agent-lifecycle";
   readonly productionReady: false;
   readonly sourceOfTruth: "product-api";
+}
+
+export interface SystemGuardrailsView {
+  readonly inspectionMode: true;
+  readonly sandboxOnly: true;
+  readonly readOnly: true;
+  readonly mutableOperations: false;
+  readonly productionReady: false;
+  readonly sourceOfTruth: "product-api";
+  readonly futureScope: readonly string[];
+  readonly administration: { readonly status: "unavailable"; readonly scope: "future"; readonly reason: string };
+  readonly tenants: { readonly status: "future_scope"; readonly reason: string };
+}
+
+export interface SystemConfigurationView {
+  readonly mode: "inspection";
+  readonly automation: "disabled";
+  readonly readOnly: true;
+  readonly persistenceBackend: "memory";
+  readonly secretBackend: "memory";
+  readonly settlementBackend: "memory";
+  readonly refreshWindowMs: number;
+  readonly notices: readonly string[];
+}
+
+export interface SystemPolicyVisibility {
+  readonly id: string;
+  readonly label: string;
+  readonly availability: "read_only" | "governed_by_product_api" | "unavailable";
+  readonly note: string;
+}
+
+export interface SystemAdministrationView {
+  readonly status: "unavailable";
+  readonly scope: "future";
+  readonly reason: string;
+  readonly notes: readonly string[];
+}
+
+export interface SystemTenantsView {
+  readonly status: "future_scope";
+  readonly reason: string;
+  readonly isolationVisibility: readonly {
+    readonly workerId: string;
+    readonly declaredIsolationModes: readonly string[];
+    readonly tenantIsolation: boolean;
+    readonly workloadIsolation: boolean;
+  }[];
+  readonly notes: readonly string[];
 }
 
 export interface AgentLifecycleActionView {
@@ -2895,5 +2945,132 @@ export class ProductApiClient {
         checkedAt: readinessSummary.runtime.checkedAt,
       },
     };
+  }
+
+  // ---- Milestone F: Governance / System boundary (read-only) ----
+
+  async getSystemGuardrails(): Promise<SystemGuardrailsView> {
+    return {
+      inspectionMode: true,
+      sandboxOnly: true,
+      readOnly: true,
+      mutableOperations: false,
+      productionReady: false,
+      sourceOfTruth: "product-api",
+      futureScope: [
+        "Production administration",
+        "Advanced tenant management",
+        "RBAC / advanced authentication",
+        "Secrets vault management",
+        "Billing and payment rails",
+        "Advanced policy mutation",
+      ],
+      administration: {
+        status: "unavailable",
+        scope: "future",
+        reason: "Production administration is not part of EPIC-11; this surface shows the boundary without exposing mutations.",
+      },
+      tenants: {
+        status: "future_scope",
+        reason: "Advanced tenant management is future scope; only isolation visibility is exposed.",
+      },
+    };
+  }
+
+  async getSystemConfiguration(): Promise<SystemConfigurationView> {
+    return {
+      mode: "inspection",
+      automation: "disabled",
+      readOnly: true,
+      persistenceBackend: "memory",
+      secretBackend: "memory",
+      settlementBackend: "memory",
+      refreshWindowMs: OPERATIONAL_REFRESH_WINDOW_MS,
+      notices: [
+        "No secrets are stored or displayed by this surface.",
+        "Economics is operational metering, not billing.",
+        "Configuration is read-only in this milestone.",
+      ],
+    };
+  }
+
+  async getSystemPolicies(): Promise<readonly SystemPolicyVisibility[]> {
+    return [
+      {
+        id: "lifecycle",
+        label: "Agent lifecycle policy",
+        availability: "read_only",
+        note: "Lifecycle guards are enforced by the Product API and reported as blocked actions with a reason.",
+      },
+      {
+        id: "composition",
+        label: "Composition policy",
+        availability: "read_only",
+        note: "Composition is governed by the Product API; mutations are unsupported in this milestone.",
+      },
+      {
+        id: "execution",
+        label: "Execution policy",
+        availability: "governed_by_product_api",
+        note: "Execution governance is enforced by the Product API; the surface is read-only.",
+      },
+      {
+        id: "credential",
+        label: "Credential policy",
+        availability: "governed_by_product_api",
+        note: "Credential state is visible in redacted form; mutations are governed.",
+      },
+      {
+        id: "economic",
+        label: "Economic policy",
+        availability: "governed_by_product_api",
+        note: "Economics is operational metering, not billing; mutations are governed.",
+      },
+      {
+        id: "mutation",
+        label: "Policy mutation",
+        availability: "unavailable",
+        note: "Advanced policy mutation is deferred to a future EPIC.",
+      },
+    ];
+  }
+
+  async getSystemAdministration(): Promise<SystemAdministrationView> {
+    return {
+      status: "unavailable",
+      scope: "future",
+      reason: "Production administration is not part of EPIC-11; the boundary is visible without exposing mutations.",
+      notes: [
+        "No RBAC administration",
+        "No tenant administration",
+        "No secrets vault administration",
+        "No production readiness claim",
+      ],
+    };
+  }
+
+  async getSystemTenants(): Promise<SystemTenantsView> {
+    const workers = this.#workerRegistry?.list() ?? [];
+    return {
+      status: "future_scope",
+      reason: "Advanced tenant management is future scope; only isolation visibility is exposed.",
+      isolationVisibility: workers.map((worker) => {
+        const modes = worker.capabilities.supportedIsolationModes;
+        return {
+          workerId: worker.canonicalId,
+          declaredIsolationModes: modes,
+          tenantIsolation: modes.some((mode) => mode === "tenant" || mode.includes("tenant")),
+          workloadIsolation: modes.some((mode) => mode === "workload" || mode.includes("workload") || mode === "namespace"),
+        };
+      }),
+      notes: [
+        "Isolation state is reported by the Product API, not computed by the UI.",
+        "Without real multi-tenant data the surface reports the declared modes of registered workers.",
+      ],
+    };
+  }
+
+  async getEpic11AcceptanceReport(): Promise<Epic11AcceptanceReport> {
+    return getEpic11AcceptanceReport();
   }
 }

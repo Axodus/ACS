@@ -1192,6 +1192,122 @@
 .timeline-row small { color: var(--muted); font-size: 11px; }
 .timeline-row p { color: var(--secondary); font-size: 12px; line-height: 1.4; }
 
+/* ---------------------------------------------------------------------------
+ * Milestone F — flow groups, shared operational states and cross-links
+ * ------------------------------------------------------------------------- */
+
+.flow-group {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  display: grid;
+  gap: 13px;
+  margin-bottom: 18px;
+  padding: 15px;
+}
+
+.flow-group-head h2 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+
+.flow-group-head p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.flow-group-note {
+  border-top: 1px dashed var(--border2);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  padding-top: 12px;
+}
+
+.execution-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.summary-card.state-error {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+}
+
+.blocked-panel,
+.unsupported-panel {
+  background: var(--raised);
+}
+
+.blocked-panel {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+}
+
+.blocked-panel .panel-head h2 {
+  color: var(--amber);
+}
+
+.unsupported-panel .panel-head h2 {
+  color: var(--secondary);
+}
+
+.timeline-row-top {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.entity-ref-list {
+  border-top: 1px dashed var(--border2);
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.entity-ref-list > span {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.entity-ref-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.entity-ref-list code {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--secondary);
+  font-size: 11px;
+  padding: 3px 7px;
+}
+
+.cross-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.detail-link {
+  color: var(--green);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.detail-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1100px) {
+  .execution-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1100px) {
   .composition-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .composition-detail-grid { grid-template-columns: 1fr; }
