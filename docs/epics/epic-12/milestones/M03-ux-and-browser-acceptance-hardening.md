@@ -1,6 +1,6 @@
 # M03 - UX And Browser Acceptance Hardening
 
-Status: PLANNING
+Status: S04 BLOCKED_BY_ENVIRONMENT
 
 ## Mission
 
@@ -76,3 +76,24 @@ M03 directly consumes the EPIC-11 visual/browser verification caveat.
 
 M03 is blocked on Browser Acceptance scope and may feed M07 final acceptance
 criteria.
+
+## S04 Evidence State
+
+The S04 harness exists at
+[`.design/app-standalone/tools/browser-acceptance.mjs`](../../../../.design/app-standalone/tools/browser-acceptance.mjs)
+and is documented in
+[`../browser-acceptance.md`](../browser-acceptance.md).
+
+```text
+Browser smoke: BLOCKED_BY_ENVIRONMENT
+Core route click-through: BLOCKED_BY_ENVIRONMENT
+Visual evidence: BLOCKED_BY_ENVIRONMENT
+Responsive QA: BLOCKED_BY_ENVIRONMENT
+Accessibility baseline: BLOCKED_BY_ENVIRONMENT
+WCAG certification: not claimed
+Production Ready: NO / not yet claimed
+```
+
+The harness and evidence manifest are ready to run, but no runnable headless
+browser is available in this workspace. This milestone cannot receive a
+browser/UX acceptance PASS until real browser evidence is captured.

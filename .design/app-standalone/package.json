@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "lint": "eslint . --ignore-pattern dist",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"tests/**/*.test.mjs\""
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "test:browser": "node tools/browser-acceptance.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

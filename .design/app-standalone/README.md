@@ -20,6 +20,7 @@ Local control plane UI for ACS and OpenClaw agents, built as a static
 | `pnpm lint`      | ESLint (flat config)                   |
 | `pnpm typecheck` | `tsc --noEmit`                         |
 | `pnpm test`      | Node smoke tests for the build artifact|
+| `pnpm test:browser` | Browser acceptance harness (requires runnable headless browser) |
 
 ## Routes
 
@@ -41,3 +42,11 @@ The app is a client-side SPA:
 All screens currently render frontend-local mock data. Future ACS Core or
 runtime connectivity belongs behind an HTTP/API contract; this app does not
 depend on Cloudflare bindings or any server runtime.
+
+## Browser acceptance
+
+`pnpm test:browser` serves the built `dist/` locally and records route,
+viewport, screenshot, and static accessibility evidence under
+`tmp/epic-12/browser-evidence/`. The harness reports
+`BLOCKED_BY_ENVIRONMENT` when no runnable headless browser is available; static
+checks are never reported as browser acceptance PASS.
