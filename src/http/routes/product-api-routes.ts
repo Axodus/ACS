@@ -119,6 +119,16 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // S04 exposes only the pricing / invoice candidate boundary; it does not compute price or issue invoices.
+    if (apiPath === "system/pricing-invoice-boundary" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const summary = await api.getPricingInvoiceBoundaryReport();
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/pricing-invoice-boundary") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // S06 exposes only the tenant billing and account responsibility boundary; it does not mutate tenant state.
     if (apiPath === "system/tenant-billing-boundary" && request.method === "GET") {
       assertAllowedQueryParams(url, []);

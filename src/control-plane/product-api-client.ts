@@ -212,6 +212,108 @@ export type PaymentRailsBoundaryReport = {
   };
 };
 
+export type PricingInvoiceBoundaryReport = {
+  readonly checkedAt: number;
+  readonly pricingReady: false;
+  readonly invoiceReady: false;
+  readonly billingReady: false;
+  readonly paymentReady: false;
+  readonly tenantBillingReady: false;
+  readonly productionFinancialOperationsReady: false;
+  readonly taxReady: false;
+  readonly complianceReady: false;
+  readonly claim: "not_claimed";
+  readonly pricingBoundary: {
+    readonly pricingBoundaryStatus: string;
+    readonly pricingSource: string;
+    readonly pricingAuthority: string;
+    readonly pricingState: string;
+    readonly financialTruthDependency: string;
+    readonly billableEventDependency: string;
+    readonly quoteDependency: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+    readonly unsupportedStates: readonly string[];
+    readonly deferredStates: readonly string[];
+  };
+  readonly quoteCandidates: readonly {
+    readonly quoteCandidateId: string;
+    readonly relatedBillableEvent: string;
+    readonly pricingSourceDependency: string;
+    readonly amountState: string;
+    readonly currencyState: string;
+    readonly validityState: string;
+    readonly approvalState: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+    readonly deferredStates: readonly string[];
+  }[];
+  readonly quoteToInvoiceFlow: {
+    readonly status: string;
+    readonly prerequisites: readonly string[];
+    readonly requiredApprovals: readonly string[];
+    readonly requiredFinancialTruth: string;
+    readonly requiredPricingSource: string;
+    readonly requiredInvoiceBoundary: string;
+    readonly requiredComplianceTaxDecision: string;
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+  };
+  readonly invoiceCandidates: readonly {
+    readonly invoiceCandidateId: string;
+    readonly relatedQuoteCandidate: string;
+    readonly relatedBillableEvent: string;
+    readonly artifactState: string;
+    readonly legalTaxState: string;
+    readonly approvalState: string;
+    readonly complianceState: string;
+    readonly paymentDependency: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+    readonly deferredStates: readonly string[];
+  }[];
+  readonly invoiceArtifactBoundary: {
+    readonly invoiceCandidate: string;
+    readonly operationalInvoiceArtifact: string;
+    readonly legalTaxInvoice: string;
+    readonly taxCompliantInvoice: string;
+    readonly accountingInvoice: string;
+    readonly receipt: string;
+    readonly paymentRequest: string;
+    readonly legalTaxInvoiceReadiness: string;
+    readonly complianceReadiness: string;
+    readonly accountingIntegration: string;
+    readonly countrySpecificTaxAutomation: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+  };
+  readonly readinessGates: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    readonly evidence: readonly string[];
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly claimImpact: readonly string[];
+  }[];
+  readonly blockers: readonly string[];
+  readonly warnings: readonly string[];
+  readonly caveats: readonly string[];
+  readonly deferredScope: readonly string[];
+  readonly sourceEvidence: readonly string[];
+  readonly claimDiscipline: {
+    readonly pricingReadyClaimAllowed: false;
+    readonly invoiceReadyClaimAllowed: false;
+    readonly billingReadyClaimAllowed: false;
+    readonly paymentReadyClaimAllowed: false;
+    readonly tenantBillingReadyClaimAllowed: false;
+    readonly productionFinancialOperationsClaimAllowed: false;
+    readonly taxReadyClaimAllowed: false;
+    readonly complianceReadyClaimAllowed: false;
+    readonly reason: string;
+  };
+};
+
 export type TenantBillingBoundaryReport = {
   readonly checkedAt: number;
   readonly tenantBillingReady: false;
@@ -3443,6 +3545,152 @@ export class ProductApiClient {
         billingReadyClaimAllowed: false,
         productionFinancialOperationsClaimAllowed: false,
         reason: "No / not yet claimed; read-only boundary only.",
+      },
+    };
+  }
+
+  async getPricingInvoiceBoundaryReport(): Promise<PricingInvoiceBoundaryReport> {
+    return {
+      checkedAt: Date.now(),
+      pricingReady: false,
+      invoiceReady: false,
+      billingReady: false,
+      paymentReady: false,
+      tenantBillingReady: false,
+      productionFinancialOperationsReady: false,
+      taxReady: false,
+      complianceReady: false,
+      claim: "not_claimed",
+      pricingBoundary: {
+        pricingBoundaryStatus: "candidate",
+        pricingSource: "financial truth and governed pricing source",
+        pricingAuthority: "candidate_source",
+        pricingState: "not_started",
+        financialTruthDependency: "requires S03 financial truth boundary",
+        billableEventDependency: "requires billable event candidate model",
+        quoteDependency: "requires quote candidate boundary",
+        caveats: ["Pricing remains read-only and evidence-bounded"],
+        blockers: ["No pricing engine", "No invented monetary values", "No pricing-ready claim"],
+        unsupportedStates: ["unsupported", "deferred"],
+        deferredStates: ["dynamic_pricing_engine_deferred", "discount_engine_deferred", "plan_mutation_deferred"],
+      },
+      quoteCandidates: [
+        {
+          quoteCandidateId: "candidate",
+          relatedBillableEvent: "candidate",
+          pricingSourceDependency: "pricing source remains candidate-only",
+          amountState: "missing_amount",
+          currencyState: "missing_currency",
+          validityState: "candidate",
+          approvalState: "candidate",
+          caveats: ["Quote candidate is not billing", "No monetary value is invented"],
+          blockers: ["No price computation", "No quote mutation", "No payment request"],
+          deferredStates: ["quote_mutation_deferred", "billing_grade_computation_deferred"],
+        },
+      ],
+      quoteToInvoiceFlow: {
+        status: "candidate",
+        prerequisites: ["financial truth", "pricing boundary", "invoice boundary", "compliance decision"],
+        requiredApprovals: ["pricing approval", "invoice approval"],
+        requiredFinancialTruth: "S03 financial truth boundary required",
+        requiredPricingSource: "pricing source must be governed and evidence-bounded",
+        requiredInvoiceBoundary: "invoice artifact boundary must remain candidate-only",
+        requiredComplianceTaxDecision: "compliance and tax readiness are not claimed",
+        blockers: ["No real invoice generation", "No legal/tax invoice", "No payment scope"],
+        caveats: ["Flow is conceptual and read-only"],
+      },
+      invoiceCandidates: [
+        {
+          invoiceCandidateId: "candidate",
+          relatedQuoteCandidate: "candidate",
+          relatedBillableEvent: "candidate",
+          artifactState: "draft_candidate",
+          legalTaxState: "missing_tax_boundary",
+          approvalState: "candidate",
+          complianceState: "missing_compliance_decision",
+          paymentDependency: "payment rails remain deferred",
+          caveats: ["Invoice candidate is not a legal/tax invoice"],
+          blockers: ["No invoice number", "No PDF invoice", "No legal/tax issuance"],
+          deferredStates: ["accounting_integration_deferred", "country_specific_tax_automation_deferred"],
+        },
+      ],
+      invoiceArtifactBoundary: {
+        invoiceCandidate: "candidate",
+        operationalInvoiceArtifact: "candidate",
+        legalTaxInvoice: "not claimed",
+        taxCompliantInvoice: "not claimed",
+        accountingInvoice: "deferred",
+        receipt: "deferred",
+        paymentRequest: "deferred",
+        legalTaxInvoiceReadiness: "not claimed",
+        complianceReadiness: "not claimed",
+        accountingIntegration: "deferred",
+        countrySpecificTaxAutomation: "deferred",
+        caveats: ["Artifact boundary does not assert legal or tax issuance"],
+        blockers: ["No invoice-ready claim", "No legal/tax invoice claim"],
+      },
+      readinessGates: [
+        {
+          id: "G04",
+          label: "Pricing Boundary",
+          status: "candidate",
+          evidence: ["Pricing boundary modeled in S04"],
+          blockers: ["No pricing engine", "No billing-grade computation"],
+          caveats: ["Pricing is read-only and governed"],
+          claimImpact: ["Pricing Ready blocked", "Invoice Ready blocked", "Billing Ready blocked", "Production Financial Operations blocked"],
+        },
+        {
+          id: "G05",
+          label: "Quote-to-Invoice Candidate Flow",
+          status: "candidate",
+          evidence: ["Quote-to-invoice flow modeled in S04"],
+          blockers: ["No invoice mutation", "No payment scope"],
+          caveats: ["Conceptual flow only"],
+          claimImpact: ["Pricing Ready blocked", "Invoice Ready blocked", "Billing Ready blocked", "Production Financial Operations blocked"],
+        },
+        {
+          id: "G06",
+          label: "Invoice Artifact Boundary",
+          status: "candidate",
+          evidence: ["Invoice artifact boundary modeled in S04"],
+          blockers: ["No legal/tax invoice", "No invoice number"],
+          caveats: ["Operational artifact is not a real invoice"],
+          claimImpact: ["Pricing Ready blocked", "Invoice Ready blocked", "Billing Ready blocked", "Production Financial Operations blocked"],
+        },
+        {
+          id: "G13",
+          label: "Compliance / Tax Boundary",
+          status: "candidate",
+          evidence: ["Tax and compliance readiness remain not claimed"],
+          blockers: ["No tax automation", "No compliance certification"],
+          caveats: ["Legal/tax readiness is deferred"],
+          claimImpact: ["Pricing Ready blocked", "Invoice Ready blocked", "Billing Ready blocked", "Production Financial Operations blocked"],
+        },
+        {
+          id: "G16",
+          label: "No Financial Claim Discipline",
+          status: "candidate",
+          evidence: ["All readiness claims remain false/not claimed"],
+          blockers: ["No claim upgrade allowed"],
+          caveats: ["Claim discipline is permanent"],
+          claimImpact: ["Pricing Ready blocked", "Invoice Ready blocked", "Billing Ready blocked", "Production Financial Operations blocked"],
+        },
+      ],
+      blockers: ["No pricing engine", "No invoice generation", "No payment scope", "No invented monetary values"],
+      warnings: ["Pricing and invoice remain conceptual in EPIC-13", "No tax/legal invoice claim is allowed"],
+      caveats: ["Boundary is read-only and evidence-bounded"],
+      deferredScope: ["pricing_engine", "discount_engine", "subscription_plan_engine", "legal_tax_invoice_issuance", "accounting_integration"],
+      sourceEvidence: ["EPIC-13 Executive Plan", "S03 Billing Boundary & Financial Truth", "S04 Pricing, Quote & Invoice Contracts"],
+      claimDiscipline: {
+        pricingReadyClaimAllowed: false,
+        invoiceReadyClaimAllowed: false,
+        billingReadyClaimAllowed: false,
+        paymentReadyClaimAllowed: false,
+        tenantBillingReadyClaimAllowed: false,
+        productionFinancialOperationsClaimAllowed: false,
+        taxReadyClaimAllowed: false,
+        complianceReadyClaimAllowed: false,
+        reason: "No / not yet claimed; pricing and invoice remain read-only boundary surfaces.",
       },
     };
   }

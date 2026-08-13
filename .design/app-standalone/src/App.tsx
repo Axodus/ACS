@@ -73,6 +73,7 @@ import {
   type ProductionReadinessReport,
   type GovernanceBoundaryReport,
   type OperationalReliabilityReport,
+  type PricingInvoiceBoundaryReport,
   type PaymentRailsBoundaryReport,
   type TenantBillingBoundaryReport,
 } from "./api/product-api";
@@ -95,6 +96,7 @@ type View =
   | "Operational Evidence"
   | "Audit"
   | "Economics"
+  | "Pricing & Invoice Boundary"
   | "Payment Rails Boundary"
   | "Tenant Billing & Account Responsibility"
   | "Governance & System"
@@ -112,6 +114,7 @@ const navGroups: View[][] = [
   ["Operational Execution", "Runtime"],
   ["Operational Evidence", "Audit", "Logs"],
   ["Economics"],
+  ["Pricing & Invoice Boundary"],
   ["Payment Rails Boundary"],
   ["Tenant Billing & Account Responsibility"],
   ["Governance & System", "Settings"],
@@ -134,6 +137,7 @@ const icons: Record<View, string> = {
   "Operational Evidence": "◍",
   Audit: "◌",
   Economics: "$",
+  "Pricing & Invoice Boundary": "¤",
   "Payment Rails Boundary": "¤",
   "Tenant Billing & Account Responsibility": "⊙",
   "Governance & System": "⚖",
@@ -157,6 +161,7 @@ const viewPaths: Record<View, string> = {
   "Operational Evidence": "/operational-evidence",
   Audit: "/audit",
   Economics: "/economics",
+  "Pricing & Invoice Boundary": "/system/pricing-invoice-boundary",
   "Payment Rails Boundary": "/system/payment-rails-boundary",
   "Tenant Billing & Account Responsibility": "/system/tenant-billing-boundary",
   "Governance & System": "/system",
@@ -3015,6 +3020,214 @@ function PaymentRailsBoundaryView() {
   </>;
 }
 
+function PricingInvoiceBoundaryView() {
+  const { data, loadState, loadError, stale, refresh } = useOperationalSummary<PricingInvoiceBoundaryReport>(
+    () => productApi.getPricingInvoiceBoundaryReport(),
+    "Unable to load pricing and invoice boundary from Product API",
+    () => false,
+  );
+  const pricingBoundary = data?.pricingBoundary;
+  const quoteCandidates = data?.quoteCandidates ?? [];
+  const quoteToInvoiceFlow = data?.quoteToInvoiceFlow;
+  const invoiceCandidates = data?.invoiceCandidates ?? [];
+  const invoiceArtifactBoundary = data?.invoiceArtifactBoundary;
+  const readinessGates = data?.readinessGates ?? [];
+
+  return <>
+    <header className="page-head compact">
+      <div>
+        <p className="eyebrow">PRICING, QUOTE &amp; INVOICE CONTRACTS</p>
+        <h1>Pricing, Quote &amp; Invoice Contracts</h1>
+        <p>Read-only boundary projection for pricing, quote candidates and invoice candidate contracts. No real invoice or payment activity is allowed here.</p>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note">
+      <span>Inspection mode</span>
+      <span>Sandbox only</span>
+      <span>Read-only</span>
+      <span>Product API is source of truth</span>
+      <span>No real invoice / no payment / no money movement</span>
+    </div>
+    {staleBanner({ stale, loadState, loadError }, "pricing and invoice boundary")}
+    <CrossLinks links={[
+      { to: "/system", label: "Governance & system" },
+      { to: "/system/billing-boundary", label: "Billing boundary" },
+      { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
+    ]} />
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Claims</h2>
+        <p>All pricing, invoice and tax claims remain explicitly not claimed.</p>
+      </div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Pricing Ready" value={data?.pricingReady ? "YES" : "NO / not yet claimed"} tone={data?.pricingReady ? "good" : "muted"} />
+              <SummaryRow label="Invoice Ready" value={data?.invoiceReady ? "YES" : "NO / not yet claimed"} tone={data?.invoiceReady ? "good" : "muted"} />
+              <SummaryRow label="Billing Ready" value={data?.billingReady ? "YES" : "NO / not yet claimed"} tone={data?.billingReady ? "good" : "muted"} />
+              <SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone={data?.paymentReady ? "good" : "muted"} />
+              <SummaryRow label="Tenant Billing Ready" value={data?.tenantBillingReady ? "YES" : "NO / not yet claimed"} tone={data?.tenantBillingReady ? "good" : "muted"} />
+              <SummaryRow label="Production Financial Operations" value={data?.productionFinancialOperationsReady ? "YES" : "NO / not yet claimed"} tone={data?.productionFinancialOperationsReady ? "good" : "muted"} />
+              <SummaryRow label="Tax Ready" value={data?.taxReady ? "YES" : "NO / not yet claimed"} tone={data?.taxReady ? "good" : "muted"} />
+              <SummaryRow label="Compliance Ready" value={data?.complianceReady ? "YES" : "NO / not yet claimed"} tone={data?.complianceReady ? "good" : "muted"} />
+              <SummaryRow label="Claim" value={data?.claim ?? "not_claimed"} tone="muted" />
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Pricing boundary</h2><p>Source-of-truth posture and dependencies</p></div></div>
+          <div className="panel-body">
+            {pricingBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Pricing boundary status" value={pricingBoundary.pricingBoundaryStatus} />
+                <SummaryRow label="Pricing source" value={pricingBoundary.pricingSource} />
+                <SummaryRow label="Pricing authority" value={pricingBoundary.pricingAuthority} />
+                <SummaryRow label="Pricing state" value={pricingBoundary.pricingState} />
+                <SummaryRow label="Financial truth dependency" value={pricingBoundary.financialTruthDependency} />
+                <SummaryRow label="Billable event dependency" value={pricingBoundary.billableEventDependency} />
+                <SummaryRow label="Quote dependency" value={pricingBoundary.quoteDependency} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No pricing boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Quote candidates</h2>
+        <p>Candidate quotes remain conceptual and evidence-bounded.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Quote candidates</h2><p>Read-only candidate set</p></div><Badge tone="muted">{quoteCandidates.length}</Badge></div>
+          <div className="panel-body">
+            <TimelineList items={quoteCandidates.map((quote, index) => ({
+              id: `${quote.quoteCandidateId}-${index}`,
+              title: quote.quoteCandidateId,
+              meta: `${quote.amountState} · ${quote.currencyState} · ${quote.approvalState}`,
+              detail: `${quote.relatedBillableEvent}${quote.blockers.length ? ` · blockers: ${quote.blockers.join(" · ")}` : ""}${quote.caveats.length ? ` · caveats: ${quote.caveats.join(" · ")}` : ""}`,
+              tone: quote.amountState === "computed_candidate" ? "good" : "muted",
+            }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Quote-to-invoice flow</h2><p>Conceptual boundary only</p></div></div>
+          <div className="panel-body">
+            {quoteToInvoiceFlow
+              ? <div className="summary-list">
+                <SummaryRow label="Status" value={quoteToInvoiceFlow.status} />
+                <SummaryRow label="Financial truth" value={quoteToInvoiceFlow.requiredFinancialTruth} />
+                <SummaryRow label="Pricing source" value={quoteToInvoiceFlow.requiredPricingSource} />
+                <SummaryRow label="Invoice boundary" value={quoteToInvoiceFlow.requiredInvoiceBoundary} />
+                <SummaryRow label="Compliance / tax decision" value={quoteToInvoiceFlow.requiredComplianceTaxDecision} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No quote-to-invoice flow available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Invoice candidates</h2>
+        <p>Invoice artifacts remain candidates, not legal/tax invoices.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Invoice candidates</h2><p>Read-only candidate set</p></div><Badge tone="muted">{invoiceCandidates.length}</Badge></div>
+          <div className="panel-body">
+            <TimelineList items={invoiceCandidates.map((invoice, index) => ({
+              id: `${invoice.invoiceCandidateId}-${index}`,
+              title: invoice.invoiceCandidateId,
+              meta: `${invoice.artifactState} · ${invoice.legalTaxState} · ${invoice.approvalState}`,
+              detail: `${invoice.relatedQuoteCandidate}${invoice.blockers.length ? ` · blockers: ${invoice.blockers.join(" · ")}` : ""}${invoice.caveats.length ? ` · caveats: ${invoice.caveats.join(" · ")}` : ""}`,
+              tone: invoice.artifactState === "draft_candidate" ? "good" : "muted",
+            }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Invoice artifact boundary</h2><p>Legal/tax and accounting caveats remain deferred</p></div></div>
+          <div className="panel-body">
+            {invoiceArtifactBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Invoice candidate" value={invoiceArtifactBoundary.invoiceCandidate} />
+                <SummaryRow label="Operational invoice artifact" value={invoiceArtifactBoundary.operationalInvoiceArtifact} />
+                <SummaryRow label="Legal/tax invoice" value={invoiceArtifactBoundary.legalTaxInvoice} />
+                <SummaryRow label="Tax-compliant invoice" value={invoiceArtifactBoundary.taxCompliantInvoice} />
+                <SummaryRow label="Accounting invoice" value={invoiceArtifactBoundary.accountingInvoice} />
+                <SummaryRow label="Receipt" value={invoiceArtifactBoundary.receipt} />
+                <SummaryRow label="Payment request" value={invoiceArtifactBoundary.paymentRequest} />
+                <SummaryRow label="Legal/tax readiness" value={invoiceArtifactBoundary.legalTaxInvoiceReadiness} />
+                <SummaryRow label="Compliance readiness" value={invoiceArtifactBoundary.complianceReadiness} />
+                <SummaryRow label="Accounting integration" value={invoiceArtifactBoundary.accountingIntegration} />
+                <SummaryRow label="Country-specific tax automation" value={invoiceArtifactBoundary.countrySpecificTaxAutomation} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No invoice artifact boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Readiness gates</h2>
+        <p>Claim impact remains blocked for pricing, invoice and production financial operations.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Readiness gates</h2><p>Contractual gates</p></div><Badge tone={readinessGates.length ? "good" : "muted"}>{readinessGates.length}</Badge></div>
+          <div className="panel-body">
+            <TimelineList items={readinessGates.map((gate: PricingInvoiceBoundaryReport["readinessGates"][number]) => ({
+              id: gate.id,
+              title: gate.label,
+              meta: `${gate.status} · ${gate.claimImpact.join(" · ")}`,
+              detail: `${gate.evidence.join(" · ") || "No evidence"}${gate.blockers.length ? ` · blockers: ${gate.blockers.join(" · ")}` : ""}${gate.caveats.length ? ` · caveats: ${gate.caveats.join(" · ")}` : ""}`,
+              tone: gate.status === "blocked" ? "warn" : gate.status === "partial" ? "muted" : undefined,
+            }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Claims discipline</h2><p>All pricing and invoice claims remain explicitly not claimed.</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Pricing Ready claim" value={data?.claimDiscipline?.pricingReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+              <SummaryRow label="Invoice Ready claim" value={data?.claimDiscipline?.invoiceReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+              <SummaryRow label="Billing Ready claim" value={data?.claimDiscipline?.billingReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+              <SummaryRow label="Payment Ready claim" value={data?.claimDiscipline?.paymentReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+              <SummaryRow label="Tenant Billing Ready claim" value={data?.claimDiscipline?.tenantBillingReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+              <SummaryRow label="Production Financial Operations claim" value={data?.claimDiscipline?.productionFinancialOperationsClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+              <SummaryRow label="Tax Ready claim" value={data?.claimDiscipline?.taxReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+              <SummaryRow label="Compliance Ready claim" value={data?.claimDiscipline?.complianceReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+              <SummaryRow label="Reason" value={data?.claimDiscipline?.reason ?? "claim discipline remains blocked"} />
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Evidence and scope</h2>
+        <p>Visible evidence only; deferred EPIC-14+ scope stays deferred.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Source evidence</h2><p>Product API snapshot</p></div></div>
+          <div className="panel-body">
+            <TimelineList items={(data?.sourceEvidence ?? []).map((item: string, index: number) => ({ id: `${item}-${index}`, title: item, tone: "muted" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Deferred scope</h2><p>EPIC-14+ candidates only</p></div><Badge tone="muted">{data?.deferredScope?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList items={(data?.deferredScope ?? []).map((item: string, index: number) => ({ id: `${item}-${index}`, title: item, tone: "muted" }))} />
+          </div>
+        </section>
+      </div>
+    </div>
+  </>;
+}
+
 function TenantBillingBoundaryView() {
   const { data, loadState, loadError, stale, refresh } = useOperationalSummary<TenantBillingBoundaryReport>(
     () => productApi.getTenantBillingBoundaryReport(),
@@ -4072,6 +4285,7 @@ export default function App() {
             <Route path="/audit" element={<AuditView />} />
             <Route path="/economics" element={<EconomicsView />} />
             <Route path="/system/payment-rails-boundary" element={<PaymentRailsBoundaryView />} />
+            <Route path="/system/pricing-invoice-boundary" element={<PricingInvoiceBoundaryView />} />
             <Route path="/system/tenant-billing-boundary" element={<TenantBillingBoundaryView />} />
             <Route path="/system" element={<GovernanceView />} />
             <Route path="/system/operational-reliability" element={<OperationalReliabilityView />} />

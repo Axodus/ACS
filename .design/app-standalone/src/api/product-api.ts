@@ -904,6 +904,108 @@ export type PaymentRailsBoundaryReport = {
   };
 };
 
+export type PricingInvoiceBoundaryReport = {
+  checkedAt: number;
+  pricingReady: false;
+  invoiceReady: false;
+  billingReady: false;
+  paymentReady: false;
+  tenantBillingReady: false;
+  productionFinancialOperationsReady: false;
+  taxReady: false;
+  complianceReady: false;
+  claim: "not_claimed";
+  pricingBoundary: {
+    pricingBoundaryStatus: string;
+    pricingSource: string;
+    pricingAuthority: string;
+    pricingState: string;
+    financialTruthDependency: string;
+    billableEventDependency: string;
+    quoteDependency: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+    unsupportedStates: readonly string[];
+    deferredStates: readonly string[];
+  };
+  quoteCandidates: readonly {
+    quoteCandidateId: string;
+    relatedBillableEvent: string;
+    pricingSourceDependency: string;
+    amountState: string;
+    currencyState: string;
+    validityState: string;
+    approvalState: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+    deferredStates: readonly string[];
+  }[];
+  quoteToInvoiceFlow: {
+    status: string;
+    prerequisites: readonly string[];
+    requiredApprovals: readonly string[];
+    requiredFinancialTruth: string;
+    requiredPricingSource: string;
+    requiredInvoiceBoundary: string;
+    requiredComplianceTaxDecision: string;
+    blockers: readonly string[];
+    caveats: readonly string[];
+  };
+  invoiceCandidates: readonly {
+    invoiceCandidateId: string;
+    relatedQuoteCandidate: string;
+    relatedBillableEvent: string;
+    artifactState: string;
+    legalTaxState: string;
+    approvalState: string;
+    complianceState: string;
+    paymentDependency: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+    deferredStates: readonly string[];
+  }[];
+  invoiceArtifactBoundary: {
+    invoiceCandidate: string;
+    operationalInvoiceArtifact: string;
+    legalTaxInvoice: string;
+    taxCompliantInvoice: string;
+    accountingInvoice: string;
+    receipt: string;
+    paymentRequest: string;
+    legalTaxInvoiceReadiness: string;
+    complianceReadiness: string;
+    accountingIntegration: string;
+    countrySpecificTaxAutomation: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+  };
+  readinessGates: readonly {
+    id: string;
+    label: string;
+    status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    evidence: readonly string[];
+    blockers: readonly string[];
+    caveats: readonly string[];
+    claimImpact: readonly string[];
+  }[];
+  blockers: readonly string[];
+  warnings: readonly string[];
+  caveats: readonly string[];
+  deferredScope: readonly string[];
+  sourceEvidence: readonly string[];
+  claimDiscipline: {
+    pricingReadyClaimAllowed: false;
+    invoiceReadyClaimAllowed: false;
+    billingReadyClaimAllowed: false;
+    paymentReadyClaimAllowed: false;
+    tenantBillingReadyClaimAllowed: false;
+    productionFinancialOperationsClaimAllowed: false;
+    taxReadyClaimAllowed: false;
+    complianceReadyClaimAllowed: false;
+    reason: string;
+  };
+};
+
 export type TenantBillingBoundaryReport = {
   checkedAt: string;
   tenantBillingReady: false;
@@ -2184,6 +2286,10 @@ export const productApi = {
 
   async getPaymentRailsBoundaryReport() {
     return request<PaymentRailsBoundaryReport>("/system/payment-rails-boundary");
+  },
+
+  async getPricingInvoiceBoundaryReport() {
+    return request<PricingInvoiceBoundaryReport>("/system/pricing-invoice-boundary");
   },
 
   async getTenantBillingBoundaryReport() {
