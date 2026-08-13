@@ -8,7 +8,8 @@
 - S03 — Billing Boundary & Financial Truth: PASS
 - S04 — Pricing, Quote & Invoice Contracts: PASS
 - S05 — Payment Rails Boundary: PASS
-- Functional implementation: none
+- S06 — Tenant Billing & Account Responsibility: PASS
+- Functional implementation: tenant billing responsibility boundary only
 - Billing Ready: NO / not yet claimed
 - Payment Ready: NO / not yet claimed
 - Invoice Ready: NO / not yet claimed
@@ -62,10 +63,10 @@ without reopening EPIC-12 or claiming financial readiness.
 
 ## Recommended next sprint
 
-EPIC-13 / S06 — Tenant Billing & Account Responsibility
+EPIC-13 / S07 — Receipts, Settlement & Reconciliation
 
-S06 should decide tenant billing responsibility depth and keep the no-claim
-posture intact.
+S07 should model receipts, settlement visibility, and reconciliation evidence
+while keeping the no-claim posture intact.
 
 S02 decided:
 

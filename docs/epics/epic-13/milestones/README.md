@@ -14,7 +14,7 @@ truth before any milestone becomes executable.
 | M01 — Billing Boundary & Financial Truth | S03 | PLANNING | ./M01-billing-boundary-financial-truth.md |
 | M02 — Pricing, Quote & Invoice Contracts | S04 | PLANNING | ./M02-pricing-quote-invoice-contracts.md |
 | M03 — Payment Rails Boundary | S05 | PASS | ./M03-payment-rails-boundary.md |
-| M04 — Tenant Billing & Account Responsibility | S06 | PLANNING | ./M04-tenant-billing-account-responsibility.md |
+| M04 — Tenant Billing & Account Responsibility | S06 | PASS | ./M04-tenant-billing-account-responsibility.md |
 | M05 — Receipts, Settlement & Reconciliation | S07 | PLANNING | ./M05-receipts-settlement-reconciliation.md |
 | M06 — Financial Audit, Compliance & Risk | S08 | PLANNING | ./M06-financial-audit-compliance-risk.md |
 | M07 — Billing UX & Operator Acceptance | S09 | PLANNING | ./M07-billing-ux-operator-acceptance.md |

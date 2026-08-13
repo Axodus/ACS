@@ -1,6 +1,6 @@
 # M04 — Tenant Billing & Account Responsibility
 
-Status: PLANNING
+Status: PASS
 
 ## Mission
 
@@ -49,6 +49,8 @@ Define tenant responsibility and payer accountability for billing.
 - tenant boundary is explicit
 - no tenant readiness claim is introduced
 - no implementation is implied
+- read-only tenant billing boundary is exposed
+- tenant, payer, operator, and account responsibility remain separated
 
 ## Claim discipline
 
@@ -56,6 +58,7 @@ Define tenant responsibility and payer accountability for billing.
 - Payment Ready: NO / not yet claimed
 - Invoice Ready: NO / not yet claimed
 - Tenant Billing Ready: NO / not yet claimed
+- Tenant Administration Ready: NO / not yet claimed
 
 ## Dependencies
 

@@ -119,6 +119,16 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // S06 exposes only the tenant billing and account responsibility boundary; it does not mutate tenant state.
+    if (apiPath === "system/tenant-billing-boundary" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const summary = await api.getTenantBillingBoundaryReport();
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/tenant-billing-boundary") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // Unsupported composition mutations: Milestone C is read-only. The Product
     // API rejects governed mutations with a structured error instead of
     // simulating success. This catch-all runs before the catalog routes so the

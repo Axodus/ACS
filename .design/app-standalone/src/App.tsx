@@ -74,6 +74,7 @@ import {
   type GovernanceBoundaryReport,
   type OperationalReliabilityReport,
   type PaymentRailsBoundaryReport,
+  type TenantBillingBoundaryReport,
 } from "./api/product-api";
 import "./operational.css";
 
@@ -95,6 +96,7 @@ type View =
   | "Audit"
   | "Economics"
   | "Payment Rails Boundary"
+  | "Tenant Billing & Account Responsibility"
   | "Governance & System"
   | "Settings";
 
@@ -111,6 +113,7 @@ const navGroups: View[][] = [
   ["Operational Evidence", "Audit", "Logs"],
   ["Economics"],
   ["Payment Rails Boundary"],
+  ["Tenant Billing & Account Responsibility"],
   ["Governance & System", "Settings"],
 ];
 
@@ -132,6 +135,7 @@ const icons: Record<View, string> = {
   Audit: "◌",
   Economics: "$",
   "Payment Rails Boundary": "¤",
+  "Tenant Billing & Account Responsibility": "⊙",
   "Governance & System": "⚖",
   Settings: "⚙",
 };
@@ -154,6 +158,7 @@ const viewPaths: Record<View, string> = {
   Audit: "/audit",
   Economics: "/economics",
   "Payment Rails Boundary": "/system/payment-rails-boundary",
+  "Tenant Billing & Account Responsibility": "/system/tenant-billing-boundary",
   "Governance & System": "/system",
   Settings: "/settings",
 };
@@ -3010,6 +3015,234 @@ function PaymentRailsBoundaryView() {
   </>;
 }
 
+function TenantBillingBoundaryView() {
+  const { data, loadState, loadError, stale, refresh } = useOperationalSummary<TenantBillingBoundaryReport>(
+    () => productApi.getTenantBillingBoundaryReport(),
+    "Unable to load tenant billing boundary from Product API",
+    () => false,
+  );
+  const tenantAccountResponsibility = data?.tenantAccountResponsibility;
+  const payerIdentityBoundary = data?.payerIdentityBoundary;
+  const operatorIdentityBoundary = data?.operatorIdentityBoundary;
+  const accountOwnershipBoundary = data?.accountOwnershipBoundary;
+  const billingAccountabilityBoundary = data?.billingAccountabilityBoundary;
+  const readinessGates = data?.readinessGates ?? [];
+  const actorMatrix = data?.actorMatrix ?? [];
+
+  return <>
+    <header className="page-head compact">
+      <div>
+        <p className="eyebrow">TENANT BILLING & ACCOUNT RESPONSIBILITY</p>
+        <h1>Tenant Billing &amp; Account Responsibility</h1>
+        <p>Read-only boundary projection for tenant, payer, operator and account accountability. No tenant billing mutation is allowed here.</p>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note">
+      <span>Inspection mode</span>
+      <span>Sandbox only</span>
+      <span>Read-only</span>
+      <span>Product API is source of truth</span>
+      <span>No tenant billing mutation / no payment method / no account mutation</span>
+    </div>
+    {staleBanner({ stale, loadState, loadError }, "tenant billing boundary")}
+    <CrossLinks links={[
+      { to: "/system", label: "Governance & system" },
+      { to: "/system/billing-boundary", label: "Billing boundary" },
+      { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
+      { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
+    ]} />
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Claims</h2>
+        <p>All tenant billing claims remain explicitly not claimed.</p>
+      </div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Tenant Billing Ready" value={data?.tenantBillingReady ? "YES" : "NO / not yet claimed"} tone={data?.tenantBillingReady ? "good" : "muted"} />
+              <SummaryRow label="Tenant Administration Ready" value={data?.tenantAdministrationReady ? "YES" : "NO / not yet claimed"} tone={data?.tenantAdministrationReady ? "good" : "muted"} />
+              <SummaryRow label="Billing Ready" value={data?.billingReady ? "YES" : "NO / not yet claimed"} tone={data?.billingReady ? "good" : "muted"} />
+              <SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone={data?.paymentReady ? "good" : "muted"} />
+              <SummaryRow label="Invoice Ready" value={data?.invoiceReady ? "YES" : "NO / not yet claimed"} tone={data?.invoiceReady ? "good" : "muted"} />
+              <SummaryRow label="Production Financial Operations" value={data?.productionFinancialOperationsReady ? "YES" : "NO / not yet claimed"} tone={data?.productionFinancialOperationsReady ? "good" : "muted"} />
+              <SummaryRow label="Claim" value={data?.claim ?? "not_claimed"} tone="muted" />
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Tenant responsibility</h2><p>Tenant/account responsibility boundary</p></div></div>
+          <div className="panel-body">
+            {tenantAccountResponsibility
+              ? <div className="summary-list">
+                <SummaryRow label="Tenant id" value={tenantAccountResponsibility.tenantId} />
+                <SummaryRow label="Tenant account id" value={tenantAccountResponsibility.tenantAccountId} />
+                <SummaryRow label="Account owner state" value={tenantAccountResponsibility.accountOwnerState} />
+                <SummaryRow label="Billing responsibility state" value={tenantAccountResponsibility.billingResponsibilityState} />
+                <SummaryRow label="Payer dependency" value={tenantAccountResponsibility.payerDependency} />
+                <SummaryRow label="Operator dependency" value={tenantAccountResponsibility.operatorDependency} />
+                <SummaryRow label="Financial truth dependency" value={tenantAccountResponsibility.financialTruthDependency} />
+                <SummaryRow label="Invoice dependency" value={tenantAccountResponsibility.invoiceDependency} />
+                <SummaryRow label="Payment dependency" value={tenantAccountResponsibility.paymentDependency} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No tenant account responsibility snapshot available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Actor boundaries</h2>
+        <p>Identity and authority remain separated.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Payer identity</h2><p>Who can be associated with billing accountability</p></div></div>
+          <div className="panel-body">
+            {payerIdentityBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Payer id" value={payerIdentityBoundary.payerId} />
+                <SummaryRow label="Payer type" value={payerIdentityBoundary.payerType} />
+                <SummaryRow label="Verification state" value={payerIdentityBoundary.payerVerificationState} />
+                <SummaryRow label="Authority state" value={payerIdentityBoundary.payerAuthorityState} />
+                <SummaryRow label="Billing accountability state" value={payerIdentityBoundary.billingAccountabilityState} />
+                <SummaryRow label="Payment dependency" value={payerIdentityBoundary.paymentDependency} />
+                <SummaryRow label="Compliance dependency" value={payerIdentityBoundary.complianceDependency} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No payer identity boundary available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Operator identity</h2><p>Operational actor with no billing mutation authority</p></div></div>
+          <div className="panel-body">
+            {operatorIdentityBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Operator id" value={operatorIdentityBoundary.operatorId} />
+                <SummaryRow label="Operator role" value={operatorIdentityBoundary.operatorRole} />
+                <SummaryRow label="Operation authority" value={operatorIdentityBoundary.operationAuthorityState} />
+                <SummaryRow label="Billing action authority" value={operatorIdentityBoundary.billingActionAuthorityState} />
+                <SummaryRow label="Audit responsibility" value={operatorIdentityBoundary.auditResponsibility} />
+                <SummaryRow label="Actor correlation" value={operatorIdentityBoundary.actorCorrelation} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No operator identity boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Account accountability</h2>
+        <p>Ownership and accountability are evidence-bounded only.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Account ownership</h2><p>Source of ownership and related billing posture</p></div></div>
+          <div className="panel-body">
+            {accountOwnershipBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Ownership source" value={accountOwnershipBoundary.accountOwnershipSource} />
+                <SummaryRow label="Billing accountability source" value={accountOwnershipBoundary.billingAccountabilitySource} />
+                <SummaryRow label="Owner verification" value={accountOwnershipBoundary.ownerVerificationState} />
+                <SummaryRow label="Payer relation" value={accountOwnershipBoundary.payerRelation} />
+                <SummaryRow label="Tenant relation" value={accountOwnershipBoundary.tenantRelation} />
+                <SummaryRow label="Invoice relation" value={accountOwnershipBoundary.invoiceRelation} />
+                <SummaryRow label="Payment relation" value={accountOwnershipBoundary.paymentRelation} />
+                <SummaryRow label="Audit relation" value={accountOwnershipBoundary.auditRelation} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No account ownership boundary available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Billing accountability</h2><p>Boundary around billing authority and evidence</p></div></div>
+          <div className="panel-body">
+            {billingAccountabilityBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Accountability source" value={billingAccountabilityBoundary.billingAccountabilitySource} />
+                <SummaryRow label="Authority state" value={billingAccountabilityBoundary.billingAuthorityState} />
+                <SummaryRow label="Invoice dependency" value={billingAccountabilityBoundary.invoiceDependency} />
+                <SummaryRow label="Payment dependency" value={billingAccountabilityBoundary.paymentDependency} />
+                <SummaryRow label="Audit dependency" value={billingAccountabilityBoundary.auditDependency} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No billing accountability boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Actor matrix and gates</h2>
+        <p>Tenant billing remains blocked by design.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Actor matrix</h2><p>Role separation snapshot</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              {(actorMatrix.length > 0 ? actorMatrix : [{
+                actor: "tenant / payer / operator / admin / system",
+                responsibility: "candidate",
+                authority: "not authorized for tenant billing mutation",
+                supportState: "not_claimed",
+                claimImpact: "Tenant Billing Ready blocked",
+              }]).map((item, index) => (
+                <div className="summary-row" key={`${item.actor}-${index}`}>
+                  <span>{item.actor}</span>
+                  <strong>{item.responsibility}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Readiness gates</h2><p>Evidence-bounded constraints</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              {readinessGates.map(gate => (
+                <div className="summary-row" key={gate.label}>
+                  <span>{gate.label}</span>
+                  <strong>{gate.status}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Evidence and posture</h2>
+        <p>Read-only evidence with deferred scope only.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Evidence</h2><p>Source evidence and caveats</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Evidence" value={(data?.sourceEvidence ?? []).join(" • ") || "Unavailable"} />
+              <SummaryRow label="Deferred scope" value={(data?.deferredScope ?? []).join(" • ") || "Unavailable"} />
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Claim discipline</h2><p>No readiness claims are upgraded here</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Tenant Billing Ready" value={data?.tenantBillingReady ? "YES" : "NO / not yet claimed"} tone={data?.tenantBillingReady ? "good" : "muted"} />
+              <SummaryRow label="Tenant Administration Ready" value={data?.tenantAdministrationReady ? "YES" : "NO / not yet claimed"} tone={data?.tenantAdministrationReady ? "good" : "muted"} />
+              <SummaryRow label="Billing Ready" value={data?.billingReady ? "YES" : "NO / not yet claimed"} tone={data?.billingReady ? "good" : "muted"} />
+              <SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone={data?.paymentReady ? "good" : "muted"} />
+              <SummaryRow label="Invoice Ready" value={data?.invoiceReady ? "YES" : "NO / not yet claimed"} tone={data?.invoiceReady ? "good" : "muted"} />
+              <SummaryRow label="Production Financial Operations" value={data?.productionFinancialOperationsReady ? "YES" : "NO / not yet claimed"} tone={data?.productionFinancialOperationsReady ? "good" : "muted"} />
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </>;
+}
+
 function ProductionReadinessGateRow({ gate }: { gate: ProductionReadinessReport["gates"][number] }) {
   const tone = gate.status === "pass" ? "good" : gate.status === "partial" ? "warn" : "muted";
   return <div className="catalog-row" key={gate.id}>
@@ -3839,6 +4072,7 @@ export default function App() {
             <Route path="/audit" element={<AuditView />} />
             <Route path="/economics" element={<EconomicsView />} />
             <Route path="/system/payment-rails-boundary" element={<PaymentRailsBoundaryView />} />
+            <Route path="/system/tenant-billing-boundary" element={<TenantBillingBoundaryView />} />
             <Route path="/system" element={<GovernanceView />} />
             <Route path="/system/operational-reliability" element={<OperationalReliabilityView />} />
             <Route path="/settings" element={<Settings />} />

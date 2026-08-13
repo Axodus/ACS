@@ -212,6 +212,103 @@ export type PaymentRailsBoundaryReport = {
   };
 };
 
+export type TenantBillingBoundaryReport = {
+  readonly checkedAt: number;
+  readonly tenantBillingReady: false;
+  readonly billingReady: false;
+  readonly paymentReady: false;
+  readonly invoiceReady: false;
+  readonly productionFinancialOperationsReady: false;
+  readonly tenantAdministrationReady: false;
+  readonly claim: "not_claimed";
+  readonly tenantAccountResponsibility: {
+    readonly tenantId: string;
+    readonly tenantAccountId: string;
+    readonly accountOwnerState: string;
+    readonly billingResponsibilityState: string;
+    readonly payerDependency: string;
+    readonly operatorDependency: string;
+    readonly financialTruthDependency: string;
+    readonly invoiceDependency: string;
+    readonly paymentDependency: string;
+    readonly evidence: readonly string[];
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly deferredStates: readonly string[];
+  };
+  readonly payerIdentityBoundary: {
+    readonly payerId: string;
+    readonly payerType: string;
+    readonly payerVerificationState: string;
+    readonly payerAuthorityState: string;
+    readonly billingAccountabilityState: string;
+    readonly paymentDependency: string;
+    readonly complianceDependency: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+  };
+  readonly operatorIdentityBoundary: {
+    readonly operatorId: string;
+    readonly operatorRole: string;
+    readonly operationAuthorityState: string;
+    readonly billingActionAuthorityState: string;
+    readonly auditResponsibility: string;
+    readonly actorCorrelation: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+  };
+  readonly actorMatrix: readonly {
+    readonly actor: string;
+    readonly responsibility: string;
+    readonly authority: string;
+    readonly supportState: string;
+    readonly claimImpact: string;
+    readonly missingGates: readonly string[];
+  }[];
+  readonly accountOwnershipBoundary: {
+    readonly accountOwnershipSource: string;
+    readonly billingAccountabilitySource: string;
+    readonly ownerVerificationState: string;
+    readonly payerRelation: string;
+    readonly tenantRelation: string;
+    readonly invoiceRelation: string;
+    readonly paymentRelation: string;
+    readonly auditRelation: string;
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+  };
+  readonly billingAccountabilityBoundary: {
+    readonly accountabilitySource: string;
+    readonly evidenceState: string;
+    readonly scopeState: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+  };
+  readonly readinessGates: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    readonly evidence: readonly string[];
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly claimImpact: string;
+  }[];
+  readonly blockers: readonly string[];
+  readonly warnings: readonly string[];
+  readonly caveats: readonly string[];
+  readonly deferredScope: readonly string[];
+  readonly sourceEvidence: readonly string[];
+  readonly claimDiscipline: {
+    readonly tenantBillingReadyClaimAllowed: false;
+    readonly tenantAdministrationReadyClaimAllowed: false;
+    readonly billingReadyClaimAllowed: false;
+    readonly paymentReadyClaimAllowed: false;
+    readonly invoiceReadyClaimAllowed: false;
+    readonly productionFinancialOperationsClaimAllowed: false;
+    readonly reason: string;
+  };
+};
+
 const OPERATIONAL_REFRESH_WINDOW_MS = 30_000;
 
 const OPERATIONAL_GUARDRAILS: ProductApiOperationalGuardrails = {
@@ -3346,6 +3443,255 @@ export class ProductApiClient {
         billingReadyClaimAllowed: false,
         productionFinancialOperationsClaimAllowed: false,
         reason: "No / not yet claimed; read-only boundary only.",
+      },
+    };
+  }
+
+  async getTenantBillingBoundaryReport(): Promise<TenantBillingBoundaryReport> {
+    return {
+      checkedAt: Date.now(),
+      tenantBillingReady: false,
+      billingReady: false,
+      paymentReady: false,
+      invoiceReady: false,
+      productionFinancialOperationsReady: false,
+      tenantAdministrationReady: false,
+      claim: "not_claimed",
+      tenantAccountResponsibility: {
+        tenantId: "candidate",
+        tenantAccountId: "candidate",
+        accountOwnerState: "candidate",
+        billingResponsibilityState: "candidate",
+        payerDependency: "payer identity not verified",
+        operatorDependency: "operator authority not established",
+        financialTruthDependency: "financial truth boundary required",
+        invoiceDependency: "invoice boundary required",
+        paymentDependency: "payment rails boundary required",
+        evidence: [
+          "S06 models tenant billing responsibility only",
+          "No tenant billing mutation or collection is approved",
+        ],
+        blockers: [
+          "No verified payer identity",
+          "No operator billing authority",
+          "No tenant billing operation",
+        ],
+        caveats: [
+          "Tenant billing is evidence-bounded and read-only",
+          "Account ownership may differ from payer identity",
+        ],
+        deferredStates: [
+          "tenant_billing_mutation_deferred",
+          "tenant_payment_collection_deferred",
+          "tenant_administration_unavailable",
+        ],
+      },
+      payerIdentityBoundary: {
+        payerId: "candidate",
+        payerType: "unknown",
+        payerVerificationState: "not_verified",
+        payerAuthorityState: "blocked",
+        billingAccountabilityState: "candidate",
+        paymentDependency: "payment method and payment rails remain deferred",
+        complianceDependency: "compliance decision required before billing authority",
+        caveats: [
+          "Payer identity is not assumed from tenant ownership",
+          "Payer identity does not authorize payment",
+        ],
+        blockers: [
+          "No verified payer identity",
+          "No payment method boundary",
+        ],
+      },
+      operatorIdentityBoundary: {
+        operatorId: "candidate",
+        operatorRole: "unknown",
+        operationAuthorityState: "candidate",
+        billingActionAuthorityState: "not_authorized_for_billing",
+        auditResponsibility: "operator activity remains auditable but non-authorizing",
+        actorCorrelation: "operator correlation is candidate only",
+        caveats: [
+          "Operator is distinct from payer and tenant owner",
+          "Operator cannot initiate billing mutation in S06",
+        ],
+        blockers: [
+          "No billing administration approval",
+          "No tenant billing mutation",
+        ],
+      },
+      actorMatrix: [
+        {
+          actor: "tenant",
+          responsibility: "tenant context only",
+          authority: "candidate",
+          supportState: "candidate",
+          claimImpact: "Tenant Billing Ready blocked",
+          missingGates: ["Tenant Account Responsibility", "Account Ownership Source"],
+        },
+        {
+          actor: "payer",
+          responsibility: "payment accountability candidate",
+          authority: "candidate",
+          supportState: "not_verified",
+          claimImpact: "Tenant Billing Ready blocked",
+          missingGates: ["Payer Identity Boundary", "Payment Rails Boundary"],
+        },
+        {
+          actor: "operator",
+          responsibility: "operational review only",
+          authority: "candidate",
+          supportState: "not_authorized_for_billing",
+          claimImpact: "Tenant Administration Ready blocked",
+          missingGates: ["Operator Identity Boundary", "Billing Accountability Source"],
+        },
+        {
+          actor: "account_owner",
+          responsibility: "account ownership candidate",
+          authority: "candidate",
+          supportState: "unavailable",
+          claimImpact: "Tenant Billing Ready blocked",
+          missingGates: ["Account Ownership Source", "Billing Accountability Source"],
+        },
+      ],
+      accountOwnershipBoundary: {
+        accountOwnershipSource: "candidate",
+        billingAccountabilitySource: "candidate",
+        ownerVerificationState: "unavailable",
+        payerRelation: "payer relation is not established",
+        tenantRelation: "tenant relation is advisory only",
+        invoiceRelation: "invoice boundary required",
+        paymentRelation: "payment relation deferred",
+        auditRelation: "audit correlation candidate only",
+        blockers: [
+          "No account ownership source",
+          "No billing accountability source",
+        ],
+        caveats: [
+          "Account owner does not imply payer",
+          "Tenant owner does not imply billing authority",
+        ],
+      },
+      billingAccountabilityBoundary: {
+        accountabilitySource: "candidate",
+        evidenceState: "candidate",
+        scopeState: "blocked",
+        caveats: [
+          "Billing accountability remains evidence-bounded",
+          "No commercial contract or billing mandate is assumed",
+        ],
+        blockers: [
+          "No billing accountability source",
+          "No audit correlation",
+        ],
+      },
+      readinessGates: [
+        {
+          id: "G09",
+          label: "Tenant Account Responsibility",
+          status: "candidate",
+          evidence: ["S06 models tenant responsibility boundary only"],
+          blockers: ["No tenant billing mutation", "No verified payer identity"],
+          caveats: ["Tenant billing remains conceptual"],
+          claimImpact: "Tenant Billing Ready blocked; Billing Ready blocked; Payment Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G10",
+          label: "Payer Identity Boundary",
+          status: "blocked",
+          evidence: ["Payer identity is not verified in S06"],
+          blockers: ["No payer verification", "No payment method"],
+          caveats: ["Payer candidate does not authorize payment"],
+          claimImpact: "Tenant Billing Ready blocked; Billing Ready blocked; Payment Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G11",
+          label: "Operator Identity Boundary",
+          status: "candidate",
+          evidence: ["Operator identity is modeled read-only"],
+          blockers: ["No billing authority", "No mutation path"],
+          caveats: ["Operator cannot initiate billing"],
+          claimImpact: "Tenant Administration Ready blocked; Tenant Billing Ready blocked; Billing Ready blocked",
+        },
+        {
+          id: "G12",
+          label: "Account Ownership Source",
+          status: "blocked",
+          evidence: ["No definitive account ownership source is present"],
+          blockers: ["No ownership source", "No verified account mapping"],
+          caveats: ["Ownership may be distinct from payer"],
+          claimImpact: "Tenant Billing Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G13",
+          label: "Billing Accountability Source",
+          status: "blocked",
+          evidence: ["Billing accountability remains candidate only"],
+          blockers: ["No accountability source", "No audit correlation"],
+          caveats: ["Accountability is not inferred from tenant identity"],
+          claimImpact: "Tenant Billing Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G14",
+          label: "Audit Correlation Requirement",
+          status: "candidate",
+          evidence: ["Audit correlation is not yet proven"],
+          blockers: ["No verified audit correlation"],
+          caveats: ["Evidence remains read-only and conceptual"],
+          claimImpact: "Tenant Billing Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G15",
+          label: "No Tenant Billing Mutation Guardrail",
+          status: "candidate",
+          evidence: ["No mutation endpoints are exposed in S06"],
+          blockers: ["Mutation is out of scope"],
+          caveats: ["Projection remains read-only"],
+          claimImpact: "Tenant Billing Ready blocked; Billing Ready blocked; Payment Ready blocked",
+        },
+        {
+          id: "G16",
+          label: "No Financial Claim Discipline",
+          status: "candidate",
+          evidence: ["Claims remain NO / not yet claimed"],
+          blockers: ["No financial readiness claims are allowed"],
+          caveats: ["Claim language stays blocked until future milestones"],
+          claimImpact: "Tenant Billing Ready blocked; Billing Ready blocked; Payment Ready blocked; Production Financial Operations blocked",
+        },
+      ],
+      blockers: [
+        "No verified payer identity",
+        "No operator billing authority",
+        "No account ownership source",
+        "No billing accountability source",
+        "No tenant billing mutation",
+      ],
+      warnings: [
+        "Tenant billing remains conceptual and read-only",
+        "Account ownership must not be assumed from tenancy",
+      ],
+      caveats: [
+        "Tenant Billing Ready remains NO / not yet claimed",
+        "Tenant Administration Ready remains NO / not yet claimed",
+      ],
+      deferredScope: [
+        "tenant_billing_mutation",
+        "tenant_payment_collection",
+        "payer_creation",
+        "payment_method_creation",
+        "billing_account_mutation",
+      ],
+      sourceEvidence: [
+        "EPIC-13 S06 models tenant billing and account responsibility only",
+        "S03, S04 and S05 remain prerequisites for downstream readiness",
+      ],
+      claimDiscipline: {
+        tenantBillingReadyClaimAllowed: false,
+        tenantAdministrationReadyClaimAllowed: false,
+        billingReadyClaimAllowed: false,
+        paymentReadyClaimAllowed: false,
+        invoiceReadyClaimAllowed: false,
+        productionFinancialOperationsClaimAllowed: false,
+        reason: "Tenant billing responsibility is evidence-bounded only; no operational billing claim is allowed in S06.",
       },
     };
   }

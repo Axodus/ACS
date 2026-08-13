@@ -904,6 +904,106 @@ export type PaymentRailsBoundaryReport = {
   };
 };
 
+export type TenantBillingBoundaryReport = {
+  checkedAt: string;
+  tenantBillingReady: false;
+  billingReady: false;
+  paymentReady: false;
+  invoiceReady: false;
+  productionFinancialOperationsReady: false;
+  tenantAdministrationReady: false;
+  claim: "not_claimed";
+  tenantAccountResponsibility: {
+    tenantId: string;
+    tenantAccountId: string;
+    accountOwnerState: string;
+    billingResponsibilityState: string;
+    payerDependency: string;
+    operatorDependency: string;
+    financialTruthDependency: string;
+    invoiceDependency: string;
+    paymentDependency: string;
+    evidence: readonly string[];
+    blockers: readonly string[];
+    caveats: readonly string[];
+    deferredStates: readonly string[];
+  };
+  payerIdentityBoundary: {
+    payerId: string;
+    payerType: string;
+    payerVerificationState: string;
+    payerAuthorityState: string;
+    billingAccountabilityState: string;
+    paymentDependency: string;
+    complianceDependency: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+  };
+  operatorIdentityBoundary: {
+    operatorId: string;
+    operatorRole: string;
+    operationAuthorityState: string;
+    billingActionAuthorityState: string;
+    auditResponsibility: string;
+    actorCorrelation: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+  };
+  actorMatrix: readonly {
+    actor: string;
+    responsibility: string;
+    authority: string;
+    supportState: string;
+    claimImpact: string;
+    missingGates: readonly string[];
+  }[];
+  accountOwnershipBoundary: {
+    accountOwnershipSource: string;
+    billingAccountabilitySource: string;
+    ownerVerificationState: string;
+    payerRelation: string;
+    tenantRelation: string;
+    invoiceRelation: string;
+    paymentRelation: string;
+    auditRelation: string;
+    blockers: readonly string[];
+    caveats: readonly string[];
+  };
+  billingAccountabilityBoundary: {
+    accountabilitySource: string;
+    accountabilityState: string;
+    authorityState: string;
+    invoiceDependency: string;
+    paymentDependency: string;
+    auditDependency: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+  };
+  readinessGates: readonly {
+    id: string;
+    label: string;
+    status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    evidence: readonly string[];
+    blockers: readonly string[];
+    caveats: readonly string[];
+    claimImpact: string;
+  }[];
+  blockers: readonly string[];
+  warnings: readonly string[];
+  caveats: readonly string[];
+  deferredScope: readonly string[];
+  sourceEvidence: readonly string[];
+  claimDiscipline: {
+    tenantBillingReadyClaimAllowed: false;
+    tenantAdministrationReadyClaimAllowed: false;
+    billingReadyClaimAllowed: false;
+    paymentReadyClaimAllowed: false;
+    invoiceReadyClaimAllowed: false;
+    productionFinancialOperationsClaimAllowed: false;
+    reason: string;
+  };
+};
+
 export type Epic11AcceptanceCheck = {
   id: string;
   label: string;
@@ -2084,5 +2184,9 @@ export const productApi = {
 
   async getPaymentRailsBoundaryReport() {
     return request<PaymentRailsBoundaryReport>("/system/payment-rails-boundary");
+  },
+
+  async getTenantBillingBoundaryReport() {
+    return request<TenantBillingBoundaryReport>("/system/tenant-billing-boundary");
   },
 };
