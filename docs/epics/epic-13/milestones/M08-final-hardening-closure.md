@@ -1,54 +1,55 @@
 # M08 — Final Hardening & Closure
 
-Status: PLANNING
+Status: PASS / IMPLEMENTED
 
 ## Mission
 
-Define closure checks and hardening gates for EPIC-13 planning.
+Consolidate final regression, claim discipline, boundary inventory and
+pre-closure evidence for EPIC-13 without writing the S11 closure report.
 
 ## Scope
 
-- readiness gates
-- claim discipline final check
-- regression inventory
-- deferred scope register
-- EPIC-13 closure report
-- Production Financial Operations remains NO unless explicitly proven
+- final boundary and projection inventory
+- GET-only and no-mutation regression checks
+- financial claim, secret and invented-value audits
+- Control Plane route and no-action verification
+- pre-closure evidence package for S11
 
 ## Out of scope
 
 - production financial operations
-- implementation hardening code
-- closure execution claims
+- new financial functionality
+- provider/accounting/tax integration
+- EPIC-13 final closure report
 
 ## Candidate stories
 
-- define readiness gates
-- define regression inventory
-- define deferred scope register
-- define closure report criteria
+- validate every S03-S08 Product API projection
+- validate every S03-S09 Control Plane route
+- preserve all no-claim language
+- prepare evidence inventory for S11
 
 ## Candidate Product API surfaces
 
-- GET /api/v1/system/billing-readiness
-- GET /api/v1/system/financial-audit
+- Existing GET-only Product API projections from S03-S08
 
 ## Candidate UI surfaces
 
-- Billing Acceptance
-- Financial Audit & Compliance
+- Billing UX & Operator Acceptance
+- All EPIC-13 financial boundary surfaces
 
 ## Required decisions before implementation
 
-- What gates are required before any money movement?
-- What remains deferred to later EPICs?
-- What evidence is required for closure?
+- S11 remains responsible for the formal closure report.
+- Production readiness remains not claimed.
+- Browser real execution remains an explicit caveat.
 
 ## Acceptance criteria
 
-- claim discipline is preserved
-- no production readiness claim is introduced
-- no implementation is implied
+- S43 final hardening regression passes
+- all Product API financial projections remain GET-only
+- all readiness flags remain false/not_claimed
+- final-hardening-inventory.md is ready for S11 consumption
 
 ## Claim discipline
 
@@ -57,6 +58,9 @@ Define closure checks and hardening gates for EPIC-13 planning.
 - Invoice Ready: NO / not yet claimed
 - Tenant Billing Ready: NO / not yet claimed
 - Production Financial Operations: NO / not yet claimed
+- EPIC-13 Closed: NO / pending S11
+- EPIC-13 Production Readiness: NO / not yet claimed
+- Browser Acceptance Ready: NO / not yet claimed
 
 ## Dependencies
 
@@ -64,5 +68,12 @@ Define closure checks and hardening gates for EPIC-13 planning.
 
 ## Deferred scope
 
+- S11 closure report
 - production financial operations
-- closure automation
+- provider/accounting/tax integration
+- browser certification
+
+## Implementation note
+
+S10 is a hardening and evidence sprint only. The historical S03-S06 remote
+sequencing caveat and browser NOT EXECUTED caveat remain recorded for S11.

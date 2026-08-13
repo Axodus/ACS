@@ -12,6 +12,7 @@
 - S07 — Receipts, Settlement & Reconciliation: PASS
 - S08 — Financial Audit, Compliance & Risk: PASS
 - S09 — Billing UX & Operator Acceptance: PASS
+- S10 — Final Hardening & Closure: PASS
 - Functional implementation: read-only financial boundary projections only
 - Billing Ready: NO / not yet claimed
 - Payment Ready: NO / not yet claimed
@@ -66,10 +67,19 @@ without reopening EPIC-12 or claiming financial readiness.
 
 ## Recommended next sprint
 
-EPIC-13 / S10 — Final Hardening & Closure
+EPIC-13 / S11 — EPIC-13 Closure Report
 
-S10 should focus on final hardening, residual validation, honest caveats and
-closure discipline without upgrading any financial readiness claim.
+S11 should consume final-hardening-inventory.md and produce the formal closure
+report without upgrading any financial or production readiness claim.
+
+## S10 implementation handoff
+
+- tests/s43-epic-13-final-hardening.test.mjs validates all six Product API
+  projections as GET-only, false/not_claimed and free of raw secrets or
+  invented amount/currency fields.
+- docs/epics/epic-13/final-hardening-inventory.md provides the boundary,
+  endpoint, surface, test, claims, caveats and deferred-scope inventory.
+- S11 remains pending and EPIC-13 Closed remains NO / pending S11.
 
 ## S09 implementation handoff
 

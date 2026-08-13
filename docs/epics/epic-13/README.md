@@ -116,7 +116,7 @@ S06 — Tenant Billing & Account Responsibility: PASS
 S07 — Receipts, Settlement & Reconciliation: PASS
 S08 — Financial Audit, Compliance & Risk: PASS
 S09 — Billing UX & Operator Acceptance: PASS
-S10 — Final Hardening & Closure: PENDING
+S10 — Final Hardening & Closure: PASS
 S11 — EPIC-13 Closure Report: PENDING
 ```
 
@@ -144,4 +144,4 @@ S11 — EPIC-13 Closure Report: PENDING
 
 ## Next sprint pointer
 
-EPIC-13 / S10 — Final Hardening & Closure
+EPIC-13 / S11 — EPIC-13 Closure Report
