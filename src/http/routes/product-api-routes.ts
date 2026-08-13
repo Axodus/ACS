@@ -149,6 +149,16 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // S07 exposes only receipt, settlement and reconciliation evidence boundaries; it does not settle or reconcile money.
+    if (apiPath === "system/settlement-reconciliation" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const summary = await api.getSettlementReconciliationBoundaryReport();
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/settlement-reconciliation") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // Unsupported composition mutations: Milestone C is read-only. The Product
     // API rejects governed mutations with a structured error instead of
     // simulating success. This catch-all runs before the catalog routes so the

@@ -77,6 +77,7 @@ import {
   type PricingInvoiceBoundaryReport,
   type PaymentRailsBoundaryReport,
   type TenantBillingBoundaryReport,
+  type SettlementReconciliationBoundaryReport,
 } from "./api/product-api";
 import "./operational.css";
 
@@ -101,6 +102,7 @@ type View =
   | "Pricing & Invoice Boundary"
   | "Payment Rails Boundary"
   | "Tenant Billing & Account Responsibility"
+  | "Receipts, Settlement & Reconciliation"
   | "Governance & System"
   | "Settings";
 
@@ -120,6 +122,7 @@ const navGroups: View[][] = [
   ["Pricing & Invoice Boundary"],
   ["Payment Rails Boundary"],
   ["Tenant Billing & Account Responsibility"],
+  ["Receipts, Settlement & Reconciliation"],
   ["Governance & System", "Settings"],
 ];
 
@@ -144,6 +147,7 @@ const icons: Record<View, string> = {
   "Pricing & Invoice Boundary": "¤",
   "Payment Rails Boundary": "¤",
   "Tenant Billing & Account Responsibility": "⊙",
+  "Receipts, Settlement & Reconciliation": "◎",
   "Governance & System": "⚖",
   Settings: "⚙",
 };
@@ -169,6 +173,7 @@ const viewPaths: Record<View, string> = {
   "Pricing & Invoice Boundary": "/system/pricing-invoice-boundary",
   "Payment Rails Boundary": "/system/payment-rails-boundary",
   "Tenant Billing & Account Responsibility": "/system/tenant-billing-boundary",
+  "Receipts, Settlement & Reconciliation": "/system/settlement-reconciliation",
   "Governance & System": "/system",
   Settings: "/settings",
 };
@@ -2909,12 +2914,7 @@ function PaymentRailsBoundaryView() {
           <div className="panel-body">
             {noMoneyMovementGuardrail
               ? <div className="summary-list">
-                <SummaryRow label="Real authorization" value={noMoneyMovementGuardrail.noRealAuthorization ? "blocked" : "candidate"} tone="muted" />
-                <SummaryRow label="Real capture" value={noMoneyMovementGuardrail.noRealCapture ? "blocked" : "candidate"} tone="muted" />
-                <SummaryRow label="Real settlement" value={noMoneyMovementGuardrail.noRealSettlement ? "blocked" : "candidate"} tone="muted" />
-                <SummaryRow label="Real refund" value={noMoneyMovementGuardrail.noRealRefund ? "blocked" : "candidate"} tone="muted" />
-                <SummaryRow label="Real chargeback" value={noMoneyMovementGuardrail.noRealChargeback ? "blocked" : "candidate"} tone="muted" />
-                <SummaryRow label="Production credentials" value={noMoneyMovementGuardrail.noProductionPaymentCredentials ? "blocked" : "candidate"} tone="muted" />
+                {noMoneyMovementGuardrail.statements.map((statement: string, index: number) => <SummaryRow key={`${statement}-${index}`} label={`Guardrail ${index + 1}`} value={statement} tone="muted" />)}
               </div>
               : <PanelStateLine state={loadState} error={loadError} emptyMessage="No guardrail snapshot available." />}
           </div>
@@ -2939,7 +2939,7 @@ function PaymentRailsBoundaryView() {
             {paymentSecretBoundary
               ? <div className="summary-list">
                 <SummaryRow label="Secret class" value={paymentSecretBoundary.requiredSecretsClass.join(", ")} />
-                <SummaryRow label="Storage requirement" value={paymentSecretBoundary.credentialStorageRequirement} />
+                <SummaryRow label="Storage requirement" value={paymentSecretBoundary.storageRequirement} />
                 <SummaryRow label="Injection boundary" value={paymentSecretBoundary.injectionBoundary} />
                 <SummaryRow label="Redaction requirement" value={paymentSecretBoundary.redactionRequirement} />
                 <SummaryRow label="Production credential status" value={paymentSecretBoundary.productionCredentialStatus} />
@@ -3542,8 +3542,8 @@ function TenantBillingBoundaryView() {
           <div className="panel-body">
             {billingAccountabilityBoundary
               ? <div className="summary-list">
-                <SummaryRow label="Accountability source" value={billingAccountabilityBoundary.billingAccountabilitySource} />
-                <SummaryRow label="Authority state" value={billingAccountabilityBoundary.billingAuthorityState} />
+                <SummaryRow label="Accountability source" value={billingAccountabilityBoundary.accountabilitySource} />
+                <SummaryRow label="Authority state" value={billingAccountabilityBoundary.authorityState} />
                 <SummaryRow label="Invoice dependency" value={billingAccountabilityBoundary.invoiceDependency} />
                 <SummaryRow label="Payment dependency" value={billingAccountabilityBoundary.paymentDependency} />
                 <SummaryRow label="Audit dependency" value={billingAccountabilityBoundary.auditDependency} />
@@ -3618,6 +3618,233 @@ function TenantBillingBoundaryView() {
               <SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone={data?.paymentReady ? "good" : "muted"} />
               <SummaryRow label="Invoice Ready" value={data?.invoiceReady ? "YES" : "NO / not yet claimed"} tone={data?.invoiceReady ? "good" : "muted"} />
               <SummaryRow label="Production Financial Operations" value={data?.productionFinancialOperationsReady ? "YES" : "NO / not yet claimed"} tone={data?.productionFinancialOperationsReady ? "good" : "muted"} />
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </>;
+}
+
+function SettlementReconciliationBoundaryView() {
+  const { data, loadState, loadError, stale, refresh } = useOperationalSummary<SettlementReconciliationBoundaryReport>(
+    () => productApi.getSettlementReconciliationBoundaryReport(),
+    "Unable to load settlement and reconciliation boundary from Product API",
+    () => false,
+  );
+  const operationalReceiptBoundary = data?.operationalReceiptBoundary;
+  const legalTaxReceiptBoundary = data?.legalTaxReceiptBoundary;
+  const settlementVisibility = data?.settlementVisibility;
+  const reconciliationEvidence = data?.reconciliationEvidence;
+  const providerAccountingDependencies = data?.providerAccountingDependencies;
+  const readinessGates = data?.readinessGates ?? [];
+
+  return <>
+    <header className="page-head compact">
+      <div>
+        <p className="eyebrow">RECEIPTS, SETTLEMENT & RECONCILIATION</p>
+        <h1>Receipts, Settlement &amp; Reconciliation</h1>
+        <p>Read-only evidence boundary for operational receipts, settlement visibility and reconciliation evidence. No legal receipt, settlement execution or accounting integration is allowed here.</p>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note">
+      <span>Inspection mode</span>
+      <span>Sandbox only</span>
+      <span>Read-only</span>
+      <span>Product API is source of truth</span>
+      <span>No receipt action / no settlement / no reconciliation job / no accounting integration</span>
+    </div>
+    {staleBanner({ stale, loadState, loadError }, "settlement and reconciliation boundary")}
+    <CrossLinks links={[
+      { to: "/system", label: "Governance & system" },
+      { to: "/system/billing-boundary", label: "Billing boundary" },
+      { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
+      { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
+      { to: "/system/tenant-billing-boundary", label: "Tenant billing boundary" },
+    ]} />
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Claims</h2>
+        <p>Receipt, settlement and reconciliation readiness remain explicitly not claimed.</p>
+      </div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Receipt Ready" value={data?.receiptReady ? "YES" : "NO / not yet claimed"} tone={data?.receiptReady ? "good" : "muted"} />
+              <SummaryRow label="Legal/Tax Receipt Ready" value={data?.legalTaxReceiptReady ? "YES" : "NO / not yet claimed"} tone={data?.legalTaxReceiptReady ? "good" : "muted"} />
+              <SummaryRow label="Settlement Ready" value={data?.settlementReady ? "YES" : "NO / not yet claimed"} tone={data?.settlementReady ? "good" : "muted"} />
+              <SummaryRow label="Reconciliation Ready" value={data?.reconciliationReady ? "YES" : "NO / not yet claimed"} tone={data?.reconciliationReady ? "good" : "muted"} />
+              <SummaryRow label="Accounting Integration Ready" value={data?.accountingIntegrationReady ? "YES" : "NO / not yet claimed"} tone={data?.accountingIntegrationReady ? "good" : "muted"} />
+              <SummaryRow label="Billing Ready" value={data?.billingReady ? "YES" : "NO / not yet claimed"} tone={data?.billingReady ? "good" : "muted"} />
+              <SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone={data?.paymentReady ? "good" : "muted"} />
+              <SummaryRow label="Production Financial Operations" value={data?.productionFinancialOperationsReady ? "YES" : "NO / not yet claimed"} tone={data?.productionFinancialOperationsReady ? "good" : "muted"} />
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Operational receipt boundary</h2><p>Operational evidence only</p></div></div>
+          <div className="panel-body">
+            {operationalReceiptBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Receipt candidate id" value={operationalReceiptBoundary.receiptCandidateId} />
+                <SummaryRow label="Receipt type" value={operationalReceiptBoundary.receiptType} />
+                <SummaryRow label="Related invoice candidate" value={operationalReceiptBoundary.relatedInvoiceCandidate} />
+                <SummaryRow label="Related quote candidate" value={operationalReceiptBoundary.relatedQuoteCandidate} />
+                <SummaryRow label="Related billable event" value={operationalReceiptBoundary.relatedBillableEvent} />
+                <SummaryRow label="Tenant/account context" value={operationalReceiptBoundary.relatedTenantAccountContext} />
+                <SummaryRow label="Payer/operator context" value={operationalReceiptBoundary.relatedPayerOperatorContext} />
+                <SummaryRow label="Artifact state" value={operationalReceiptBoundary.artifactState} />
+                <SummaryRow label="Legal/tax classification" value={operationalReceiptBoundary.legalTaxClassificationState} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No operational receipt boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Receipt and settlement distinctions</h2>
+        <p>Operational evidence is separated from legal receipt and financial settlement.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Legal / tax receipt boundary</h2><p>Not claimed in this milestone</p></div></div>
+          <div className="panel-body">
+            {legalTaxReceiptBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Operational receipt" value={legalTaxReceiptBoundary.operationalReceipt} />
+                <SummaryRow label="Payment acknowledgement" value={legalTaxReceiptBoundary.paymentAcknowledgement} />
+                <SummaryRow label="Invoice artifact" value={legalTaxReceiptBoundary.invoiceArtifact} />
+                <SummaryRow label="Tax/legal receipt" value={legalTaxReceiptBoundary.taxLegalReceipt} />
+                <SummaryRow label="Accounting receipt" value={legalTaxReceiptBoundary.accountingReceipt} />
+                <SummaryRow label="Settlement receipt" value={legalTaxReceiptBoundary.settlementReceipt} />
+                <SummaryRow label="Legal/tax receipt readiness" value={legalTaxReceiptBoundary.legalTaxReceiptReadiness} />
+                <SummaryRow label="Compliance readiness" value={legalTaxReceiptBoundary.complianceReadiness} />
+                <SummaryRow label="Accounting integration" value={legalTaxReceiptBoundary.accountingIntegration} />
+                <SummaryRow label="Jurisdiction decision" value={legalTaxReceiptBoundary.jurisdictionDecision} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No legal/tax receipt distinction available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Settlement visibility</h2><p>Provider-dependent evidence only</p></div></div>
+          <div className="panel-body">
+            {settlementVisibility
+              ? <div className="summary-list">
+                <SummaryRow label="Settlement candidate id" value={settlementVisibility.settlementCandidateId} />
+                <SummaryRow label="Related payment boundary" value={settlementVisibility.relatedPaymentBoundary} />
+                <SummaryRow label="Provider dependency" value={settlementVisibility.providerDependency} />
+                <SummaryRow label="Payment state dependency" value={settlementVisibility.paymentStateDependency} />
+                <SummaryRow label="Settlement state" value={settlementVisibility.settlementState} />
+                <SummaryRow label="Settlement source" value={settlementVisibility.settlementSource} />
+                <SummaryRow label="Amount availability" value={settlementVisibility.amountAvailabilityState} />
+                <SummaryRow label="Currency availability" value={settlementVisibility.currencyAvailabilityState} />
+                <SummaryRow label="Settled at availability" value={settlementVisibility.settledAtAvailabilityState} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No settlement visibility boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Reconciliation and dependencies</h2>
+        <p>No accounting-grade reconciliation is performed in S07.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Reconciliation evidence</h2><p>Evidence-only matching posture</p></div></div>
+          <div className="panel-body">
+            {reconciliationEvidence
+              ? <div className="summary-list">
+                <SummaryRow label="Reconciliation candidate id" value={reconciliationEvidence.reconciliationCandidateId} />
+                <SummaryRow label="Related receipt candidate" value={reconciliationEvidence.relatedReceiptCandidate} />
+                <SummaryRow label="Related settlement candidate" value={reconciliationEvidence.relatedSettlementCandidate} />
+                <SummaryRow label="Related invoice candidate" value={reconciliationEvidence.relatedInvoiceCandidate} />
+                <SummaryRow label="Related tenant/account" value={reconciliationEvidence.relatedTenantAccount} />
+                <SummaryRow label="Matching state" value={reconciliationEvidence.matchingState} />
+                <SummaryRow label="Discrepancy state" value={reconciliationEvidence.discrepancyState} />
+                <SummaryRow label="Accounting dependency" value={reconciliationEvidence.accountingDependency} />
+                <SummaryRow label="Provider dependency" value={reconciliationEvidence.providerDependency} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No reconciliation evidence boundary available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Provider / accounting dependencies</h2><p>External systems remain unresolved</p></div></div>
+          <div className="panel-body">
+            {providerAccountingDependencies
+              ? <div className="summary-list">
+                <SummaryRow label="Payment provider dependency" value={providerAccountingDependencies.paymentProviderDependency} />
+                <SummaryRow label="Accounting system dependency" value={providerAccountingDependencies.accountingSystemDependency} />
+                <SummaryRow label="Ledger dependency" value={providerAccountingDependencies.ledgerDependency} />
+                <SummaryRow label="Bank settlement dependency" value={providerAccountingDependencies.bankSettlementDependency} />
+                <SummaryRow label="Jurisdiction/tax dependency" value={providerAccountingDependencies.jurisdictionTaxDependency} />
+                <SummaryRow label="Data availability" value={providerAccountingDependencies.dataAvailability} />
+                <SummaryRow label="Boundary state" value={providerAccountingDependencies.state} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No provider/accounting dependency boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Readiness gates and posture</h2>
+        <p>Every readiness claim remains blocked by design in this milestone.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Readiness gates</h2><p>Evidence-bounded constraints</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              {readinessGates.map(gate => (
+                <div className="summary-row" key={gate.label}>
+                  <span>{gate.label}</span>
+                  <strong>{gate.status}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Claim discipline</h2><p>No readiness upgrade is allowed here</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Receipt Ready" value={data?.receiptReady ? "YES" : "NO / not yet claimed"} tone={data?.receiptReady ? "good" : "muted"} />
+              <SummaryRow label="Legal/Tax Receipt Ready" value={data?.legalTaxReceiptReady ? "YES" : "NO / not yet claimed"} tone={data?.legalTaxReceiptReady ? "good" : "muted"} />
+              <SummaryRow label="Settlement Ready" value={data?.settlementReady ? "YES" : "NO / not yet claimed"} tone={data?.settlementReady ? "good" : "muted"} />
+              <SummaryRow label="Reconciliation Ready" value={data?.reconciliationReady ? "YES" : "NO / not yet claimed"} tone={data?.reconciliationReady ? "good" : "muted"} />
+              <SummaryRow label="Accounting Integration Ready" value={data?.accountingIntegrationReady ? "YES" : "NO / not yet claimed"} tone={data?.accountingIntegrationReady ? "good" : "muted"} />
+              <SummaryRow label="Reason" value={data?.claimDiscipline?.reason ?? "claim discipline remains blocked"} />
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Evidence and deferred scope</h2>
+        <p>No legal receipt, no real settlement and no accounting integration are introduced in S07.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Source evidence</h2><p>Boundary inputs only</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Evidence" value={(data?.sourceEvidence ?? []).join(" • ") || "Unavailable"} />
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Deferred scope</h2><p>EPIC-14+ and future milestones</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Deferred scope" value={(data?.deferredScope ?? []).join(" • ") || "Unavailable"} />
+              <SummaryRow label="Caveats" value={(data?.caveats ?? []).join(" • ") || "Unavailable"} />
             </div>
           </div>
         </section>
@@ -4458,6 +4685,7 @@ export default function App() {
             <Route path="/system/payment-rails-boundary" element={<PaymentRailsBoundaryView />} />
             <Route path="/system/pricing-invoice-boundary" element={<PricingInvoiceBoundaryView />} />
             <Route path="/system/tenant-billing-boundary" element={<TenantBillingBoundaryView />} />
+            <Route path="/system/settlement-reconciliation" element={<SettlementReconciliationBoundaryView />} />
             <Route path="/system" element={<GovernanceView />} />
             <Route path="/system/operational-reliability" element={<OperationalReliabilityView />} />
             <Route path="/settings" element={<Settings />} />

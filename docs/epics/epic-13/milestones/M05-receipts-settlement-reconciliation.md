@@ -1,10 +1,12 @@
 # M05 — Receipts, Settlement & Reconciliation
 
-Status: PLANNING
+Status: PASS / IMPLEMENTED
 
 ## Mission
 
-Define operational receipts and settlement/reconciliation visibility.
+Expose an evidence-bounded, read-only operational receipt, settlement
+visibility and reconciliation boundary. No legal receipt, settlement operation
+or accounting reconciliation is implemented.
 
 ## Scope
 
@@ -12,42 +14,42 @@ Define operational receipts and settlement/reconciliation visibility.
 - settlement visibility
 - reconciliation evidence
 - provider/accounting caveats
-- Product API candidate: `/api/v1/system/settlement-reconciliation`
+- Product API projection: `GET /api/v1/system/settlement-reconciliation`
 
 ## Out of scope
 
-- settlement engine
-- reconciliation engine
-- accounting integration
-- legal receipt claim
+- settlement engine or bank settlement
+- reconciliation engine or job
+- accounting integration or ledger
+- legal/tax receipt or fiscal document claim
 
 ## Candidate stories
 
-- define operational receipt semantics
-- define settlement visibility
-- define reconciliation evidence
-- define provider and accounting caveats
+- operational receipt evidence boundary is visible
+- settlement visibility is provider-dependent and unavailable without a provider
+- reconciliation evidence is explicitly not accounting reconciliation
+- provider and accounting dependencies remain blocked/deferred
 
 ## Candidate Product API surfaces
 
-- GET /api/v1/system/settlement-reconciliation
+- GET /api/v1/system/settlement-reconciliation (read-only)
 
 ## Candidate UI surfaces
 
-- Receipts / Settlement / Reconciliation
-- Billing Acceptance
+- Receipts / Settlement / Reconciliation (read-only)
 
 ## Required decisions before implementation
 
-- Are receipts operational or legal?
-- Is provider settlement in scope now?
-- Is accounting integration deferred?
+- Legal/tax receipt jurisdiction remains unresolved.
+- Provider selection and productive settlement remain deferred.
+- Accounting integration remains deferred.
 
 ## Acceptance criteria
 
-- receipt is not claimed as legal by default
-- settlement and reconciliation remain visible only as boundaries
-- no implementation is implied
+- endpoint is GET-only and returns claim: not_claimed
+- operational receipt is not claimed as legal/tax receipt
+- settlement and reconciliation remain evidence boundaries only
+- no provider/accounting integration or reconciliation job exists
 
 ## Claim discipline
 
@@ -55,14 +57,27 @@ Define operational receipts and settlement/reconciliation visibility.
 - Payment Ready: NO / not yet claimed
 - Invoice Ready: NO / not yet claimed
 - Tenant Billing Ready: NO / not yet claimed
+- Receipt Ready: NO / not yet claimed
+- Settlement Ready: NO / not yet claimed
+- Reconciliation Ready: NO / not yet claimed
+- Accounting Integration Ready: NO / not yet claimed
 
 ## Dependencies
 
 - M03 — Payment Rails Boundary
+- M04 — Tenant Billing & Account Responsibility
 - M06 — Financial Audit, Compliance & Risk
 
 ## Deferred scope
 
-- settlement engine runtime
-- reconciliation automation
-- accounting integration
+- legal/tax receipt generation
+- real payment settlement and provider settlement sync
+- reconciliation automation/jobs
+- accounting integration, ledger and revenue recognition
+- tax automation
+
+## Implementation note
+
+S07 is implemented as a read-only Product API and Control Plane projection.
+Formal caveat: preserve the S03-S06 remote sequencing deviation until final
+EPIC-13 closure.

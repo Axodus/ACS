@@ -9,7 +9,8 @@
 - S04 — Pricing, Quote & Invoice Contracts: PASS
 - S05 — Payment Rails Boundary: PASS
 - S06 — Tenant Billing & Account Responsibility: PASS
-- Functional implementation: tenant billing responsibility boundary only
+- S07 — Receipts, Settlement & Reconciliation: PASS
+- Functional implementation: read-only financial boundary projections only
 - Billing Ready: NO / not yet claimed
 - Payment Ready: NO / not yet claimed
 - Invoice Ready: NO / not yet claimed
@@ -63,10 +64,10 @@ without reopening EPIC-12 or claiming financial readiness.
 
 ## Recommended next sprint
 
-EPIC-13 / S07 — Receipts, Settlement & Reconciliation
+EPIC-13 / S08 — Financial Audit, Compliance & Risk
 
-S07 should model receipts, settlement visibility, and reconciliation evidence
-while keeping the no-claim posture intact.
+S08 should define the financial audit, compliance, and risk boundary while
+keeping the no-claim posture intact.
 
 S02 decided:
 
@@ -150,6 +151,19 @@ S02 decided:
 - billing UI
 - browser tests
 - functional tests
+
+## S07 implementation handoff
+
+- `GET /api/v1/system/settlement-reconciliation` is the read-only Product API
+  projection for operational receipt, settlement visibility and reconciliation
+  evidence boundaries.
+- S07 does not generate a legal/tax receipt, execute settlement, integrate a
+  provider or accounting system, or run a reconciliation job.
+- Receipt Ready, Settlement Ready, Reconciliation Ready and Accounting
+  Integration Ready remain NO / not yet claimed.
+- Formal caveat: S05/S06 were observed before S03/S04 in the remote commit
+  sequence. The milestone commits now exist; preserve this sequencing caveat
+  until final EPIC-13 closure.
 
 ## Coder instructions for S02
 

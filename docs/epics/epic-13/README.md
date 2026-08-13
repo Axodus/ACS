@@ -113,7 +113,7 @@ S03 — Billing Boundary & Financial Truth: PASS
 S04 — Pricing, Quote & Invoice Contracts: PASS
 S05 — Payment Rails Boundary: PASS
 S06 — Tenant Billing & Account Responsibility: PASS
-S07 — Receipts, Settlement & Reconciliation: PENDING
+S07 — Receipts, Settlement & Reconciliation: PASS
 S08 — Financial Audit, Compliance & Risk: PENDING
 S09 — Billing UX & Operator Acceptance: PENDING
 S10 — Final Hardening & Closure: PENDING
@@ -144,4 +144,4 @@ S11 — EPIC-13 Closure Report: PENDING
 
 ## Next sprint pointer
 
-EPIC-13 / S07 — Receipts, Settlement & Reconciliation
+EPIC-13 / S08 — Financial Audit, Compliance & Risk

@@ -1178,6 +1178,119 @@ export type TenantBillingBoundaryReport = {
   };
 };
 
+export type SettlementReconciliationBoundaryReport = {
+  checkedAt: number;
+  receiptReady: false;
+  legalTaxReceiptReady: false;
+  settlementReady: false;
+  reconciliationReady: false;
+  accountingIntegrationReady: false;
+  billingReady: false;
+  paymentReady: false;
+  invoiceReady: false;
+  tenantBillingReady: false;
+  productionFinancialOperationsReady: false;
+  taxReady: false;
+  complianceReady: false;
+  claim: "not_claimed";
+  operationalReceiptBoundary: {
+    receiptCandidateId: string;
+    receiptType: string;
+    relatedInvoiceCandidate: string;
+    relatedQuoteCandidate: string;
+    relatedBillableEvent: string;
+    relatedTenantAccountContext: string;
+    relatedPayerOperatorContext: string;
+    artifactState: string;
+    legalTaxClassificationState: string;
+    sourceEvidence: readonly string[];
+    caveats: readonly string[];
+    blockers: readonly string[];
+    deferredStates: readonly string[];
+  };
+  legalTaxReceiptBoundary: {
+    operationalReceipt: string;
+    paymentAcknowledgement: string;
+    invoiceArtifact: string;
+    taxLegalReceipt: string;
+    accountingReceipt: string;
+    settlementReceipt: string;
+    legalTaxReceiptReadiness: string;
+    complianceReadiness: string;
+    accountingIntegration: string;
+    jurisdictionDecision: string;
+    fiscalDocumentGeneration: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+  };
+  settlementVisibility: {
+    settlementCandidateId: string;
+    relatedPaymentBoundary: string;
+    providerDependency: string;
+    paymentStateDependency: string;
+    settlementState: string;
+    settlementEvidence: readonly string[];
+    settlementSource: string;
+    amountAvailabilityState: string;
+    currencyAvailabilityState: string;
+    settledAtAvailabilityState: string;
+    blockers: readonly string[];
+    caveats: readonly string[];
+    deferredStates: readonly string[];
+  };
+  reconciliationEvidence: {
+    reconciliationCandidateId: string;
+    relatedReceiptCandidate: string;
+    relatedSettlementCandidate: string;
+    relatedInvoiceCandidate: string;
+    relatedTenantAccount: string;
+    evidenceSources: readonly string[];
+    matchingState: string;
+    discrepancyState: string;
+    accountingDependency: string;
+    providerDependency: string;
+    blockers: readonly string[];
+    caveats: readonly string[];
+    deferredStates: readonly string[];
+  };
+  providerAccountingDependencies: {
+    paymentProviderDependency: string;
+    accountingSystemDependency: string;
+    ledgerDependency: string;
+    bankSettlementDependency: string;
+    jurisdictionTaxDependency: string;
+    dataAvailability: string;
+    state: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+  };
+  readinessGates: readonly {
+    id: string;
+    label: string;
+    status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    evidence: readonly string[];
+    blockers: readonly string[];
+    caveats: readonly string[];
+    claimImpact: string;
+  }[];
+  blockers: readonly string[];
+  warnings: readonly string[];
+  caveats: readonly string[];
+  deferredScope: readonly string[];
+  sourceEvidence: readonly string[];
+  claimDiscipline: {
+    receiptReadyClaimAllowed: false;
+    legalTaxReceiptReadyClaimAllowed: false;
+    settlementReadyClaimAllowed: false;
+    reconciliationReadyClaimAllowed: false;
+    accountingIntegrationReadyClaimAllowed: false;
+    billingReadyClaimAllowed: false;
+    paymentReadyClaimAllowed: false;
+    productionFinancialOperationsClaimAllowed: false;
+    reason: string;
+  };
+};
+
 export type Epic11AcceptanceCheck = {
   id: string;
   label: string;
@@ -2370,5 +2483,9 @@ export const productApi = {
 
   async getTenantBillingBoundaryReport() {
     return request<TenantBillingBoundaryReport>("/system/tenant-billing-boundary");
+  },
+
+  async getSettlementReconciliationBoundaryReport() {
+    return request<SettlementReconciliationBoundaryReport>("/system/settlement-reconciliation");
   },
 };

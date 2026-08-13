@@ -483,6 +483,119 @@ export type TenantBillingBoundaryReport = {
   };
 };
 
+export type SettlementReconciliationBoundaryReport = {
+  readonly checkedAt: number;
+  readonly receiptReady: false;
+  readonly legalTaxReceiptReady: false;
+  readonly settlementReady: false;
+  readonly reconciliationReady: false;
+  readonly accountingIntegrationReady: false;
+  readonly billingReady: false;
+  readonly paymentReady: false;
+  readonly invoiceReady: false;
+  readonly tenantBillingReady: false;
+  readonly productionFinancialOperationsReady: false;
+  readonly taxReady: false;
+  readonly complianceReady: false;
+  readonly claim: "not_claimed";
+  readonly operationalReceiptBoundary: {
+    readonly receiptCandidateId: string;
+    readonly receiptType: string;
+    readonly relatedInvoiceCandidate: string;
+    readonly relatedQuoteCandidate: string;
+    readonly relatedBillableEvent: string;
+    readonly relatedTenantAccountContext: string;
+    readonly relatedPayerOperatorContext: string;
+    readonly artifactState: string;
+    readonly legalTaxClassificationState: string;
+    readonly sourceEvidence: readonly string[];
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+    readonly deferredStates: readonly string[];
+  };
+  readonly legalTaxReceiptBoundary: {
+    readonly operationalReceipt: string;
+    readonly paymentAcknowledgement: string;
+    readonly invoiceArtifact: string;
+    readonly taxLegalReceipt: string;
+    readonly accountingReceipt: string;
+    readonly settlementReceipt: string;
+    readonly legalTaxReceiptReadiness: string;
+    readonly complianceReadiness: string;
+    readonly accountingIntegration: string;
+    readonly jurisdictionDecision: string;
+    readonly fiscalDocumentGeneration: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+  };
+  readonly settlementVisibility: {
+    readonly settlementCandidateId: string;
+    readonly relatedPaymentBoundary: string;
+    readonly providerDependency: string;
+    readonly paymentStateDependency: string;
+    readonly settlementState: string;
+    readonly settlementEvidence: readonly string[];
+    readonly settlementSource: string;
+    readonly amountAvailabilityState: string;
+    readonly currencyAvailabilityState: string;
+    readonly settledAtAvailabilityState: string;
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly deferredStates: readonly string[];
+  };
+  readonly reconciliationEvidence: {
+    readonly reconciliationCandidateId: string;
+    readonly relatedReceiptCandidate: string;
+    readonly relatedSettlementCandidate: string;
+    readonly relatedInvoiceCandidate: string;
+    readonly relatedTenantAccount: string;
+    readonly evidenceSources: readonly string[];
+    readonly matchingState: string;
+    readonly discrepancyState: string;
+    readonly accountingDependency: string;
+    readonly providerDependency: string;
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly deferredStates: readonly string[];
+  };
+  readonly providerAccountingDependencies: {
+    readonly paymentProviderDependency: string;
+    readonly accountingSystemDependency: string;
+    readonly ledgerDependency: string;
+    readonly bankSettlementDependency: string;
+    readonly jurisdictionTaxDependency: string;
+    readonly dataAvailability: string;
+    readonly state: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+  };
+  readonly readinessGates: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    readonly evidence: readonly string[];
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly claimImpact: string;
+  }[];
+  readonly blockers: readonly string[];
+  readonly warnings: readonly string[];
+  readonly caveats: readonly string[];
+  readonly deferredScope: readonly string[];
+  readonly sourceEvidence: readonly string[];
+  readonly claimDiscipline: {
+    readonly receiptReadyClaimAllowed: false;
+    readonly legalTaxReceiptReadyClaimAllowed: false;
+    readonly settlementReadyClaimAllowed: false;
+    readonly reconciliationReadyClaimAllowed: false;
+    readonly accountingIntegrationReadyClaimAllowed: false;
+    readonly billingReadyClaimAllowed: false;
+    readonly paymentReadyClaimAllowed: false;
+    readonly productionFinancialOperationsClaimAllowed: false;
+    readonly reason: string;
+  };
+};
+
 const OPERATIONAL_REFRESH_WINDOW_MS = 30_000;
 
 const OPERATIONAL_GUARDRAILS: ProductApiOperationalGuardrails = {
@@ -4153,6 +4266,278 @@ export class ProductApiClient {
         invoiceReadyClaimAllowed: false,
         productionFinancialOperationsClaimAllowed: false,
         reason: "Tenant billing responsibility is evidence-bounded only; no operational billing claim is allowed in S06.",
+      },
+    };
+  }
+
+  async getSettlementReconciliationBoundaryReport(): Promise<SettlementReconciliationBoundaryReport> {
+    return {
+      checkedAt: Date.now(),
+      receiptReady: false,
+      legalTaxReceiptReady: false,
+      settlementReady: false,
+      reconciliationReady: false,
+      accountingIntegrationReady: false,
+      billingReady: false,
+      paymentReady: false,
+      invoiceReady: false,
+      tenantBillingReady: false,
+      productionFinancialOperationsReady: false,
+      taxReady: false,
+      complianceReady: false,
+      claim: "not_claimed",
+      operationalReceiptBoundary: {
+        receiptCandidateId: "candidate",
+        receiptType: "operational_receipt_candidate",
+        relatedInvoiceCandidate: "invoice_candidate_required",
+        relatedQuoteCandidate: "quote_candidate_required",
+        relatedBillableEvent: "billable_event_candidate_required",
+        relatedTenantAccountContext: "tenant_account_context_candidate",
+        relatedPayerOperatorContext: "payer_operator_context_candidate",
+        artifactState: "operational_evidence",
+        legalTaxClassificationState: "missing_tax_decision",
+        sourceEvidence: [
+          "S07 models operational receipt evidence only",
+          "No legal or tax receipt artifact is generated",
+        ],
+        caveats: [
+          "Operational receipt is not a legal or tax receipt",
+          "Receipt evidence does not prove settlement",
+        ],
+        blockers: [
+          "No legal receipt generation",
+          "No receipt numbering authority",
+          "No jurisdiction classification",
+        ],
+        deferredStates: [
+          "legal_tax_receipt_deferred",
+          "receipt_pdf_generation_deferred",
+          "receipt_numbering_deferred",
+        ],
+      },
+      legalTaxReceiptBoundary: {
+        operationalReceipt: "read-only operational evidence",
+        paymentAcknowledgement: "candidate only",
+        invoiceArtifact: "invoice boundary prerequisite",
+        taxLegalReceipt: "not claimed",
+        accountingReceipt: "deferred",
+        settlementReceipt: "candidate only / not legal",
+        legalTaxReceiptReadiness: "NO / not yet claimed",
+        complianceReadiness: "NO / not yet claimed",
+        accountingIntegration: "deferred",
+        jurisdictionDecision: "required before any legal receipt claim",
+        fiscalDocumentGeneration: "deferred",
+        caveats: [
+          "No fiscal jurisdiction is selected in S07",
+          "Operational receipt must not be presented as fiscal proof",
+        ],
+        blockers: [
+          "No legal or tax decision",
+          "No fiscal document generation pipeline",
+        ],
+      },
+      settlementVisibility: {
+        settlementCandidateId: "candidate",
+        relatedPaymentBoundary: "payment_rails_boundary_required",
+        providerDependency: "payment provider integration not available",
+        paymentStateDependency: "payment capture not implemented",
+        settlementState: "provider_not_integrated",
+        settlementEvidence: [
+          "S05 payment rails boundary remains read-only",
+          "No real settlement is executed in EPIC-13 S07",
+        ],
+        settlementSource: "candidate provider evidence only",
+        amountAvailabilityState: "unavailable",
+        currencyAvailabilityState: "unavailable",
+        settledAtAvailabilityState: "settlement_unavailable",
+        blockers: [
+          "No payment capture",
+          "No provider integration",
+          "No bank settlement source",
+        ],
+        caveats: [
+          "Settlement visibility is not settlement execution",
+          "No settledAt or amount is invented",
+        ],
+        deferredStates: [
+          "provider_settlement_sync_deferred",
+          "bank_settlement_deferred",
+          "real_settlement_deferred",
+        ],
+      },
+      reconciliationEvidence: {
+        reconciliationCandidateId: "candidate",
+        relatedReceiptCandidate: "candidate",
+        relatedSettlementCandidate: "candidate",
+        relatedInvoiceCandidate: "candidate",
+        relatedTenantAccount: "candidate",
+        evidenceSources: [
+          "billing boundary",
+          "pricing and invoice boundary",
+          "payment rails boundary",
+          "tenant billing boundary",
+        ],
+        matchingState: "missing_accounting_source",
+        discrepancyState: "awaiting_provider_data",
+        accountingDependency: "accounting integration deferred",
+        providerDependency: "provider data unavailable",
+        blockers: [
+          "No provider settlement data",
+          "No accounting system integration",
+          "No reconciliation job",
+        ],
+        caveats: [
+          "Reconciliation evidence is not accounting reconciliation",
+          "No accounts are declared reconciled in S07",
+        ],
+        deferredStates: [
+          "accounting_reconciliation_deferred",
+          "reconciliation_job_deferred",
+          "ledger_matching_deferred",
+        ],
+      },
+      providerAccountingDependencies: {
+        paymentProviderDependency: "not_integrated",
+        accountingSystemDependency: "not_integrated",
+        ledgerDependency: "deferred",
+        bankSettlementDependency: "deferred",
+        jurisdictionTaxDependency: "requires_decision",
+        dataAvailability: "candidate only / evidence-bounded",
+        state: "blocked",
+        caveats: [
+          "No provider or accounting SDK is added in S07",
+          "No external job or sync runs in this milestone",
+        ],
+        blockers: [
+          "No provider integration",
+          "No accounting integration",
+          "No ledger or bank source",
+        ],
+      },
+      readinessGates: [
+        {
+          id: "G11",
+          label: "Operational Receipt Boundary",
+          status: "candidate",
+          evidence: ["S07 operational receipt boundary projection exists"],
+          blockers: ["No legal receipt generation", "No receipt numbering"],
+          caveats: ["Receipt boundary is operational evidence only"],
+          claimImpact: "Receipt Ready blocked; Settlement Ready blocked; Reconciliation Ready blocked; Accounting Integration Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G12",
+          label: "Legal / Tax Receipt Distinction",
+          status: "blocked",
+          evidence: ["Operational receipt is explicitly separated from legal/tax receipt"],
+          blockers: ["No jurisdiction decision", "No compliance approval"],
+          caveats: ["Legal/tax receipt readiness remains not claimed"],
+          claimImpact: "Receipt Ready blocked; Settlement Ready blocked; Reconciliation Ready blocked; Accounting Integration Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G13",
+          label: "Settlement Visibility Boundary",
+          status: "candidate",
+          evidence: ["Settlement visibility is modeled as provider-dependent evidence only"],
+          blockers: ["No provider integration", "No payment capture"],
+          caveats: ["No real settlement is performed"],
+          claimImpact: "Settlement Ready blocked; Reconciliation Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G14",
+          label: "Reconciliation Evidence Boundary",
+          status: "candidate",
+          evidence: ["Reconciliation is modeled as evidence-only"],
+          blockers: ["No provider data", "No accounting data", "No reconciliation job"],
+          caveats: ["Accounting-grade reconciliation is out of scope"],
+          claimImpact: "Reconciliation Ready blocked; Accounting Integration Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G15",
+          label: "Provider Dependency Boundary",
+          status: "blocked",
+          evidence: ["Provider dependency is explicit and unresolved"],
+          blockers: ["Provider not integrated"],
+          caveats: ["No payment provider API is called"],
+          claimImpact: "Settlement Ready blocked; Reconciliation Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G16",
+          label: "Accounting Integration Boundary",
+          status: "blocked",
+          evidence: ["Accounting integration remains deferred"],
+          blockers: ["No accounting system integration", "No ledger"],
+          caveats: ["No accounting truth is claimed"],
+          claimImpact: "Accounting Integration Ready blocked; Reconciliation Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G17",
+          label: "No Real Settlement Guardrail",
+          status: "candidate",
+          evidence: ["No real settlement or bank sync is allowed in S07"],
+          blockers: ["Settlement execution out of scope"],
+          caveats: ["Guardrail stays active for the milestone"],
+          claimImpact: "Settlement Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G18",
+          label: "No Legal Receipt Claim Discipline",
+          status: "candidate",
+          evidence: ["Legal/tax receipt remains NO / not yet claimed"],
+          blockers: ["No compliance approval", "No jurisdiction selection"],
+          caveats: ["Operational receipt must not be framed as legal"],
+          claimImpact: "Receipt Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+        {
+          id: "G19",
+          label: "No Financial Claim Discipline",
+          status: "candidate",
+          evidence: ["All financial readiness claims remain blocked"],
+          blockers: ["No productive financial evidence chain"],
+          caveats: ["S07 is evidence-bounded and read-only"],
+          claimImpact: "Receipt Ready blocked; Settlement Ready blocked; Reconciliation Ready blocked; Accounting Integration Ready blocked; Billing Ready blocked; Production Financial Operations blocked",
+        },
+      ],
+      blockers: [
+        "No legal/tax receipt generation",
+        "No provider settlement integration",
+        "No accounting integration",
+        "No reconciliation job",
+        "No invented monetary values",
+      ],
+      warnings: [
+        "Settlement visibility is conceptual and provider-dependent",
+        "Operational receipts are not legal receipts",
+      ],
+      caveats: [
+        "S07 is evidence-bounded only",
+        "Formal sequencing caveat from S03–S06 remains open until final closure",
+      ],
+      deferredScope: [
+        "legal_tax_receipt_generation",
+        "real_payment_settlement",
+        "provider_settlement_sync",
+        "accounting_integration",
+        "reconciliation_jobs",
+        "revenue_recognition",
+        "tax_automation",
+      ],
+      sourceEvidence: [
+        "EPIC-13 Executive Plan",
+        "S03 Billing Boundary & Financial Truth",
+        "S04 Pricing, Quote & Invoice Contracts",
+        "S05 Payment Rails Boundary",
+        "S06 Tenant Billing & Account Responsibility",
+      ],
+      claimDiscipline: {
+        receiptReadyClaimAllowed: false,
+        legalTaxReceiptReadyClaimAllowed: false,
+        settlementReadyClaimAllowed: false,
+        reconciliationReadyClaimAllowed: false,
+        accountingIntegrationReadyClaimAllowed: false,
+        billingReadyClaimAllowed: false,
+        paymentReadyClaimAllowed: false,
+        productionFinancialOperationsClaimAllowed: false,
+        reason: "Receipts, settlement visibility and reconciliation remain read-only evidence boundaries only; no productive financial readiness claim is allowed in S07.",
       },
     };
   }
