@@ -109,6 +109,16 @@ export async function routeProductApiRequest(
       return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
     }
 
+    // S03 exposes only the billing boundary and financial truth projection; it does not mutate billing state.
+    if (apiPath === "system/billing-boundary" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const summary = await api.getBillingBoundaryReport();
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/billing-boundary") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // S05 exposes only the payment rails boundary; it does not move money.
     if (apiPath === "system/payment-rails-boundary" && request.method === "GET") {
       assertAllowedQueryParams(url, []);

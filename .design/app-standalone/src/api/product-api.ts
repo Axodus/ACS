@@ -819,6 +819,78 @@ export type OperationalReliabilityReport = {
   };
 };
 
+export type BillingBoundaryReport = {
+  checkedAt: string;
+  billingReady: false;
+  paymentReady: false;
+  invoiceReady: false;
+  tenantBillingReady: false;
+  productionFinancialOperationsReady: false;
+  claim: "not_claimed";
+  financialTruth: {
+    sourceId: string;
+    sourceName: string;
+    sourceType: string;
+    authorityLevel: string;
+    state: string;
+    claimImpact: string;
+    evidence: readonly string[];
+    caveats: readonly string[];
+    blockers: readonly string[];
+    unsupportedStates: readonly string[];
+    deferredStates: readonly string[];
+  };
+  billingBoundary: {
+    billingBoundaryStatus: string;
+    billingIntent: string;
+    billableEventModel: string;
+    financialTruthDependency: string;
+    productApiSourceOfTruthDependency: string;
+    readinessGates: readonly string[];
+    blockers: readonly string[];
+    warnings: readonly string[];
+    caveats: readonly string[];
+    deferredScope: readonly string[];
+    noClaimPosture: string;
+  };
+  billableEventCandidates: readonly {
+    eventId: string;
+    eventType: string;
+    eventSource: string;
+    tenantAccountContext: string;
+    actorContext: string;
+    operationRunCorrelation: string;
+    pricingDependency: string;
+    invoiceDependency: string;
+    paymentDependency: string;
+    state: string;
+    caveats: readonly string[];
+    blockers: readonly string[];
+  }[];
+  readinessGates: readonly {
+    id: string;
+    label: string;
+    status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    evidence: readonly string[];
+    blockers: readonly string[];
+    caveats: readonly string[];
+    claimImpact: readonly string[];
+  }[];
+  blockers: readonly string[];
+  warnings: readonly string[];
+  caveats: readonly string[];
+  deferredScope: readonly string[];
+  sourceEvidence: readonly string[];
+  claimDiscipline: {
+    billingReadyClaimAllowed: false;
+    paymentReadyClaimAllowed: false;
+    invoiceReadyClaimAllowed: false;
+    tenantBillingReadyClaimAllowed: false;
+    productionFinancialOperationsClaimAllowed: false;
+    reason: string;
+  };
+};
+
 export type PaymentRailsBoundaryReport = {
   checkedAt: string;
   paymentReady: false;
@@ -2282,6 +2354,10 @@ export const productApi = {
 
   async getOperationalReliabilityReport() {
     return request<OperationalReliabilityReport>("/system/operational-reliability");
+  },
+
+  async getBillingBoundaryReport() {
+    return request<BillingBoundaryReport>("/system/billing-boundary");
   },
 
   async getPaymentRailsBoundaryReport() {

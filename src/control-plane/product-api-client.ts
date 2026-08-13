@@ -212,6 +212,78 @@ export type PaymentRailsBoundaryReport = {
   };
 };
 
+export type BillingBoundaryReport = {
+  readonly checkedAt: number;
+  readonly billingReady: false;
+  readonly paymentReady: false;
+  readonly invoiceReady: false;
+  readonly tenantBillingReady: false;
+  readonly productionFinancialOperationsReady: false;
+  readonly claim: "not_claimed";
+  readonly financialTruth: {
+    readonly sourceId: string;
+    readonly sourceName: string;
+    readonly sourceType: string;
+    readonly authorityLevel: string;
+    readonly state: string;
+    readonly claimImpact: string;
+    readonly evidence: readonly string[];
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+    readonly unsupportedStates: readonly string[];
+    readonly deferredStates: readonly string[];
+  };
+  readonly billingBoundary: {
+    readonly billingBoundaryStatus: string;
+    readonly billingIntent: string;
+    readonly billableEventModel: string;
+    readonly financialTruthDependency: string;
+    readonly productApiSourceOfTruthDependency: string;
+    readonly readinessGates: readonly string[];
+    readonly blockers: readonly string[];
+    readonly warnings: readonly string[];
+    readonly caveats: readonly string[];
+    readonly deferredScope: readonly string[];
+    readonly noClaimPosture: string;
+  };
+  readonly billableEventCandidates: readonly {
+    readonly eventId: string;
+    readonly eventType: string;
+    readonly eventSource: string;
+    readonly tenantAccountContext: string;
+    readonly actorContext: string;
+    readonly runCorrelation: string;
+    readonly pricingDependency: string;
+    readonly invoiceDependency: string;
+    readonly paymentDependency: string;
+    readonly state: string;
+    readonly caveats: readonly string[];
+    readonly blockers: readonly string[];
+  }[];
+  readonly readinessGates: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    readonly evidence: readonly string[];
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly claimImpact: string;
+  }[];
+  readonly blockers: readonly string[];
+  readonly warnings: readonly string[];
+  readonly caveats: readonly string[];
+  readonly deferredScope: readonly string[];
+  readonly sourceEvidence: readonly string[];
+  readonly claimDiscipline: {
+    readonly billingReadyClaimAllowed: false;
+    readonly paymentReadyClaimAllowed: false;
+    readonly invoiceReadyClaimAllowed: false;
+    readonly tenantBillingReadyClaimAllowed: false;
+    readonly productionFinancialOperationsClaimAllowed: false;
+    readonly reason: string;
+  };
+};
+
 export type PricingInvoiceBoundaryReport = {
   readonly checkedAt: number;
   readonly pricingReady: false;
@@ -3545,6 +3617,147 @@ export class ProductApiClient {
         billingReadyClaimAllowed: false,
         productionFinancialOperationsClaimAllowed: false,
         reason: "No / not yet claimed; read-only boundary only.",
+      },
+    };
+  }
+
+  async getBillingBoundaryReport(): Promise<BillingBoundaryReport> {
+    return {
+      checkedAt: Date.now(),
+      billingReady: false,
+      paymentReady: false,
+      invoiceReady: false,
+      tenantBillingReady: false,
+      productionFinancialOperationsReady: false,
+      claim: "not_claimed",
+      financialTruth: {
+        sourceId: "candidate",
+        sourceName: "Candidate financial truth source",
+        sourceType: "candidate",
+        authorityLevel: "candidate_source",
+        state: "not_started",
+        claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        evidence: ["S03 models financial truth as a read-only boundary only", "No invented financial values are allowed"],
+        caveats: ["Financial truth remains evidence-bounded and not yet operational"],
+        blockers: ["No financial ledger", "No billing-grade computation", "No production claim"],
+        unsupportedStates: ["unsupported", "deferred"],
+        deferredStates: ["financial_ledger_deferred", "billing_grade_computation_deferred", "mock_truth_deferred"],
+      },
+      billingBoundary: {
+        billingBoundaryStatus: "candidate",
+        billingIntent: "boundary-only inspection",
+        billableEventModel: "candidate",
+        financialTruthDependency: "requires S03 financial truth boundary",
+        productApiSourceOfTruthDependency: "Product API remains the source of truth",
+        readinessGates: ["G01 Financial Truth Source", "G02 Billing Boundary", "G03 Billable Event Model", "G04 Product API Financial Source of Truth", "G05 No-Money-Movement Guardrail", "G06 No Financial Claim Discipline", "G07 Secret / Provider Credential Boundary", "G08 Deferred Scope Register"],
+        blockers: ["No billing mutation", "No billing-ready claim", "No real money movement"],
+        warnings: ["Billing boundary is read-only", "No simulated financial truth"],
+        caveats: ["Billing Boundary is not Billing Ready", "Billable Event is not billing"],
+        deferredScope: ["billing_mutation", "billing_ready_claim", "production_financial_operations"],
+        noClaimPosture: "evidence-bounded only",
+      },
+      billableEventCandidates: [
+        {
+          eventId: "candidate",
+          eventType: "candidate",
+          eventSource: "candidate",
+          tenantAccountContext: "unavailable",
+          actorContext: "unavailable",
+          runCorrelation: "unavailable",
+          pricingDependency: "requires pricing boundary",
+          invoiceDependency: "requires invoice candidate boundary",
+          paymentDependency: "requires payment rails boundary",
+          state: "candidate",
+          caveats: ["Billable event is not a charge", "Missing data stays unavailable"],
+          blockers: ["No runtime billing mutation", "No billing-grade calculation"],
+        },
+      ],
+      readinessGates: [
+        {
+          id: "G01",
+          label: "Financial Truth Source",
+          status: "candidate",
+          evidence: ["Financial truth is modeled as read-only boundary"],
+          blockers: ["No financial ledger"],
+          caveats: ["Source remains candidate-only"],
+          claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        },
+        {
+          id: "G02",
+          label: "Billing Boundary",
+          status: "candidate",
+          evidence: ["Billing boundary projection exists"],
+          blockers: ["No billing mutation"],
+          caveats: ["Boundary is not readiness"],
+          claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        },
+        {
+          id: "G03",
+          label: "Billable Event Model",
+          status: "candidate",
+          evidence: ["Billable event candidates are only conceptual"],
+          blockers: ["No runtime billing event"],
+          caveats: ["Candidate state only"],
+          claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        },
+        {
+          id: "G04",
+          label: "Product API Financial Source of Truth",
+          status: "candidate",
+          evidence: ["Product API is the authoritative read-only boundary"],
+          blockers: ["No secondary source allowed"],
+          caveats: ["Truth is projected, not invented"],
+          claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        },
+        {
+          id: "G05",
+          label: "No-Money-Movement Guardrail",
+          status: "candidate",
+          evidence: ["No money movement is permitted in S03"],
+          blockers: ["No authorization", "No capture", "No settlement"],
+          caveats: ["Permanent guardrail for this milestone"],
+          claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        },
+        {
+          id: "G06",
+          label: "No Financial Claim Discipline",
+          status: "candidate",
+          evidence: ["All readiness claims remain NO / not yet claimed"],
+          blockers: ["No claim upgrade allowed"],
+          caveats: ["Claim discipline remains blocked"],
+          claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        },
+        {
+          id: "G07",
+          label: "Secret / Provider Credential Boundary",
+          status: "candidate",
+          evidence: ["No provider credentials are needed for S03"],
+          blockers: ["No secret exposure allowed"],
+          caveats: ["Secrets remain deferred"],
+          claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        },
+        {
+          id: "G08",
+          label: "Deferred Scope Register",
+          status: "candidate",
+          evidence: ["Deferred scope is explicit"],
+          blockers: ["Deferred scope is not implemented"],
+          caveats: ["EPIC-14+ scope stays deferred"],
+          claimImpact: "Billing Ready blocked; Payment Ready blocked; Invoice Ready blocked; Tenant Billing Ready blocked; Production Financial Operations blocked.",
+        },
+      ],
+      blockers: ["No real money movement", "No billing mutation", "No invented financial values"],
+      warnings: ["Financial truth remains conceptual", "Billing boundary remains read-only"],
+      caveats: ["S03 is evidence-bounded only", "No production financial claim is allowed"],
+      deferredScope: ["financial_ledger", "billing_mutation", "production_billing", "tenant_billing", "payment_integration"],
+      sourceEvidence: ["EPIC-13 Executive Plan", "S03 Billing Boundary & Financial Truth"],
+      claimDiscipline: {
+        billingReadyClaimAllowed: false,
+        paymentReadyClaimAllowed: false,
+        invoiceReadyClaimAllowed: false,
+        tenantBillingReadyClaimAllowed: false,
+        productionFinancialOperationsClaimAllowed: false,
+        reason: "No / not yet claimed; boundary is read-only and evidence-bounded.",
       },
     };
   }

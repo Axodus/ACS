@@ -70,6 +70,7 @@ import {
   type SystemAdministrationView,
   type SystemTenantsView,
   type Epic11AcceptanceReport,
+  type BillingBoundaryReport,
   type ProductionReadinessReport,
   type GovernanceBoundaryReport,
   type OperationalReliabilityReport,
@@ -96,6 +97,7 @@ type View =
   | "Operational Evidence"
   | "Audit"
   | "Economics"
+  | "Billing Boundary & Financial Truth"
   | "Pricing & Invoice Boundary"
   | "Payment Rails Boundary"
   | "Tenant Billing & Account Responsibility"
@@ -114,6 +116,7 @@ const navGroups: View[][] = [
   ["Operational Execution", "Runtime"],
   ["Operational Evidence", "Audit", "Logs"],
   ["Economics"],
+  ["Billing Boundary & Financial Truth"],
   ["Pricing & Invoice Boundary"],
   ["Payment Rails Boundary"],
   ["Tenant Billing & Account Responsibility"],
@@ -137,6 +140,7 @@ const icons: Record<View, string> = {
   "Operational Evidence": "◍",
   Audit: "◌",
   Economics: "$",
+  "Billing Boundary & Financial Truth": "¤",
   "Pricing & Invoice Boundary": "¤",
   "Payment Rails Boundary": "¤",
   "Tenant Billing & Account Responsibility": "⊙",
@@ -161,6 +165,7 @@ const viewPaths: Record<View, string> = {
   "Operational Evidence": "/operational-evidence",
   Audit: "/audit",
   Economics: "/economics",
+  "Billing Boundary & Financial Truth": "/system/billing-boundary",
   "Pricing & Invoice Boundary": "/system/pricing-invoice-boundary",
   "Payment Rails Boundary": "/system/payment-rails-boundary",
   "Tenant Billing & Account Responsibility": "/system/tenant-billing-boundary",
@@ -3228,6 +3233,171 @@ function PricingInvoiceBoundaryView() {
   </>;
 }
 
+function BillingBoundaryView() {
+  const { data, loadState, loadError, stale, refresh } = useOperationalSummary<BillingBoundaryReport>(
+    () => productApi.getBillingBoundaryReport(),
+    "Unable to load billing boundary from Product API",
+    () => false,
+  );
+  const financialTruth = data?.financialTruth;
+  const billingBoundary = data?.billingBoundary;
+  const billableEventCandidates = data?.billableEventCandidates ?? [];
+  const readinessGates = data?.readinessGates ?? [];
+
+  return <>
+    <header className="page-head compact">
+      <div>
+        <p className="eyebrow">BILLING BOUNDARY &amp; FINANCIAL TRUTH</p>
+        <h1>Billing Boundary &amp; Financial Truth</h1>
+        <p>Read-only boundary projection for financial truth, billing intent and billable event candidates. No billing mutation or real money movement is allowed here.</p>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note">
+      <span>Inspection mode</span>
+      <span>Sandbox only</span>
+      <span>Read-only</span>
+      <span>Product API is source of truth</span>
+      <span>No billing mutation / no invoice / no payment / no money movement</span>
+    </div>
+    {staleBanner({ stale, loadState, loadError }, "billing boundary")}
+    <CrossLinks links={[
+      { to: "/system", label: "Governance & system" },
+      { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
+      { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
+      { to: "/system/tenant-billing-boundary", label: "Tenant billing boundary" },
+    ]} />
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Claims</h2>
+        <p>All billing and financial-operation claims remain explicitly not claimed.</p>
+      </div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Billing Ready" value={data?.billingReady ? "YES" : "NO / not yet claimed"} tone={data?.billingReady ? "good" : "muted"} />
+              <SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone={data?.paymentReady ? "good" : "muted"} />
+              <SummaryRow label="Invoice Ready" value={data?.invoiceReady ? "YES" : "NO / not yet claimed"} tone={data?.invoiceReady ? "good" : "muted"} />
+              <SummaryRow label="Tenant Billing Ready" value={data?.tenantBillingReady ? "YES" : "NO / not yet claimed"} tone={data?.tenantBillingReady ? "good" : "muted"} />
+              <SummaryRow label="Production Financial Operations" value={data?.productionFinancialOperationsReady ? "YES" : "NO / not yet claimed"} tone={data?.productionFinancialOperationsReady ? "good" : "muted"} />
+              <SummaryRow label="Claim" value={data?.claim ?? "not_claimed"} tone="muted" />
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Financial truth</h2><p>Source candidates and evidence posture</p></div></div>
+          <div className="panel-body">
+            {financialTruth
+              ? <div className="summary-list">
+                <SummaryRow label="Source id" value={financialTruth.sourceId} />
+                <SummaryRow label="Source name" value={financialTruth.sourceName} />
+                <SummaryRow label="Source type" value={financialTruth.sourceType} />
+                <SummaryRow label="Authority level" value={financialTruth.authorityLevel} />
+                <SummaryRow label="State" value={financialTruth.state} />
+                <SummaryRow label="Claim impact" value={financialTruth.claimImpact} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No financial truth snapshot available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Billing boundary</h2>
+        <p>Billing intent and evidence-bounded dependency model.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Boundary model</h2><p>Read-only posture</p></div></div>
+          <div className="panel-body">
+            {billingBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Billing boundary status" value={billingBoundary.billingBoundaryStatus} />
+                <SummaryRow label="Billing intent" value={billingBoundary.billingIntent} />
+                <SummaryRow label="Billable event model" value={billingBoundary.billableEventModel} />
+                <SummaryRow label="Financial truth dependency" value={billingBoundary.financialTruthDependency} />
+                <SummaryRow label="Product API dependency" value={billingBoundary.productApiSourceOfTruthDependency} />
+                <SummaryRow label="No-claim posture" value={billingBoundary.noClaimPosture} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No billing boundary snapshot available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Readiness gates</h2><p>Claim impact remains blocked</p></div><Badge tone={readinessGates.length ? "good" : "muted"}>{readinessGates.length}</Badge></div>
+          <div className="panel-body">
+            <TimelineList items={readinessGates.map((gate: BillingBoundaryReport["readinessGates"][number]) => ({
+              id: gate.id,
+              title: gate.label,
+              meta: `${gate.status} · ${gate.claimImpact.join(" · ")}`,
+              detail: `${gate.evidence.join(" · ") || "No evidence"}${gate.blockers.length ? ` · blockers: ${gate.blockers.join(" · ")}` : ""}${gate.caveats.length ? ` · caveats: ${gate.caveats.join(" · ")}` : ""}`,
+              tone: gate.status === "blocked" ? "warn" : gate.status === "partial" ? "muted" : undefined,
+            }))} />
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Billable event candidates</h2>
+        <p>Candidate events remain conceptual and evidence-bounded.</p>
+      </div>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Billable event candidates</h2><p>Read-only candidate set</p></div><Badge tone="muted">{billableEventCandidates.length}</Badge></div>
+        <div className="panel-body">
+          <TimelineList items={billableEventCandidates.map((event, index) => ({
+            id: `${event.eventId}-${index}`,
+            title: event.eventId,
+            meta: `${event.eventType} · ${event.state}`,
+            detail: `${event.eventSource}${event.blockers.length ? ` · blockers: ${event.blockers.join(" · ")}` : ""}${event.caveats.length ? ` · caveats: ${event.caveats.join(" · ")}` : ""}`,
+            tone: event.state === "observed_evidence" ? "good" : "muted",
+          }))} />
+        </div>
+      </section>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Evidence and scope</h2>
+        <p>Visible evidence only; deferred EPIC-14+ scope stays deferred.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Source evidence</h2><p>Product API snapshot</p></div></div>
+          <div className="panel-body">
+            <TimelineList items={(data?.sourceEvidence ?? []).map((item: string, index: number) => ({ id: `${item}-${index}`, title: item, tone: "muted" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Deferred scope</h2><p>EPIC-14+ candidates only</p></div><Badge tone="muted">{data?.deferredScope?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList items={(data?.deferredScope ?? []).map((item: string, index: number) => ({ id: `${item}-${index}`, title: item, tone: "muted" }))} />
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Claim discipline</h2>
+        <p>No financial readiness claims in this milestone.</p>
+      </div>
+      <section className="panel blocked-panel">
+        <div className="panel-head"><div><h2>Claim discipline</h2><p>No billing financial claims in this milestone</p></div><Badge tone="muted">not claimed</Badge></div>
+        <div className="panel-body">
+          <div className="summary-list">
+            <SummaryRow label="Billing Ready claim" value={data?.claimDiscipline?.billingReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Payment Ready claim" value={data?.claimDiscipline?.paymentReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Invoice Ready claim" value={data?.claimDiscipline?.invoiceReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Tenant Billing Ready claim" value={data?.claimDiscipline?.tenantBillingReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Production Financial Operations claim" value={data?.claimDiscipline?.productionFinancialOperationsClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Reason" value={data?.claimDiscipline?.reason ?? "claim discipline remains blocked"} />
+          </div>
+        </div>
+      </section>
+    </div>
+  </>;
+}
+
 function TenantBillingBoundaryView() {
   const { data, loadState, loadError, stale, refresh } = useOperationalSummary<TenantBillingBoundaryReport>(
     () => productApi.getTenantBillingBoundaryReport(),
@@ -4284,6 +4454,7 @@ export default function App() {
             <Route path="/operational-evidence" element={<EvidenceView />} />
             <Route path="/audit" element={<AuditView />} />
             <Route path="/economics" element={<EconomicsView />} />
+            <Route path="/system/billing-boundary" element={<BillingBoundaryView />} />
             <Route path="/system/payment-rails-boundary" element={<PaymentRailsBoundaryView />} />
             <Route path="/system/pricing-invoice-boundary" element={<PricingInvoiceBoundaryView />} />
             <Route path="/system/tenant-billing-boundary" element={<TenantBillingBoundaryView />} />
