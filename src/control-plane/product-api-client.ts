@@ -127,6 +127,91 @@ export interface ProductApiReadinessLink {
   readonly checkedAt: number;
 }
 
+export type PaymentRailsBoundaryReport = {
+  readonly checkedAt: number;
+  readonly paymentReady: false;
+  readonly billingReady: false;
+  readonly invoiceReady: false;
+  readonly tenantBillingReady: false;
+  readonly productionFinancialOperationsReady: false;
+  readonly refundReady: false;
+  readonly chargebackReady: false;
+  readonly claim: "not_claimed";
+  readonly paymentProviderBoundary: {
+    readonly providerId: string;
+    readonly providerName: string;
+    readonly providerType: string;
+    readonly providerState: string;
+    readonly integrationState: string;
+    readonly credentialBoundaryState: string;
+    readonly authorizationSupportState: string;
+    readonly captureSupportState: string;
+    readonly refundSupportState: string;
+    readonly chargebackSupportState: string;
+    readonly settlementDependency: string;
+    readonly evidence: readonly string[];
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly deferredStates: readonly string[];
+  };
+  readonly authorizationCaptureBoundary: {
+    readonly authorizationIntent: string;
+    readonly authorizationState: string;
+    readonly captureState: string;
+    readonly captureDependency: string;
+    readonly settlementDependency: string;
+    readonly failureStates: readonly string[];
+    readonly claimImpact: string;
+  };
+  readonly noMoneyMovementGuardrail: {
+    readonly active: true;
+    readonly statements: readonly string[];
+  };
+  readonly failureDeferredStates: readonly string[];
+  readonly refundChargebackBoundary: {
+    readonly refundBoundary: string;
+    readonly chargebackBoundary: string;
+    readonly disputeWorkflowDependency: string;
+    readonly providerDependency: string;
+    readonly accountingDependency: string;
+    readonly complianceCaveat: string;
+    readonly riskCaveats: readonly string[];
+    readonly claimImpact: string;
+  };
+  readonly paymentSecretBoundary: {
+    readonly credentialState: string;
+    readonly requiredSecretsClass: readonly string[];
+    readonly storageRequirement: string;
+    readonly injectionBoundary: string;
+    readonly redactionRequirement: string;
+    readonly productionCredentialStatus: string;
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+  };
+  readonly readinessGates: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    readonly evidence: readonly string[];
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly claimImpact: string;
+  }[];
+  readonly blockers: readonly string[];
+  readonly warnings: readonly string[];
+  readonly caveats: readonly string[];
+  readonly deferredScope: readonly string[];
+  readonly sourceEvidence: readonly string[];
+  readonly claimDiscipline: {
+    readonly paymentReadyClaimAllowed: false;
+    readonly refundReadyClaimAllowed: false;
+    readonly chargebackReadyClaimAllowed: false;
+    readonly billingReadyClaimAllowed: false;
+    readonly productionFinancialOperationsClaimAllowed: false;
+    readonly reason: string;
+  };
+};
+
 const OPERATIONAL_REFRESH_WINDOW_MS = 30_000;
 
 const OPERATIONAL_GUARDRAILS: ProductApiOperationalGuardrails = {
@@ -3144,6 +3229,124 @@ export class ProductApiClient {
         "Isolation state is reported by the Product API, not computed by the UI.",
         "Without real multi-tenant data the surface reports the declared modes of registered workers.",
       ],
+    };
+  }
+
+  async getPaymentRailsBoundaryReport(): Promise<PaymentRailsBoundaryReport> {
+    return {
+      checkedAt: Date.now(),
+      paymentReady: false,
+      billingReady: false,
+      invoiceReady: false,
+      tenantBillingReady: false,
+      productionFinancialOperationsReady: false,
+      refundReady: false,
+      chargebackReady: false,
+      claim: "not_claimed",
+      paymentProviderBoundary: {
+        providerId: "candidate",
+        providerName: "Candidate payment provider",
+        providerType: "candidate",
+        providerState: "candidate",
+        integrationState: "candidate_only",
+        credentialBoundaryState: "not_configured",
+        authorizationSupportState: "candidate",
+        captureSupportState: "not_allowed",
+        refundSupportState: "deferred",
+        chargebackSupportState: "deferred",
+        settlementDependency: "deferred",
+        evidence: ["S05 models payment rails boundary only", "No provider integration is approved"],
+        blockers: ["No provider SDK integration", "No production payment credentials", "No money movement"],
+        caveats: ["Payment rails remain conceptual and read-only", "Real authorization and capture are deferred"],
+        deferredStates: ["provider_not_integrated", "credentials_not_configured", "no_money_movement_policy_active"],
+      },
+      authorizationCaptureBoundary: {
+        authorizationIntent: "candidate",
+        authorizationState: "candidate",
+        captureState: "not_allowed",
+        captureDependency: "deferred",
+        settlementDependency: "deferred",
+        failureStates: ["authorization_not_supported", "capture_not_supported"],
+        claimImpact: "Payment Ready blocked; Billing Ready blocked; Production Financial Operations blocked; Refund Ready blocked; Chargeback Ready blocked.",
+      },
+      noMoneyMovementGuardrail: {
+        active: true,
+        statements: [
+          "No real authorization",
+          "No real capture",
+          "No real settlement",
+          "No real refund",
+          "No real chargeback",
+          "No provider SDK integration",
+          "No production payment credentials",
+          "No real customer payment collection",
+        ],
+      },
+      failureDeferredStates: [
+        "provider_not_integrated",
+        "credentials_not_configured",
+        "authorization_not_supported",
+        "capture_not_supported",
+        "refund_not_supported",
+        "chargeback_not_supported",
+        "settlement_not_available",
+        "provider_dependency_deferred",
+        "compliance_decision_required",
+        "no_money_movement_policy_active",
+      ],
+      refundChargebackBoundary: {
+        refundBoundary: "candidate",
+        chargebackBoundary: "candidate",
+        disputeWorkflowDependency: "deferred",
+        providerDependency: "deferred",
+        accountingDependency: "deferred",
+        complianceCaveat: "Compliance readiness is not claimed.",
+        riskCaveats: ["Refunds and chargebacks remain conceptual states only"],
+        claimImpact: "Refund Ready blocked; Chargeback Ready blocked; Payment Ready blocked.",
+      },
+      paymentSecretBoundary: {
+        credentialState: "not_configured",
+        requiredSecretsClass: ["provider_api_key", "provider_webhook_secret"],
+        storageRequirement: "deferred",
+        injectionBoundary: "read_only_boundary",
+        redactionRequirement: "all_payment_secrets_redacted",
+        productionCredentialStatus: "not_configured",
+        blockers: ["No provider credentials", "No secret storage approved"],
+        caveats: ["Secret handling remains deferred with no live secrets"],
+      },
+      readinessGates: [
+        {
+          id: "G07",
+          label: "Payment Rails Boundary",
+          status: "candidate",
+          evidence: ["Boundary modeled in S05"],
+          blockers: ["Provider integration deferred"],
+          caveats: ["Read-only boundary only"],
+          claimImpact: "Payment Ready blocked; Billing Ready blocked; Production Financial Operations blocked; Refund Ready blocked; Chargeback Ready blocked.",
+        },
+        {
+          id: "G08",
+          label: "No-Money-Movement Guardrail",
+          status: "candidate",
+          evidence: ["No authorization or capture allowed"],
+          blockers: ["No payment operation exists"],
+          caveats: ["Guardrail is permanent for this sprint"],
+          claimImpact: "Payment Ready blocked; Billing Ready blocked; Production Financial Operations blocked; Refund Ready blocked; Chargeback Ready blocked.",
+        },
+      ],
+      blockers: ["No provider integration", "No payment credentials", "No real money movement"],
+      warnings: ["Payment rails remain conceptual in EPIC-13", "No refund or chargeback execution"],
+      caveats: ["Candidate providers are not approved", "No production financial claim is allowed"],
+      deferredScope: ["real payment provider integration", "real authorization", "real capture", "real refund", "real chargeback"],
+      sourceEvidence: ["EPIC-13 Executive Plan", "S05 Payment Rails Boundary"],
+      claimDiscipline: {
+        paymentReadyClaimAllowed: false,
+        refundReadyClaimAllowed: false,
+        chargebackReadyClaimAllowed: false,
+        billingReadyClaimAllowed: false,
+        productionFinancialOperationsClaimAllowed: false,
+        reason: "No / not yet claimed; read-only boundary only.",
+      },
     };
   }
 

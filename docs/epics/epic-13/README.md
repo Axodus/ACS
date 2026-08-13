@@ -10,7 +10,7 @@ accountability, receipts, settlement, reconciliation, audit, and compliance.
 ## Planning package status
 
 ```text
-Status: PLANNED
+Status: PASS
 Scope: documentation / planning only
 Base input: EPIC-12 closure report + EPIC-12 deferred scope
 Functional changes: prohibited
@@ -19,7 +19,7 @@ Functional changes: prohibited
 ## Status
 
 ```text
-Status: PLANNED
+Status: PASS
 Scope: documentation / planning only
 Base input: EPIC-12 closure report + EPIC-12 deferred scope
 Functional changes: prohibited
@@ -88,7 +88,7 @@ Production Financial Operations: NO / not yet claimed
 ## Next step
 
 Execute `./EPIC-13_Executive_Plan.md` as the canonical decision record, then
-start S03 — Billing Boundary & Financial Truth.
+continue through the read-only boundary milestones already in motion.
 
 ## Artifact inventory
 
@@ -108,10 +108,10 @@ start S03 — Billing Boundary & Financial Truth.
 ```text
 S00 — Normative Planning Package: PASS
 S01 — Executive Planning Baseline: PASS
-S02 — Executive Plan: PASS after commit / PENDING before commit
-S03 — Billing Boundary & Financial Truth: PENDING
-S04 — Pricing, Quote & Invoice Contracts: PENDING
-S05 — Payment Rails Boundary: PENDING
+S02 — Executive Plan: PASS
+S03 — Billing Boundary & Financial Truth: PASS
+S04 — Pricing, Quote & Invoice Contracts: PASS
+S05 — Payment Rails Boundary: PASS
 S06 — Tenant Billing & Account Responsibility: PENDING
 S07 — Receipts, Settlement & Reconciliation: PENDING
 S08 — Financial Audit, Compliance & Risk: PENDING
@@ -144,4 +144,4 @@ S11 — EPIC-13 Closure Report: PENDING
 
 ## Next sprint pointer
 
-EPIC-13 / S03 — Billing Boundary & Financial Truth
+EPIC-13 / S06 — Tenant Billing & Account Responsibility

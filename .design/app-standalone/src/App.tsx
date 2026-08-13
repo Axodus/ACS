@@ -73,6 +73,7 @@ import {
   type ProductionReadinessReport,
   type GovernanceBoundaryReport,
   type OperationalReliabilityReport,
+  type PaymentRailsBoundaryReport,
 } from "./api/product-api";
 import "./operational.css";
 
@@ -93,6 +94,7 @@ type View =
   | "Operational Evidence"
   | "Audit"
   | "Economics"
+  | "Payment Rails Boundary"
   | "Governance & System"
   | "Settings";
 
@@ -108,6 +110,7 @@ const navGroups: View[][] = [
   ["Operational Execution", "Runtime"],
   ["Operational Evidence", "Audit", "Logs"],
   ["Economics"],
+  ["Payment Rails Boundary"],
   ["Governance & System", "Settings"],
 ];
 
@@ -128,6 +131,7 @@ const icons: Record<View, string> = {
   "Operational Evidence": "◍",
   Audit: "◌",
   Economics: "$",
+  "Payment Rails Boundary": "¤",
   "Governance & System": "⚖",
   Settings: "⚙",
 };
@@ -149,6 +153,7 @@ const viewPaths: Record<View, string> = {
   "Operational Evidence": "/operational-evidence",
   Audit: "/audit",
   Economics: "/economics",
+  "Payment Rails Boundary": "/system/payment-rails-boundary",
   "Governance & System": "/system",
   Settings: "/settings",
 };
@@ -2790,6 +2795,221 @@ function EconomicsView() {
   </>;
 }
 
+function PaymentRailsBoundaryView() {
+  const { data, loadState, loadError, stale, refresh } = useOperationalSummary<PaymentRailsBoundaryReport>(
+    () => productApi.getPaymentRailsBoundaryReport(),
+    "Unable to load payment rails boundary from Product API",
+    () => false,
+  );
+  const paymentProviderBoundary = data?.paymentProviderBoundary;
+  const authorizationCaptureBoundary = data?.authorizationCaptureBoundary;
+  const noMoneyMovementGuardrail = data?.noMoneyMovementGuardrail;
+  const refundChargebackBoundary = data?.refundChargebackBoundary;
+  const paymentSecretBoundary = data?.paymentSecretBoundary;
+  const readinessGates = data?.readinessGates ?? [];
+  const failureDeferredStates = data?.failureDeferredStates ?? [];
+
+  return <>
+    <header className="page-head compact">
+      <div>
+        <p className="eyebrow">PAYMENT RAILS BOUNDARY</p>
+        <h1>Payment Rails Boundary</h1>
+        <p>Read-only boundary projection for payment provider, authorization, capture, refund and chargeback concepts. No real money movement is allowed here.</p>
+      </div>
+      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note">
+      <span>Inspection mode</span>
+      <span>Sandbox only</span>
+      <span>Read-only</span>
+      <span>Product API is source of truth</span>
+      <span>No real authorization / capture / refund / chargeback</span>
+    </div>
+    {staleBanner({ stale, loadState, loadError }, "payment rails boundary")}
+    <CrossLinks links={[
+      { to: "/system", label: "Governance & system" },
+      { to: "/system/billing-boundary", label: "Billing boundary" },
+      { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
+    ]} />
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Claims</h2>
+        <p>All payment claims remain explicitly not claimed.</p>
+      </div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone={data?.paymentReady ? "good" : "muted"} />
+              <SummaryRow label="Refund Ready" value={data?.refundReady ? "YES" : "NO / not yet claimed"} tone={data?.refundReady ? "good" : "muted"} />
+              <SummaryRow label="Chargeback Ready" value={data?.chargebackReady ? "YES" : "NO / not yet claimed"} tone={data?.chargebackReady ? "good" : "muted"} />
+              <SummaryRow label="Production Financial Operations" value={data?.productionFinancialOperationsReady ? "YES" : "NO / not yet claimed"} tone={data?.productionFinancialOperationsReady ? "good" : "muted"} />
+              <SummaryRow label="Claim" value={data?.claim ?? "not_claimed"} tone="muted" />
+            </div>
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Boundary model</h2><p>Provider and integration posture</p></div></div>
+          <div className="panel-body">
+            {paymentProviderBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Provider" value={`${paymentProviderBoundary.providerName} (${paymentProviderBoundary.providerType})`} />
+                <SummaryRow label="Provider state" value={paymentProviderBoundary.providerState} />
+                <SummaryRow label="Integration state" value={paymentProviderBoundary.integrationState} />
+                <SummaryRow label="Credential state" value={paymentProviderBoundary.credentialBoundaryState} />
+                <SummaryRow label="Authorization support" value={paymentProviderBoundary.authorizationSupportState} />
+                <SummaryRow label="Capture support" value={paymentProviderBoundary.captureSupportState} />
+                <SummaryRow label="Refund support" value={paymentProviderBoundary.refundSupportState} />
+                <SummaryRow label="Chargeback support" value={paymentProviderBoundary.chargebackSupportState} />
+                <SummaryRow label="Settlement dependency" value={paymentProviderBoundary.settlementDependency} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No payment provider boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Authorization / capture</h2>
+        <p>Authorization and capture are conceptual only in this milestone.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Authorization vs capture</h2><p>Read-only state model</p></div></div>
+          <div className="panel-body">
+            {authorizationCaptureBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Authorization intent" value={authorizationCaptureBoundary.authorizationIntent} />
+                <SummaryRow label="Authorization state" value={authorizationCaptureBoundary.authorizationState} />
+                <SummaryRow label="Capture state" value={authorizationCaptureBoundary.captureState} />
+                <SummaryRow label="Capture dependency" value={authorizationCaptureBoundary.captureDependency} />
+                <SummaryRow label="Settlement dependency" value={authorizationCaptureBoundary.settlementDependency} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No authorization / capture boundary available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>No-money-movement guardrail</h2><p>Hard stop for real payment activity</p></div></div>
+          <div className="panel-body">
+            {noMoneyMovementGuardrail
+              ? <div className="summary-list">
+                <SummaryRow label="Real authorization" value={noMoneyMovementGuardrail.noRealAuthorization ? "blocked" : "candidate"} tone="muted" />
+                <SummaryRow label="Real capture" value={noMoneyMovementGuardrail.noRealCapture ? "blocked" : "candidate"} tone="muted" />
+                <SummaryRow label="Real settlement" value={noMoneyMovementGuardrail.noRealSettlement ? "blocked" : "candidate"} tone="muted" />
+                <SummaryRow label="Real refund" value={noMoneyMovementGuardrail.noRealRefund ? "blocked" : "candidate"} tone="muted" />
+                <SummaryRow label="Real chargeback" value={noMoneyMovementGuardrail.noRealChargeback ? "blocked" : "candidate"} tone="muted" />
+                <SummaryRow label="Production credentials" value={noMoneyMovementGuardrail.noProductionPaymentCredentials ? "blocked" : "candidate"} tone="muted" />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No guardrail snapshot available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Failure, secrets, and deferred scope</h2>
+        <p>All unsupported paths remain deferred or blocked.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Failure / deferred states</h2><p>Payment boundary vocabulary</p></div></div>
+          <div className="panel-body">
+            <TimelineList items={failureDeferredStates.map((item: string, index: number) => ({ id: `${item}-${index}`, title: item, tone: "muted" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Secret boundary</h2><p>Credential posture</p></div></div>
+          <div className="panel-body">
+            {paymentSecretBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Secret class" value={paymentSecretBoundary.requiredSecretsClass.join(", ")} />
+                <SummaryRow label="Storage requirement" value={paymentSecretBoundary.credentialStorageRequirement} />
+                <SummaryRow label="Injection boundary" value={paymentSecretBoundary.injectionBoundary} />
+                <SummaryRow label="Redaction requirement" value={paymentSecretBoundary.redactionRequirement} />
+                <SummaryRow label="Production credential status" value={paymentSecretBoundary.productionCredentialStatus} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No secret boundary available." />}
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Refund / chargeback and gates</h2>
+        <p>Claim discipline blocks all financial readiness claims here.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Refund / chargeback boundary</h2><p>Conceptual only</p></div></div>
+          <div className="panel-body">
+            {refundChargebackBoundary
+              ? <div className="summary-list">
+                <SummaryRow label="Refund boundary" value={refundChargebackBoundary.refundBoundary} />
+                <SummaryRow label="Chargeback boundary" value={refundChargebackBoundary.chargebackBoundary} />
+                <SummaryRow label="Dispute workflow" value={refundChargebackBoundary.disputeWorkflowDependency} />
+                <SummaryRow label="Accounting dependency" value={refundChargebackBoundary.accountingDependency} />
+                <SummaryRow label="Compliance caveat" value={refundChargebackBoundary.complianceCaveat} />
+              </div>
+              : <PanelStateLine state={loadState} error={loadError} emptyMessage="No refund / chargeback boundary available." />}
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Readiness gates</h2><p>Claim impact remains blocked</p></div><Badge tone={readinessGates.length ? "good" : "muted"}>{readinessGates.length}</Badge></div>
+          <div className="panel-body">
+            <TimelineList items={(readinessGates ?? []).map((gate: PaymentRailsBoundaryReport["readinessGates"][number]) => ({
+              id: gate.id,
+              title: gate.label,
+              meta: `${gate.status} · ${gate.claimImpact}`,
+              detail: `${gate.evidence.join(" · ") || "No evidence"}${gate.blockers.length ? ` · blockers: ${gate.blockers.join(" · ")}` : ""}${gate.caveats.length ? ` · caveats: ${gate.caveats.join(" · ")}` : ""}`,
+              tone: gate.status === "blocked" ? "warn" : gate.status === "partial" ? "muted" : undefined,
+            }))} />
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Evidence and scope</h2>
+        <p>Visible evidence only; deferred EPIC-14+ scope stays deferred.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Source evidence</h2><p>Product API snapshot</p></div></div>
+          <div className="panel-body">
+            <TimelineList items={(data?.sourceEvidence ?? []).map((item: string, index: number) => ({ id: `${item}-${index}`, title: item, tone: "muted" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Deferred scope</h2><p>EPIC-14+ candidates only</p></div><Badge tone="muted">{data?.deferredScope?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList items={(data?.deferredScope ?? []).map((item: string, index: number) => ({ id: `${item}-${index}`, title: item, tone: "muted" }))} />
+          </div>
+        </section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Claim discipline</h2>
+        <p>Payment-related financial claims remain NO / not yet claimed.</p>
+      </div>
+      <section className="panel blocked-panel">
+        <div className="panel-head"><div><h2>Claim discipline</h2><p>No financial readiness claims in this milestone</p></div><Badge tone="muted">not claimed</Badge></div>
+        <div className="panel-body">
+          <div className="summary-list">
+            <SummaryRow label="Payment Ready claim" value={data?.claimDiscipline?.paymentReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Refund Ready claim" value={data?.claimDiscipline?.refundReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Chargeback Ready claim" value={data?.claimDiscipline?.chargebackReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Billing Ready claim" value={data?.claimDiscipline?.billingReadyClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Production Financial Operations claim" value={data?.claimDiscipline?.productionFinancialOperationsClaimAllowed ? "allowed" : "NO / not yet claimed"} tone="muted" />
+            <SummaryRow label="Reason" value={data?.claimDiscipline?.reason ?? "claim discipline remains blocked"} />
+          </div>
+        </div>
+      </section>
+    </div>
+  </>;
+}
+
 function ProductionReadinessGateRow({ gate }: { gate: ProductionReadinessReport["gates"][number] }) {
   const tone = gate.status === "pass" ? "good" : gate.status === "partial" ? "warn" : "muted";
   return <div className="catalog-row" key={gate.id}>
@@ -3618,6 +3838,7 @@ export default function App() {
             <Route path="/operational-evidence" element={<EvidenceView />} />
             <Route path="/audit" element={<AuditView />} />
             <Route path="/economics" element={<EconomicsView />} />
+            <Route path="/system/payment-rails-boundary" element={<PaymentRailsBoundaryView />} />
             <Route path="/system" element={<GovernanceView />} />
             <Route path="/system/operational-reliability" element={<OperationalReliabilityView />} />
             <Route path="/settings" element={<Settings />} />

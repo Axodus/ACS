@@ -109,6 +109,16 @@ export async function routeProductApiRequest(
       return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
     }
 
+    // S05 exposes only the payment rails boundary; it does not move money.
+    if (apiPath === "system/payment-rails-boundary" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const summary = await api.getPaymentRailsBoundaryReport();
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/payment-rails-boundary") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // Unsupported composition mutations: Milestone C is read-only. The Product
     // API rejects governed mutations with a structured error instead of
     // simulating success. This catch-all runs before the catalog routes so the

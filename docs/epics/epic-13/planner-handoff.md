@@ -4,7 +4,10 @@
 
 - S00 — Normative Planning Package: PASS
 - S01 — Executive Planning Baseline: PASS
-- S02 — Executive Plan: in progress / pending until commit
+- S02 — Executive Plan: PASS
+- S03 — Billing Boundary & Financial Truth: PASS
+- S04 — Pricing, Quote & Invoice Contracts: PASS
+- S05 — Payment Rails Boundary: PASS
 - Functional implementation: none
 - Billing Ready: NO / not yet claimed
 - Payment Ready: NO / not yet claimed
@@ -59,9 +62,10 @@ without reopening EPIC-12 or claiming financial readiness.
 
 ## Recommended next sprint
 
-EPIC-13 / S03 — Billing Boundary & Financial Truth
+EPIC-13 / S06 — Tenant Billing & Account Responsibility
 
-S03 should implement the first read-only billing boundary projection.
+S06 should decide tenant billing responsibility depth and keep the no-claim
+posture intact.
 
 S02 decided:
 

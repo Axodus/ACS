@@ -819,6 +819,91 @@ export type OperationalReliabilityReport = {
   };
 };
 
+export type PaymentRailsBoundaryReport = {
+  checkedAt: string;
+  paymentReady: false;
+  billingReady: false;
+  invoiceReady: false;
+  tenantBillingReady: false;
+  productionFinancialOperationsReady: false;
+  refundReady: false;
+  chargebackReady: false;
+  claim: "not_claimed";
+  paymentProviderBoundary: {
+    providerId: string;
+    providerName: string;
+    providerType: string;
+    providerState: "candidate" | "planned" | "unavailable" | "unsupported" | "deferred" | "blocked" | "not_started";
+    integrationState: "not_integrated" | "candidate_only" | "boundary_modeled" | "unsupported" | "deferred";
+    credentialBoundaryState: "not_configured" | "deferred" | "unsupported" | "blocked" | "planned";
+    authorizationSupportState: "candidate" | "planned" | "unavailable" | "unsupported" | "deferred" | "blocked" | "not_started";
+    captureSupportState: "candidate" | "planned" | "unavailable" | "unsupported" | "deferred" | "blocked" | "not_started";
+    refundSupportState: "candidate" | "planned" | "unavailable" | "unsupported" | "deferred" | "blocked" | "not_started";
+    chargebackSupportState: "candidate" | "planned" | "unavailable" | "unsupported" | "deferred" | "blocked" | "not_started";
+    settlementDependency: string;
+    evidence: readonly string[];
+    blockers: readonly string[];
+    caveats: readonly string[];
+    deferredStates: readonly string[];
+  };
+  authorizationCaptureBoundary: {
+    authorizationIntent: string;
+    authorizationState: "not_started" | "candidate" | "unsupported" | "deferred" | "blocked" | "unavailable";
+    captureState: "not_started" | "not_allowed" | "unsupported" | "deferred" | "blocked" | "unavailable";
+    captureDependency: string;
+    settlementDependency: string;
+    failureStates: readonly string[];
+    claimImpact: readonly string[];
+  };
+  noMoneyMovementGuardrail: {
+    active: true;
+    statements: readonly string[];
+  };
+  failureDeferredStates: readonly string[];
+  refundChargebackBoundary: {
+    refundBoundary: string;
+    chargebackBoundary: string;
+    disputeWorkflowDependency: string;
+    providerDependency: string;
+    accountingDependency: string;
+    complianceCaveat: string;
+    riskCaveats: readonly string[];
+    claimImpact: readonly string[];
+  };
+  paymentSecretBoundary: {
+    credentialState: "not_configured" | "deferred" | "unsupported" | "blocked" | "planned";
+    requiredSecretsClass: readonly string[];
+    storageRequirement: string;
+    injectionBoundary: string;
+    redactionRequirement: string;
+    productionCredentialStatus: string;
+    blockers: readonly string[];
+    caveats: readonly string[];
+  };
+  readinessGates: readonly {
+    id: string;
+    label: string;
+    status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    evidence: readonly string[];
+    blockers: readonly string[];
+    caveats: readonly string[];
+    claimImpact: readonly string[];
+  }[];
+  blockers: readonly string[];
+  warnings: readonly string[];
+  caveats: readonly string[];
+  deferredScope: readonly string[];
+  sourceEvidence: readonly string[];
+  claimDiscipline: {
+    paymentReadyClaimAllowed: false;
+    refundReadyClaimAllowed: false;
+    chargebackReadyClaimAllowed: false;
+    billingReadyClaimAllowed: false;
+    productionFinancialOperationsClaimAllowed: false;
+    reason: string;
+  };
+};
+
 export type Epic11AcceptanceCheck = {
   id: string;
   label: string;
@@ -1995,5 +2080,9 @@ export const productApi = {
 
   async getOperationalReliabilityReport() {
     return request<OperationalReliabilityReport>("/system/operational-reliability");
+  },
+
+  async getPaymentRailsBoundaryReport() {
+    return request<PaymentRailsBoundaryReport>("/system/payment-rails-boundary");
   },
 };
