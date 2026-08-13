@@ -10,6 +10,7 @@
 - S05 — Payment Rails Boundary: PASS
 - S06 — Tenant Billing & Account Responsibility: PASS
 - S07 — Receipts, Settlement & Reconciliation: PASS
+- S08 — Financial Audit, Compliance & Risk: PASS
 - Functional implementation: read-only financial boundary projections only
 - Billing Ready: NO / not yet claimed
 - Payment Ready: NO / not yet claimed
@@ -64,10 +65,10 @@ without reopening EPIC-12 or claiming financial readiness.
 
 ## Recommended next sprint
 
-EPIC-13 / S08 — Financial Audit, Compliance & Risk
+EPIC-13 / S09 — Billing UX & Operator Acceptance
 
-S08 should define the financial audit, compliance, and risk boundary while
-keeping the no-claim posture intact.
+S09 should harden the operator-facing billing UX around the existing Product
+API boundaries without upgrading any financial readiness claim.
 
 S02 decided:
 
@@ -161,6 +162,19 @@ S02 decided:
   provider or accounting system, or run a reconciliation job.
 - Receipt Ready, Settlement Ready, Reconciliation Ready and Accounting
   Integration Ready remain NO / not yet claimed.
+- Formal caveat: S05/S06 were observed before S03/S04 in the remote commit
+  sequence. The milestone commits now exist; preserve this sequencing caveat
+  until final EPIC-13 closure.
+
+## S08 implementation handoff
+
+- `GET /api/v1/system/financial-audit` is the read-only Product API
+  projection for financial audit trail, evidence correlation, compliance,
+  tax/legal readiness caveats, risk visibility and no-claim discipline.
+- S08 does not certify audit, compliance or tax/legal readiness, and does not
+  integrate accounting, providers or a ledger.
+- Financial Audit Ready, Compliance Ready, Tax Ready and Production Financial
+  Operations remain NO / not yet claimed.
 - Formal caveat: S05/S06 were observed before S03/S04 in the remote commit
   sequence. The milestone commits now exist; preserve this sequencing caveat
   until final EPIC-13 closure.

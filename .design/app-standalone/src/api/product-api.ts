@@ -1291,6 +1291,95 @@ export type SettlementReconciliationBoundaryReport = {
   };
 };
 
+export type FinancialAuditBoundaryReport = {
+  checkedAt: number;
+  financialAuditReady: false;
+  complianceReady: false;
+  taxReady: false;
+  billingReady: false;
+  paymentReady: false;
+  invoiceReady: false;
+  tenantBillingReady: false;
+  receiptReady: false;
+  settlementReady: false;
+  reconciliationReady: false;
+  productionFinancialOperationsReady: false;
+  claim: "not_claimed";
+  financialAuditTrailBoundary: {
+    auditTrailId: string;
+    auditTrailScope: string;
+    relatedFinancialTruthSource: string;
+    relatedBillableEvent: string;
+    relatedQuoteInvoiceCandidate: string;
+    relatedPaymentBoundary: string;
+    relatedTenantAccountResponsibility: string;
+    relatedReceiptSettlementReconciliationEvidence: string;
+    correlationState: string;
+    auditGradeState: string;
+    evidenceCompleteness: string;
+    blockers: readonly string[];
+    caveats: readonly string[];
+    deferredStates: readonly string[];
+  };
+  evidenceCorrelationMatrix: readonly {
+    source: string;
+    correlationState: string;
+    evidenceState: string;
+    missingDependency: string;
+    claimImpact: string;
+  }[];
+  complianceBoundary: {
+    domains: readonly {
+      complianceDomain: string;
+      readinessState: string;
+      jurisdictionDependency: string;
+      approvalRequirement: string;
+    }[];
+  };
+  taxLegalReadinessBoundary: {
+    legalInvoiceReadiness: string;
+    taxInvoiceReadiness: string;
+    legalReceiptReadiness: string;
+    taxReceiptReadiness: string;
+    jurisdictionDecision: string;
+    fiscalDocumentGeneration: string;
+    taxAutomation: string;
+    legalReview: string;
+    blockers: readonly string[];
+    deferredStates: readonly string[];
+  };
+  financialRiskRegister: readonly {
+    riskId: string;
+    riskCategory: string;
+    riskDescription: string;
+    severity: string;
+    likelihood: string;
+    mitigationState: string;
+    ownerBoundary: string;
+  }[];
+  noClaimDiscipline: {
+    claims: readonly {
+      claimName: string;
+      currentValue: false;
+      claimStatus: "not_claimed";
+    }[];
+  };
+  readinessGates: readonly {
+    id: string;
+    label: string;
+    status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    evidence: readonly string[];
+    blockers: readonly string[];
+    caveats: readonly string[];
+    claimImpact: string;
+  }[];
+  blockers: readonly string[];
+  warnings: readonly string[];
+  caveats: readonly string[];
+  deferredScope: readonly string[];
+  sourceEvidence: readonly string[];
+};
+
 export type Epic11AcceptanceCheck = {
   id: string;
   label: string;
@@ -2487,5 +2576,9 @@ export const productApi = {
 
   async getSettlementReconciliationBoundaryReport() {
     return request<SettlementReconciliationBoundaryReport>("/system/settlement-reconciliation");
+  },
+
+  async getFinancialAuditBoundaryReport() {
+    return request<FinancialAuditBoundaryReport>("/system/financial-audit");
   },
 };

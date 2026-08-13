@@ -596,6 +596,42 @@ export type SettlementReconciliationBoundaryReport = {
   };
 };
 
+export type FinancialAuditBoundaryReport = {
+  readonly checkedAt: number;
+  readonly financialAuditReady: false;
+  readonly complianceReady: false;
+  readonly taxReady: false;
+  readonly billingReady: false;
+  readonly paymentReady: false;
+  readonly invoiceReady: false;
+  readonly tenantBillingReady: false;
+  readonly receiptReady: false;
+  readonly settlementReady: false;
+  readonly reconciliationReady: false;
+  readonly productionFinancialOperationsReady: false;
+  readonly claim: "not_claimed";
+  readonly financialAuditTrailBoundary: Record<string, unknown>;
+  readonly evidenceCorrelationMatrix: readonly Record<string, unknown>[];
+  readonly complianceBoundary: Record<string, unknown>;
+  readonly taxLegalReadinessBoundary: Record<string, unknown>;
+  readonly financialRiskRegister: readonly Record<string, unknown>[];
+  readonly noClaimDiscipline: Record<string, unknown>;
+  readonly readinessGates: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly status: "not_started" | "candidate" | "partial" | "blocked" | "deferred";
+    readonly evidence: readonly string[];
+    readonly blockers: readonly string[];
+    readonly caveats: readonly string[];
+    readonly claimImpact: string;
+  }[];
+  readonly blockers: readonly string[];
+  readonly warnings: readonly string[];
+  readonly caveats: readonly string[];
+  readonly deferredScope: readonly string[];
+  readonly sourceEvidence: readonly string[];
+};
+
 const OPERATIONAL_REFRESH_WINDOW_MS = 30_000;
 
 const OPERATIONAL_GUARDRAILS: ProductApiOperationalGuardrails = {
@@ -4539,6 +4575,128 @@ export class ProductApiClient {
         productionFinancialOperationsClaimAllowed: false,
         reason: "Receipts, settlement visibility and reconciliation remain read-only evidence boundaries only; no productive financial readiness claim is allowed in S07.",
       },
+    };
+  }
+
+  async getFinancialAuditBoundaryReport(): Promise<FinancialAuditBoundaryReport> {
+    const claimNames = [
+      "Financial Audit Ready", "Compliance Ready", "Tax Ready", "Billing Ready",
+      "Payment Ready", "Invoice Ready", "Tenant Billing Ready", "Receipt Ready",
+      "Settlement Ready", "Reconciliation Ready", "Production Financial Operations",
+    ];
+    const gateNames = [
+      "Financial Audit Trail Boundary", "Evidence Correlation Matrix", "Compliance Boundary",
+      "Tax / Legal Readiness Boundary", "Financial Risk Register", "No-Claim Discipline",
+      "Data Retention Boundary", "Secret / Credential Boundary", "Provider Compliance Boundary",
+      "Accounting Compliance Boundary", "Deferred EPIC-14+ Register",
+    ];
+    return {
+      checkedAt: Date.now(),
+      financialAuditReady: false,
+      complianceReady: false,
+      taxReady: false,
+      billingReady: false,
+      paymentReady: false,
+      invoiceReady: false,
+      tenantBillingReady: false,
+      receiptReady: false,
+      settlementReady: false,
+      reconciliationReady: false,
+      productionFinancialOperationsReady: false,
+      claim: "not_claimed",
+      financialAuditTrailBoundary: {
+        auditTrailId: "candidate",
+        auditTrailScope: "EPIC-13 financial boundary correlation",
+        relatedFinancialTruthSource: "S03 financial truth boundary",
+        relatedBillableEvent: "S03 billable event candidate",
+        relatedQuoteInvoiceCandidate: "S04 pricing/quote/invoice candidates",
+        relatedPaymentBoundary: "S05 payment rails boundary",
+        relatedTenantAccountResponsibility: "S06 tenant/account responsibility",
+        relatedReceiptSettlementReconciliationEvidence: "S07 receipt/settlement/reconciliation evidence",
+        correlationState: "partial",
+        auditGradeState: "not_audit_grade",
+        evidenceCompleteness: "partial_evidence",
+        blockers: ["Missing authoritative financial sources", "No immutable financial ledger", "No certified audit process"],
+        caveats: ["Evidence correlation is not certified audit", "No audit-grade financial trail is claimed"],
+        deferredStates: ["audit_runtime_deferred", "audit_certification_deferred", "ledger_deferred"],
+      },
+      evidenceCorrelationMatrix: [
+        { source: "financial truth source", correlationState: "correlated_candidate", evidenceState: "candidate", missingDependency: "authoritative source", claimImpact: "Financial Audit Ready blocked; Billing Ready blocked" },
+        { source: "billable event", correlationState: "correlated_candidate", evidenceState: "candidate", missingDependency: "runtime billing evidence", claimImpact: "Financial Audit Ready blocked; Billing Ready blocked" },
+        { source: "pricing / quote / invoice candidate", correlationState: "partial", evidenceState: "candidate", missingDependency: "approved pricing and invoice source", claimImpact: "Financial Audit Ready blocked; Invoice Ready blocked" },
+        { source: "payment rails boundary", correlationState: "correlated_candidate", evidenceState: "candidate", missingDependency: "provider evidence", claimImpact: "Financial Audit Ready blocked; Payment Ready blocked" },
+        { source: "tenant responsibility", correlationState: "partial", evidenceState: "candidate", missingDependency: "verified payer/account ownership", claimImpact: "Financial Audit Ready blocked; Tenant Billing Ready blocked" },
+        { source: "receipt / settlement / reconciliation", correlationState: "partial", evidenceState: "evidence_only", missingDependency: "provider and accounting sources", claimImpact: "Financial Audit Ready blocked; Reconciliation Ready blocked" },
+      ],
+      complianceBoundary: {
+        domains: ["billing_compliance", "invoice_compliance", "payment_compliance", "tax_compliance", "receipt_compliance", "data_retention", "audit_retention", "tenant_accountability", "provider_compliance", "accounting_compliance"].map(complianceDomain => ({
+          complianceDomain,
+          complianceRequirement: "requires domain-specific review",
+          jurisdictionDependency: "jurisdiction not selected",
+          approvalRequirement: "requires explicit approval",
+          legalTaxDependency: "requires legal/tax review",
+          operationalImpact: "blocks productive financial operation",
+          readinessState: "requires_legal_review",
+          blockers: ["No approved compliance interpretation", "No jurisdiction decision"],
+          caveats: ["No compliance certification is provided"],
+          deferredScope: ["compliance_certification", "legal_attestation", "tax_automation"],
+        })),
+      },
+      taxLegalReadinessBoundary: {
+        legalInvoiceReadiness: "NO / not yet claimed",
+        taxInvoiceReadiness: "NO / not yet claimed",
+        legalReceiptReadiness: "NO / not yet claimed",
+        taxReceiptReadiness: "NO / not yet claimed",
+        jurisdictionDecision: "required",
+        fiscalDocumentGeneration: "deferred",
+        taxAutomation: "deferred",
+        legalReview: "required",
+        blockers: ["No jurisdiction", "No legal review", "No tax review"],
+        deferredStates: ["legal_invoice_deferred", "tax_invoice_deferred", "legal_receipt_deferred", "tax_receipt_deferred"],
+      },
+      financialRiskRegister: [
+        { riskId: "R01", riskCategory: "financial_truth", riskDescription: "Authoritative financial source is not established", severity: "critical", likelihood: "high" },
+        { riskId: "R02", riskCategory: "invoice_boundary", riskDescription: "Operational candidate could be misread as legal invoice", severity: "critical", likelihood: "high" },
+        { riskId: "R03", riskCategory: "payment_provider", riskDescription: "Provider integration and credentials are absent", severity: "critical", likelihood: "high" },
+        { riskId: "R04", riskCategory: "tenant_accountability", riskDescription: "Payer and account ownership are not verified", severity: "high", likelihood: "medium" },
+        { riskId: "R05", riskCategory: "settlement_reconciliation", riskDescription: "Provider/accounting evidence is unavailable", severity: "critical", likelihood: "high" },
+        { riskId: "R06", riskCategory: "compliance_tax", riskDescription: "Jurisdiction and tax decisions are unresolved", severity: "critical", likelihood: "high" },
+        { riskId: "R07", riskCategory: "auditability", riskDescription: "Correlation is not audit-grade or immutable", severity: "critical", likelihood: "high" },
+        { riskId: "R08", riskCategory: "claim_discipline", riskDescription: "Readiness language could overstate capability", severity: "critical", likelihood: "medium" },
+      ].map(risk => ({
+        ...risk,
+        affectedClaims: claimNames,
+        affectedGates: gateNames,
+        mitigationState: "partially_mitigated",
+        ownerBoundary: "EPIC-13",
+        blockers: ["Evidence remains incomplete", "No productive operation is approved"],
+        deferredScope: ["future evidence collection", "future approval", "future certification"],
+      })),
+      noClaimDiscipline: {
+        claims: claimNames.map(claimName => ({
+          claimName,
+          currentValue: false,
+          claimStatus: "not_claimed",
+          blockingGates: gateNames,
+          evidenceNeeded: ["authoritative source evidence", "approved compliance/legal decision", "complete correlation"],
+          currentCaveats: ["S08 is read-only and evidence-bounded", "No certification or production operation is claimed"],
+          deferredScope: ["audit certification", "compliance certification", "tax automation", "accounting integration"],
+        })),
+      },
+      readinessGates: gateNames.map((label, index) => ({
+        id: "A" + String(index + 1).padStart(2, "0"),
+        label,
+        status: label === "Tax / Legal Readiness Boundary" || label === "Financial Risk Register" ? "blocked" : "candidate",
+        evidence: ["S08 read-only boundary projection"],
+        blockers: ["Missing authoritative evidence", "No approval or certification"],
+        caveats: ["Gate status does not authorize production financial operation"],
+        claimImpact: "Financial Audit Ready blocked; Compliance Ready blocked; Tax Ready blocked; Billing Ready blocked; Payment Ready blocked; Production Financial Operations blocked",
+      })),
+      blockers: ["No audit-grade immutable ledger", "No compliance certification", "No tax/legal approval", "No accounting integration", "No provider compliance integration"],
+      warnings: ["Evidence correlation is partial and candidate-only", "Risk visibility does not mean risk is resolved", "No claim may be upgraded by S08"],
+      caveats: ["S08 is evidence-bounded and read-only", "Formal sequencing caveat from S03–S06 remains until final closure"],
+      deferredScope: ["compliance_certification", "legal_attestation", "tax_automation", "legal_invoice_validation", "legal_receipt_validation", "accounting_integration", "ledger", "audit_certification", "provider_compliance_integration"],
+      sourceEvidence: ["EPIC-13 Executive Plan", "S03 Billing Boundary & Financial Truth", "S04 Pricing, Quote & Invoice Contracts", "S05 Payment Rails Boundary", "S06 Tenant Billing & Account Responsibility", "S07 Receipts, Settlement & Reconciliation"],
     };
   }
 

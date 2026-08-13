@@ -16,7 +16,7 @@ truth before any milestone becomes executable.
 | M03 — Payment Rails Boundary | S05 | PASS | ./M03-payment-rails-boundary.md |
 | M04 — Tenant Billing & Account Responsibility | S06 | PASS | ./M04-tenant-billing-account-responsibility.md |
 | M05 — Receipts, Settlement & Reconciliation | S07 | PASS | ./M05-receipts-settlement-reconciliation.md |
-| M06 — Financial Audit, Compliance & Risk | S08 | PLANNING | ./M06-financial-audit-compliance-risk.md |
+| M06 — Financial Audit, Compliance & Risk | S08 | PASS | ./M06-financial-audit-compliance-risk.md |
 | M07 — Billing UX & Operator Acceptance | S09 | PLANNING | ./M07-billing-ux-operator-acceptance.md |
 | M08 — Final Hardening & Closure | S10 | PLANNING | ./M08-final-hardening-closure.md |
 

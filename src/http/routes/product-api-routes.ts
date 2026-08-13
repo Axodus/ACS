@@ -159,6 +159,16 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // S08 exposes only financial audit, compliance and risk boundaries; it does not certify audit or compliance.
+    if (apiPath === "system/financial-audit" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const summary = await api.getFinancialAuditBoundaryReport();
+      return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/financial-audit") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // Unsupported composition mutations: Milestone C is read-only. The Product
     // API rejects governed mutations with a structured error instead of
     // simulating success. This catch-all runs before the catalog routes so the

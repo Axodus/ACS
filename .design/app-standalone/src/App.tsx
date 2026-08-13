@@ -78,6 +78,7 @@ import {
   type PaymentRailsBoundaryReport,
   type TenantBillingBoundaryReport,
   type SettlementReconciliationBoundaryReport,
+  type FinancialAuditBoundaryReport,
 } from "./api/product-api";
 import "./operational.css";
 
@@ -103,6 +104,7 @@ type View =
   | "Payment Rails Boundary"
   | "Tenant Billing & Account Responsibility"
   | "Receipts, Settlement & Reconciliation"
+  | "Financial Audit & Compliance"
   | "Governance & System"
   | "Settings";
 
@@ -123,6 +125,7 @@ const navGroups: View[][] = [
   ["Payment Rails Boundary"],
   ["Tenant Billing & Account Responsibility"],
   ["Receipts, Settlement & Reconciliation"],
+  ["Financial Audit & Compliance"],
   ["Governance & System", "Settings"],
 ];
 
@@ -148,6 +151,7 @@ const icons: Record<View, string> = {
   "Payment Rails Boundary": "¤",
   "Tenant Billing & Account Responsibility": "⊙",
   "Receipts, Settlement & Reconciliation": "◎",
+  "Financial Audit & Compliance": "⚖",
   "Governance & System": "⚖",
   Settings: "⚙",
 };
@@ -174,6 +178,7 @@ const viewPaths: Record<View, string> = {
   "Payment Rails Boundary": "/system/payment-rails-boundary",
   "Tenant Billing & Account Responsibility": "/system/tenant-billing-boundary",
   "Receipts, Settlement & Reconciliation": "/system/settlement-reconciliation",
+  "Financial Audit & Compliance": "/system/financial-audit",
   "Governance & System": "/system",
   Settings: "/settings",
 };
@@ -3853,6 +3858,72 @@ function SettlementReconciliationBoundaryView() {
   </>;
 }
 
+function FinancialAuditBoundaryView() {
+  const state = useOperationalSummary<FinancialAuditBoundaryReport>(
+    () => productApi.getFinancialAuditBoundaryReport(),
+    "Unable to load financial audit boundary from Product API",
+    () => false,
+  );
+  const data = state.data;
+  const audit = data?.financialAuditTrailBoundary;
+  return <>
+    <header className="page-head compact">
+      <div><p className="eyebrow">FINANCIAL AUDIT, COMPLIANCE & RISK</p><h1>Financial Audit, Compliance &amp; Risk</h1><p>Read-only audit, compliance, tax and risk boundary. No certification or productive financial operation is claimed.</p></div>
+      <button className="secondary" disabled={state.loadState === "loading" || state.loadState === "refreshing"} onClick={state.refresh}>{state.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+    </header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Read-only</span><span>No audit certification</span><span>No compliance/tax readiness</span><span>No ledger or accounting integration</span></div>
+    {staleBanner(state, "financial audit boundary")}
+    <CrossLinks links={[{ to: "/system/settlement-reconciliation", label: "Receipts & reconciliation" }, { to: "/system/payment-rails-boundary", label: "Payment rails" }, { to: "/system/billing-boundary", label: "Billing boundary" }]} />
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Claims</h2><p>All claims remain NO / not yet claimed.</p></div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel"><div className="panel-head"><div><h2>Financial readiness</h2><p>No-claim snapshot</p></div></div><div className="panel-body"><div className="summary-list">
+          <SummaryRow label="Financial Audit Ready" value={data?.financialAuditReady ? "YES" : "NO / not yet claimed"} tone="muted" />
+          <SummaryRow label="Compliance Ready" value={data?.complianceReady ? "YES" : "NO / not yet claimed"} tone="muted" />
+          <SummaryRow label="Tax Ready" value={data?.taxReady ? "YES" : "NO / not yet claimed"} tone="muted" />
+          <SummaryRow label="Billing Ready" value={data?.billingReady ? "YES" : "NO / not yet claimed"} tone="muted" />
+          <SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone="muted" />
+          <SummaryRow label="Production Financial Operations" value={data?.productionFinancialOperationsReady ? "YES" : "NO / not yet claimed"} tone="muted" />
+        </div></div></section>
+        <section className="panel"><div className="panel-head"><div><h2>Audit trail boundary</h2><p>Candidate correlation only</p></div></div><div className="panel-body">{audit ? <div className="summary-list">
+          <SummaryRow label="Audit trail id" value={audit.auditTrailId} />
+          <SummaryRow label="Scope" value={audit.auditTrailScope} />
+          <SummaryRow label="Correlation state" value={audit.correlationState} />
+          <SummaryRow label="Audit-grade state" value={audit.auditGradeState} />
+          <SummaryRow label="Evidence completeness" value={audit.evidenceCompleteness} />
+        </div> : <PanelStateLine state={state.loadState} error={state.loadError} emptyMessage="No audit boundary available." />}</div></section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Correlation and compliance</h2><p>Partial evidence and unresolved approvals remain visible.</p></div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel"><div className="panel-head"><div><h2>Evidence correlation matrix</h2><p>Missing dependencies are explicit</p></div></div><div className="panel-body"><div className="summary-list">{(data?.evidenceCorrelationMatrix ?? []).map((item, index) => <div className="summary-row" key={item.source + index}><span>{item.source}</span><strong>{item.correlationState} / {item.evidenceState}</strong></div>)}</div></div></section>
+        <section className="panel"><div className="panel-head"><div><h2>Compliance boundary</h2><p>No compliance certification</p></div></div><div className="panel-body"><div className="summary-list">{(data?.complianceBoundary?.domains ?? []).map((item, index) => <div className="summary-row" key={item.complianceDomain + index}><span>{item.complianceDomain}</span><strong>{item.readinessState}</strong></div>)}</div></div></section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>Tax/legal and risk</h2><p>No legal attestation, tax readiness or resolved-risk claim.</p></div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel"><div className="panel-head"><div><h2>Tax / legal boundary</h2><p>Explicitly not claimed</p></div></div><div className="panel-body"><div className="summary-list">
+          <SummaryRow label="Legal invoice readiness" value={data?.taxLegalReadinessBoundary?.legalInvoiceReadiness ?? "NO / not yet claimed"} />
+          <SummaryRow label="Tax invoice readiness" value={data?.taxLegalReadinessBoundary?.taxInvoiceReadiness ?? "NO / not yet claimed"} />
+          <SummaryRow label="Legal receipt readiness" value={data?.taxLegalReadinessBoundary?.legalReceiptReadiness ?? "NO / not yet claimed"} />
+          <SummaryRow label="Tax receipt readiness" value={data?.taxLegalReadinessBoundary?.taxReceiptReadiness ?? "NO / not yet claimed"} />
+          <SummaryRow label="Jurisdiction decision" value={data?.taxLegalReadinessBoundary?.jurisdictionDecision ?? "required"} />
+        </div></div></section>
+        <section className="panel"><div className="panel-head"><div><h2>Financial risk register</h2><p>Risk visibility is not resolution</p></div></div><div className="panel-body"><div className="summary-list">{(data?.financialRiskRegister ?? []).map(risk => <div className="summary-row" key={risk.riskId}><span>{risk.riskId} · {risk.riskCategory}</span><strong>{risk.severity} / {risk.mitigationState}</strong></div>)}</div></div></section>
+      </div>
+    </div>
+    <div className="flow-group">
+      <div className="flow-group-head"><h2>No-claim discipline and gates</h2><p>Every financial readiness claim stays false.</p></div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel"><div className="panel-head"><div><h2>No-claim discipline</h2><p>Consolidated claims</p></div></div><div className="panel-body"><div className="summary-list">{(data?.noClaimDiscipline?.claims ?? []).map((claim, index) => <div className="summary-row" key={claim.claimName + index}><span>{claim.claimName}</span><strong>{claim.claimStatus}</strong></div>)}</div></div></section>
+        <section className="panel"><div className="panel-head"><div><h2>Readiness gates</h2><p>Audit/compliance/risk blockers</p></div></div><div className="panel-body"><div className="summary-list">{(data?.readinessGates ?? []).map(gate => <div className="summary-row" key={gate.id}><span>{gate.label}</span><strong>{gate.status}</strong></div>)}</div></div></section>
+      </div>
+    </div>
+  </>;
+}
+
 function ProductionReadinessGateRow({ gate }: { gate: ProductionReadinessReport["gates"][number] }) {
   const tone = gate.status === "pass" ? "good" : gate.status === "partial" ? "warn" : "muted";
   return <div className="catalog-row" key={gate.id}>
@@ -4686,6 +4757,7 @@ export default function App() {
             <Route path="/system/pricing-invoice-boundary" element={<PricingInvoiceBoundaryView />} />
             <Route path="/system/tenant-billing-boundary" element={<TenantBillingBoundaryView />} />
             <Route path="/system/settlement-reconciliation" element={<SettlementReconciliationBoundaryView />} />
+            <Route path="/system/financial-audit" element={<FinancialAuditBoundaryView />} />
             <Route path="/system" element={<GovernanceView />} />
             <Route path="/system/operational-reliability" element={<OperationalReliabilityView />} />
             <Route path="/settings" element={<Settings />} />
