@@ -14,6 +14,7 @@
 - S09 — Billing UX & Operator Acceptance: PASS
 - S10 — Final Hardening & Closure: PASS
 - Functional implementation: read-only financial boundary projections only
+- S11 — EPIC-13 Closure Report: PASS
 - Billing Ready: NO / not yet claimed
 - Payment Ready: NO / not yet claimed
 - Invoice Ready: NO / not yet claimed
@@ -65,12 +66,21 @@ without reopening EPIC-12 or claiming financial readiness.
 - What constitutes Billing Ready?
 - What gates are required before any money movement?
 
-## Recommended next sprint
+## Closure status
 
-EPIC-13 / S11 — EPIC-13 Closure Report
+EPIC-13 is closed as a governed Billing & Financial Operations boundary
+foundation. The final report is `docs/epics/epic-13/epic-13-closure-report.md`.
 
-S11 should consume final-hardening-inventory.md and produce the formal closure
-report without upgrading any financial or production readiness claim.
+Production Financial Operations, Billing Ready, Payment Ready, Invoice Ready,
+Tenant Billing Ready, Tax Ready, Compliance Ready and Accounting Integration
+Ready remain NO / not yet claimed.
+
+## S11 closure handoff
+
+- Closure decision: PASS WITH FORMAL CAVEATS.
+- Browser real execution remains NOT EXECUTED.
+- Historical S03-S06 remote sequencing caveat is recorded as non-blocking.
+- EPIC-14+ must treat EPIC-13 as boundary/evidence foundation only.
 
 ## S10 implementation handoff
 
@@ -79,7 +89,8 @@ report without upgrading any financial or production readiness claim.
   invented amount/currency fields.
 - docs/epics/epic-13/final-hardening-inventory.md provides the boundary,
   endpoint, surface, test, claims, caveats and deferred-scope inventory.
-- S11 remains pending and EPIC-13 Closed remains NO / pending S11.
+ - S11 closed EPIC-13 as boundary foundation only; production readiness remains
+   NO / not yet claimed.
 
 ## S09 implementation handoff
 

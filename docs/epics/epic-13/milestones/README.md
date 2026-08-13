@@ -19,6 +19,7 @@ truth before any milestone becomes executable.
 | M06 — Financial Audit, Compliance & Risk | S08 | PASS | ./M06-financial-audit-compliance-risk.md |
 | M07 — Billing UX & Operator Acceptance | S09 | PASS | ./M07-billing-ux-operator-acceptance.md |
 | M08 — Final Hardening & Closure | S10 | PASS | ./M08-final-hardening-closure.md |
+| (S11) EPIC-13 Closure Report | S11 | PASS | ../epic-13-closure-report.md |
 
 S00 and S01 are planning foundation sprints. S02 is the Executive Plan.
 S03-S10 are milestone implementation candidates. S11 is the closure report.

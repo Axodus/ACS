@@ -117,7 +117,7 @@ S07 — Receipts, Settlement & Reconciliation: PASS
 S08 — Financial Audit, Compliance & Risk: PASS
 S09 — Billing UX & Operator Acceptance: PASS
 S10 — Final Hardening & Closure: PASS
-S11 — EPIC-13 Closure Report: PENDING
+S11 — EPIC-13 Closure Report: PASS
 ```
 
 ## Canonical read order
@@ -142,6 +142,14 @@ S11 — EPIC-13 Closure Report: PENDING
 - Tenant Billing Ready: NO / not yet claimed
 - Production Financial Operations: NO / not yet claimed
 
-## Next sprint pointer
+## Closure
 
-EPIC-13 / S11 — EPIC-13 Closure Report
+EPIC-13 is closed as a governed Billing & Financial Operations boundary
+foundation. See `./epic-13-closure-report.md`.
+
+EPIC-13 Production Readiness: NO / not yet claimed
+Production Financial Operations: NO / not yet claimed
+Billing Ready: NO / not yet claimed
+Payment Ready: NO / not yet claimed
+Invoice Ready: NO / not yet claimed
+Tenant Billing Ready: NO / not yet claimed
