@@ -12,5 +12,5 @@ test("browser acceptance command is declared", () => {
 
 test("browser acceptance harness files exist", () => {
   assert.ok(existsSync(resolve(appRoot, "tools/browser-acceptance.mjs")));
-  assert.ok(existsSync(resolve(appRoot, "../../docs/epics/epic-12/browser-acceptance.md")));
+  assert.ok(existsSync(resolve(appRoot, "../../docs/epics/epic-13/browser-acceptance.md")));
 });

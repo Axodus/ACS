@@ -105,6 +105,7 @@ type View =
   | "Tenant Billing & Account Responsibility"
   | "Receipts, Settlement & Reconciliation"
   | "Financial Audit & Compliance"
+  | "Billing UX & Operator Acceptance"
   | "Governance & System"
   | "Settings";
 
@@ -126,6 +127,7 @@ const navGroups: View[][] = [
   ["Tenant Billing & Account Responsibility"],
   ["Receipts, Settlement & Reconciliation"],
   ["Financial Audit & Compliance"],
+  ["Billing UX & Operator Acceptance"],
   ["Governance & System", "Settings"],
 ];
 
@@ -152,6 +154,7 @@ const icons: Record<View, string> = {
   "Tenant Billing & Account Responsibility": "⊙",
   "Receipts, Settlement & Reconciliation": "◎",
   "Financial Audit & Compliance": "⚖",
+  "Billing UX & Operator Acceptance": "✓",
   "Governance & System": "⚖",
   Settings: "⚙",
 };
@@ -179,6 +182,7 @@ const viewPaths: Record<View, string> = {
   "Tenant Billing & Account Responsibility": "/system/tenant-billing-boundary",
   "Receipts, Settlement & Reconciliation": "/system/settlement-reconciliation",
   "Financial Audit & Compliance": "/system/financial-audit",
+  "Billing UX & Operator Acceptance": "/system/billing-acceptance",
   "Governance & System": "/system",
   Settings: "/settings",
 };
@@ -3924,6 +3928,190 @@ function FinancialAuditBoundaryView() {
   </>;
 }
 
+const BILLING_OPERATOR_REVIEW_STEPS = [
+  {
+    step: "01",
+    title: "Financial Truth / Billing Boundary",
+    route: "/system/billing-boundary",
+    review: "Review financial truth source candidates, billing intent and billable event candidates.",
+    blockedClaim: "Billing Ready: NO / not yet claimed",
+    caveat: "No billing mutation, invoice, payment or money movement is available.",
+    deferred: "Authoritative financial truth and billing-grade computation remain deferred.",
+  },
+  {
+    step: "02",
+    title: "Pricing / Quote / Invoice Boundary",
+    route: "/system/pricing-invoice-boundary",
+    review: "Review pricing source dependencies, quote candidates and invoice artifact caveats.",
+    blockedClaim: "Pricing Ready / Invoice Ready: NO / not yet claimed",
+    caveat: "Quote and invoice candidates are not charges, tax invoices or payment requests.",
+    deferred: "Pricing engine, legal/tax invoice issuance and billing-grade amounts remain deferred.",
+  },
+  {
+    step: "03",
+    title: "Payment Rails Boundary",
+    route: "/system/payment-rails-boundary",
+    review: "Review provider boundary, authorization vs capture states and no-money-movement guardrails.",
+    blockedClaim: "Payment Ready: NO / not yet claimed",
+    caveat: "No provider integration, authorization, capture, refund or chargeback action is exposed.",
+    deferred: "Provider setup, credentials, settlement and payment operations remain deferred.",
+  },
+  {
+    step: "04",
+    title: "Tenant Billing Responsibility",
+    route: "/system/tenant-billing-boundary",
+    review: "Review tenant account responsibility, payer/operator boundaries and account ownership caveats.",
+    blockedClaim: "Tenant Billing Ready: NO / not yet claimed",
+    caveat: "Payer candidates are not verified payment authority and no tenant billing action exists.",
+    deferred: "Tenant billing operations, payment methods and customer account mutation remain deferred.",
+  },
+  {
+    step: "05",
+    title: "Receipts / Settlement / Reconciliation",
+    route: "/system/settlement-reconciliation",
+    review: "Review operational receipt evidence, settlement visibility and reconciliation evidence boundaries.",
+    blockedClaim: "Receipt / Settlement / Reconciliation Ready: NO / not yet claimed",
+    caveat: "Operational receipt evidence is not legal receipt, bank settlement or accounting reconciliation.",
+    deferred: "Legal receipts, settlement sync, ledger and reconciliation jobs remain deferred.",
+  },
+  {
+    step: "06",
+    title: "Financial Audit / Compliance / Risk",
+    route: "/system/financial-audit",
+    review: "Review audit trail boundary, evidence correlation, compliance caveats and risk register.",
+    blockedClaim: "Financial Audit / Compliance / Tax Ready: NO / not yet claimed",
+    caveat: "Evidence correlation is not audit certification, legal attestation or tax readiness.",
+    deferred: "Audit certification, compliance certification, legal/tax readiness and provider compliance remain deferred.",
+  },
+] as const;
+
+const BILLING_OPERATOR_CLAIMS = [
+  "Billing UX Accepted",
+  "Operator Acceptance Ready",
+  "Browser Acceptance Ready",
+  "Billing Ready",
+  "Payment Ready",
+  "Invoice Ready",
+  "Tenant Billing Ready",
+  "Receipt Ready",
+  "Settlement Ready",
+  "Reconciliation Ready",
+  "Financial Audit Ready",
+  "Compliance Ready",
+  "Tax Ready",
+  "Production Financial Operations",
+] as const;
+
+const BILLING_STATE_TAXONOMY = [
+  ["candidate", "Candidate boundary evidence only; not ready."],
+  ["planned", "Planned future work; not available for operation."],
+  ["partial", "Partial evidence exists; blockers remain visible."],
+  ["unavailable", "Expected data is not available from Product API."],
+  ["unsupported", "Capability is outside current supported scope."],
+  ["deferred", "Explicitly postponed to S10/S11 or EPIC-14+."],
+  ["blocked", "Readiness is blocked by missing gates or evidence."],
+  ["not_started", "No implementation or approval has begun."],
+  ["unknown", "State cannot be trusted as readiness."],
+  ["evidence_only", "Operational evidence only; not certified."],
+  ["not_claimed", "No readiness claim is made."],
+] as const;
+
+function BillingUxAcceptanceView() {
+  return <>
+    <header className="page-head compact">
+      <div>
+        <p className="eyebrow">BILLING UX &amp; OPERATOR ACCEPTANCE</p>
+        <h1>Billing UX &amp; Operator Acceptance</h1>
+        <p>Read-only operator review baseline for EPIC-13 financial boundaries. Acceptance summary is not production readiness and does not authorize financial actions.</p>
+      </div>
+      <Link className="detail-link" to="/system/billing-boundary">Start review →</Link>
+    </header>
+    <div className="guardrail-banner" role="note">
+      <span>Product API is source of truth</span>
+      <span>Read-only review flow</span>
+      <span>No financial actions</span>
+      <span>No browser certification claim</span>
+      <span>Formal S03-S06 sequencing caveat retained</span>
+    </div>
+    <CrossLinks links={BILLING_OPERATOR_REVIEW_STEPS.map(step => ({ to: step.route, label: step.title }))} />
+
+    <div className="flow-group billing-acceptance-flow">
+      <div className="flow-group-head">
+        <h2>Operator review flow</h2>
+        <p>Review boundaries in this order. This is not an approval flow and does not promote any claim.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        {BILLING_OPERATOR_REVIEW_STEPS.map(step => <section className="panel blocked-panel" key={step.step}>
+          <div className="panel-head"><div><h2>{step.step}. {step.title}</h2><p>{step.blockedClaim}</p></div><Badge tone="muted">review</Badge></div>
+          <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="What to review" value={step.review} />
+              <SummaryRow label="Caveat" value={step.caveat} />
+              <SummaryRow label="Deferred" value={step.deferred} />
+            </div>
+            <Link className="surface-link" to={step.route}>Open boundary →</Link>
+          </div>
+        </section>)}
+      </div>
+    </div>
+
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>Claim display consistency</h2>
+        <p>Every readiness or acceptance claim remains NO / not yet claimed.</p>
+      </div>
+      <div className="dashboard-grid execution-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Acceptance claims</h2><p>Baseline only</p></div></div>
+          <div className="panel-body"><div className="summary-list">
+            {BILLING_OPERATOR_CLAIMS.map(claim => <SummaryRow key={claim} label={claim} value="NO / not yet claimed" tone="muted" />)}
+          </div></div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>State taxonomy</h2><p>Non-ready states are explicit</p></div></div>
+          <div className="panel-body"><div className="summary-list">
+            {BILLING_STATE_TAXONOMY.map(([state, meaning]) => <SummaryRow key={state} label={state} value={meaning} tone={state === "blocked" ? "warn" : "muted"} />)}
+          </div></div>
+        </section>
+        <section className="panel unsupported-panel">
+          <div className="panel-head"><div><h2>Non-ideal states</h2><p>Loading, error, empty and stale handling</p></div></div>
+          <div className="panel-body"><div className="summary-list">
+            <SummaryRow label="Loading" value="Show Product API loading without implying readiness." />
+            <SummaryRow label="Error / endpoint missing" value="Show Product API unavailable and preserve no-claim posture." />
+            <SummaryRow label="Empty / partial data" value="Show unavailable or partial evidence, blockers and caveats." />
+            <SummaryRow label="Stale" value="Show stale banner and keep claims not_claimed." />
+          </div></div>
+        </section>
+      </div>
+    </div>
+
+    <div className="flow-group">
+      <div className="flow-group-head">
+        <h2>No-action financial guardrails</h2>
+        <p>Only inspect, review and navigate actions are allowed in S09.</p>
+      </div>
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel blocked-panel">
+          <div className="panel-head"><div><h2>Prohibited productive actions</h2><p>Not present in this acceptance surface</p></div></div>
+          <div className="panel-body"><div className="summary-list">
+            <SummaryRow label="Billing / invoice / payment" value="No tenant charge, invoice issue, payment authorization or capture." />
+            <SummaryRow label="Refund / dispute / settlement" value="No refund, chargeback, settlement or reconciliation execution." />
+            <SummaryRow label="Legal / tax / accounting" value="No legal receipt, tax invoice, provider setup or accounting connection." />
+          </div></div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Manual/browser baseline</h2><p>Documented acceptance only</p></div></div>
+          <div className="panel-body"><div className="summary-list">
+            <SummaryRow label="Checklist" value="docs/epics/epic-13/browser-acceptance.md" />
+            <SummaryRow label="Browser real execution" value="NOT EXECUTED / pending S10 unless run separately" tone="warn" />
+            <SummaryRow label="Allowed operator actions" value="Open boundary, inspect evidence, review caveats, read documentation." />
+          </div></div>
+        </section>
+      </div>
+    </div>
+  </>;
+}
+
 function ProductionReadinessGateRow({ gate }: { gate: ProductionReadinessReport["gates"][number] }) {
   const tone = gate.status === "pass" ? "good" : gate.status === "partial" ? "warn" : "muted";
   return <div className="catalog-row" key={gate.id}>
@@ -4758,6 +4946,7 @@ export default function App() {
             <Route path="/system/tenant-billing-boundary" element={<TenantBillingBoundaryView />} />
             <Route path="/system/settlement-reconciliation" element={<SettlementReconciliationBoundaryView />} />
             <Route path="/system/financial-audit" element={<FinancialAuditBoundaryView />} />
+            <Route path="/system/billing-acceptance" element={<BillingUxAcceptanceView />} />
             <Route path="/system" element={<GovernanceView />} />
             <Route path="/system/operational-reliability" element={<OperationalReliabilityView />} />
             <Route path="/settings" element={<Settings />} />

@@ -11,6 +11,7 @@
 - S06 — Tenant Billing & Account Responsibility: PASS
 - S07 — Receipts, Settlement & Reconciliation: PASS
 - S08 — Financial Audit, Compliance & Risk: PASS
+- S09 — Billing UX & Operator Acceptance: PASS
 - Functional implementation: read-only financial boundary projections only
 - Billing Ready: NO / not yet claimed
 - Payment Ready: NO / not yet claimed
@@ -65,10 +66,21 @@ without reopening EPIC-12 or claiming financial readiness.
 
 ## Recommended next sprint
 
-EPIC-13 / S09 — Billing UX & Operator Acceptance
+EPIC-13 / S10 — Final Hardening & Closure
 
-S09 should harden the operator-facing billing UX around the existing Product
-API boundaries without upgrading any financial readiness claim.
+S10 should focus on final hardening, residual validation, honest caveats and
+closure discipline without upgrading any financial readiness claim.
+
+## S09 implementation handoff
+
+- /system/billing-acceptance is the read-only operator review and acceptance
+  baseline surface for EPIC-13 financial boundaries.
+- S09 consolidates navigation, claim display, state taxonomy, blockers,
+  caveats, deferred scope and no-action financial guardrails across S03-S08.
+- docs/epics/epic-13/browser-acceptance.md records the manual/browser
+  baseline and keeps Browser Acceptance as NOT EXECUTED.
+- Billing UX Accepted, Operator Acceptance Ready and Browser Acceptance Ready
+  remain NO / not yet claimed.
 
 S02 decided:
 
