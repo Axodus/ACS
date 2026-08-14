@@ -438,7 +438,7 @@ function CrossLinks({ links }: { links: { to: string; label: string }[] }) {
 function SectionDisclosure({ title, summary, tier, defaultOpen = false, children }: {
   title: string;
   summary: string;
-  tier: "Secondary" | "Diagnostic" | "Administrative" | "Expert / Raw";
+  tier: "Secondary" | "Diagnostic" | "Administrative" | "Raw";
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
@@ -1150,7 +1150,7 @@ function OperationalExecution() {
       </div>
     </div>
     </SectionDisclosure>
-    <SectionDisclosure title="Workers & raw operational identifiers" summary="Expert investigation details and low-level inventory." tier="Expert / Raw">
+    <SectionDisclosure title="Workers & raw operational identifiers" summary="Expert investigation details and low-level inventory." tier="Raw">
     <div className="flow-group">
       <div className="flow-group-head"><h2>Workers</h2><p>Worker capacity, health and isolation visibility. Advanced fleet scheduling is future scope.</p></div>
       <div className="dashboard-grid execution-grid">
