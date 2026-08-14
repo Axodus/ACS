@@ -18,8 +18,9 @@ AEES-01: PASS — normative UX audit and IA baseline
 AEES-02: PASS — shell, domain/context navigation and disclosure baseline
 AEES-03: PASS WITH FORMAL CAVEATS — operational economics and financial-boundary semantics
 AEES-04: PASS — operator journey, state/claim language and final visual acceptance
-Frontend implementation: navigation/disclosure, operator-language and header consolidation implemented
-Browser acceptance: NOT EXECUTED — AEES-05 next
+AEES-05: PASS — browser acceptance and regression hardening
+Frontend implementation: navigation/disclosure, operator-language, header consolidation and browser hardening implemented
+Browser acceptance: PASS — AEES-05 complete
 Production readiness: NO / not claimed
 ```
 
@@ -72,6 +73,9 @@ Planning assumptions and open questions never override a normative contract.
 12. `milestones/AEES-03.md`
 13. `state-and-claim-language.md`
 14. `milestones/AEES-04.md`
+15. `browser-acceptance.md`
+16. `regression-inventory.md`
+17. `milestones/AEES-05.md`
 
 ## Scope boundaries
 

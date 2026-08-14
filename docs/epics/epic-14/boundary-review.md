@@ -63,6 +63,14 @@ review links. It does not redefine backend state, readiness, governance,
 economic authority or route ownership. Full responsive, visual, keyboard and
 browser certification remains AEES-05.
 
+## 5.1 AEES-05 acceptance boundary
+
+AEES-05 may harden browser evidence tooling and remediate browser-confirmed
+regressions, but it does not reopen the IA, Product API semantics, economics,
+state language or governance contracts. Browser unavailability is recorded as
+an environment blocker; static validation is not promoted into browser
+acceptance.
+
 ## 3. Contradictions discovered
 
 No contradiction was found in backend domain contracts. Two presentation-level

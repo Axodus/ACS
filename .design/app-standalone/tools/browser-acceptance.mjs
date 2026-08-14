@@ -1,15 +1,29 @@
+import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
-import { createServer } from "node:http";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { access, mkdir, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import net from "node:net";
+import os from "node:os";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-const APP_ROOT = resolve(import.meta.dirname, "..");
-const DIST_ROOT = join(APP_ROOT, "dist");
-const EVIDENCE_ROOT = join(APP_ROOT, "tmp", "epic-12", "browser-evidence");
-const PROFILE_ROOT = join(APP_ROOT, "tmp", "epic-12", "profiles");
-const REPORT_PATH = join(EVIDENCE_ROOT, "manifest.json");
-
-const ROUTES = [
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = path.resolve(scriptDir, "..");
+const evidenceRoot = process.env.ACS_BROWSER_EVIDENCE_ROOT ?? path.resolve(os.tmpdir(), "acs-epic14-browser-evidence");
+const profileRoot = process.env.ACS_BROWSER_PROFILE_ROOT ?? path.resolve(os.tmpdir(), "acs-epic14-browser-profiles");
+const host = "127.0.0.1";
+const browserLaunchTimeoutMs = Number(process.env.ACS_BROWSER_LAUNCH_TIMEOUT_MS ?? 30000);
+const routeTimeoutMs = Number(process.env.ACS_BROWSER_ROUTE_TIMEOUT_MS ?? 30000);
+const renderTimeoutMs = Number(process.env.ACS_BROWSER_RENDER_TIMEOUT_MS ?? 15000);
+const screenshotTimeoutMs = Number(process.env.ACS_BROWSER_SCREENSHOT_TIMEOUT_MS ?? 15000);
+const viewportMatrix = [
+  { width: 1440, height: 900 },
+  { width: 1280, height: 800 },
+  { width: 768, height: 1024 },
+  { width: 390, height: 844 },
+];
+const routeMatrix = [
   "/",
   "/readiness",
   "/system",
@@ -25,436 +39,418 @@ const ROUTES = [
   "/settings",
 ];
 
-const VIEWPORTS = [
-  { name: "desktop", width: 1440, height: 900 },
-  { name: "laptop", width: 1280, height: 800 },
-  { name: "tablet", width: 768, height: 1024 },
-  { name: "mobile", width: 390, height: 844 },
-];
+const buildBin = path.join(appRoot, "node_modules", "vite", "bin", "vite.js");
+const browserPath = chromium.executablePath();
+const noSandbox = process.env.ACS_BROWSER_NO_SANDBOX !== "0";
+const manifestPath = path.join(evidenceRoot, "manifest.json");
 
-const RESPONSIVE_ROUTES = ["/", "/readiness", "/system", "/agents"];
-
-const MIME_TYPES = {
-  ".css": "text/css; charset=utf-8",
-  ".html": "text/html; charset=utf-8",
-  ".ico": "image/x-icon",
-  ".js": "text/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".map": "application/json; charset=utf-8",
-  ".png": "image/png",
-  ".svg": "image/svg+xml",
-  ".txt": "text/plain; charset=utf-8",
-  ".woff2": "font/woff2",
-};
-
-const browserCandidates = [
-  process.env.ACS_BROWSER_PATH,
-  "/home/mzfshark/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
-  "/home/mzfshark/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome",
-  "/usr/bin/google-chrome",
-  "/usr/bin/google-chrome-stable",
-  "/usr/bin/chromium",
-  "/usr/bin/chromium-browser",
-  "/opt/google/chrome/chrome",
-  "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe",
-].filter(Boolean);
-
-function nowIso() {
-  return new Date().toISOString();
+function log(message) {
+  process.stdout.write(`${message}\n`);
 }
 
-function findBrowser() {
-  return browserCandidates.find(candidate => existsSync(candidate)) ?? null;
+function safeSlug(value) {
+  return value.replaceAll(/[^a-zA-Z0-9]+/g, "-").replaceAll(/^-+|-+$/g, "").toLowerCase() || "route";
 }
 
-function routeSlug(route) {
-  return route === "/" ? "dashboard" : route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+async function ensureDirectory(dir) {
+  await mkdir(dir, { recursive: true });
 }
 
-function runBrowser(browserPath, args, timeoutMs = 30000) {
-  return new Promise(resolveResult => {
-    const child = spawn(browserPath, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-    });
-    let stdout = "";
-    let stderr = "";
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGKILL");
-    }, timeoutMs);
+async function ensureReadable(filePath) {
+  await access(filePath, fsConstants.R_OK);
+}
 
-    child.stdout.on("data", chunk => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", chunk => {
-      stderr += chunk;
-    });
-    child.on("error", error => {
-      clearTimeout(timer);
-      resolveResult({ ok: false, stdout, stderr: error.message, code: null, timedOut });
-    });
-    child.on("close", code => {
-      clearTimeout(timer);
-      resolveResult({ ok: code === 0, stdout, stderr, code, timedOut });
-    });
+function spawnProcess(command, args, extraEnv = {}) {
+  const child = spawn(command, args, {
+    cwd: appRoot,
+    env: { ...process.env, ...extraEnv },
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  return child;
 }
 
-async function probeBrowser(browserPath) {
-  const profile = join(PROFILE_ROOT, "probe");
-  rmSync(profile, { recursive: true, force: true });
-  mkdirSync(profile, { recursive: true });
-  const commonArgs = [
-    "--headless=new",
-    "--no-sandbox",
-    "--disable-gpu",
-    "--disable-dev-shm-usage",
-    "--disable-extensions",
-    "--no-first-run",
-    "--no-default-browser-check",
-    `--user-data-dir=${profile}`,
-  ];
-  const first = await runBrowser(browserPath, [
-    ...commonArgs,
-    "--dump-dom",
-    "data:text/html,<title>probe</title><h1>probe</h1>",
+async function runProcess(command, args, label) {
+  const child = spawnProcess(command, args);
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  const code = await Promise.race([
+    new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("exit", (exitCode) => resolve(exitCode));
+    }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${browserLaunchTimeoutMs}ms`)), browserLaunchTimeoutMs)),
   ]);
-  if (first.ok && first.stdout.includes("<h1>probe</h1>")) {
-    return { ok: true, version: first.stdout, stderr: first.stderr };
+  if (code !== 0) {
+    const error = new Error(`${label} failed with exit code ${code}`);
+    error.stdout = stdout;
+    error.stderr = stderr;
+    throw error;
   }
-  const fallback = await runBrowser(browserPath, [
-    ...commonArgs.map(arg => arg === "--headless=new" ? "--headless" : arg),
-    "--dump-dom",
-    "data:text/html,<title>probe</title><h1>probe</h1>",
-  ]);
-  if (fallback.ok && fallback.stdout.includes("<h1>probe</h1>")) {
-    return { ok: true, version: fallback.stdout, stderr: fallback.stderr };
-  }
-  return {
-    ok: false,
-    version: "",
-    stderr: `${first.stderr}\n${fallback.stderr}`.trim(),
-  };
+  return { stdout, stderr };
 }
 
-function startStaticServer() {
-  return new Promise((resolveServer, rejectServer) => {
-    const server = createServer((request, response) => {
-      const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
-      const pathname = decodeURIComponent(requestUrl.pathname);
-      if (pathname.includes("..")) {
-        response.writeHead(403).end("Forbidden");
-        return;
-      }
-      const requested = pathname === "/" ? "/index.html" : pathname;
-      const filePath = join(DIST_ROOT, requested);
-      const extension = extname(filePath);
-      const isAsset = Boolean(extension);
-      if (isAsset && existsSync(filePath)) {
-        response.writeHead(200, {
-          "Content-Type": MIME_TYPES[extension] ?? "application/octet-stream",
-          "Cache-Control": "no-store",
-        });
-        response.end(readFileSync(filePath));
-        return;
-      }
-      if (isAsset) {
-        response.writeHead(404).end("Not found");
-        return;
-      }
-      const indexPath = join(DIST_ROOT, "index.html");
-      if (!existsSync(indexPath)) {
-        response.writeHead(500).end("dist/index.html is missing");
-        return;
-      }
-      response.writeHead(200, { "Content-Type": MIME_TYPES[".html"] });
-      response.end(readFileSync(indexPath));
-    });
-    server.on("error", rejectServer);
-    server.listen(0, "127.0.0.1", () => {
+async function findFreePort() {
+  return await new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on("error", reject);
+    server.listen({ host, port: 0 }, () => {
       const address = server.address();
       if (!address || typeof address === "string") {
-        rejectServer(new Error("Static server did not bind a TCP port"));
+        server.close(() => reject(new Error("Unable to determine a free port")));
         return;
       }
-      resolveServer({
-        baseUrl: `http://127.0.0.1:${address.port}`,
-        close: () => new Promise(done => server.close(done)),
+      const { port } = address;
+      server.close((error) => {
+        if (error) reject(error);
+        else resolve(port);
       });
     });
   });
 }
 
-function headingFromHtml(html) {
-  const match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  if (!match) return null;
-  return match[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-}
-
-function accessibilityChecks(html) {
-  const checks = [
-    { name: "document-language", passed: /<html[^>]*\blang=/i.test(html), note: "html lang attribute present" },
-    { name: "main-landmark", passed: /<main\b|role=["']main["']/i.test(html), note: "main landmark present" },
-    { name: "h1-heading", passed: /<h1\b/i.test(html), note: "h1 heading present" },
-    { name: "navigation", passed: /<nav\b|role=["']navigation["']/i.test(html), note: "navigation landmark present" },
-  ];
-  const links = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)];
-  const unnamedLinks = links.filter(([, attrs, content]) => {
-    const text = content.replace(/<[^>]+>/g, "").trim();
-    return !text && !/aria-label=/i.test(attrs) && !/title=/i.test(attrs);
-  });
-  checks.push({
-    name: "link-accessible-names",
-    passed: unnamedLinks.length === 0,
-    note: `${unnamedLinks.length} unnamed links`,
-  });
-  const buttons = [...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/gi)];
-  const unnamedButtons = buttons.filter(([, attrs, content]) => {
-    const text = content.replace(/<[^>]+>/g, "").trim();
-    return !text && !/aria-label=/i.test(attrs) && !/title=/i.test(attrs);
-  });
-  checks.push({
-    name: "button-accessible-names",
-    passed: unnamedButtons.length === 0,
-    note: `${unnamedButtons.length} unnamed buttons`,
-  });
-  return checks;
-}
-
-async function captureRoute(browserPath, baseUrl, route, profileName) {
-  const profile = join(PROFILE_ROOT, profileName);
-  rmSync(profile, { recursive: true, force: true });
-  mkdirSync(profile, { recursive: true });
-  const url = `${baseUrl}${route}`;
-  const result = await runBrowser(browserPath, [
-    "--headless=new",
-    "--no-sandbox",
-    "--disable-gpu",
-    "--disable-dev-shm-usage",
-    "--disable-extensions",
-    "--no-first-run",
-    "--no-default-browser-check",
-    `--user-data-dir=${profile}`,
-    "--virtual-time-budget=5000",
-    "--dump-dom",
-    url,
-  ]);
-  if (!result.ok) {
-    return {
-      route,
-      loaded: false,
-      status: "blocked",
-      reason: "browser exited before DOM capture",
-      detail: result.stderr.slice(0, 500),
-      heading: null,
-    };
+async function waitForServer(url, timeoutMs = browserLaunchTimeoutMs) {
+  const started = Date.now();
+  let lastError = null;
+  while (Date.now() - started < timeoutMs) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return response;
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  const rootPresent = result.stdout.includes('id="root"');
-  const crashMarker = /Uncaught|ReferenceError|TypeError|Application error/i.test(result.stdout);
-  const heading = headingFromHtml(result.stdout);
-  const loaded = rootPresent && !crashMarker && heading !== null;
-  const domPath = join(EVIDENCE_ROOT, "dom", `${routeSlug(route)}.html`);
-  mkdirSync(join(EVIDENCE_ROOT, "dom"), { recursive: true });
-  writeFileSync(domPath, result.stdout);
+  throw lastError ?? new Error(`Timed out waiting for ${url}`);
+}
+
+async function ensureBuild() {
+  const indexHtml = path.join(appRoot, "dist", "index.html");
+  try {
+    await ensureReadable(indexHtml);
+    return false;
+  } catch {
+    log("[AEES-05] dist/ missing, building app before preview");
+    await runProcess(process.execPath, [buildBin, "build"], "vite build");
+    return true;
+  }
+}
+
+async function startPreviewServer(port) {
+  const preview = spawnProcess(process.execPath, [buildBin, "preview", "--host", host, "--port", String(port), "--strictPort"], {
+    NODE_ENV: "production",
+  });
+  preview.stdout.on("data", (chunk) => {
+    const text = String(chunk).trim();
+    if (text) log(`[preview] ${text}`);
+  });
+  preview.stderr.on("data", (chunk) => {
+    const text = String(chunk).trim();
+    if (text) log(`[preview:err] ${text}`);
+  });
+  const url = `http://${host}:${port}/`;
+  await waitForServer(url);
+  return { preview, url };
+}
+
+function normalizeConsoleMessage(message) {
+  if (message.type() !== "error") return null;
   return {
-    route,
-    loaded,
-    status: loaded ? "pass" : "failed",
-    reason: loaded ? null : "root, heading, or page script did not settle",
-    heading,
-    domEvidence: relativeEvidencePath(domPath),
+    level: "error",
+    text: message.text(),
+    location: message.location() ?? null,
   };
 }
 
-async function captureScreenshot(browserPath, baseUrl, route, viewport, profileName) {
-  const profile = join(PROFILE_ROOT, profileName);
-  rmSync(profile, { recursive: true, force: true });
-  mkdirSync(profile, { recursive: true });
-  const screenshotsDir = join(EVIDENCE_ROOT, "screenshots");
-  mkdirSync(screenshotsDir, { recursive: true });
-  const filePath = join(screenshotsDir, `${routeSlug(route)}-${viewport.name}-${viewport.width}x${viewport.height}.png`);
-  const url = `${baseUrl}${route}`;
-  const result = await runBrowser(browserPath, [
-    "--headless=new",
-    "--no-sandbox",
-    "--disable-gpu",
-    "--disable-dev-shm-usage",
-    "--disable-extensions",
-    "--no-first-run",
-    "--no-default-browser-check",
-    `--user-data-dir=${profile}`,
-    "--virtual-time-budget=5000",
-    "--hide-scrollbars",
-    `--window-size=${viewport.width},${viewport.height}`,
-    `--screenshot=${filePath}`,
+function classifyConsoleErrors(errors) {
+  return errors.filter((entry) => {
+    const text = entry.text.toLowerCase();
+    const locationUrl = entry.location?.url?.toLowerCase() ?? "";
+    if (locationUrl.includes("fonts.gstatic.com") || locationUrl.includes("fonts.googleapis.com")) return false;
+    return !text.includes("favicon") && !text.includes("devtools") && !text.includes("async response");
+  });
+}
+
+async function accessibilityBaseline(page) {
+  const headings = await page.locator("h1, h2, h3").allTextContents().catch(() => []);
+  const navCount = await page.getByRole("navigation").count().catch(() => 0);
+  const buttonCount = await page.getByRole("button").count().catch(() => 0);
+  const linkCount = await page.getByRole("link").count().catch(() => 0);
+  const initialFocus = await page.evaluate(() => document.activeElement?.tagName ?? null);
+  await page.keyboard.press("Tab").catch(() => {});
+  const nextFocus = await page.evaluate(() => {
+    const el = document.activeElement;
+    return el ? (el.getAttribute("aria-label") || el.textContent?.trim() || el.tagName || null) : null;
+  });
+  const status = headings.length > 0 && navCount > 0 && (buttonCount + linkCount) > 0 && initialFocus !== nextFocus
+    ? "PASS"
+    : "PASS_WITH_CAVEAT";
+  return { headings, navCount, buttonCount, linkCount, initialFocus, nextFocus, status, keyboardMoved: initialFocus !== nextFocus };
+}
+
+async function inspectRoute(page, route, viewport, baseUrl, screenshotDir) {
+  const url = new URL(route, baseUrl).toString();
+  const consoleErrors = [];
+  const pageErrors = [];
+  const requestFailures = [];
+  page.on("console", (message) => {
+    const entry = normalizeConsoleMessage(message);
+    if (entry) consoleErrors.push(entry);
+  });
+  page.on("pageerror", (error) => {
+    pageErrors.push({ message: error.message, stack: error.stack ?? null });
+  });
+  page.on("requestfailed", (request) => {
+    requestFailures.push({ url: request.url(), errorText: request.failure()?.errorText ?? null, resourceType: request.resourceType() });
+  });
+
+  const started = Date.now();
+  let response = null;
+  let heading = null;
+  let activeDomain = null;
+  let horizontalOverflow = null;
+  let accessibility = { status: "PASS_WITH_CAVEAT" };
+  let screenshotPath = null;
+  let navigationError = null;
+  let loaded = false;
+
+  try {
+    response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: routeTimeoutMs });
+    await page.locator("#root").waitFor({ state: "attached", timeout: renderTimeoutMs });
+    const headingLocator = page.locator(".domain-header h1, main h1, h1").first();
+    await headingLocator.waitFor({ state: "visible", timeout: renderTimeoutMs });
+    heading = (await headingLocator.textContent())?.trim() || null;
+    activeDomain = (await page.locator('nav [aria-current="page"]').first().textContent().catch(() => null))?.trim() || null;
+    horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    accessibility = await accessibilityBaseline(page);
+    await ensureDirectory(screenshotDir);
+    screenshotPath = path.join(screenshotDir, `${safeSlug(route)}-${viewport.width}x${viewport.height}.png`);
+    await page.screenshot({ path: screenshotPath, fullPage: true, timeout: screenshotTimeoutMs });
+    loaded = true;
+  } catch (error) {
+    navigationError = error instanceof Error ? error.message : String(error);
+    await ensureDirectory(screenshotDir).catch(() => {});
+    screenshotPath = path.join(screenshotDir, `${safeSlug(route)}-${viewport.width}x${viewport.height}-failure.png`);
+    await page.screenshot({ path: screenshotPath, fullPage: true, timeout: screenshotTimeoutMs }).catch(() => {});
+  }
+
+  const relevantConsoleErrors = classifyConsoleErrors(consoleErrors);
+  let status = "PASS";
+  let reason = "Rendered with heading and no structural issues";
+  if (navigationError) {
+    status = "BLOCKED";
+    reason = navigationError;
+  } else if (!loaded || !heading) {
+    status = "FAIL";
+    reason = "Route did not render a visible heading";
+  } else if (horizontalOverflow) {
+    status = "FAIL";
+    reason = "Horizontal overflow detected";
+  } else if (pageErrors.length > 0) {
+    status = "FAIL";
+    reason = "Page error captured";
+  } else if (accessibility.status !== "PASS") {
+    status = "PASS_WITH_CAVEAT";
+    reason = "Accessibility baseline only partially satisfied";
+  } else if (relevantConsoleErrors.length > 0) {
+    status = "PASS_WITH_CAVEAT";
+    reason = "Console errors recorded";
+  }
+
+  return {
+    route,
+    viewport,
     url,
-  ]);
-  return {
-    route,
-    viewport: `${viewport.width}x${viewport.height}`,
-    captured: result.ok && existsSync(filePath),
-    path: result.ok && existsSync(filePath) ? relativeEvidencePath(filePath) : null,
-    detail: result.ok ? null : result.stderr.slice(0, 300),
+    finalUrl: page.url(),
+    httpStatus: response?.status() ?? null,
+    loaded,
+    heading,
+    activeDomain,
+    horizontalOverflow,
+    consoleErrors,
+    pageErrors,
+    requestFailures,
+    accessibility,
+    screenshot: screenshotPath,
+    status,
+    reason,
+    durationMs: Date.now() - started,
   };
 }
 
-function relativeEvidencePath(filePath) {
-  return filePath.slice(APP_ROOT.length + 1).replaceAll("\\", "/");
-}
+async function main() {
+  await ensureDirectory(evidenceRoot);
+  await ensureDirectory(profileRoot);
+  await ensureDirectory(path.join(evidenceRoot, "screenshots"));
+  await ensureDirectory(path.join(evidenceRoot, "routes"));
 
-function writeBlockedReport(detail, browserPath) {
-  mkdirSync(EVIDENCE_ROOT, { recursive: true });
-  const report = {
-    checkedAt: nowIso(),
-    tool: "node:headless-chrome-cli",
+  const manifest = {
+    checkedAt: new Date().toISOString(),
+    tool: "node:playwright-api",
     browserAvailable: false,
     browserPath,
-    productionReady: false,
-    claim: "not_claimed",
-    wcagCertification: "not_claimed",
-    status: "BLOCKED_BY_ENVIRONMENT",
+    status: "BLOCKED",
     summary: {
       routesTested: 0,
       routesPassed: 0,
       routesWithCaveats: 0,
       routesFailed: 0,
+      routesBlocked: 0,
       viewportsTested: 0,
+      screenshotsCaptured: 0,
       accessibilityChecks: 0,
-      browserProbe: "failed",
-    },
-    blocker: {
-      code: "BROWSER_UNAVAILABLE",
-      message: "No runnable headless browser could start in this environment.",
-      detail,
+      horizontalOverflowFailures: 0,
+      pageErrors: 0,
+      consoleErrors: 0,
     },
     routes: [],
-    viewports: [],
-    accessibility: {
-      status: "BLOCKED",
-      wcagCertification: "not_claimed",
-      checks: [],
-    },
+    viewports: viewportMatrix,
+    accessibility: { status: "NOT_RUN", wcagCertificationClaimed: false },
     visualEvidence: [],
     consoleErrors: [],
-    caveats: [
-      "Browser smoke, visual evidence, responsive QA, and accessibility baseline could not be executed because no runnable browser was available.",
-      "Static checks and documentation are not browser acceptance evidence.",
-    ],
-    unresolvedIssues: [
-      {
-        code: "BROWSER_ENVIRONMENT_BLOCKER",
-        message: "Run the harness in an environment with a runnable Chromium, Chrome, Firefox, or Playwright browser before declaring S04 browser evidence.",
-      },
-    ],
-    sourceEvidence: [relativeEvidencePath(REPORT_PATH)],
+    caveats: [],
+    unresolvedIssues: [],
+    sourceEvidence: {
+      appRoot,
+      evidenceRoot,
+      profileRoot,
+      buildBin,
+      previewUrl: null,
+      browserLaunchArgs: ["--disable-dev-shm-usage", ...(noSandbox ? ["--no-sandbox"] : [])],
+      routeMatrix,
+    },
   };
-  writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
-  return report;
-}
 
-async function runAcceptance() {
-  if (!existsSync(join(DIST_ROOT, "index.html"))) {
-    throw new Error(`Missing ${relativeEvidencePath(join(DIST_ROOT, "index.html"))}; run the app build first.`);
-  }
-  const browserPath = findBrowser();
-  if (!browserPath) {
-    const report = writeBlockedReport("No browser binary was found in common locations or ACS_BROWSER_PATH.", null);
-    console.log(JSON.stringify(report, null, 2));
-    process.exit(2);
-  }
-  const probe = await probeBrowser(browserPath);
-  if (!probe.ok) {
-    const report = writeBlockedReport(probe.stderr || "Headless browser probe failed without stderr.", browserPath);
-    console.log(JSON.stringify(report, null, 2));
-    process.exit(2);
-  }
+  let previewProcess = null;
+  let browser = null;
 
-  const server = await startStaticServer();
-  const routes = [];
-  const screenshots = [];
-  let criticalFailures = 0;
+  const cleanup = async () => {
+    if (browser) await browser.close().catch(() => {});
+    if (previewProcess) {
+      previewProcess.kill("SIGTERM");
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 3000);
+        previewProcess.once("exit", () => {
+          clearTimeout(timer);
+          resolve();
+        });
+      }).catch(() => {});
+    }
+  };
+
+  const buildNeeded = await ensureBuild();
+  if (buildNeeded) manifest.caveats.push("Vite build was executed by the harness because dist/ was absent.");
+
+  const port = await findFreePort();
+  const preview = await startPreviewServer(port);
+  previewProcess = preview.preview;
+  manifest.sourceEvidence.previewUrl = preview.url;
 
   try {
-    for (const route of ROUTES) {
-      const routeResult = await captureRoute(browserPath, server.baseUrl, route, `route-${routeSlug(route)}`);
-      routes.push(routeResult);
-      if (!routeResult.loaded) criticalFailures += 1;
-      const screenshot = await captureScreenshot(browserPath, server.baseUrl, route, VIEWPORTS[0], `shot-${routeSlug(route)}`);
-      screenshots.push(screenshot);
-    }
-    for (const route of RESPONSIVE_ROUTES) {
-      for (const viewport of VIEWPORTS.slice(1)) {
-        const screenshot = await captureScreenshot(browserPath, server.baseUrl, route, viewport, `shot-${routeSlug(route)}-${viewport.name}`);
-        screenshots.push(screenshot);
+    log("[AEES-05] Launching Chromium via Playwright");
+    browser = await chromium.launch({
+      headless: true,
+      args: ["--disable-dev-shm-usage", ...(noSandbox ? ["--no-sandbox"] : [])],
+    });
+    manifest.browserAvailable = true;
+    manifest.sourceEvidence.browserVersion = browser.version();
+
+    for (const viewport of viewportMatrix) {
+      manifest.summary.viewportsTested += 1;
+      const context = await browser.newContext({
+        viewport,
+        deviceScaleFactor: 1,
+        hasTouch: viewport.width <= 768,
+        colorScheme: "light",
+      });
+      try {
+        const screenshotDir = path.join(evidenceRoot, "screenshots", `${viewport.width}x${viewport.height}`);
+        for (const route of routeMatrix) {
+          const page = await context.newPage();
+          let record;
+          try {
+            record = await inspectRoute(page, route, viewport, preview.url, screenshotDir);
+          } finally {
+            await page.close().catch(() => {});
+          }
+          manifest.routes.push(record);
+          manifest.summary.routesTested += 1;
+          if (record.status === "PASS") manifest.summary.routesPassed += 1;
+          else if (record.status === "PASS_WITH_CAVEAT") manifest.summary.routesWithCaveats += 1;
+          else if (record.status === "FAIL") manifest.summary.routesFailed += 1;
+          else manifest.summary.routesBlocked += 1;
+          if (record.screenshot) {
+            manifest.summary.screenshotsCaptured += 1;
+            manifest.visualEvidence.push({
+              route: record.route,
+              viewport: `${viewport.width}x${viewport.height}`,
+              screenshot: path.relative(evidenceRoot, record.screenshot),
+            });
+          }
+          if (record.accessibility) manifest.summary.accessibilityChecks += 1;
+          if (record.horizontalOverflow) manifest.summary.horizontalOverflowFailures += 1;
+          manifest.summary.pageErrors += record.pageErrors.length;
+          manifest.summary.consoleErrors += record.consoleErrors.length;
+          if (record.consoleErrors.length > 0) {
+            manifest.consoleErrors.push({
+              route: record.route,
+              viewport: `${viewport.width}x${viewport.height}`,
+              errors: record.consoleErrors,
+            });
+          }
+          if (record.status !== "PASS") {
+            manifest.unresolvedIssues.push({
+              route: record.route,
+              viewport: `${viewport.width}x${viewport.height}`,
+              status: record.status,
+              reason: record.reason,
+            });
+          }
+          log(`[${viewport.width}x${viewport.height}] ${route} — ${record.status}`);
+        }
+      } finally {
+        await context.close().catch(() => {});
       }
     }
+
+    const routeSummary = manifest.routes.reduce((acc, record) => {
+      acc[record.status] = (acc[record.status] ?? 0) + 1;
+      return acc;
+    }, { PASS: 0, PASS_WITH_CAVEAT: 0, FAIL: 0, BLOCKED: 0 });
+    manifest.summary.routeStatus = routeSummary;
+    manifest.accessibility.status = manifest.routes.some((route) => route.accessibility?.status === "PASS_WITH_CAVEAT")
+      ? "PASS_WITH_CAVEAT"
+      : "PASS";
+
+    if (routeSummary.BLOCKED > 0) manifest.status = "BLOCKED";
+    else if (routeSummary.FAIL > 0) manifest.status = "FAIL";
+    else if (routeSummary.PASS_WITH_CAVEAT > 0) manifest.status = "PASS_WITH_CAVEAT";
+    else manifest.status = "PASS";
+    log(`[AEES-05] Result: ${manifest.status}`);
+  } catch (error) {
+    manifest.status = "BLOCKED";
+    manifest.unresolvedIssues.push({
+      id: "harness-failure",
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack ?? null : null,
+    });
+    manifest.caveats.push(error instanceof Error ? error.message : String(error));
+    log(`[AEES-05] Harness failure: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
-    await server.close();
-    rmSync(PROFILE_ROOT, { recursive: true, force: true });
+    await cleanup();
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   }
 
-  const accessibilityChecksForRoutes = routes.map(route => ({
-    route: route.route,
-    loaded: route.loaded,
-    checks: route.loaded && route.domEvidence
-      ? accessibilityChecks(readFileSync(join(APP_ROOT, route.domEvidence), "utf8"))
-      : [],
-  }));
-  const allChecks = accessibilityChecksForRoutes.flatMap(item => item.checks.map(check => ({ ...check, route: item.route })));
-  const accessibility = {
-    status: allChecks.length && allChecks.every(check => check.passed) ? "STATIC_DOM_ONLY" : "FAIL",
-    wcagCertification: "not_claimed",
-    checks: allChecks,
-    caveats: [
-      "Static DOM checks only; keyboard, focus, contrast, axe-core, and full WCAG checks are not claimed.",
-      "Console error inspection is not available through the headless CLI mode used by this harness.",
-    ],
-  };
-
-  const viewportResults = VIEWPORTS.map(viewport => ({
-    viewport: `${viewport.width}x${viewport.height}`,
-    routesTested: RESPONSIVE_ROUTES.length,
-    screenshotsCaptured: screenshots.filter(shot => shot.viewport === `${viewport.width}x${viewport.height}` && shot.captured).length,
-  }));
-  const report = {
-    checkedAt: nowIso(),
-    tool: "node:headless-chrome-cli",
-    browserAvailable: true,
-    browserPath,
-    productionReady: false,
-    claim: "not_claimed",
-    wcagCertification: "not_claimed",
-    status: criticalFailures === 0 ? "PASS_WITH_CAVEATS" : "FAIL",
-    summary: {
-      routesTested: routes.length,
-      routesPassed: routes.filter(route => route.status === "pass").length,
-      routesWithCaveats: routes.filter(route => route.status === "caveat").length,
-      routesFailed: routes.filter(route => route.status === "failed").length,
-      viewportsTested: VIEWPORTS.length,
-      accessibilityChecks: allChecks.length,
-      browserProbe: "passed",
-    },
-    routes,
-    viewports: viewportResults,
-    accessibility,
-    visualEvidence: screenshots.filter(shot => shot.captured),
-    consoleErrors: [],
-    caveats: [
-      "Headless CLI mode captures rendered DOM and screenshots, but not full click-through, page console, layout overflow measurement, axe-core, keyboard, or focus checks.",
-      "Screenshots are local evidence under tmp/epic-12/browser-evidence/ and are not committed.",
-    ],
-    unresolvedIssues: [],
-    sourceEvidence: [relativeEvidencePath(REPORT_PATH)],
-  };
-  writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
-  console.log(JSON.stringify(report, null, 2));
-  process.exit(criticalFailures === 0 ? 0 : 1);
+  process.exitCode = manifest.status === "PASS" || manifest.status === "PASS_WITH_CAVEAT" ? 0 : manifest.status === "FAIL" ? 1 : 2;
 }
 
-runAcceptance().catch(error => {
-  const report = writeBlockedReport(error instanceof Error ? error.message : String(error), findBrowser());
-  console.log(JSON.stringify(report, null, 2));
-  process.exit(2);
-});
+await main();

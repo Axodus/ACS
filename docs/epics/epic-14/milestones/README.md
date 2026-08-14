@@ -20,8 +20,8 @@
 | AEES-02 | Navigation & Progressive Disclosure | PASS WITH FORMAL CAVEATS | shell/domain/context navigation and disclosure baseline |
 | AEES-03 | Financial Boundaries | PASS WITH FORMAL CAVEATS | economic authority and financial-boundary implementation |
 | AEES-04 | Operator Experience & Visual Language | PASS | operator review, state/claim language and header consolidation |
-| AEES-05 | Browser Acceptance & Regression Hardening | ACTIVE | browser evidence and regression gates |
-| AEES-06 | Closure & Certification | QUEUED | blocked until AEES-05 PASS or PASS WITH CAVEATS |
+| AEES-05 | Browser Acceptance & Regression Hardening | COMPLETE / PASS | browser matrix, responsive hardening and regression evidence complete |
+| AEES-06 | Closure & Certification | QUEUED | ready for closure verification |
 
 ## Execution rule
 

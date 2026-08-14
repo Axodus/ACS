@@ -924,7 +924,7 @@ function AgentInventory() {
     {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agents...</div>}
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
-    <div className="toolbar">
+    <div className="toolbar agents-toolbar">
       <label className="search">⌕<input value={q} onChange={e => setQ(e.target.value)} placeholder="Search agents by name or id..." /></label>
       <select className="filter select-filter" value={status} onChange={e => setStatus(e.target.value)} aria-label="Filter by status">
         <option value="all">All statuses</option>
