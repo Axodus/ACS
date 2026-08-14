@@ -3195,7 +3195,7 @@ function PricingInvoiceBoundaryView() {
             <TimelineList items={readinessGates.map((gate: PricingInvoiceBoundaryReport["readinessGates"][number]) => ({
               id: gate.id,
               title: gate.label,
-              meta: `${gate.status} · ${gate.claimImpact.join(" · ")}`,
+              meta: `${gate.status} · ${Array.isArray(gate.claimImpact) ? gate.claimImpact.join(" · ") : gate.claimImpact}`,
               detail: `${gate.evidence.join(" · ") || "No evidence"}${gate.blockers.length ? ` · blockers: ${gate.blockers.join(" · ")}` : ""}${gate.caveats.length ? ` · caveats: ${gate.caveats.join(" · ")}` : ""}`,
               tone: gate.status === "blocked" ? "warn" : gate.status === "partial" ? "muted" : undefined,
             }))} />
@@ -3339,7 +3339,7 @@ function BillingBoundaryView() {
             <TimelineList items={readinessGates.map((gate: BillingBoundaryReport["readinessGates"][number]) => ({
               id: gate.id,
               title: gate.label,
-              meta: `${gate.status} · ${gate.claimImpact.join(" · ")}`,
+              meta: `${gate.status} · ${Array.isArray(gate.claimImpact) ? gate.claimImpact.join(" · ") : gate.claimImpact}`,
               detail: `${gate.evidence.join(" · ") || "No evidence"}${gate.blockers.length ? ` · blockers: ${gate.blockers.join(" · ")}` : ""}${gate.caveats.length ? ` · caveats: ${gate.caveats.join(" · ")}` : ""}`,
               tone: gate.status === "blocked" ? "warn" : gate.status === "partial" ? "muted" : undefined,
             }))} />

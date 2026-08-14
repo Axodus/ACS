@@ -874,7 +874,7 @@ export type BillingBoundaryReport = {
     evidence: readonly string[];
     blockers: readonly string[];
     caveats: readonly string[];
-    claimImpact: readonly string[];
+    claimImpact: string | readonly string[];
   }[];
   blockers: readonly string[];
   warnings: readonly string[];
