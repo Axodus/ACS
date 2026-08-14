@@ -101,6 +101,34 @@ application. Broader table/detail density work remains AEES-04.
   detail is not duplicated.
 - **Contracts:** UX-IA-01, 08, 10.
 
+### FIN-03 — Label operational economics by authority
+
+- **Problem:** Economics shows values without making estimate, recorded usage,
+  operational settlement and billing boundaries explicit.
+- **Operator outcome:** an operator can identify the authority, unit, scope and
+  limitation of each displayed economic value.
+- **Scope:** Economics landing summary, disclosure tiers, missing-data language
+  and `$Neurons` boundary copy.
+- **Dependencies:** Product API economics projections, UX-IA-16–18.
+- **Affected surfaces:** `/economics`, agent economic contextual summary.
+- **Acceptance:** estimated/reserved/metered/settled values are distinct;
+  unavailable is not zero; receipts are operational evidence; unsupported
+  billing, wallet and exchange claims are absent.
+- **Contracts:** UX-IA-05, 08, 16–19.
+
+### FIN-04 — Treat EPIC-13 reports as boundary evidence
+
+- **Problem:** compatibility `/system/*` routes can be mistaken for product
+  billing capabilities.
+- **Operator outcome:** the operator understands that these routes document
+  financial no-claims and controls, not active payment or billing workflows.
+- **Scope:** Economics cross-links and financial boundary copy.
+- **Dependencies:** EPIC-13 closed contracts, UX-IA-08 and 17.
+- **Affected surfaces:** `/economics` and existing financial compatibility routes.
+- **Acceptance:** every financial boundary route links to Economics; all
+  `not_claimed` language survives; no monetary action is exposed.
+- **Contracts:** UX-IA-08, 13, 14, 17, 19.
+
 ## AEES-04 — Operator Experience & Visual Language
 
 ### UX-01 — Normalize state language and status presentation

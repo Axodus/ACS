@@ -123,3 +123,41 @@ Global and domain navigation MUST use links for route transitions, expose
 keep disclosure controls semantic through native `details`/`summary`.
 
 Review: typecheck/lint and later browser keyboard acceptance.
+
+## UX-IA-16 — Economic authority and missing-data discipline
+
+Economic values MUST preserve the Product API authority class and scope. Missing
+or unavailable values MUST NOT be rendered as zero. The UI MUST distinguish
+estimated, reserved, metered and operationally settled values.
+
+Review: Economics labels include unit, authority context and unavailable states;
+no local aggregation upgrades a value into billing truth.
+
+## UX-IA-17 — Usage is not billing
+
+Operational usage, quotes, reservations, metering, settlements and receipts MUST
+NOT be labeled as invoices, payments, balances, revenue or legal/financial
+settlement without an authoritative billing contract.
+
+Review: copy scan and Economics boundary review preserve the \`not_claimed\`
+posture of EPIC-13.
+
+## UX-IA-18 — \`$Neurons\` contract boundary
+
+\`$Neurons\` MAY be presented only according to the implemented ACS operational
+economic contract (\`NEURONS\` asset/unit, quote, reserve, usage, settle and
+receipt). Wallet, exchange, fiat, marketplace and ecosystem transaction claims
+are unsupported unless a future contract explicitly establishes them.
+
+Review: financial-boundaries inventory and UI claim-discipline panel contain no
+speculative token or payment semantics.
+
+## UX-IA-19 — Canonical Economics ownership
+
+Economics MUST own canonical financial detail and EPIC-13 boundary evidence.
+Agents, Operations and Evidence MAY expose contextual summaries or
+unavailability states, but MUST link to Economics rather than duplicate
+financial tables or imply tenant-wide scope.
+
+Review: route ownership, cross-links and contextual panels identify Economics as
+the canonical destination.

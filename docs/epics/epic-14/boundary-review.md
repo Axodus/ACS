@@ -42,6 +42,20 @@ financial-truth constraints.
 | Global vs contextual | domain nav vs selected-entity nav | making every entity/resource global |
 | Current vs future | supported Product API capabilities | speculative product capabilities |
 
+## 4. AEES-03 economic boundary
+
+| Boundary | Implemented ACS truth | Explicit non-claim |
+|---|---|---|
+| Usage vs cost | Product API operational metering and `NEURONS` values | generic or fiat billing cost |
+| Estimate vs recorded | quotes and `totalEstimated` are estimates; metering is recorded | estimate presented as settled amount |
+| Operational settlement vs billing | settlement/receipt records are operational evidence | legal settlement, invoice, payment capture |
+| Tenant attribution | optional internal tenant/workload fields; UI shows unavailable when not projected | inferred tenant ownership or cross-tenant aggregate |
+| `$Neurons` | operational asset/unit, quote/reserve/meter/settle/receipt contract | wallet, exchange, balance, public tokenomics |
+| EPIC-13 reports | read-only `not_claimed` financial-boundary evidence | readiness for billing, payment, invoice or production finance |
+
+Frontend calculations cannot replace Product API authority. AEES-03 adds no
+economic mutation, billing endpoint or financial readiness claim.
+
 ## 3. Contradictions discovered
 
 No contradiction was found in backend domain contracts. Two presentation-level

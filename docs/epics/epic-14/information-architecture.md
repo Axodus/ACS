@@ -210,6 +210,10 @@ The source surface keeps only enough summary for local comprehension.
 - All current financial boundary surfaces remain read-only.
 - Billing, payment, invoice, settlement, reconciliation, compliance and
   production financial readiness remain not claimed.
+- Missing or unavailable economic data is not zero. Estimates, reservations,
+  metering and operational settlement values remain explicitly labeled.
+- `$Neurons` is represented only as the implemented ACS operational asset/unit;
+  no wallet, balance, exchange or transactional ecosystem claim is implied.
 
 ## 7. Terminology register
 

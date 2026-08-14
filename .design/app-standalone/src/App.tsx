@@ -1431,8 +1431,9 @@ function AgentDetail() {
         <p className="panel-note">Display only — runtime operations are out of scope for this milestone.</p>
       </section>
       <section className="panel">
-        <div className="panel-head"><div><h2>Economic summary</h2><p>Read-only when available</p></div><Badge tone="muted">{detail.economicSummary.state}</Badge></div>
-        <div className="state-line empty">{detail.economicSummary.message} Economics is out of scope for Milestone B.</div>
+        <div className="panel-head"><div><h2>Economic context</h2><p>Contextual only; canonical detail belongs to Economics</p></div><Badge tone="muted">{detail.economicSummary.state}</Badge></div>
+        <div className="state-line empty">{detail.economicSummary.message} Missing economic data is unavailable, not zero.</div>
+        <p className="panel-note"><Link className="surface-link" to="/economics">Open canonical Economics boundary →</Link></p>
       </section>
       <section className="panel">
         <div className="panel-head"><div><h2>Audit summary</h2><p>Lifecycle-related audit events</p></div><Badge tone="muted">{detail.auditSummary.total} events</Badge></div>
@@ -2874,80 +2875,116 @@ function EconomicsView() {
     "Unable to load receipts from Product API",
     () => false,
   );
+  const formatEconomicAmount = (value: string | number | undefined, unit?: string) => value === undefined || value === null || value === "" ? "unavailable" : unit ? `${value} ${unit}` : String(value);
+  const allBoundaryLinks = [
+    { to: "/system/billing-boundary", label: "Billing boundary" },
+    { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
+    { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
+    { to: "/system/tenant-billing-boundary", label: "Tenant accountability boundary" },
+    { to: "/system/settlement-reconciliation", label: "Settlement & receipt boundary" },
+    { to: "/system/financial-audit", label: "Financial audit boundary" },
+    { to: "/system/billing-acceptance", label: "Acceptance & claims" },
+  ];
   return <>
     <DomainHeader domain="Economics" title="Economics" description="Canonical operational economics and financial-boundary evidence domain." />
-    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL ECONOMICS</p><h1>Economics</h1><p>Operational quote, reservation, metering, settlement and receipt visibility. This is operational metering, not billing.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
-    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Economics is operational, not billing</span></div>
+    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL ECONOMICS</p><h1>Economics</h1><p>Canonical financial-boundary surface for operational usage, estimated/reserved/metered/settled NEURONS values and EPIC-13 no-claim evidence. Usage, economics and billing are separate truths.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Operational truth ≠ economic truth ≠ billing truth</span><span>Missing values are unavailable, not zero</span></div>
     {staleBanner({ stale, loadState, loadError }, "economics")}
     <div className="flow-group">
-      <div className="flow-group-head"><h2>Economic summary</h2><p>Totals are projected by the Product API — never recomputed in the UI.</p></div>
+      <div className="flow-group-head"><h2>Primary financial boundary</h2><p>Product API values only. The UI labels authority and never upgrades operational records into billing claims.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
-          <div className="panel-head"><div><h2>Summary</h2><p>Source of truth: Product API</p></div></div>
+          <div className="panel-head"><div><h2>Scope and totals</h2><p>Canonical Economics domain</p></div><Badge tone="muted">{data?.unit ?? "unit unavailable"}</Badge></div>
           <div className="panel-body">
             {data
               ? <div className="summary-list">
-                <SummaryRow label="Currency" value={data.currency} />
-                <SummaryRow label="Context" value={data.neuronsContext} />
-                <SummaryRow label="Estimated" value={String(data.totalEstimated)} />
-                <SummaryRow label="Reserved" value={String(data.totalReserved)} />
-                <SummaryRow label="Metered" value={String(data.totalMetered)} />
-                <SummaryRow label="Settled" value={String(data.totalSettled)} />
+                <SummaryRow label="Economic unit" value={data.unit || data.currency || "unavailable"} />
+                <SummaryRow label="Currency claim" value={data.currency ? `${data.currency} / operational unit only` : "unavailable"} tone="muted" />
+                <SummaryRow label="Context" value={data.neuronsContext || "unavailable"} />
+                <SummaryRow label="Estimated usage value" value={formatEconomicAmount(data.totalEstimated, data.unit)} />
+                <SummaryRow label="Reserved usage value" value={formatEconomicAmount(data.totalReserved, data.unit)} />
+                <SummaryRow label="Metered usage value" value={formatEconomicAmount(data.totalMetered, data.unit)} />
+                <SummaryRow label="Settled operational value" value={formatEconomicAmount(data.totalSettled, data.unit)} />
+                <SummaryRow label="Tenant scope" value="unavailable from current Product API projection" tone="muted" />
               </div>
               : <PanelStateLine state={loadState} error={loadError} emptyMessage="No economics available." />}
           </div>
         </section>
         <section className="panel">
-          <div className="panel-head"><div><h2>Warnings</h2><p>Operational findings</p></div></div>
+          <div className="panel-head"><div><h2>Claim discipline</h2><p>What these numbers may and may not mean</p></div><Badge tone="muted">no billing claim</Badge></div>
           <div className="panel-body">
+            <div className="summary-list">
+              <SummaryRow label="Authoritative source" value="Product API operational economics endpoints" />
+              <SummaryRow label="Estimated" value="Pre-execution economic estimate, not settled cost" />
+              <SummaryRow label="Metered" value="Recorded execution usage/economic event" />
+              <SummaryRow label="Settled / receipt" value="Operational receipt evidence, not invoice or payment settlement" />
+              <SummaryRow label="$Neurons" value="Implemented operational asset/unit only; no wallet, exchange or ecosystem transaction claim" />
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <SectionDisclosure title="Secondary — workload attribution" summary="Agent, deployment, runtime and execution aggregates only where Product API supplies them." tier="Secondary">
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Agent attribution</h2><p>Contextual aggregate, Economics-owned</p></div><Badge tone="muted">{data?.agentConsumption.length ?? 0}</Badge></div>
+          <div className="panel-body"><TimelineList limit={6} items={(data?.agentConsumption ?? []).map((item) => ({ id: item.entityId, title: item.entityId, meta: `${item.status} · ${formatEconomicAmount(item.amount, item.unit)}`, detail: "Agent attribution from Product API economics summary.", tone: item.status === "available" ? "good" : item.status === "limited" ? "warn" : "muted" }))} /></div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Execution attribution</h2><p>Run-scoped values when available</p></div><Badge tone="muted">{data?.executionRunConsumption.length ?? 0}</Badge></div>
+          <div className="panel-body"><TimelineList limit={6} items={(data?.executionRunConsumption ?? []).map((item) => ({ id: item.entityId, title: item.entityId, meta: `${item.status} · ${formatEconomicAmount(item.amount, item.unit)}`, detail: "Execution-run economic context; operational detail remains in Operations.", tone: item.status === "available" ? "good" : item.status === "limited" ? "warn" : "muted" }))} /></div>
+        </section>
+      </div>
+    </SectionDisclosure>
+    <SectionDisclosure title="Secondary — quotes and reservations" summary="Operational quote/reservation visibility before and during execution; not payment authorization." tier="Secondary">
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Quotes</h2><p>Estimated operational economics</p></div><Badge tone="muted">{quotes.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(quotes.data ?? []).map(item => ({ id: item.quoteId, title: item.quoteId, meta: `${item.status} · ${item.agentId ?? "agent unavailable"} · estimated ${formatEconomicAmount(item.amount, item.unit)}`, detail: item.eligibility.eligible ? "eligible; not a billing authorization" : `not eligible: ${item.eligibility.reasons?.join("; ") || "reason unavailable"}`, tone: item.eligibility.eligible ? "good" : "warn" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Reservations</h2><p>Reserved operational value</p></div><Badge tone="muted">{reservations.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(reservations.data ?? []).map(item => ({ id: item.reservationId, title: item.reservationId, meta: `${item.status} · ${item.agentId ?? "agent unavailable"} · reserved ${formatEconomicAmount(item.amount, item.unit)}`, detail: item.failureReason ?? `quote ${item.quoteId}; no payment capture implied`, tone: item.status === "reserved" || item.status === "confirmed" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
+          </div>
+        </section>
+      </div>
+    </SectionDisclosure>
+    <SectionDisclosure title="Diagnostic — metering, settlement and receipt evidence" summary="Execution-level operational accounting evidence. Legal billing and payment rails remain not claimed." tier="Diagnostic">
+      <div className="dashboard-grid evidence-grid">
+        <section className="panel">
+          <div className="panel-head"><div><h2>Metering</h2><p>Recorded usage per execution run</p></div><Badge tone="muted">{metering.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(metering.data ?? []).map(item => ({ id: item.meterId, title: item.meterId, meta: `${item.status} · ${item.executionRunId} · metered ${formatEconomicAmount(item.amount, item.unit)}`, detail: `${item.target}; provider ${item.providerId ?? "unavailable"}`, tone: item.status === "settled" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Settlements</h2><p>Operational settlement records</p></div><Badge tone="muted">{settlements.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(settlements.data ?? []).map(item => ({ id: item.settlementId, title: item.settlementId, meta: `${item.status} · ${item.executionRunId ?? "run unavailable"} · ${formatEconomicAmount(item.amount, item.unit)}`, detail: item.failureReason ?? "operational settlement record; not legal settlement", tone: item.status === "settled" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
+          </div>
+        </section>
+        <section className="panel">
+          <div className="panel-head"><div><h2>Receipts</h2><p>Operational receipts only</p></div><Badge tone="muted">{receipts.data?.length ?? 0}</Badge></div>
+          <div className="panel-body">
+            <TimelineList limit={8} items={(receipts.data ?? []).map(item => ({ id: item.receiptId, title: item.receiptId, meta: `${item.status} · ${item.executionRunId} · ${formatEconomicAmount(item.amount, item.unit)}`, detail: `${item.summary}; not invoice/payment receipt`, tone: item.status === "issued" || item.status === "settled" ? "good" : "warn" }))} />
+          </div>
+        </section>
+      </div>
+    </SectionDisclosure>
+    <SectionDisclosure title="Diagnostic — Product API warnings" summary="Economic warnings are operational findings, not budget or billing judgments." tier="Diagnostic">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Warnings</h2><p>Operational findings</p></div><Badge tone="muted">{data?.warnings.length ?? 0}</Badge></div>
+        <div className="panel-body">
             <TimelineList items={(data?.warnings ?? []).map((warning, index) => ({ id: `warning-${index}`, title: warning.severity, detail: warning.message, tone: warning.severity === "error" ? "warn" : undefined }))} />
-          </div>
-        </section>
-      </div>
-    </div>
+        </div>
+      </section>
+    </SectionDisclosure>
     <div className="flow-group">
-      <div className="flow-group-head"><h2>Quote & reservation</h2><p>Operational cost visibility before execution. Not a billing flow.</p></div>
-      <div className="dashboard-grid evidence-grid">
-        <section className="panel">
-          <div className="panel-head"><div><h2>Quotes</h2><p>Operational quotes</p></div><Badge tone="muted">{quotes.data?.length ?? 0}</Badge></div>
-          <div className="panel-body">
-            <TimelineList limit={8} items={(quotes.data ?? []).map(item => ({ id: item.quoteId, title: item.quoteId, meta: `${item.status} · ${item.agentId} · ${item.amount} ${item.unit}`, detail: item.eligibility.eligible ? "eligible" : `not eligible: ${item.eligibility.reasons.join("; ")}`, tone: item.eligibility.eligible ? "good" : "warn" }))} />
-          </div>
-        </section>
-        <section className="panel">
-          <div className="panel-head"><div><h2>Reservations</h2><p>Operational reservations</p></div><Badge tone="muted">{reservations.data?.length ?? 0}</Badge></div>
-          <div className="panel-body">
-            <TimelineList limit={8} items={(reservations.data ?? []).map(item => ({ id: item.reservationId, title: item.reservationId, meta: `${item.status} · ${item.agentId} · ${item.amount} ${item.unit}`, detail: item.failureReason ?? `quote ${item.quoteId}`, tone: item.status === "reserved" || item.status === "confirmed" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
-          </div>
-        </section>
-      </div>
-    </div>
-    <div className="flow-group">
-      <div className="flow-group-head"><h2>Metering, settlement & receipts</h2><p>Execution-level operational accounting. No invoices, payment rails or budgets.</p></div>
-      <div className="dashboard-grid evidence-grid">
-        <section className="panel">
-          <div className="panel-head"><div><h2>Metering</h2><p>Usage records per execution run</p></div><Badge tone="muted">{metering.data?.length ?? 0}</Badge></div>
-          <div className="panel-body">
-            <TimelineList limit={8} items={(metering.data ?? []).map(item => ({ id: item.meterId, title: item.meterId, meta: `${item.status} · ${item.executionRunId} · ${item.amount} ${item.unit}`, detail: item.target, tone: item.status === "settled" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
-          </div>
-        </section>
-        <section className="panel">
-          <div className="panel-head"><div><h2>Settlements</h2><p>Settlement records</p></div><Badge tone="muted">{settlements.data?.length ?? 0}</Badge></div>
-          <div className="panel-body">
-            <TimelineList limit={8} items={(settlements.data ?? []).map(item => ({ id: item.settlementId, title: item.settlementId, meta: `${item.status} · ${item.executionRunId} · ${item.amount} ${item.unit}`, detail: item.failureReason ?? "settled", tone: item.status === "settled" ? "good" : item.status === "failed" ? "warn" : "muted" }))} />
-          </div>
-        </section>
-        <section className="panel">
-          <div className="panel-head"><div><h2>Receipts</h2><p>Issued receipts</p></div><Badge tone="muted">{receipts.data?.length ?? 0}</Badge></div>
-          <div className="panel-body">
-            <TimelineList limit={8} items={(receipts.data ?? []).map(item => ({ id: item.receiptId, title: item.receiptId, meta: `${item.status} · ${item.executionRunId} · ${item.amount} ${item.unit}`, detail: item.summary, tone: item.status === "issued" || item.status === "settled" ? "good" : "warn" }))} />
-          </div>
-        </section>
-      </div>
-    </div>
-    <div className="flow-group">
-      <div className="flow-group-head"><h2>Boundary</h2><p>What Economics is not.</p></div>
-      <section className="panel blocked-panel"><div className="panel-head"><div><h2>Not billing</h2><p>Governed read-only economics</p></div><Badge tone="muted">no billing product</Badge></div><p className="panel-note">Billing, invoices, payment rails, tenant billing and budgets are out of scope. This surface reports operational metering and reservation visibility only.</p></section>
+      <div className="flow-group-head"><h2>Boundary evidence</h2><p>EPIC-13 reports are Economics children. They prove financial no-claims; they are not billing products.</p></div>
+      <section className="panel blocked-panel"><div className="panel-head"><div><h2>Not billing</h2><p>Governed read-only economics</p></div><Badge tone="muted">all billing claims not claimed</Badge></div><p className="panel-note">Billing, invoices, payment rails, tenant billing, balances, budgets, wallets, exchange rates and production financial operations are not implemented ACS claims. Open the boundary reports for evidence.</p><CrossLinks links={allBoundaryLinks} /></section>
     </div>
   </>;
 }
@@ -2984,7 +3021,7 @@ function PaymentRailsBoundaryView() {
     </div>
     {staleBanner({ stale, loadState, loadError }, "payment rails boundary")}
     <CrossLinks links={[
-      { to: "/system", label: "Governance & system" },
+      { to: "/economics", label: "Economics" },
       { to: "/system/billing-boundary", label: "Billing boundary" },
       { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
     ]} />
@@ -3193,7 +3230,7 @@ function PricingInvoiceBoundaryView() {
     </div>
     {staleBanner({ stale, loadState, loadError }, "pricing and invoice boundary")}
     <CrossLinks links={[
-      { to: "/system", label: "Governance & system" },
+      { to: "/economics", label: "Economics" },
       { to: "/system/billing-boundary", label: "Billing boundary" },
       { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
     ]} />
@@ -3399,7 +3436,7 @@ function BillingBoundaryView() {
     </div>
     {staleBanner({ stale, loadState, loadError }, "billing boundary")}
     <CrossLinks links={[
-      { to: "/system", label: "Governance & system" },
+      { to: "/economics", label: "Economics" },
       { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
       { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
       { to: "/system/tenant-billing-boundary", label: "Tenant billing boundary" },
@@ -3567,7 +3604,7 @@ function TenantBillingBoundaryView() {
     </div>
     {staleBanner({ stale, loadState, loadError }, "tenant billing boundary")}
     <CrossLinks links={[
-      { to: "/system", label: "Governance & system" },
+      { to: "/economics", label: "Economics" },
       { to: "/system/billing-boundary", label: "Billing boundary" },
       { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
       { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
@@ -3794,7 +3831,7 @@ function SettlementReconciliationBoundaryView() {
     </div>
     {staleBanner({ stale, loadState, loadError }, "settlement and reconciliation boundary")}
     <CrossLinks links={[
-      { to: "/system", label: "Governance & system" },
+      { to: "/economics", label: "Economics" },
       { to: "/system/billing-boundary", label: "Billing boundary" },
       { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
       { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
@@ -5007,10 +5044,6 @@ export default function App() {
     void checkProductApi();
   }, []);
 
-  const go = (v: View) => {
-    navigate(viewPaths[v]);
-    setMobile(false);
-  };
   const view = viewOfPath(location.pathname);
 
   const domain = domainByPath(location.pathname);

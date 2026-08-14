@@ -57,6 +57,13 @@ evidence repositories.
 reports. Operational summaries may show cost/reservation context but link to
 Economics for canonical detail.
 
+AEES-03 classifies Product API economics as operational values rather than
+billing truth. Quotes and `totalEstimated` are estimates; metering records are
+recorded operational usage; settlements and receipts are operational evidence,
+not legal financial settlement, invoices or payment receipts. The current
+economic contract exposes the `NEURONS` operational asset/unit but does not
+establish wallet, exchange, fiat, payment or marketplace semantics.
+
 ### Control layer
 
 **Governance** owns policies, guardrails, governed-action constraints,
@@ -132,6 +139,7 @@ Presentation must distinguish:
 - governed from approved or authorized;
 - deployed from running;
 - operational receipt from legal/financial receipt;
+- operational economics from billing truth;
 - evidence availability from production readiness.
 
 No visual transformation may promote an inferred state into an authoritative

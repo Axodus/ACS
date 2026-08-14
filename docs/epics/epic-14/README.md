@@ -16,6 +16,7 @@ Understand -> Structure -> Define Boundaries -> Specify Target IA -> Prepare Exe
 EPIC-14: IN PROGRESS
 AEES-01: PASS — normative UX audit and IA baseline
 AEES-02: PASS — shell, domain/context navigation and disclosure baseline
+AEES-03: PASS WITH FORMAL CAVEATS — operational economics and financial-boundary semantics
 Frontend implementation: navigation/disclosure baseline implemented
 Browser acceptance: NOT EXECUTED
 Production readiness: NO / not claimed
@@ -66,6 +67,8 @@ Planning assumptions and open questions never override a normative contract.
 8. `stories.md`
 9. `milestones/AEES-01.md`
 10. `milestones/AEES-02.md`
+11. `financial-boundaries.md`
+12. `milestones/AEES-03.md`
 
 ## Scope boundaries
 
@@ -100,6 +103,8 @@ of scope unless a later AEES explicitly includes it.
 | `stories.md` | executable outcomes derived from the audit |
 | `milestones/AEES-01.md` | AEES-01 inputs, workstreams, outputs and exit criteria |
 | `milestones/AEES-02.md` | implemented navigation/disclosure baseline and validation record |
+| `financial-boundaries.md` | authoritative economic inventory, semantic classes and claim boundary |
+| `milestones/AEES-03.md` | AEES-03 implementation, validation and handoff record |
 
 ## Validation expectations
 
