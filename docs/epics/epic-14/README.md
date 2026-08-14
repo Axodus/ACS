@@ -17,9 +17,9 @@ EPIC-14: IN PROGRESS
 AEES-01: PASS — normative UX audit and IA baseline
 AEES-02: PASS — shell, domain/context navigation and disclosure baseline
 AEES-03: PASS WITH FORMAL CAVEATS — operational economics and financial-boundary semantics
-AEES-04: ACTIVE — operator journey and state/claim language
-Frontend implementation: navigation/disclosure and operator-language baseline implemented
-Browser acceptance: NOT EXECUTED
+AEES-04: PASS — operator journey, state/claim language and final visual acceptance
+Frontend implementation: navigation/disclosure, operator-language and header consolidation implemented
+Browser acceptance: NOT EXECUTED — AEES-05 next
 Production readiness: NO / not claimed
 ```
 

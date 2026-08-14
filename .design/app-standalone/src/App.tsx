@@ -449,11 +449,12 @@ function SectionDisclosure({ title, summary, tier, defaultOpen = false, children
   </details>;
 }
 
-function DomainHeader({ domain, title, description, entityLabel, children }: {
+function DomainHeader({ domain, title, description, entityLabel, actions, children }: {
   domain: Domain;
   title: string;
   description: string;
   entityLabel?: string;
+  actions?: ReactNode;
   children?: ReactNode;
 }) {
   return <>
@@ -464,6 +465,7 @@ function DomainHeader({ domain, title, description, entityLabel, children }: {
         {entityLabel && <span>Entity: <strong>{entityLabel}</strong></span>}
         <span className="context-endpoint" title={productApiConfig.baseUrl}>API: {productApiConfig.baseUrl}</span>
       </div>
+      {actions && <div className="domain-header-actions">{actions}</div>}
     </header>
     {children}
   </>;
@@ -704,11 +706,7 @@ function Readiness() {
   const blockerTone = summary && summary.readiness.blockerCount > 0 ? "warn" : "good";
 
   return <>
-    <DomainHeader domain="System" title="Global Readiness & Health" description="System-owned readiness detail with explicit evidence and blockers." />
-    <header className="page-head compact dashboard-head">
-      <div><p className="eyebrow">OPERATIONAL AWARENESS</p><h1>Global Readiness & Health</h1><p>Read-only inspection of ACS readiness, blockers, evidence and Product API health.</p></div>
-      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Rechecking" : "Recheck"}</button>
-    </header>
+    <DomainHeader domain="System" title="Global Readiness & Health" description="Read-only inspection of ACS readiness, blockers, evidence and Product API health." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Rechecking" : "Recheck"}</button>} />
     <OperationalModeNotice guardrails={summary?.guardrails} />
     {stale && <div className="stale-banner" role="status">Showing a stale readiness snapshot. Recheck to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Rechecking readiness and health...</div>}
@@ -801,11 +799,7 @@ function Dashboard() {
   const readinessTone = summary && summary.readiness.blockerCount > 0 ? "warn" : "good";
 
   return <>
-    <DomainHeader domain="Overview" title="Operator Review" description="Review attention first, then inspect the affected domain and evidence." />
-    <header className="page-head compact dashboard-head">
-      <div><p className="eyebrow">OPERATOR REVIEW</p><h1>What needs attention</h1><p>Start with blockers and warnings, then inspect the affected domain. Every value is a Product API projection, not a locally inferred claim.</p></div>
-      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
-    </header>
+    <DomainHeader domain="Overview" title="What needs attention" description="Start with blockers and warnings, then inspect the affected domain. Every value is a Product API projection, not a locally inferred claim." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
     <div className="review-flow" aria-label="Operator review journey">
       <span>Review</span><span>Identify attention</span><span>Inspect context</span><span>Diagnose</span><span>Determine actionability</span>
     </div>
@@ -920,14 +914,12 @@ function AgentInventory() {
           : left.name.localeCompare(right.name));
 
   return <>
-    <DomainHeader domain="Agents" title="Agent Inventory" description="Search, review and manage governed agents." />
-    <header className="page-head compact">
-      <div><p className="eyebrow">AGENTS</p><h1>Inventory</h1><p>Lifecycle, readiness, deployment and runtime summaries for governed agents.</p></div>
-      <div className="head-actions">
+    <DomainHeader domain="Agents" title="Agent Inventory" description="Search, review and manage governed agents across lifecycle, readiness, deployment and runtime." actions={
+      <>
         <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
         <Link className="primary action-link" to="/agents/new">＋ Create agent</Link>
-      </div>
-    </header>
+      </>
+    } />
     <div className="guardrail-banner compact" role="note"><span>Sandbox · Inspection mode</span></div>
     {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agents...</div>}
@@ -1075,11 +1067,7 @@ function OperationalExecution() {
   };
 
   return <>
-    <DomainHeader domain="Operations" title="Governed execution surface" description="Operations summary with controlled density and governed execution context." entityLabel={readiness.data ? `Planning context: ${readiness.data.agentId ?? readiness.data.agentName}` : "Aggregate operations"} />
-    <header className="page-head compact dashboard-head">
-      <div><p className="eyebrow">OPERATIONAL EXECUTION</p><h1>Governed execution surface</h1><p>Read-only operational projections from the Product API. No raw secrets, no direct runtime access.</p></div>
-      <button className="secondary" onClick={refreshAll}>Refresh all</button>
-    </header>
+    <DomainHeader domain="Operations" title="Governed execution surface" description="Read-only operational projections from the Product API. No raw secrets or direct runtime access." entityLabel={readiness.data ? `Planning context: ${readiness.data.agentId ?? readiness.data.agentName}` : "Aggregate operations"} actions={<button className="secondary" onClick={refreshAll}>Refresh all</button>} />
     <OperationalModeNotice guardrails={credentials.data?.[0]?.guardrails ?? connections.data?.[0]?.guardrails} />
     {staleBanner(credentials, "credentials")}
     <SectionDisclosure title="Access & connections" summary="Secondary visibility for credentials and provider connectivity; never primary operational state." tier="Secondary" defaultOpen>
@@ -1726,11 +1714,7 @@ function CompositionOverview() {
   const checkedAt = summary ? new Date(summary.checkedAt).toLocaleTimeString() : "--";
 
   return <>
-    <DomainHeader domain="Capabilities" title="Composition" description="Canonical capability and composition overview from the Product API." />
-    <header className="page-head compact dashboard-head">
-      <div><p className="eyebrow">COMPOSITION SURFACE</p><h1>Composition</h1><p>Operational summary of the elements that form an Agent, sourced from the Product API.</p></div>
-      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
-    </header>
+    <DomainHeader domain="Capabilities" title="Composition" description="Operational summary of the elements that form an Agent, sourced from the Product API." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
     <OperationalModeNotice guardrails={summary?.guardrails} />
     {stale && <div className="stale-banner" role="status">Showing a stale composition snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing composition...</div>}
@@ -2733,11 +2717,7 @@ function Runtime() {
     () => false,
   );
   return <>
-    <DomainHeader domain="Operations" title="Runtime" description="Runtime and worker observations owned by Operations." entityLabel="Runtime inventory" />
-    <header className="page-head compact">
-      <div><p className="eyebrow">OPERATIONAL EXECUTION</p><h1>Runtime</h1><p>Runtime instance and worker state reported by the Product API. Direct process access is not available in this milestone.</p></div>
-      <button className="secondary" disabled={runtimes.loadState === "loading" || runtimes.loadState === "refreshing"} onClick={runtimes.refresh}>{runtimes.loadError ? "Retry" : runtimes.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
-    </header>
+    <DomainHeader domain="Operations" title="Runtime" description="Runtime instance and worker state reported by the Product API. Direct process access is not available in this milestone." entityLabel="Runtime inventory" actions={<button className="secondary" disabled={runtimes.loadState === "loading" || runtimes.loadState === "refreshing"} onClick={runtimes.refresh}>{runtimes.loadError ? "Retry" : runtimes.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Runtime state governed by Product API</span><span>Production ready = false</span></div>
     {staleBanner(runtimes, "runtime")}
     <div className="flow-group">
@@ -2777,8 +2757,7 @@ function Logs() {
     () => false,
   );
   return <>
-    <DomainHeader domain="Evidence" title="Events & Logs" description="Logs remain diagnostic evidence, not primary operational state." />
-    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Events & Logs</h1><p>System and agent event inventory from the Product API.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <DomainHeader domain="Evidence" title="Events & Logs" description="System and agent event inventory from the Product API. Logs remain diagnostic evidence, not primary operational state." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span><span>Not billing</span></div>
     {stale && <div className="stale-banner" role="status">Showing a stale evidence snapshot.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing evidence...</div>}
@@ -2805,8 +2784,7 @@ function EvidenceView() {
     () => false,
   );
   return <>
-    <DomainHeader domain="Evidence" title="Operational Evidence" description="Canonical investigation and evidence summary for the Control Plane." />
-    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Operational Evidence</h1><p>Evidence records and diagnostic findings reported by the Product API. Evidence truth is never recomputed in the UI.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <DomainHeader domain="Evidence" title="Operational Evidence" description="Evidence records and diagnostic findings reported by the Product API. Evidence truth is never recomputed in the UI." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span></div>
     {staleBanner({ stale, loadState, loadError }, "evidence")}
     <CrossLinks links={[{ to: "/logs", label: "Events & logs" }, { to: "/audit", label: "Audit trail" }, { to: "/economics", label: "Economics" }]} />
@@ -2841,8 +2819,7 @@ function AuditView() {
     () => false,
   );
   return <>
-    <DomainHeader domain="Evidence" title="Audit Trail" description="Actor-, entity- and time-correlated audit records owned by Evidence." />
-    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Audit trail</h1><p>Governed operations and audit evidence from the Product API. Audit truth is never recomputed in the UI.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <DomainHeader domain="Evidence" title="Audit Trail" description="Governed operations and audit evidence from the Product API. Audit truth is never recomputed in the UI." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Audit truth governed by Product API</span></div>
     {staleBanner({ stale, loadState, loadError }, "audit")}
     <CrossLinks links={[{ to: "/logs", label: "Events & logs" }, { to: "/operational-evidence", label: "Evidence" }, { to: "/economics", label: "Economics" }]} />
@@ -2897,8 +2874,7 @@ function EconomicsView() {
     { to: "/system/billing-acceptance", label: "Acceptance & claims" },
   ];
   return <>
-    <DomainHeader domain="Economics" title="Economics" description="Canonical operational economics and financial-boundary evidence domain." />
-    <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL ECONOMICS</p><h1>Economics</h1><p>Canonical financial-boundary surface for operational usage, estimated/reserved/metered/settled NEURONS values and EPIC-13 no-claim evidence. Usage, economics and billing are separate truths.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
+    <DomainHeader domain="Economics" title="Economics" description="Operational usage and financial-boundary evidence from the Product API. Usage, economics and billing are separate truths." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Operational truth ≠ economic truth ≠ billing truth</span><span>Missing values are unavailable, not zero</span></div>
     {staleBanner({ stale, loadState, loadError }, "economics")}
     <div className="flow-group">
@@ -4375,11 +4351,7 @@ function GovernanceView() {
   };
 
   return <>
-    <DomainHeader domain="Governance" title="Governance Boundary" description="Policies, guardrails and authority constraints without configuration drift." />
-    <header className="page-head compact">
-      <div><p className="eyebrow">GOVERNANCE & SYSTEM</p><h1>Control plane boundaries</h1><p>Read-only guardrails, policy and configuration visibility. Administration and tenant management remain future scope.</p></div>
-      <button className="secondary" onClick={refreshAll}>Refresh all</button>
-    </header>
+    <DomainHeader domain="Governance" title="Control Plane Boundaries" description="Read-only guardrails, policy and configuration visibility. Administration and tenant management remain future scope." actions={<button className="secondary" onClick={refreshAll}>Refresh all</button>} />
     <CrossLinks links={[{ to: "/system/operational-reliability", label: "Open operational reliability" }]} />
     {staleBanner(guardrails, "system guardrails")}
     {staleBanner(governanceBoundary, "governance boundary")}
@@ -4850,11 +4822,7 @@ function OperationalReliabilityView() {
     }));
 
   return <>
-    <DomainHeader domain="System" title="Operational Reliability" description="System-owned reliability and recovery semantics." />
-    <header className="page-head compact">
-      <div><p className="eyebrow">OPERATIONAL RELIABILITY</p><h1>Runtime confidence & recovery states</h1><p>Read-only projection of long-running operations, runtime/worker confidence and distributed operation caveats.</p></div>
-      <button className="secondary" onClick={reliability.refresh}>Refresh</button>
-    </header>
+    <DomainHeader domain="System" title="Runtime Confidence & Recovery" description="Read-only projection of long-running operations, runtime/worker confidence and distributed operation caveats." actions={<button className="secondary" onClick={reliability.refresh}>Refresh</button>} />
     {staleBanner(reliability, "operational reliability")}
     <div className="flow-group">
       <div className="flow-group-head"><h2>Reliability summary</h2><p>Evidence-bounded state reported by the Product API, never inferred by this surface.</p></div>
@@ -5010,7 +4978,6 @@ function OperationalReliabilityView() {
 function Settings() {
   return <>
     <DomainHeader domain="System" title="Settings" description="Workspace and configuration visibility. This is not a production administration console." />
-    <header className="page-head compact"><div><p className="eyebrow">WORKSPACE</p><h1>Settings</h1><p>Configure ACS, OpenClaw and local registries.</p></div></header>
     <section className="panel"><div className="panel-head"><div><h2>ACS Workspace</h2><p>Local paths used by the current control plane.</p></div></div><div className="form"><label>Workspace path<input className="mono" readOnly defaultValue="~/.openclaw" /></label></div></section>
   </>;
 }
