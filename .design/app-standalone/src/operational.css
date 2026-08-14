@@ -157,7 +157,7 @@
   padding: 18px;
 }
 
-.domain-header-copy { flex: 1 1 280px; min-width: 0; }
+.domain-header-copy { flex: 1 1; min-width: 0; }
 .domain-header h1 { font-size: 24px; margin: 0 0 7px; }
 .domain-header p { color: var(--secondary); font-size: 12px; line-height: 1.55; margin: 0; }
 
@@ -749,12 +749,14 @@
   background: color-mix(in srgb, var(--green) 12%, var(--raised));
   border-color: color-mix(in srgb, var(--green) 34%, var(--border));
   color: var(--green);
+  font-size: 10px;
 }
 
 .badge.warn {
   background: color-mix(in srgb, var(--amber) 12%, var(--raised));
   border-color: color-mix(in srgb, var(--amber) 34%, var(--border));
   color: var(--amber);
+  font-size: 10px;
 }
 
 .badge.muted {

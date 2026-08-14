@@ -458,7 +458,7 @@ button {
 .primary {
     background: var(--lime);
     border: 1px solid var(--lime);
-    color: #121510
+    color: #121510 !important;
 }
 
 .secondary,
