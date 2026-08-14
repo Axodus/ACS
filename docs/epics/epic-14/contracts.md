@@ -161,3 +161,68 @@ financial tables or imply tenant-wide scope.
 
 Review: route ownership, cross-links and contextual panels identify Economics as
 the canonical destination.
+
+## UX-IA-20 — Orthogonal state dimensions
+
+Lifecycle, operational health, readiness, governance, connectivity and
+availability MUST remain distinct presentation dimensions. A single generic
+status label MUST NOT replace authoritative source fields.
+
+Review: representative entity and system surfaces expose separate labels when
+more than one state dimension is relevant.
+
+## UX-IA-21 — Claim strength and unknown state
+
+Strong UI claims MUST map to an authoritative Product API/backend source.
+Unknown, unavailable, unsupported and not-claimed states MUST remain explicit
+and MUST NOT be rendered as healthy, ready or zero.
+
+Review: state-and-claim-language.md contains the claim mapping; copy scans do
+not find stronger unsupported claims.
+
+## UX-IA-22 — Attention, severity and actionability
+
+Finding severity MUST remain distinct from parent entity state and actionability.
+Critical/blocking findings remain visible from review surfaces; non-blocking
+warnings may be progressively disclosed. Actions MUST be limited to supported
+Product API contracts and visibly distinguish governed or unavailable actions.
+
+Review: Overview links attention to evidence/domain surfaces and does not imply
+that every warning has a remediation action.
+
+## UX-IA-23 — Badge and hierarchy discipline
+
+Badges MUST communicate concise categorical state only. Each entity header SHOULD
+have at most one primary state badge; secondary dimensions belong in summary
+rows or disclosed sections. Badge color MUST NOT be the sole state or severity
+signal.
+
+Review: state-and-claim-language.md rules are applied to migrated surfaces and
+critical warnings remain text-readable.
+
+## UX-IA-24 — Sidebar owns domain-to-surface navigation
+
+The global/sidebar navigation MUST own Domain → Surface hierarchy. Page-level
+horizontal domain submenus are not the canonical navigation pattern and domain
+navigation MUST NOT depend on horizontal scrolling.
+
+Review: active domains expand in the sidebar, active child surfaces are
+highlighted, and the content region contains no normal-domain horizontal menu.
+
+## UX-IA-25 — Entity tabs and cross-domain transitions
+
+Horizontal/context tabs are reserved for genuine contexts of the selected
+entity. A cross-domain destination MUST be presented as a related link or a
+supported contextual transition, not as a same-entity tab.
+
+Review: Agent tabs contain Overview, Composition and Manage only; Operations,
+Evidence and Economics are related canonical links.
+
+## UX-IA-26 — Creation route isolation
+
+`/agents/new` MUST be treated as a collection creation route, never as an
+Agent entity identifier. Creation surfaces MUST NOT render entity tabs,
+entity-only actions or entity diagnostics.
+
+Review: targeted regression test proves that `/agents/new` is excluded from
+EntityContextNav and route matching.

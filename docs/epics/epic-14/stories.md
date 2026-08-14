@@ -163,6 +163,49 @@ application. Broader table/detail density work remains AEES-04.
 - **Acceptance:** copy maps to supported contracts and no admin readiness is implied.
 - **Contracts:** UX-IA-05, 09, 14.
 
+### UX-04 — Establish operator review flow
+
+- **Problem:** Overview surfaces can read as compressed domain copies instead of
+  a review path.
+- **Operator outcome:** the operator starts with attention, opens the affected
+  domain, inspects entity context and follows evidence/action links.
+- **Scope:** Overview hierarchy, review-flow labels and canonical domain links.
+- **Dependencies:** AEES-01 IA, AEES-02 navigation and UX-IA-20–23.
+- **Affected surfaces:** `/`, `/readiness`, `/operational-execution`, `/agents`.
+- **Acceptance:** Overview leads with blockers/warnings and links to canonical
+  evidence/domain surfaces; it no longer hard-codes stronger connectivity or
+  readiness claims.
+- **Contracts:** UX-IA-01, 03, 05, 20–23.
+
+### UX-05 — Standardize state and claim language
+
+- **Problem:** lifecycle, readiness, connectivity, health and availability are
+  visually similar and can be mistaken as one generic status.
+- **Operator outcome:** each visible state label tells the operator which
+  system dimension it belongs to and how strong the evidence is.
+- **Scope:** normative vocabulary, shared status helpers, badge/severity rules
+  and selected high-traffic surface migrations.
+- **Dependencies:** Product API fields and state-and-claim-language.md.
+- **Affected surfaces:** Overview, readiness, agent detail, operations and
+  financial boundary summaries.
+- **Acceptance:** unknown/unavailable/not-claimed states remain explicit;
+  severity is not collapsed into state; badge tone is not the only signal.
+- **Contracts:** UX-IA-05, 06, 14, 20–23.
+
+### UX-06 — Preserve actionability boundaries
+
+- **Problem:** warnings, blocked findings and unsupported capabilities can look
+  like directly actionable failures.
+- **Operator outcome:** the UI distinguishes inspect, configure, governed,
+  unsupported and future actions without inventing remediation controls.
+- **Scope:** action language, blocked/unsupported panels and attention-to-domain
+  links.
+- **Dependencies:** Product API available action metadata.
+- **Affected surfaces:** Overview, Agents, Operations, Governance, Economics.
+- **Acceptance:** no new unsupported action is exposed; primary calls to action
+  are limited; governed/unavailable reasons remain visible.
+- **Contracts:** UX-IA-07, 14, 22, 23.
+
 ## AEES-05 — Browser Acceptance & Regression Hardening
 
 ### ACC-01 — Accept critical operator journeys

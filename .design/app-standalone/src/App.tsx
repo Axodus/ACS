@@ -115,6 +115,7 @@ type DomainChild = {
   readonly label: string;
   readonly to: string;
   readonly kind?: "canonical" | "compatibility" | "legacy";
+  readonly group?: string;
 };
 
 type DomainDef = {
@@ -164,7 +165,7 @@ const domainDefs: readonly DomainDef[] = [
   { id: "Operations", icon: "⟡", to: "/operational-execution", description: "Execution planning, runtime state and worker activity.", children: [{ label: "Summary", to: "/operational-execution" }, { label: "Runtime", to: "/runtime", kind: "compatibility" }] },
   { id: "Capabilities", icon: "◈", to: "/composition", description: "Composition resources, catalogs and governed capability context.", children: [{ label: "Overview", to: "/composition" }, { label: "Roles", to: "/roles" }, { label: "Profiles", to: "/profiles" }, { label: "Capabilities", to: "/capabilities" }, { label: "Skills", to: "/skills" }, { label: "Tools & plugins", to: "/plugins" }, { label: "Engines", to: "/engines" }] },
   { id: "Evidence", icon: "◍", to: "/operational-evidence", description: "Canonical technical proof, logs, audit and diagnostics.", children: [{ label: "Timeline", to: "/operational-evidence" }, { label: "Logs", to: "/logs" }, { label: "Audit", to: "/audit" }] },
-  { id: "Economics", icon: "$", to: "/economics", description: "Operational economics and financial-boundary evidence.", children: [{ label: "Operational economics", to: "/economics" }, { label: "Billing boundary", to: "/system/billing-boundary", kind: "compatibility" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility" }, { label: "Settlement & receipts", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility" }] },
+  { id: "Economics", icon: "$", to: "/economics", description: "Operational economics and financial-boundary evidence.", children: [{ label: "Operational economics", to: "/economics" }, { label: "Billing", to: "/system/billing-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Settlement & receipts", to: "/system/settlement-reconciliation", kind: "compatibility", group: "Financial boundaries" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility", group: "Financial boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Financial boundaries" }] },
   { id: "Governance", icon: "⚖", to: "/system", description: "Policies, guardrails and governed-action boundaries.", children: [{ label: "Overview", to: "/system" }] },
   { id: "System", icon: "⚙", to: "/readiness", description: "Readiness, reliability, configuration and administration boundary.", children: [{ label: "Readiness", to: "/readiness" }, { label: "Reliability", to: "/system/operational-reliability" }, { label: "Settings", to: "/settings" }] },
 ];
@@ -182,14 +183,6 @@ const domainByPath = (path: string): Domain => {
 
 function childActive(pathname: string, to: string) {
   return pathname === to || (to !== "/" && pathname.startsWith(to + "/"));
-}
-
-function routeOwnership(pathname: string): "canonical" | "compatibility" | "contextual" | "legacy" {
-  if (pathname === "/runtime") return "compatibility";
-  if (pathname.startsWith("/system/") && pathname !== "/system/operational-reliability") return "compatibility";
-  if (pathname === "/memory") return "legacy";
-  if (pathname.startsWith("/agents/") || pathname.startsWith("/roles/") || pathname.startsWith("/profiles/") || pathname.startsWith("/capabilities/") || pathname.startsWith("/skills/") || pathname.startsWith("/plugins/") || pathname.startsWith("/tools/") || pathname.startsWith("/engines/") || pathname.startsWith("/providers/")) return "contextual";
-  return "canonical";
 }
 
 const viewOfPath = (path: string): View | null => {
@@ -212,13 +205,28 @@ function apiErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "An unexpected API error occurred";
 }
 
+function statusTone(status: string): "good" | "warn" | "muted" {
+  const normalized = status.trim().toLowerCase();
+  if (/healthy|connected|installed|active|available|ready|validated|compatible|assigned|deployed|running|issued|settled/.test(normalized)) return "good";
+  if (/warning|updating|degraded|failed|unavailable|blocked|partial|pending|restricted|unvalidated|incompatible|credential|required|error|expired|cancelled|released/.test(normalized)) return "warn";
+  return "muted";
+}
+
 function Status({ status }: { status: string }) {
-  const tone = /running|healthy|connected|installed|active/i.test(status) ? "good" : /warning|updating/i.test(status) ? "warn" : "muted";
-  return <span className={`status ${tone}`}><i />{status}</span>;
+  return <span className={`status ${statusTone(status)}`}><i />{status}</span>;
 }
 
 function Badge({ tone, children }: { tone: "good" | "warn" | "muted"; children: ReactNode }) {
   return <span className={`badge ${tone}`}>{children}</span>;
+}
+
+function StateBadge({ label, dimension = "State" }: { label: string; dimension?: string }) {
+  return <span className="state-badge" aria-label={`${dimension}: ${label}`}><span className={`state-badge-dot ${statusTone(label)}`} aria-hidden="true" />{label}</span>;
+}
+
+function FindingSeverity({ severity }: { severity: "error" | "warning" | "info" | string }) {
+  const label = severity === "error" ? "error" : severity === "warning" ? "warning" : "info";
+  return <span className={`finding-severity finding-severity-${label}`}>{label}</span>;
 }
 
 function ReadinessBadge({ summary }: { summary: AgentListItem["readinessSummary"] }) {
@@ -338,7 +346,7 @@ function SummaryRow({ label, value, tone }: { label: string; value: string | num
 }
 
 function FindingRow({ finding }: { finding: DashboardFinding }) {
-  return <div className={`finding-row ${finding.severity}`}><span>{finding.severity}</span><p>{finding.message}</p></div>;
+  return <div className={`finding-row ${finding.severity}`}><FindingSeverity severity={finding.severity} /><p>{finding.message}</p></div>;
 }
 
 /* ---------------------------------------------------------------------------
@@ -405,7 +413,7 @@ function TimelineList({ items, limit }: { items: TimelineItem[]; limit?: number 
   return <div className="timeline">
     {visible.map(item => (
       <article className="timeline-row" key={item.id}>
-        <div className="timeline-row-top"><b>{item.title}</b>{item.tone ? <Badge tone={item.tone}>{item.tone}</Badge> : null}</div>
+        <div className="timeline-row-top"><b>{item.title}</b>{item.tone ? <StateBadge label={item.tone === "good" ? "normal" : item.tone === "warn" ? "attention" : "informational"} dimension="Presentation" /> : null}</div>
         {item.meta && <small>{item.meta}</small>}
         {item.detail && <p>{item.detail}</p>}
       </article>
@@ -448,32 +456,17 @@ function DomainHeader({ domain, title, description, entityLabel, children }: {
   entityLabel?: string;
   children?: ReactNode;
 }) {
-  const def = domainDefs.find(item => item.id === domain)!;
   return <>
     <header className="domain-header">
-      <div className="domain-header-copy"><p className="eyebrow">CONTROL PLANE / {domain.toUpperCase()}</p><h1>{title}</h1><p>{description}</p></div>
-      <div className="domain-context-cards">
-        <div className="domain-context-card"><span className="domain-context-label">Domain</span><strong>{def.id}</strong><small>{def.description}</small></div>
-        <div className="domain-context-card"><span className="domain-context-label">Workspace</span><strong>{productApiConfig.environment}</strong><small>{productApiConfig.baseUrl}</small></div>
-        <div className="domain-context-card"><span className="domain-context-label">Entity context</span><strong>{entityLabel ?? "None selected"}</strong><small>{entityLabel ? "Context preserved for drill-down" : "Domain-level orientation"}</small></div>
+      <div className="domain-header-copy"><p className="eyebrow">{domain.toUpperCase()}</p><h1>{title}</h1><p>{description}</p></div>
+      <div className="domain-context-inline" aria-label="Current context">
+        <span>Workspace: <strong>{productApiConfig.environment}</strong></span>
+        {entityLabel && <span>Entity: <strong>{entityLabel}</strong></span>}
+        <span className="context-endpoint" title={productApiConfig.baseUrl}>API: {productApiConfig.baseUrl}</span>
       </div>
     </header>
     {children}
   </>;
-}
-
-function DomainNav({ pathname }: { pathname: string }) {
-  const domain = domainByPath(pathname);
-  const def = domainDefs.find(item => item.id === domain)!;
-  return <div className="domain-nav" role="navigation" aria-label={domain + " navigation"}>
-    <div className="domain-nav-head"><strong>{domain}</strong><small>{def.description}</small></div>
-    <div className="domain-nav-links">
-      {def.children.map(child => <Link key={child.to} className={`domain-nav-link ${childActive(pathname, child.to) ? "active" : ""}`} to={child.to}>
-        <span>{child.label}</span>
-        {child.kind && <small>{child.kind}</small>}
-      </Link>)}
-    </div>
-  </div>;
 }
 
 function ContextTabs({ title, tabs }: {
@@ -492,17 +485,43 @@ function ContextTabs({ title, tabs }: {
   </div>;
 }
 
+function SidebarNavigation({ pathname, activeDomain, onNavigate }: {
+  pathname: string;
+  activeDomain: Domain;
+  onNavigate: () => void;
+}) {
+  return <nav className="sidebar-navigation" aria-label="Control Plane navigation">
+    {domainDefs.map(domain => {
+      const expanded = domain.id === activeDomain;
+      const groups = domain.children.reduce<Record<string, DomainChild[]>>((acc, child) => {
+        const group = child.group ?? "";
+        (acc[group] ??= []).push(child);
+        return acc;
+      }, {});
+      return <section className={`sidebar-domain ${expanded ? "expanded" : ""}`} key={domain.id}>
+        <Link className={`domain-link ${expanded ? "active" : ""}`} to={domain.to} onClick={onNavigate} aria-current={expanded ? "page" : undefined}>
+          <span>{domain.icon}</span>{domain.id}<i className="sidebar-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</i>
+        </Link>
+        {expanded && <div className="sidebar-children">
+          {Object.entries(groups).map(([group, children]) => <div className="sidebar-child-group" key={group || "root"}>
+            {group && <span className="sidebar-group-label">{group}</span>}
+            {children.map(child => <Link key={child.to} className={`sidebar-child-link ${childActive(pathname, child.to) ? "active" : ""}`} to={child.to} onClick={onNavigate} aria-current={childActive(pathname, child.to) ? "page" : undefined}>{child.label}</Link>)}
+          </div>)}
+        </div>}
+      </section>;
+    })}
+  </nav>;
+}
+
 function EntityContextNav({ pathname }: { pathname: string }) {
+  if (pathname === "/agents/new") return null;
   const agentMatch = pathname.match(/^\/agents\/([^/]+)(?:\/(composition|edit))?/);
   if (agentMatch) {
     const agentId = agentMatch[1];
     return <ContextTabs title={`Agent / ${agentId}`} tabs={[
       { label: "Overview", to: `/agents/${agentId}` },
       { label: "Composition", to: `/agents/${agentId}/composition` },
-      { label: "Edit", to: `/agents/${agentId}/edit` },
-      { label: "Operations", to: "/operational-execution" },
-      { label: "Evidence", to: "/operational-evidence" },
-      { label: "Economics", to: "/economics" },
+      { label: "Manage", to: `/agents/${agentId}/edit` },
     ]} />;
   }
   const resourceMatch = pathname.match(/^\/(roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)/);
@@ -635,14 +654,13 @@ function SourceMap({ entries }: { entries: AgentCompositionDetail["effectiveCapa
 }
 
 function ReadinessStatus({ status }: { status: string }) {
-  const tone = /ready|ok|connected/i.test(status) ? "good" : /partial|blocked|degraded|warning|unavailable|unverified/i.test(status) ? "warn" : "muted";
-  return <span className={`status ${tone}`}><i />{status}</span>;
+  return <Status status={status} />;
 }
 
 function ReadinessFindingRow({ finding }: { finding: ReadinessFinding }) {
   const severity = finding.severity === "error" ? "error" : finding.severity === "warning" ? "warning" : "info";
   return <div className={`finding-row ${severity}`}>
-    <span>{finding.severity}</span>
+    <FindingSeverity severity={severity} />
     <div className="finding-content">
       <b>{finding.component}</b>
       <p>{finding.reason}</p>
@@ -783,95 +801,72 @@ function Dashboard() {
   const readinessTone = summary && summary.readiness.blockerCount > 0 ? "warn" : "good";
 
   return <>
-    <DomainHeader domain="Overview" title="System Dashboard" description="Cross-domain attention and summary state from the Product API." />
+    <DomainHeader domain="Overview" title="Operator Review" description="Review attention first, then inspect the affected domain and evidence." />
     <header className="page-head compact dashboard-head">
-      <div><p className="eyebrow">OPERATIONAL AWARENESS</p><h1>System Dashboard</h1><p>Aggregated ACS state from the Product API. Read-only surface.</p></div>
+      <div><p className="eyebrow">OPERATOR REVIEW</p><h1>What needs attention</h1><p>Start with blockers and warnings, then inspect the affected domain. Every value is a Product API projection, not a locally inferred claim.</p></div>
       <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
     </header>
+    <div className="review-flow" aria-label="Operator review journey">
+      <span>Review</span><span>Identify attention</span><span>Inspect context</span><span>Diagnose</span><span>Determine actionability</span>
+    </div>
     <OperationalModeNotice guardrails={summary?.system.guardrails} />
     {stale && <div className="stale-banner" role="status">Showing a stale dashboard snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing dashboard and readiness...</div>}
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     <div className="dashboard-grid">
-      <DashboardCard title="System overview" meta="Product API boundary" state={readyState}>
+      <DashboardCard title="Attention" meta="Blockers and warnings requiring review" state={readyState}>
         <div className="summary-list">
-          <SummaryRow label="Service" value={summary?.system.service ?? "--"} />
-          <SummaryRow label="Status" value="Connected" tone="good" />
-          <SummaryRow label="Mode" value={summary?.system.mode ?? "--"} />
-          <SummaryRow label="Automation" value={summary?.system.automation ?? "--"} />
-          <SummaryRow label="Access" value="read-only" />
+          <SummaryRow label="Readiness" value={summary?.readiness.state ?? "unknown"} tone={readinessTone} />
+          <SummaryRow label="Blockers" value={summary?.readiness.blockerCount ?? "unavailable"} tone={readinessTone} />
+          <SummaryRow label="Warnings" value={summary?.readiness.warningCount ?? "unavailable"} />
+          <SummaryRow label="Critical findings" value={summary?.blockers.length ?? "unavailable"} tone={(summary?.blockers.length ?? 0) > 0 ? "warn" : "muted"} />
+        </div>
+        <CrossLinks links={[{ to: "/readiness", label: "Inspect readiness evidence" }, { to: "/operational-execution", label: "Inspect operations" }, { to: "/agents", label: "Inspect affected agents" }]} />
+      </DashboardCard>
+      <DashboardCard title="Critical blockers" meta="Operational errors requiring attention" state={cardState(summary?.blockers.length)} emptyMessage="No critical blockers reported">
+        <div className="finding-list">{summary?.blockers.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
+      </DashboardCard>
+      <DashboardCard title="Operational warnings" meta="Non-blocking operational signals" state={cardState(summary?.warnings.length)} emptyMessage="No operational warnings reported">
+        <div className="finding-list">{summary?.warnings.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
+      </DashboardCard>
+      <DashboardCard title="System context" meta="Product API boundary and freshness" state={readyState}>
+        <div className="summary-list">
+          <SummaryRow label="Service" value={summary?.system.service ?? "unavailable"} />
+          <SummaryRow label="Product API status" value={summary?.system.status ?? "unavailable"} />
+          <SummaryRow label="Mode" value={summary?.system.mode ?? "unavailable"} />
+          <SummaryRow label="Access" value="read-only inspection" />
           <SummaryRow label="Generated" value={generatedAt} />
           <SummaryRow label="Checked" value={checkedAt} />
+          <SummaryRow label="Snapshot" value={stale ? "stale" : "current snapshot"} tone={stale ? "warn" : "muted"} />
         </div>
       </DashboardCard>
-      <DashboardCard title="Readiness" meta="Milestone A operational state" state={readyState}>
+      <DashboardCard title="Readiness vs connectivity" meta="These dimensions remain separate" state={readyState}>
         <div className="summary-list">
-          <SummaryRow label="State" value={summary?.readiness.state ?? "--"} tone={readinessTone} />
-          <SummaryRow label="Blockers" value={summary?.readiness.blockerCount ?? 0} tone={readinessTone} />
-          <SummaryRow label="Warnings" value={summary?.readiness.warningCount ?? 0} />
-          <SummaryRow label="Evidence domains" value={summary?.readiness.evidenceCount ?? 0} />
-          <SummaryRow label="Runtime" value={summary?.runtime.connectivity ?? "--"} tone={connectivityTone} />
+          <SummaryRow label="Readiness" value={summary?.readiness.state ?? "unknown"} tone={readinessTone} />
+          <SummaryRow label="Runtime connectivity" value={summary?.runtime.connectivity ?? "unavailable"} tone={connectivityTone} />
+          <SummaryRow label="Evidence domains" value={summary?.readiness.evidenceCount ?? "unavailable"} />
         </div>
+        <p className="panel-note">Connected does not mean ready. Ready does not mean healthy. Each label is taken from its Product API field.</p>
         <Link className="surface-link" to="/readiness">Open global readiness →</Link>
       </DashboardCard>
-      <DashboardCard title="Snapshot consistency" meta="Refresh and stale-state contract" state={readyState}>
-        <div className="summary-list">
-          <SummaryRow label="State" value={stale ? "Stale" : "Fresh"} tone={stale ? "warn" : "good"} />
-          <SummaryRow label="Refresh window" value={`${summary?.system.refreshWindowMs ?? 0}ms`} />
-          <SummaryRow label="Snapshot age" value={`${summary?.system.stateAgeMs ?? 0}ms`} />
-          <SummaryRow label="Read-only" value="Guaranteed" tone="good" />
-        </div>
-      </DashboardCard>
-      <DashboardCard title="Agent summary" meta="Registered agent definitions" state={cardState(summary?.agents.total)} emptyMessage="No agents registered">
+      <DashboardCard title="Agent inventory" meta="Lifecycle counts, not health claims" state={cardState(summary?.agents.total)} emptyMessage="No agents registered">
         <div className="summary-list">
           <SummaryRow label="Total" value={summary?.agents.total ?? 0} />
-          <SummaryRow label="Active" value={summary?.agents.active ?? 0} tone="good" />
+          <SummaryRow label="Active lifecycle" value={summary?.agents.active ?? 0} />
           <SummaryRow label="Draft" value={summary?.agents.draft ?? 0} />
           <SummaryRow label="Disabled" value={summary?.agents.disabled ?? 0} />
           <SummaryRow label="Archived" value={summary?.agents.archived ?? 0} tone="muted" />
         </div>
+        <Link className="surface-link" to="/agents">Open Agents →</Link>
       </DashboardCard>
-      <DashboardCard title="Deployment summary" meta="Sandbox deployment records" state={cardState(summary?.deployments.total)} emptyMessage="No deployments recorded">
+      <DashboardCard title="Operations snapshot" meta="Deployment, runtime and execution counts" state={cardState((summary?.deployments.total ?? 0) + (summary?.runtimes.total ?? 0) + (summary?.executionRuns.total ?? 0))} emptyMessage="No operational records">
         <div className="summary-list">
-          <SummaryRow label="Total" value={summary?.deployments.total ?? 0} />
-          <SummaryRow label="Deployed" value={summary?.deployments.deployed ?? 0} tone="good" />
-          <SummaryRow label="Failed" value={summary?.deployments.failed ?? 0} />
-          <SummaryRow label="Rejected" value={summary?.deployments.rejected ?? 0} />
+          <SummaryRow label="Deployed" value={summary?.deployments.deployed ?? 0} />
+          <SummaryRow label="Runtimes running" value={summary?.runtimes.running ?? 0} />
+          <SummaryRow label="Execution runs running" value={summary?.executionRuns.running ?? 0} />
+          <SummaryRow label="Failed runs" value={summary?.executionRuns.failed ?? 0} tone={(summary?.executionRuns.failed ?? 0) > 0 ? "warn" : "muted"} />
         </div>
-      </DashboardCard>
-      <DashboardCard title="Runtime summary" meta="Runtime instance states" state={cardState(summary?.runtimes.total)} emptyMessage="No runtime instances">
-        <div className="summary-list">
-          <SummaryRow label="Total" value={summary?.runtimes.total ?? 0} />
-          <SummaryRow label="Running" value={summary?.runtimes.running ?? 0} tone="good" />
-          <SummaryRow label="Pending" value={summary?.runtimes.pending ?? 0} />
-          <SummaryRow label="Stopped" value={summary?.runtimes.stopped ?? 0} tone="muted" />
-          <SummaryRow label="Failed" value={summary?.runtimes.failed ?? 0} />
-        </div>
-      </DashboardCard>
-      <DashboardCard title="Worker summary" meta="Execution worker registry" state={cardState(summary?.workers.total)} emptyMessage="No workers registered">
-        <div className="summary-list">
-          <SummaryRow label="Total" value={summary?.workers.total ?? 0} />
-          <SummaryRow label="Available" value={summary?.workers.available ?? 0} tone="good" />
-          <SummaryRow label="Slots" value={summary?.workers.availableSlots ?? 0} />
-          <SummaryRow label="Assignments" value={summary?.workers.activeAssignments ?? 0} />
-          <SummaryRow label="Unavailable" value={summary?.workers.unavailable ?? 0} />
-        </div>
-      </DashboardCard>
-      <DashboardCard title="ExecutionRun summary" meta="Execution run records" state={cardState(summary?.executionRuns.total)} emptyMessage="No execution runs">
-        <div className="summary-list">
-          <SummaryRow label="Total" value={summary?.executionRuns.total ?? 0} />
-          <SummaryRow label="Running" value={summary?.executionRuns.running ?? 0} tone="good" />
-          <SummaryRow label="Completed" value={summary?.executionRuns.completed ?? 0} tone="good" />
-          <SummaryRow label="Pending" value={summary?.executionRuns.pending ?? 0} />
-          <SummaryRow label="Failed" value={summary?.executionRuns.failed ?? 0} />
-        </div>
-        {summary && summary.executionRuns.recent.length > 0 && <div className="recent-runs"><b>Recent runs</b>{summary.executionRuns.recent.slice(0, 3).map(run => <span key={run.runId}><i />{run.runId}<code>{run.status}</code></span>)}</div>}
-      </DashboardCard>
-      <DashboardCard title="Critical blockers" meta="Operational errors requiring attention" state={cardState(summary?.blockers.length)} emptyMessage="No critical blockers">
-        <div className="finding-list">{summary?.blockers.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
-      </DashboardCard>
-      <DashboardCard title="Operational warnings" meta="Non-blocking operational signals" state={cardState(summary?.warnings.length)} emptyMessage="No operational warnings">
-        <div className="finding-list">{summary?.warnings.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
+        <Link className="surface-link" to="/operational-execution">Open Operations →</Link>
       </DashboardCard>
     </div>
   </>;
@@ -925,15 +920,15 @@ function AgentInventory() {
           : left.name.localeCompare(right.name));
 
   return <>
-    <DomainHeader domain="Agents" title="Agents" description="Governed agent inventory with lifecycle and readiness context." />
+    <DomainHeader domain="Agents" title="Agent Inventory" description="Search, review and manage governed agents." />
     <header className="page-head compact">
-      <div><p className="eyebrow">AGENT LIFECYCLE</p><h1>Agents</h1><p>Operational inventory of agent definitions, revisions and lifecycle state from the Product API.</p></div>
+      <div><p className="eyebrow">AGENTS</p><h1>Inventory</h1><p>Lifecycle, readiness, deployment and runtime summaries for governed agents.</p></div>
       <div className="head-actions">
         <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
         <Link className="primary action-link" to="/agents/new">＋ Create agent</Link>
       </div>
     </header>
-    <div className="guardrail-banner" role="note"><span>Inspection / control-plane mode</span><span>Sandbox only</span><span>Governed by Product API</span></div>
+    <div className="guardrail-banner compact" role="note"><span>Sandbox · Inspection mode</span></div>
     {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agents...</div>}
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
@@ -1334,13 +1329,11 @@ function AgentDetail() {
   const composition = detail.composition;
 
   return <>
-    <DomainHeader domain="Agents" title={definition.name} description="Governed agent detail with lifecycle, composition and context tabs." entityLabel={`Agent: ${detail.agentId}`} />
+    <DomainHeader domain="Agents" title={definition.name} description="Agent lifecycle, readiness and related evidence." entityLabel={`Agent: ${detail.agentId}`} />
     <ContextTabs title={`Agent / ${definition.name}`} tabs={[
       { label: "Overview", to: `/agents/${detail.agentId}` },
       { label: "Composition", to: `/agents/${detail.agentId}/composition` },
-      { label: "Operations", to: `/agents/${detail.agentId}` },
-      { label: "Evidence", to: `/agents/${detail.agentId}` },
-      { label: "Economics", to: `/agents/${detail.agentId}` },
+      { label: "Manage", to: `/agents/${detail.agentId}/edit` },
     ]} />
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
@@ -1402,7 +1395,7 @@ function AgentDetail() {
               <div><b>Requested</b><span>role: {composition.requested.roleId ?? "—"}</span><span>profile: {composition.requested.profileId ?? "—"}</span><span>capabilities: {composition.requested.capabilityIds.length}</span><span>skills: {composition.requested.skillIds.length}</span><span>tools: {composition.requested.toolIds.length}</span></div>
               <div><b>Effective</b><span>role: {composition.effective.roleId ?? "—"}{composition.effective.roleRevision ? ` (r${composition.effective.roleRevision})` : ""}</span><span>profile: {composition.effective.profileId ?? "—"}{composition.effective.profileRevision ? ` (r${composition.effective.profileRevision})` : ""}</span><span>capabilities: {composition.effective.capabilityIds.length}</span><span>skills: {composition.effective.skillIds.length}</span><span>tools: {composition.effective.toolIds.length}</span></div>
             </div>
-            {composition.findings.length > 0 && <div className="finding-list">{composition.findings.map(finding => <div className={`finding-row ${finding.severity}`} key={`${finding.code}-${finding.message}`}><span>{finding.severity}</span><p>{finding.message}</p></div>)}</div>}
+            {composition.findings.length > 0 && <div className="finding-list">{composition.findings.map(finding => <div className={`finding-row ${finding.severity}`} key={`${finding.code}-${finding.message}`}><FindingSeverity severity={finding.severity} /><p>{finding.message}</p></div>)}</div>}
           </>
           : <div className="state-line empty">{detail.compositionUnavailableReason ?? "Composition unavailable."}</div>}
       </section>
@@ -1434,6 +1427,17 @@ function AgentDetail() {
         <div className="panel-head"><div><h2>Economic context</h2><p>Contextual only; canonical detail belongs to Economics</p></div><Badge tone="muted">{detail.economicSummary.state}</Badge></div>
         <div className="state-line empty">{detail.economicSummary.message} Missing economic data is unavailable, not zero.</div>
         <p className="panel-note"><Link className="surface-link" to="/economics">Open canonical Economics boundary →</Link></p>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Related activity</h2><p>Cross-domain references preserve canonical ownership</p></div></div>
+        <div className="panel-body">
+          <CrossLinks links={[
+            { to: "/operational-execution", label: "View executions" },
+            { to: "/operational-evidence", label: "View evidence" },
+            { to: "/economics", label: "View economic activity" },
+          ]} />
+          <p className="panel-note">These open canonical domains. Agent-specific filtering is not invented unless the Product API supplies it.</p>
+        </div>
       </section>
       <section className="panel">
         <div className="panel-head"><div><h2>Audit summary</h2><p>Lifecycle-related audit events</p></div><Badge tone="muted">{detail.auditSummary.total} events</Badge></div>
@@ -1554,6 +1558,11 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const prefilled = useRef(false);
+  const roles = useOperationalSummary<RoleSummary[]>(() => productApi.listRoles(), "Unable to load roles for Agent form", () => false);
+  const profiles = useOperationalSummary<ProfileSummary[]>(() => productApi.listProfiles(), "Unable to load profiles for Agent form", () => false);
+  const capabilities = useOperationalSummary<CapabilitySummary[]>(() => productApi.listCapabilities(), "Unable to load capabilities for Agent form", () => false);
+  const skills = useOperationalSummary<SkillSummary[]>(() => productApi.listSkills(), "Unable to load skills for Agent form", () => false);
+  const tools = useOperationalSummary<ToolSummary[]>(() => productApi.listTools(), "Unable to load tools for Agent form", () => false);
 
   useEffect(() => {
     if (mode === "create" || !agentId || prefilled.current) return;
@@ -1645,13 +1654,15 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
   const backTarget = agentId ? `/agents/${agentId}` : "/agents";
   const title = mode === "create" ? "Create Agent" : mode === "revision" ? "Create Revision" : "Edit Agent";
   const expectedRevision = detail?.currentRevision.revision ?? 1;
+  const toggleCsv = (current: string, value: string) => {
+    const values = parseList(current);
+    return values.includes(value) ? values.filter(item => item !== value).join(", ") : [...values, value].join(", ");
+  };
 
   return <>
+    <DomainHeader domain="Agents" title={title} description={mode === "create" ? "Create a governed agent from authoritative Product API catalogs." : "Update the governed agent definition."} />
     <Link className="back" to={backTarget}>← Back</Link>
-    <header className="page-head compact">
-      <div><p className="eyebrow">AGENT LIFECYCLE</p><h1>{title}</h1><p>{mode === "revision" ? "Create a new AgentRevision from the current definition." : "Identity and composition references, validated by the Product API on submit."}</p></div>
-    </header>
-    <div className="guardrail-banner" role="note"><span>Inspection / control-plane mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Mutations governed by Product API</span></div>
+    <div className="guardrail-banner compact" role="note"><span>Sandbox · Governed mutation</span></div>
     {mode === "revision" && <div className="info-banner">A new revision is created from this definition. The Product API validates references and governance; readiness is not recomputed in the UI.</div>}
     <section className="panel form-panel">
       <div className="panel-head"><div><h2>{mode === "create" ? "Definition" : "Definition update"}</h2><p>Client-side validation is minimal — the Product API performs the real validation</p></div></div>
@@ -1659,11 +1670,11 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
         <label>Agent ID{mode !== "create" && <small>Read-only — definition.agentId must match the agent</small>}<input className="mono" value={agentIdValue} readOnly={mode !== "create"} onChange={e => setAgentIdValue(e.target.value)} placeholder="e.g. mazikeen" /></label>
         <label>Name<input value={name} onChange={e => setName(e.target.value)} placeholder="Agent display name" /></label>
         <label>Status<select value={status} onChange={e => setStatus(e.target.value as GovernedAgentStatus)}><option value="draft">draft</option><option value="active">active</option><option value="disabled">disabled</option></select></label>
-        <label>Role ID<input className="mono" value={roleId} onChange={e => setRoleId(e.target.value)} placeholder="optional role reference" /></label>
-        <label>Profile ID<input className="mono" value={profileId} onChange={e => setProfileId(e.target.value)} placeholder="optional profile reference" /></label>
-        <label>Capability IDs<input className="mono" value={capabilityIds} onChange={e => setCapabilityIds(e.target.value)} placeholder="comma-separated ids" /></label>
-        <label>Skill IDs<input className="mono" value={skillIds} onChange={e => setSkillIds(e.target.value)} placeholder="comma-separated ids" /></label>
-        <label>Tool IDs<input className="mono" value={toolIds} onChange={e => setToolIds(e.target.value)} placeholder="comma-separated ids" /></label>
+        <label>Role<select value={roleId} onChange={e => setRoleId(e.target.value)}><option value="">No role selected</option>{roles.data?.map(role => <option value={role.roleId} key={role.roleId}>{role.name} — {role.roleId}</option>)}</select><small>{roles.loadError ?? "Options from the Product API role catalog."}</small></label>
+        <label>Profile<select value={profileId} onChange={e => setProfileId(e.target.value)}><option value="">No profile selected</option>{profiles.data?.map(profile => <option value={profile.profileId} key={profile.profileId}>{profile.name} — {profile.profileId}</option>)}</select><small>{profiles.loadError ?? "Options from the Product API profile catalog."}</small></label>
+        <fieldset className="catalog-selector"><legend>Capabilities</legend>{capabilities.data?.map(item => <label key={item.capabilityId}><input type="checkbox" checked={parseList(capabilityIds).includes(item.capabilityId)} onChange={() => setCapabilityIds(toggleCsv(capabilityIds, item.capabilityId))} /><span>{item.name}<small>{item.capabilityId}</small></span></label>)}{capabilities.loadError && <small>{capabilities.loadError}</small>}</fieldset>
+        <fieldset className="catalog-selector"><legend>Skills</legend>{skills.data?.map(item => <label key={item.skillId}><input type="checkbox" checked={parseList(skillIds).includes(item.skillId)} onChange={() => setSkillIds(toggleCsv(skillIds, item.skillId))} /><span>{item.name}<small>{item.skillId}</small></span></label>)}{skills.loadError && <small>{skills.loadError}</small>}</fieldset>
+        <fieldset className="catalog-selector"><legend>Tools</legend>{tools.data?.map(item => <label key={item.toolId}><input type="checkbox" checked={parseList(toolIds).includes(item.toolId)} onChange={() => setToolIds(toggleCsv(toolIds, item.toolId))} /><span>{item.name}<small>{item.toolId}</small></span></label>)}{tools.loadError && <small>{tools.loadError}</small>}</fieldset>
         <label>Credential connections<input className="mono" value={credentialConnectionIds} onChange={e => setCredentialConnectionIds(e.target.value)} placeholder="comma-separated ids" /></label>
         <label>Runner preferences<input className="mono" value={runnerPreferences} onChange={e => setRunnerPreferences(e.target.value)} placeholder="comma-separated ids" /></label>
         {mode !== "create" && <div className="form-note">Saving applies to revision <b className="mono">r{expectedRevision}</b> (expectedRevision guard).</div>}
@@ -5048,8 +5059,7 @@ export default function App() {
 
   const domain = domainByPath(location.pathname);
   const domainDef = domainDefs.find(item => item.id === domain)!;
-  const ownership = routeOwnership(location.pathname);
-  const entityMatch = location.pathname.match(/\/(agents|roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)/);
+  const entityMatch = location.pathname.match(/^\/(agents|roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)(?:\/|$)/);
   const entityLabel = location.pathname === "/agents/new"
     ? "Create agent"
     : location.pathname.includes("/edit")
@@ -5064,7 +5074,7 @@ export default function App() {
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
         <div className="brand"><img src="/assets/Axodus_logo.svg" alt="ACS" /><div><b>ACS</b><small>CONTROL PLANE</small></div><button className="mobile-close" type="button" aria-label="Close navigation" onClick={() => setMobile(false)}>×</button></div>
         <div className="workspace-switch" aria-live="polite"><span className="workspace-icon">⌘</span><div><b>{productApiConfig.environment} environment</b><small>Tenant context unavailable from Product API</small></div></div>
-        <nav aria-label="Control Plane domains">{domainDefs.map(item => <Link className={`domain-link ${domain === item.id ? "active" : ""}`} to={item.to} key={item.id} onClick={() => setMobile(false)} aria-current={domain === item.id ? "page" : undefined}><span>{item.icon}</span>{item.id}</Link>)}</nav>
+        <SidebarNavigation pathname={location.pathname} activeDomain={domain} onNavigate={() => setMobile(false)} />
         <div className="connection"><div><span className="openclaw-mark">A</span><div><b>Product API</b><small><i /> {connectivity.status === "ready" ? "Connected" : connectivity.status === "loading" ? "Checking" : "Unavailable"}</small></div></div><span className="mono">/api/v1</span></div>
       </aside>
       <main className="main">
@@ -5076,9 +5086,7 @@ export default function App() {
         {connectivity.status === "loading" && <div className="global-state loading-state" role="status">Connecting to Product API boundary...</div>}
         {connectivity.status === "error" && <div className="global-state error-state" role="alert"><span>Product API unavailable: {connectivity.error}</span><button className="secondary" onClick={() => void checkProductApi()}>Retry</button></div>}
         <div className="content">
-          <DomainNav pathname={location.pathname} />
           <EntityContextNav pathname={location.pathname} />
-          {ownership !== "canonical" && <div className="route-ownership" role="note">Route ownership: {ownership}. Canonical domain: {domain}.</div>}
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/operational-execution" element={<OperationalExecution />} />

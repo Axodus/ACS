@@ -56,6 +56,13 @@ financial-truth constraints.
 Frontend calculations cannot replace Product API authority. AEES-03 adds no
 economic mutation, billing endpoint or financial readiness claim.
 
+## 5. AEES-04 operator-experience boundary
+
+AEES-04 changes hierarchy, state terminology, badge discipline and guided
+review links. It does not redefine backend state, readiness, governance,
+economic authority or route ownership. Full responsive, visual, keyboard and
+browser certification remains AEES-05.
+
 ## 3. Contradictions discovered
 
 No contradiction was found in backend domain contracts. Two presentation-level

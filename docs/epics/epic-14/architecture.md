@@ -87,6 +87,11 @@ navigation. Domain children render in a local horizontal navigation bar. The
 existing `/runtime` and EPIC-13 `/system/*` financial routes remain addressable
 as compatibility routes and declare their canonical domain in the shell.
 
+AEES-04 HOTFIX-01 amended that presentation after Operator Visual Acceptance
+Round 1. Domain children now expand in the sidebar. Horizontal page-level
+domain menus are removed. Horizontal tabs remain only for genuine selected
+entity context. Cross-domain destinations are related links.
+
 The current Product API has no tenant-selection projection for the shell. The
 shell therefore renders the explicit boundary `Tenant context unavailable from
 Product API`; it does not infer a tenant or imply cross-tenant visibility.
@@ -144,3 +149,8 @@ Presentation must distinguish:
 
 No visual transformation may promote an inferred state into an authoritative
 claim.
+
+AEES-04 adds an operator review layer: Overview prioritizes attention and routes
+the operator toward domain context and evidence. Presentation follows
+`state-and-claim-language.md`; lifecycle, health, readiness, governance,
+connectivity and availability remain orthogonal dimensions.
