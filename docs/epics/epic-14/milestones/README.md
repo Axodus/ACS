@@ -2,14 +2,14 @@
 
 ## Consumption order
 
-1. `../README.md`
-2. `../EPIC-14_Strategic_Operational_Plan.md`
-3. `../architecture.md`
-4. `../contracts.md`
-5. `../boundary-review.md`
-6. `../ux-audit.md`
-7. `../information-architecture.md`
-8. `../stories.md`
+1. ../README.md
+2. ../EPIC-14_Strategic_Operational_Plan.md
+3. ../architecture.md
+4. ../contracts.md
+5. ../boundary-review.md
+6. ../ux-audit.md
+7. ../information-architecture.md
+8. ../stories.md
 9. active AEES document
 
 ## AEES sequence and status
@@ -21,10 +21,9 @@
 | AEES-03 | Financial Boundaries | PASS WITH FORMAL CAVEATS | economic authority and financial-boundary implementation |
 | AEES-04 | Operator Experience & Visual Language | PASS | operator review, state/claim language and header consolidation |
 | AEES-05 | Browser Acceptance & Regression Hardening | COMPLETE / PASS | browser matrix, responsive hardening and regression evidence complete |
-| AEES-06 | Closure & Certification | QUEUED | ready for closure verification |
+| AEES-06 | Closure & Certification | COMPLETE / PASS | closure report and final certification |
 
 ## Execution rule
 
 Implement one AEES at a time. Preserve Product API and prior-EPIC boundaries.
-An AEES does not pass because files changed; it passes only when its acceptance
-criteria and validation evidence are complete.
+An AEES does not pass because files changed; it passes only when its acceptance criteria and validation evidence are complete.

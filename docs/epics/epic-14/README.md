@@ -13,14 +13,16 @@ Understand -> Structure -> Define Boundaries -> Specify Target IA -> Prepare Exe
 ## Current status
 
 ```text
-EPIC-14: IN PROGRESS
+EPIC-14: COMPLETE
 AEES-01: PASS — normative UX audit and IA baseline
 AEES-02: PASS — shell, domain/context navigation and disclosure baseline
 AEES-03: PASS WITH FORMAL CAVEATS — operational economics and financial-boundary semantics
 AEES-04: PASS — operator journey, state/claim language and final visual acceptance
 AEES-05: PASS — browser acceptance and regression hardening
+AEES-06: PASS — closure and certification
 Frontend implementation: navigation/disclosure, operator-language, header consolidation and browser hardening implemented
 Browser acceptance: PASS — AEES-05 complete
+Closure report: `epic-14-closure-report.md`
 Production readiness: NO / not claimed
 ```
 
@@ -76,6 +78,8 @@ Planning assumptions and open questions never override a normative contract.
 15. `browser-acceptance.md`
 16. `regression-inventory.md`
 17. `milestones/AEES-05.md`
+18. `milestones/AEES-06.md`
+19. `epic-14-closure-report.md`
 
 ## Scope boundaries
 
@@ -129,3 +133,6 @@ accepted in a browser, regressions pass, unresolved decisions are non-blocking,
 and closure language preserves all readiness and financial caveats. AEES-01
 closes when implementation no longer needs to decide how the Control Plane is
 organized.
+
+The EPIC is now closed and the closure report is authoritative for the final
+certification state.
