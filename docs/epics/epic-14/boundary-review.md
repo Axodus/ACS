@@ -77,6 +77,24 @@ conflicts must be resolved by EPIC-14:
 - broad CSS or responsive implementation during AEES-01
 - changes to `./static`
 
+## 5.1 AEES-02 implementation deviations
+
+No IA deviation was made. Two planned compatibility choices are explicit:
+
+1. Current financial routes remain under `/system/*` because changing them is a
+   route migration decision, not a requirement for domain ownership. The shell
+   and domain navigation place them under Economics; AEES-03 may introduce new
+   canonical Economics URLs with tested redirects.
+2. `/runtime` remains a direct route but is an Operations compatibility child.
+   This preserves existing deep links while preventing Runtime from appearing as
+   a global domain.
+
+The Operations planning view no longer assumes the literal `dev-agent-sandbox`
+as the active operator context. It selects the first non-archived Product API
+agent only to request available read-only readiness/plan projections and labels
+that selection as planning context. A user-selectable operational context is
+future refinement, not a claim of session-level selection.
+
 ## 6. Decision register
 
 | ID | Decision | Status | Rationale / owner |

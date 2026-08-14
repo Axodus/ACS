@@ -73,6 +73,17 @@ parentage follow the target domains. For example, `/roles` may remain the deep
 route while appearing under Capabilities; `/runtime` appears under Operations;
 and `/system/billing-boundary` appears under Economics.
 
+### AEES-02 implementation status
+
+The standalone app now renders only the eight operator domains in global
+navigation. Domain children render in a local horizontal navigation bar. The
+existing `/runtime` and EPIC-13 `/system/*` financial routes remain addressable
+as compatibility routes and declare their canonical domain in the shell.
+
+The current Product API has no tenant-selection projection for the shell. The
+shell therefore renders the explicit boundary `Tenant context unavailable from
+Product API`; it does not infer a tenant or imply cross-tenant visibility.
+
 ## 5. Entity context pattern
 
 Canonical detail pattern:
@@ -104,6 +115,12 @@ Tabs must retain entity identity, tenant context and the originating domain.
 - **Expert/raw**: backend identifiers, payloads, paths and low-level metadata.
 
 AEES-02 implements disclosure mechanics; AEES-01 defines their ownership.
+
+AEES-02 implements reusable `SectionDisclosure` primitives for Secondary,
+Diagnostic, Administrative and Expert / Raw content. Operations uses these to
+keep access/connection information secondary and deployment/runtime/worker
+records diagnostic or expert-level. Later AEES apply the same primitive to more
+surfaces where appropriate.
 
 ## 7. State and claim architecture
 

@@ -238,3 +238,19 @@ AEES-02 may implement the hierarchy without reopening top-level taxonomy,
 canonical ownership, Governance/System split, Economics placement, readiness
 placement, tenant-context role or entity-detail pattern. Non-blocking URL and
 layout refinements remain within the contracts above.
+
+## 9. AEES-02 route ownership record
+
+| Route group | Canonical domain | AEES-02 status |
+|---|---|---|
+| `/` | Overview | canonical |
+| `/agents/**` | Agents | canonical collection/context routes |
+| `/operational-execution` | Operations | canonical |
+| `/runtime` | Operations | compatibility route |
+| `/composition`, `/roles/**`, `/profiles/**`, `/capabilities/**`, `/skills/**`, `/plugins/**`, `/tools/**`, `/engines/**`, `/providers/**` | Capabilities | canonical/context routes |
+| `/operational-evidence`, `/logs`, `/audit` | Evidence | canonical |
+| `/economics` | Economics | canonical |
+| EPIC-13 `/system/billing-*`, `/system/payment-*`, `/system/pricing-*`, `/system/tenant-billing-*`, `/system/settlement-*`, `/system/financial-audit` | Economics | compatibility routes |
+| `/system` | Governance | canonical |
+| `/readiness`, `/system/operational-reliability`, `/settings` | System | canonical/child routes |
+| `/memory` | Capabilities | legacy; no global destination |

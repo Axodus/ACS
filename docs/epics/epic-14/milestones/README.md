@@ -17,7 +17,7 @@
 | AEES | Name | Status | Primary output |
 |---|---|---|---|
 | AEES-01 | UX Audit & IA Redesign | PASS | normative current/target IA package |
-| AEES-02 | Navigation & Progressive Disclosure | PLANNED | shell/domain/context navigation implementation |
+| AEES-02 | Navigation & Progressive Disclosure | PASS WITH FORMAL CAVEATS | shell/domain/context navigation and disclosure baseline |
 | AEES-03 | Financial Boundaries | PLANNED | Economics consolidation |
 | AEES-04 | Operator Experience & Visual Language | PLANNED | state/action/hierarchy consistency |
 | AEES-05 | Browser Acceptance & Regression Hardening | PLANNED | browser evidence and regression gates |

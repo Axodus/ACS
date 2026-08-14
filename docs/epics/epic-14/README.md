@@ -13,9 +13,10 @@ Understand -> Structure -> Define Boundaries -> Specify Target IA -> Prepare Exe
 ## Current status
 
 ```text
-EPIC-14: PLANNED
+EPIC-14: IN PROGRESS
 AEES-01: PASS — normative UX audit and IA baseline
-Frontend implementation: NOT STARTED
+AEES-02: PASS — shell, domain/context navigation and disclosure baseline
+Frontend implementation: navigation/disclosure baseline implemented
 Browser acceptance: NOT EXECUTED
 Production readiness: NO / not claimed
 ```
@@ -64,6 +65,7 @@ Planning assumptions and open questions never override a normative contract.
 7. `information-architecture.md`
 8. `stories.md`
 9. `milestones/AEES-01.md`
+10. `milestones/AEES-02.md`
 
 ## Scope boundaries
 
@@ -97,6 +99,7 @@ of scope unless a later AEES explicitly includes it.
 | `boundary-review.md` | previous-EPIC alignment, deferrals and open boundaries |
 | `stories.md` | executable outcomes derived from the audit |
 | `milestones/AEES-01.md` | AEES-01 inputs, workstreams, outputs and exit criteria |
+| `milestones/AEES-02.md` | implemented navigation/disclosure baseline and validation record |
 
 ## Validation expectations
 

@@ -104,6 +104,10 @@ tenant identifiers.
 
 Review: route regression covers the current inventory.
 
+**AEES-02 evidence:** `/runtime` and the seven EPIC-13 financial routes remain
+directly addressable; the shell marks them as compatibility routes and places
+them under Operations or Economics domain navigation.
+
 ## UX-IA-14 — Readiness claim discipline
 
 EPIC-14 MUST NOT claim Production, Administration, Tenant Governance, Billing,
@@ -111,3 +115,11 @@ Payment, Invoice, Compliance or Browser Acceptance readiness without explicit
 evidence and closure approval.
 
 Review: automated copy scan plus closure review.
+
+## UX-IA-15 — Navigation accessibility baseline
+
+Global and domain navigation MUST use links for route transitions, expose
+`aria-current` for the active global domain, label icon-only shell controls and
+keep disclosure controls semantic through native `details`/`summary`.
+
+Review: typecheck/lint and later browser keyboard acceptance.

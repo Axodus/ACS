@@ -10,6 +10,159 @@
   gap: 12px;
 }
 
+.domain-link {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted);
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.domain-link:hover,
+.domain-link:focus-visible,
+.domain-link.active {
+  background: var(--hover);
+  color: var(--text);
+  outline: none;
+}
+
+.domain-link.active span { color: var(--lime); }
+
+.domain-nav,
+.context-tabs-wrap,
+.route-ownership,
+.domain-header,
+.disclosure {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+
+.domain-nav {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  overflow: hidden;
+}
+
+.domain-nav-head,
+.context-tabs-head {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.domain-nav-head small,
+.context-tabs-head small,
+.domain-context-card small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.domain-nav-links,
+.context-tabs {
+  align-items: stretch;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px;
+}
+
+.domain-nav-link,
+.context-tab {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--secondary);
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 3px;
+  min-width: max-content;
+  padding: 8px 10px;
+  text-decoration: none;
+}
+
+.domain-nav-link:hover,
+.domain-nav-link:focus-visible,
+.domain-nav-link.active,
+.context-tab:hover,
+.context-tab:focus-visible,
+.context-tab.active {
+  background: var(--hover);
+  border-color: var(--border2);
+  color: var(--text);
+  outline: none;
+}
+
+.domain-nav-link.active,
+.context-tab.active { border-color: color-mix(in srgb, var(--lime) 45%, var(--border)); }
+.domain-nav-link small,
+.context-tab small { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+.context-tab.unavailable { opacity: .62; }
+
+.domain-header {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
+  padding: 18px;
+}
+
+.domain-header h1 { font-size: 24px; margin: 0 0 7px; }
+.domain-header p { color: var(--secondary); font-size: 12px; line-height: 1.55; margin: 0; }
+
+.domain-context-cards {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.domain-context-card {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.domain-context-label {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.context-tabs-wrap { display: grid; grid-template-columns: 180px 1fr; overflow: hidden; }
+.route-ownership { color: var(--secondary); font-size: 12px; padding: 10px 12px; }
+
+.disclosure { overflow: hidden; }
+.disclosure summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+  padding: 13px 15px;
+}
+
+.disclosure summary::-webkit-details-marker { display: none; }
+.disclosure summary div { display: flex; flex-direction: column; gap: 4px; }
+.disclosure summary small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.disclosure-tier { border: 1px solid var(--border2); border-radius: 999px; color: var(--muted); font-size: 10px; letter-spacing: .08em; padding: 4px 8px; text-transform: uppercase; }
+.disclosure-body { border-top: 1px solid var(--border); padding: 14px; }
+
+@media(max-width:980px){.domain-header{grid-template-columns:1fr}.domain-context-cards{grid-template-columns:1fr 1fr}.domain-nav,.context-tabs-wrap{grid-template-columns:1fr}.domain-nav-head,.context-tabs-head{border-right:0;border-bottom:1px solid var(--border)}}
+@media(max-width:720px){.domain-context-cards{grid-template-columns:1fr}.domain-nav-links,.context-tabs{padding-bottom:10px}.domain-header{padding:14px}}
+
 .loading-state { color: var(--secondary); }
 .error-state {
   border-color: color-mix(in srgb, var(--amber) 45%, var(--border));

@@ -109,55 +109,26 @@ type View =
   | "Governance & System"
   | "Settings";
 
+type Domain = "Overview" | "Agents" | "Operations" | "Capabilities" | "Evidence" | "Economics" | "Governance" | "System";
+
+type DomainChild = {
+  readonly label: string;
+  readonly to: string;
+  readonly kind?: "canonical" | "compatibility" | "legacy";
+};
+
+type DomainDef = {
+  readonly id: Domain;
+  readonly icon: string;
+  readonly to: string;
+  readonly description: string;
+  readonly children: readonly DomainChild[];
+};
+
 type ConnectivityState =
   | { status: "loading"; health: null; error: null }
   | { status: "ready"; health: ProductApiHealth; error: null }
   | { status: "error"; health: null; error: string };
-
-const navGroups: View[][] = [
-  ["Dashboard", "Readiness"],
-  ["Agents"],
-  ["Composition", "Roles", "Profiles", "Capabilities", "Skills", "Tools & Plugins"],
-  ["Operational Execution", "Runtime"],
-  ["Operational Evidence", "Audit", "Logs"],
-  ["Economics"],
-  ["Billing Boundary & Financial Truth"],
-  ["Pricing & Invoice Boundary"],
-  ["Payment Rails Boundary"],
-  ["Tenant Billing & Account Responsibility"],
-  ["Receipts, Settlement & Reconciliation"],
-  ["Financial Audit & Compliance"],
-  ["Billing UX & Operator Acceptance"],
-  ["Governance & System", "Settings"],
-];
-
-const icons: Record<View, string> = {
-  Dashboard: "⌂",
-  "Operational Execution": "⟡",
-  Readiness: "✓",
-  Composition: "◈",
-  Agents: "◫",
-  Roles: "◇",
-  Profiles: "▤",
-  Capabilities: "✛",
-  Skills: "✦",
-  "Tools & Plugins": "⌘",
-  Memory: "◎",
-  Runtime: "◉",
-  Logs: "≡",
-  "Operational Evidence": "◍",
-  Audit: "◌",
-  Economics: "$",
-  "Billing Boundary & Financial Truth": "¤",
-  "Pricing & Invoice Boundary": "¤",
-  "Payment Rails Boundary": "¤",
-  "Tenant Billing & Account Responsibility": "⊙",
-  "Receipts, Settlement & Reconciliation": "◎",
-  "Financial Audit & Compliance": "⚖",
-  "Billing UX & Operator Acceptance": "✓",
-  "Governance & System": "⚖",
-  Settings: "⚙",
-};
 
 const viewPaths: Record<View, string> = {
   Dashboard: "/",
@@ -186,6 +157,40 @@ const viewPaths: Record<View, string> = {
   "Governance & System": "/system",
   Settings: "/settings",
 };
+
+const domainDefs: readonly DomainDef[] = [
+  { id: "Overview", icon: "⌂", to: "/", description: "Cross-domain attention and next safe steps.", children: [{ label: "Attention", to: "/" }] },
+  { id: "Agents", icon: "◫", to: "/agents", description: "Governed agent identity, lifecycle and agent context.", children: [{ label: "Inventory", to: "/agents" }, { label: "Create", to: "/agents/new" }] },
+  { id: "Operations", icon: "⟡", to: "/operational-execution", description: "Execution planning, runtime state and worker activity.", children: [{ label: "Summary", to: "/operational-execution" }, { label: "Runtime", to: "/runtime", kind: "compatibility" }] },
+  { id: "Capabilities", icon: "◈", to: "/composition", description: "Composition resources, catalogs and governed capability context.", children: [{ label: "Overview", to: "/composition" }, { label: "Roles", to: "/roles" }, { label: "Profiles", to: "/profiles" }, { label: "Capabilities", to: "/capabilities" }, { label: "Skills", to: "/skills" }, { label: "Tools & plugins", to: "/plugins" }, { label: "Engines", to: "/engines" }] },
+  { id: "Evidence", icon: "◍", to: "/operational-evidence", description: "Canonical technical proof, logs, audit and diagnostics.", children: [{ label: "Timeline", to: "/operational-evidence" }, { label: "Logs", to: "/logs" }, { label: "Audit", to: "/audit" }] },
+  { id: "Economics", icon: "$", to: "/economics", description: "Operational economics and financial-boundary evidence.", children: [{ label: "Operational economics", to: "/economics" }, { label: "Billing boundary", to: "/system/billing-boundary", kind: "compatibility" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility" }, { label: "Settlement & receipts", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility" }] },
+  { id: "Governance", icon: "⚖", to: "/system", description: "Policies, guardrails and governed-action boundaries.", children: [{ label: "Overview", to: "/system" }] },
+  { id: "System", icon: "⚙", to: "/readiness", description: "Readiness, reliability, configuration and administration boundary.", children: [{ label: "Readiness", to: "/readiness" }, { label: "Reliability", to: "/system/operational-reliability" }, { label: "Settings", to: "/settings" }] },
+];
+
+const domainByPath = (path: string): Domain => {
+  if (path === "/") return "Overview";
+  if (path.startsWith("/agents")) return "Agents";
+  if (path.startsWith("/operational-execution") || path.startsWith("/runtime")) return "Operations";
+  if (path.startsWith("/composition") || path.startsWith("/roles") || path.startsWith("/profiles") || path.startsWith("/capabilities") || path.startsWith("/skills") || path.startsWith("/plugins") || path.startsWith("/tools") || path.startsWith("/engines") || path.startsWith("/providers") || path.startsWith("/memory")) return "Capabilities";
+  if (path.startsWith("/operational-evidence") || path.startsWith("/logs") || path.startsWith("/audit")) return "Evidence";
+  if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Economics";
+  if (path === "/system") return "Governance";
+  return "System";
+};
+
+function childActive(pathname: string, to: string) {
+  return pathname === to || (to !== "/" && pathname.startsWith(to + "/"));
+}
+
+function routeOwnership(pathname: string): "canonical" | "compatibility" | "contextual" | "legacy" {
+  if (pathname === "/runtime") return "compatibility";
+  if (pathname.startsWith("/system/") && pathname !== "/system/operational-reliability") return "compatibility";
+  if (pathname === "/memory") return "legacy";
+  if (pathname.startsWith("/agents/") || pathname.startsWith("/roles/") || pathname.startsWith("/profiles/") || pathname.startsWith("/capabilities/") || pathname.startsWith("/skills/") || pathname.startsWith("/plugins/") || pathname.startsWith("/tools/") || pathname.startsWith("/engines/") || pathname.startsWith("/providers/")) return "contextual";
+  return "canonical";
+}
 
 const viewOfPath = (path: string): View | null => {
   const exact = (Object.entries(viewPaths) as [View, string][]).find(([, p]) => p === path)?.[0];
@@ -422,6 +427,96 @@ function CrossLinks({ links }: { links: { to: string; label: string }[] }) {
   </div>;
 }
 
+function SectionDisclosure({ title, summary, tier, defaultOpen = false, children }: {
+  title: string;
+  summary: string;
+  tier: "Secondary" | "Diagnostic" | "Administrative" | "Expert / Raw";
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const tierClass = tier.toLowerCase().replace(/[^a-z]+/g, "-");
+  return <details className={`disclosure disclosure-${tierClass}`} open={defaultOpen}>
+    <summary><div><strong>{title}</strong><small>{summary}</small></div><span className="disclosure-tier">{tier}</span></summary>
+    <div className="disclosure-body">{children}</div>
+  </details>;
+}
+
+function DomainHeader({ domain, title, description, entityLabel, children }: {
+  domain: Domain;
+  title: string;
+  description: string;
+  entityLabel?: string;
+  children?: ReactNode;
+}) {
+  const def = domainDefs.find(item => item.id === domain)!;
+  return <>
+    <header className="domain-header">
+      <div className="domain-header-copy"><p className="eyebrow">CONTROL PLANE / {domain.toUpperCase()}</p><h1>{title}</h1><p>{description}</p></div>
+      <div className="domain-context-cards">
+        <div className="domain-context-card"><span className="domain-context-label">Domain</span><strong>{def.id}</strong><small>{def.description}</small></div>
+        <div className="domain-context-card"><span className="domain-context-label">Workspace</span><strong>{productApiConfig.environment}</strong><small>{productApiConfig.baseUrl}</small></div>
+        <div className="domain-context-card"><span className="domain-context-label">Entity context</span><strong>{entityLabel ?? "None selected"}</strong><small>{entityLabel ? "Context preserved for drill-down" : "Domain-level orientation"}</small></div>
+      </div>
+    </header>
+    {children}
+  </>;
+}
+
+function DomainNav({ pathname }: { pathname: string }) {
+  const domain = domainByPath(pathname);
+  const def = domainDefs.find(item => item.id === domain)!;
+  return <div className="domain-nav" role="navigation" aria-label={domain + " navigation"}>
+    <div className="domain-nav-head"><strong>{domain}</strong><small>{def.description}</small></div>
+    <div className="domain-nav-links">
+      {def.children.map(child => <Link key={child.to} className={`domain-nav-link ${childActive(pathname, child.to) ? "active" : ""}`} to={child.to}>
+        <span>{child.label}</span>
+        {child.kind && <small>{child.kind}</small>}
+      </Link>)}
+    </div>
+  </div>;
+}
+
+function ContextTabs({ title, tabs }: {
+  title: string;
+  tabs: readonly { label: string; to: string; available?: boolean; note?: string }[];
+}) {
+  const location = useLocation();
+  const active = tabs.find(tab => childActive(location.pathname, tab.to))?.to;
+  return <div className="context-tabs-wrap">
+    <div className="context-tabs-head"><strong>{title}</strong><small>Entity context</small></div>
+    <nav className="context-tabs" aria-label={title}>
+      {tabs.map(tab => tab.available === false
+        ? <span key={tab.to} className="context-tab unavailable" aria-disabled="true">{tab.label}<small>{tab.note ?? "Unavailable"}</small></span>
+        : <Link key={tab.to} className={`context-tab ${active === tab.to ? "active" : ""}`} to={tab.to}>{tab.label}</Link>)}
+    </nav>
+  </div>;
+}
+
+function EntityContextNav({ pathname }: { pathname: string }) {
+  const agentMatch = pathname.match(/^\/agents\/([^/]+)(?:\/(composition|edit))?/);
+  if (agentMatch) {
+    const agentId = agentMatch[1];
+    return <ContextTabs title={`Agent / ${agentId}`} tabs={[
+      { label: "Overview", to: `/agents/${agentId}` },
+      { label: "Composition", to: `/agents/${agentId}/composition` },
+      { label: "Edit", to: `/agents/${agentId}/edit` },
+      { label: "Operations", to: "/operational-execution" },
+      { label: "Evidence", to: "/operational-evidence" },
+      { label: "Economics", to: "/economics" },
+    ]} />;
+  }
+  const resourceMatch = pathname.match(/^\/(roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)/);
+  if (resourceMatch) {
+    const parentByResource: Record<string, string> = { roles: "/roles", profiles: "/profiles", capabilities: "/capabilities", skills: "/skills", plugins: "/plugins", tools: "/plugins", engines: "/engines", providers: "/engines" };
+    return <ContextTabs title={`${resourceMatch[1]} / ${resourceMatch[2]}`} tabs={[
+      { label: "Detail", to: pathname },
+      { label: "Catalog", to: parentByResource[resourceMatch[1]] },
+      { label: "Agent usage", to: "/agents" },
+    ]} />;
+  }
+  return null;
+}
+
 /* ---------------------------------------------------------------------------
  * Milestone C — Composition surface helpers
  * ------------------------------------------------------------------------- */
@@ -591,6 +686,7 @@ function Readiness() {
   const blockerTone = summary && summary.readiness.blockerCount > 0 ? "warn" : "good";
 
   return <>
+    <DomainHeader domain="System" title="Global Readiness & Health" description="System-owned readiness detail with explicit evidence and blockers." />
     <header className="page-head compact dashboard-head">
       <div><p className="eyebrow">OPERATIONAL AWARENESS</p><h1>Global Readiness & Health</h1><p>Read-only inspection of ACS readiness, blockers, evidence and Product API health.</p></div>
       <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Rechecking" : "Recheck"}</button>
@@ -687,6 +783,7 @@ function Dashboard() {
   const readinessTone = summary && summary.readiness.blockerCount > 0 ? "warn" : "good";
 
   return <>
+    <DomainHeader domain="Overview" title="System Dashboard" description="Cross-domain attention and summary state from the Product API." />
     <header className="page-head compact dashboard-head">
       <div><p className="eyebrow">OPERATIONAL AWARENESS</p><h1>System Dashboard</h1><p>Aggregated ACS state from the Product API. Read-only surface.</p></div>
       <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
@@ -828,6 +925,7 @@ function AgentInventory() {
           : left.name.localeCompare(right.name));
 
   return <>
+    <DomainHeader domain="Agents" title="Agents" description="Governed agent inventory with lifecycle and readiness context." />
     <header className="page-head compact">
       <div><p className="eyebrow">AGENT LIFECYCLE</p><h1>Agents</h1><p>Operational inventory of agent definitions, revisions and lifecycle state from the Product API.</p></div>
       <div className="head-actions">
@@ -930,12 +1028,22 @@ function OperationalExecution() {
     () => false,
   );
   const readiness = useOperationalSummary<AgentReadinessDetail>(
-    () => productApi.getAgentReadiness("dev-agent-sandbox"),
+    async () => {
+      const agents = await productApi.listAgents();
+      const agent = agents.find(item => !item.archived) ?? agents[0];
+      if (!agent) throw new Error("No agent available for readiness planning context");
+      return productApi.getAgentReadiness(agent.agentId);
+    },
     "Unable to load operational readiness",
     data => data.stale,
   );
   const plans = useOperationalSummary<[DeploymentPlan | null, ExecutionPlan | null]>(
-    async () => [await productApi.getAgentDeploymentPlan("dev-agent-sandbox"), await productApi.getAgentExecutionPlan("dev-agent-sandbox")],
+    async () => {
+      const agents = await productApi.listAgents();
+      const agent = agents.find(item => !item.archived) ?? agents[0];
+      if (!agent) return [null, null];
+      return [await productApi.getAgentDeploymentPlan(agent.agentId), await productApi.getAgentExecutionPlan(agent.agentId)];
+    },
     "Unable to load deployment planning",
     () => false,
   );
@@ -972,12 +1080,14 @@ function OperationalExecution() {
   };
 
   return <>
+    <DomainHeader domain="Operations" title="Governed execution surface" description="Operations summary with controlled density and governed execution context." entityLabel={readiness.data ? `Planning context: ${readiness.data.agentId ?? readiness.data.agentName}` : "Aggregate operations"} />
     <header className="page-head compact dashboard-head">
       <div><p className="eyebrow">OPERATIONAL EXECUTION</p><h1>Governed execution surface</h1><p>Read-only operational projections from the Product API. No raw secrets, no direct runtime access.</p></div>
       <button className="secondary" onClick={refreshAll}>Refresh all</button>
     </header>
     <OperationalModeNotice guardrails={credentials.data?.[0]?.guardrails ?? connections.data?.[0]?.guardrails} />
     {staleBanner(credentials, "credentials")}
+    <SectionDisclosure title="Access & connections" summary="Secondary visibility for credentials and provider connectivity; never primary operational state." tier="Secondary" defaultOpen>
     <div className="flow-group">
       <div className="flow-group-head"><h2>Access & connections</h2><p>Credentials and provider connections — redacted references only, never secret material.</p></div>
       <div className="dashboard-grid execution-grid">
@@ -999,8 +1109,9 @@ function OperationalExecution() {
         </section>
       </div>
     </div>
+    </SectionDisclosure>
     <div className="flow-group">
-      <div className="flow-group-head"><h2>Readiness & planning</h2><p>Operational readiness and deployment previews for the sandbox agent — Product API is the source of truth.</p></div>
+      <div className="flow-group-head"><h2>Readiness & planning</h2><p>Operational readiness and deployment previews for the selected planning context — Product API is the source of truth.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
           <div className="panel-head"><div><h2>Operational readiness</h2><p>Readiness categories and blockers</p></div><Badge tone={readiness.data?.ready ? "good" : "warn"}>{readiness.data?.status ?? "unavailable"}</Badge></div>
@@ -1012,7 +1123,7 @@ function OperationalExecution() {
                 <SummaryRow label="Warnings" value={readiness.data.warnings.length} />
                 {readiness.data.categories.map(category => <div className="finding-row" key={category.id}><span>{category.status}</span><div className="finding-content"><b>{category.label}</b><p>{category.blockerCount} blockers · {category.warningCount} warnings</p></div></div>)}
               </>
-              : <PanelStateLine state={readiness.loadState} error={readiness.loadError} emptyMessage="No readiness data" />}
+              : <PanelStateLine state={readiness.loadState} error={readiness.loadError} emptyMessage="No readiness data for the current planning context" />}
           </div>
         </section>
         <section className="panel">
@@ -1025,6 +1136,7 @@ function OperationalExecution() {
         </section>
       </div>
     </div>
+    <SectionDisclosure title="Deployments, runtimes & execution history" summary="Diagnostic operational records stay reachable without dominating the entry surface." tier="Diagnostic" defaultOpen>
     <div className="flow-group">
       <div className="flow-group-head"><h2>Deployments & runtimes</h2><p>Deployment records, runtime instances and execution runs. Runtime control actions are not exposed in this milestone.</p></div>
       <div className="dashboard-grid execution-grid">
@@ -1054,6 +1166,8 @@ function OperationalExecution() {
         </section>
       </div>
     </div>
+    </SectionDisclosure>
+    <SectionDisclosure title="Workers & raw operational identifiers" summary="Expert investigation details and low-level inventory." tier="Expert / Raw">
     <div className="flow-group">
       <div className="flow-group-head"><h2>Workers</h2><p>Worker capacity, health and isolation visibility. Advanced fleet scheduling is future scope.</p></div>
       <div className="dashboard-grid execution-grid">
@@ -1069,6 +1183,7 @@ function OperationalExecution() {
       </div>
     </div>
     <div className="flow-group-note">Every block above is a read-only projection. Deployment, runtime, worker and readiness truth stays in the Product API — nothing here is recomputed by the UI.</div>
+    </SectionDisclosure>
   </>;
 }
 
@@ -1219,7 +1334,14 @@ function AgentDetail() {
   const composition = detail.composition;
 
   return <>
-    <Link className="back" to="/agents">← Agents</Link>
+    <DomainHeader domain="Agents" title={definition.name} description="Governed agent detail with lifecycle, composition and context tabs." entityLabel={`Agent: ${detail.agentId}`} />
+    <ContextTabs title={`Agent / ${definition.name}`} tabs={[
+      { label: "Overview", to: `/agents/${detail.agentId}` },
+      { label: "Composition", to: `/agents/${detail.agentId}/composition` },
+      { label: "Operations", to: `/agents/${detail.agentId}` },
+      { label: "Evidence", to: `/agents/${detail.agentId}` },
+      { label: "Economics", to: `/agents/${detail.agentId}` },
+    ]} />
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agent state...</div>}
@@ -1592,6 +1714,7 @@ function CompositionOverview() {
   const checkedAt = summary ? new Date(summary.checkedAt).toLocaleTimeString() : "--";
 
   return <>
+    <DomainHeader domain="Capabilities" title="Composition" description="Canonical capability and composition overview from the Product API." />
     <header className="page-head compact dashboard-head">
       <div><p className="eyebrow">COMPOSITION SURFACE</p><h1>Composition</h1><p>Operational summary of the elements that form an Agent, sourced from the Product API.</p></div>
       <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
@@ -2598,6 +2721,7 @@ function Runtime() {
     () => false,
   );
   return <>
+    <DomainHeader domain="Operations" title="Runtime" description="Runtime and worker observations owned by Operations." entityLabel="Runtime inventory" />
     <header className="page-head compact">
       <div><p className="eyebrow">OPERATIONAL EXECUTION</p><h1>Runtime</h1><p>Runtime instance and worker state reported by the Product API. Direct process access is not available in this milestone.</p></div>
       <button className="secondary" disabled={runtimes.loadState === "loading" || runtimes.loadState === "refreshing"} onClick={runtimes.refresh}>{runtimes.loadError ? "Retry" : runtimes.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
@@ -2641,6 +2765,7 @@ function Logs() {
     () => false,
   );
   return <>
+    <DomainHeader domain="Evidence" title="Events & Logs" description="Logs remain diagnostic evidence, not primary operational state." />
     <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Events & Logs</h1><p>System and agent event inventory from the Product API.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span><span>Not billing</span></div>
     {stale && <div className="stale-banner" role="status">Showing a stale evidence snapshot.</div>}
@@ -2668,6 +2793,7 @@ function EvidenceView() {
     () => false,
   );
   return <>
+    <DomainHeader domain="Evidence" title="Operational Evidence" description="Canonical investigation and evidence summary for the Control Plane." />
     <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Operational Evidence</h1><p>Evidence records and diagnostic findings reported by the Product API. Evidence truth is never recomputed in the UI.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span></div>
     {staleBanner({ stale, loadState, loadError }, "evidence")}
@@ -2703,6 +2829,7 @@ function AuditView() {
     () => false,
   );
   return <>
+    <DomainHeader domain="Evidence" title="Audit Trail" description="Actor-, entity- and time-correlated audit records owned by Evidence." />
     <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL EVIDENCE</p><h1>Audit trail</h1><p>Governed operations and audit evidence from the Product API. Audit truth is never recomputed in the UI.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Audit truth governed by Product API</span></div>
     {staleBanner({ stale, loadState, loadError }, "audit")}
@@ -2748,6 +2875,7 @@ function EconomicsView() {
     () => false,
   );
   return <>
+    <DomainHeader domain="Economics" title="Economics" description="Canonical operational economics and financial-boundary evidence domain." />
     <header className="page-head compact"><div><p className="eyebrow">OPERATIONAL ECONOMICS</p><h1>Economics</h1><p>Operational quote, reservation, metering, settlement and receipt visibility. This is operational metering, not billing.</p></div><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button></header>
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Economics is operational, not billing</span></div>
     {staleBanner({ stale, loadState, loadError }, "economics")}
@@ -4199,6 +4327,7 @@ function GovernanceView() {
   };
 
   return <>
+    <DomainHeader domain="Governance" title="Governance Boundary" description="Policies, guardrails and authority constraints without configuration drift." />
     <header className="page-head compact">
       <div><p className="eyebrow">GOVERNANCE & SYSTEM</p><h1>Control plane boundaries</h1><p>Read-only guardrails, policy and configuration visibility. Administration and tenant management remain future scope.</p></div>
       <button className="secondary" onClick={refreshAll}>Refresh all</button>
@@ -4673,6 +4802,7 @@ function OperationalReliabilityView() {
     }));
 
   return <>
+    <DomainHeader domain="System" title="Operational Reliability" description="System-owned reliability and recovery semantics." />
     <header className="page-head compact">
       <div><p className="eyebrow">OPERATIONAL RELIABILITY</p><h1>Runtime confidence & recovery states</h1><p>Read-only projection of long-running operations, runtime/worker confidence and distributed operation caveats.</p></div>
       <button className="secondary" onClick={reliability.refresh}>Refresh</button>
@@ -4831,6 +4961,7 @@ function OperationalReliabilityView() {
 
 function Settings() {
   return <>
+    <DomainHeader domain="System" title="Settings" description="Workspace and configuration visibility. This is not a production administration console." />
     <header className="page-head compact"><div><p className="eyebrow">WORKSPACE</p><h1>Settings</h1><p>Configure ACS, OpenClaw and local registries.</p></div></header>
     <section className="panel"><div className="panel-head"><div><h2>ACS Workspace</h2><p>Local paths used by the current control plane.</p></div></div><div className="form"><label>Workspace path<input className="mono" readOnly defaultValue="~/.openclaw" /></label></div></section>
   </>;
@@ -4881,35 +5012,40 @@ export default function App() {
     setMobile(false);
   };
   const view = viewOfPath(location.pathname);
-  const agentDetail = location.pathname.startsWith("/agents/") && location.pathname !== "/agents" && !location.pathname.includes("/composition");
-  const compositionRoute = location.pathname.includes("/composition");
-  const title = location.pathname === "/agents/new"
-    ? "Create Agent"
+
+  const domain = domainByPath(location.pathname);
+  const domainDef = domainDefs.find(item => item.id === domain)!;
+  const ownership = routeOwnership(location.pathname);
+  const entityMatch = location.pathname.match(/\/(agents|roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)/);
+  const entityLabel = location.pathname === "/agents/new"
+    ? "Create agent"
     : location.pathname.includes("/edit")
-      ? "Edit Agent"
-      : compositionRoute
-        ? "Agent Composition"
-      : agentDetail
-        ? "Agent Detail"
-        : (view ?? "ACS");
+      ? "Edit agent"
+      : entityMatch
+        ? entityMatch[1].replace(/s$/, "") + ": " + entityMatch[2]
+        : undefined;
+  const title = entityLabel ?? view ?? domain;
 
   return (
     <div className={dark ? "app dark" : "app light"}>
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
-        <div className="brand"><img src="/assets/Axodus_logo.svg" /><div><b>ACS</b><small>CONTROL PLANE</small></div><button className="mobile-close" onClick={() => setMobile(false)}>×</button></div>
-        <div className="workspace-switch"><span className="workspace-icon">⌘</span><div><b>{productApiConfig.environment} environment</b><small>{productApiConfig.baseUrl}</small></div><span>⌄</span></div>
-        <nav>{navGroups.map((g, i) => <div className="nav-group" key={i}>{g.map(v => <button className={!agentDetail && view === v ? "active" : ""} onClick={() => go(v)} key={v}><span>{icons[v]}</span>{v}{v === "Skills" && <i className="count">2</i>}</button>)}</div>)}</nav>
+        <div className="brand"><img src="/assets/Axodus_logo.svg" alt="ACS" /><div><b>ACS</b><small>CONTROL PLANE</small></div><button className="mobile-close" type="button" aria-label="Close navigation" onClick={() => setMobile(false)}>×</button></div>
+        <div className="workspace-switch" aria-live="polite"><span className="workspace-icon">⌘</span><div><b>{productApiConfig.environment} environment</b><small>Tenant context unavailable from Product API</small></div></div>
+        <nav aria-label="Control Plane domains">{domainDefs.map(item => <Link className={`domain-link ${domain === item.id ? "active" : ""}`} to={item.to} key={item.id} onClick={() => setMobile(false)} aria-current={domain === item.id ? "page" : undefined}><span>{item.icon}</span>{item.id}</Link>)}</nav>
         <div className="connection"><div><span className="openclaw-mark">A</span><div><b>Product API</b><small><i /> {connectivity.status === "ready" ? "Connected" : connectivity.status === "loading" ? "Checking" : "Unavailable"}</small></div></div><span className="mono">/api/v1</span></div>
       </aside>
       <main className="main">
         <header className="topbar">
-          <button className="menu" onClick={() => setMobile(true)}>☰</button>
-          <div className="crumb"><span>ACS</span><i>/</i><b>{title}</b></div>
-          <div className="top-actions"><Status status={connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Checking Product API" : "Product API unavailable"} /><button className="command" onClick={() => setPalette(true)}>⌕ <span>Search ACS...</span><kbd>⌘ K</kbd></button><button className="icon-btn" onClick={() => setDark(!dark)}>{dark ? "☼" : "◐"}</button><button className="icon-btn notification">♢<i /></button></div>
+          <button className="menu" type="button" aria-label="Open navigation" onClick={() => setMobile(true)}>☰</button>
+          <nav className="crumb" aria-label="Breadcrumb"><Link to="/">ACS</Link><i>/</i><Link to={domainDef.to}>{domain}</Link>{entityLabel && <><i>/</i><b>{entityLabel}</b></>}{!entityLabel && <><i>/</i><b>{title}</b></>}</nav>
+          <div className="top-actions"><Status status={connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Checking Product API" : "Product API unavailable"} /><button className="command" type="button" onClick={() => setPalette(true)}>⌕ <span>Search ACS...</span><kbd>⌘ K</kbd></button><button className="icon-btn" type="button" aria-label="Toggle theme" onClick={() => setDark(!dark)}>{dark ? "☼" : "◐"}</button></div>
         </header>
         {connectivity.status === "loading" && <div className="global-state loading-state" role="status">Connecting to Product API boundary...</div>}
         {connectivity.status === "error" && <div className="global-state error-state" role="alert"><span>Product API unavailable: {connectivity.error}</span><button className="secondary" onClick={() => void checkProductApi()}>Retry</button></div>}
         <div className="content">
+          <DomainNav pathname={location.pathname} />
+          <EntityContextNav pathname={location.pathname} />
+          {ownership !== "canonical" && <div className="route-ownership" role="note">Route ownership: {ownership}. Canonical domain: {domain}.</div>}
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/operational-execution" element={<OperationalExecution />} />

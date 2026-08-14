@@ -16,6 +16,9 @@ grouped by target AEES.
   domain owner; direct routes remain functional or redirect.
 - **Contracts:** UX-IA-01, 02, 03, 13.
 
+**AEES-02 status:** Implemented. Global navigation now contains only the eight
+operator domains. Remaining caveats are visual/responsive acceptance, not IA.
+
 ### IA-02 — Introduce domain navigation
 
 - **Problem:** composition, operations, evidence and system children appear as peers.
@@ -27,6 +30,9 @@ grouped by target AEES.
   correct domain; parent context remains visible.
 - **Contracts:** UX-IA-02, 03.
 
+**AEES-02 status:** Implemented. Domain children live in local domain
+navigation. Financial children remain compatibility routes under `/system/*`.
+
 ### IA-03 — Standardize entity detail context
 
 - **Problem:** detail orientation and cross-links differ by entity.
@@ -36,6 +42,10 @@ grouped by target AEES.
 - **Affected surfaces:** agent/resource detail, future run/runtime details.
 - **Acceptance:** direct and linked entry retain parent/entity/tenant context.
 - **Contracts:** UX-IA-04, 10, 13.
+
+**AEES-02 status:** Implemented for agent and capability-resource details
+through shared context tabs and breadcrumbs. Dedicated execution-run/runtime
+detail pages remain future work if Product API adds canonical entity pages.
 
 ### IA-04 — Split Operations into operator journeys
 
@@ -49,6 +59,10 @@ grouped by target AEES.
   is Operations-owned; summaries link to canonical details.
 - **Contracts:** UX-IA-01, 03–05.
 
+**AEES-02 status:** Implemented as an Operations landing with Runtime as a
+compatibility child and explicit planning-context labeling. A persisted
+operator-selected execution context remains deferred.
+
 ### IA-05 — Prepare progressive disclosure tiers
 
 - **Problem:** raw IDs, evidence paths and configuration compete with primary state.
@@ -59,6 +73,9 @@ grouped by target AEES.
 - **Acceptance:** primary area contains identity/state/attention/next action;
   diagnostic/admin/raw information is secondary or disclosed.
 - **Contracts:** UX-IA-11, 12.
+
+**AEES-02 status:** Implemented as reusable primitives plus Operations
+application. Broader table/detail density work remains AEES-04.
 
 ## AEES-03 — Financial Boundaries
 
