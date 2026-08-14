@@ -608,7 +608,7 @@
 .error-banner {
   background: color-mix(in srgb, var(--amber) 12%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--amber) 42%, var(--border));
-  border-radius: 7px;
+  border-radius: 10px;
   color: var(--amber);
   font-size: 12px;
   margin-bottom: 14px;
@@ -635,7 +635,7 @@
 
 .stale-banner,
 .refresh-banner {
-  border-radius: 7px;
+  border-radius: 10px;
   font-size: 12px;
   margin-bottom: 14px;
   padding: 10px 13px;
@@ -659,6 +659,10 @@
   font-size: 12px;
   margin-top: 4px;
   text-decoration: none;
+}
+
+.surface-link:visited {
+  color: var(--green);
 }
 
 .surface-link:hover {
@@ -879,7 +883,7 @@
 .guardrail-banner {
   border: 1px solid var(--border2);
   background: var(--raised);
-  border-radius: 7px;
+  border-radius: 10px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -919,7 +923,7 @@
 
 .info-banner,
 .warning-banner {
-  border-radius: 7px;
+  border-radius: 10px;
   font-size: 12px;
   line-height: 1.5;
   padding: 10px 13px;
@@ -1669,6 +1673,10 @@
   text-decoration: none;
 }
 
+.detail-link:visited {
+  color: var(--green);
+}
+
 .detail-link:hover {
   text-decoration: underline;
 }
@@ -1704,4 +1712,25 @@
   .source-map-sources { justify-content: flex-start; }
   .catalog-row { align-items: flex-start; flex-direction: column; }
   .catalog-badges { justify-content: flex-start; }
+  .card-badges,
+  .model-strategy,
+  .entity-ref-list > div,
+  .cross-links {
+    align-items: center;
+  }
+
+  .settings-row,
+  .source-map-row,
+  .catalog-row {
+    gap: 10px;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-row .secondary {
+    grid-column: auto;
+    margin-top: 0;
+  }
 }

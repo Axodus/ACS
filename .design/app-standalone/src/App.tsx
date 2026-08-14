@@ -5012,11 +5012,23 @@ export default function App() {
       }
       if (e.key === "Escape") {
         setPalette(false);
+        setMobile(false);
       }
     };
     addEventListener("keydown", fn);
     return () => removeEventListener("keydown", fn);
   }, []);
+
+  useEffect(() => {
+    setMobile(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = mobile ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobile]);
 
   useEffect(() => {
     void checkProductApi();
@@ -5044,6 +5056,7 @@ export default function App() {
         <SidebarNavigation pathname={location.pathname} activeDomain={domain} onNavigate={() => setMobile(false)} />
         <div className="connection"><div><span className="openclaw-mark">A</span><div><b>Product API</b><small><i /> {connectivity.status === "ready" ? "Connected" : connectivity.status === "loading" ? "Checking" : "Unavailable"}</small></div></div><span className="mono">/api/v1</span></div>
       </aside>
+      {mobile && <button type="button" className="mobile-drawer-overlay" aria-label="Close navigation overlay" onClick={() => setMobile(false)} />}
       <main className="main">
         <header className="topbar">
           <button className="menu" type="button" aria-label="Open navigation" onClick={() => setMobile(true)}>☰</button>

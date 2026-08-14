@@ -54,7 +54,18 @@ select {
     --border2: #c4cbc3;
     --text: #171b18;
     --secondary: #58615b;
-    --muted: #879089
+    --muted: #879089;
+    --green: #0f7a4c;
+    --lime: #6f9918;
+    --amber: #9c6100;
+    --blue: #2f69d9;
+    --violet: #6750e6
+}
+
+a,
+a:visited {
+    color: inherit;
+    text-decoration: none
 }
 
 .mono {
@@ -367,6 +378,15 @@ button {
     border-radius: 6px;
     cursor: pointer;
     color: var(--secondary)
+}
+
+.mobile-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, #000 36%, transparent);
+    border: 0;
+    display: none;
+    z-index: 24
 }
 
 .notification {
@@ -1757,7 +1777,8 @@ footer span:last-child {
 
     .sidebar.open {
         transform: none;
-        box-shadow: 20px 0 60px #0009
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 55%, transparent),
+            0 14px 36px color-mix(in srgb, #000 26%, transparent)
     }
 
     .main {
@@ -1765,11 +1786,22 @@ footer span:last-child {
         width: 100%
     }
 
+    .mobile-drawer-overlay {
+        display: block
+    }
+
     .menu,
     .mobile-close {
-        display: block;
+        align-items: center;
         background: transparent;
-        border: 0
+        border: 0;
+        display: inline-flex;
+        height: 44px;
+        justify-content: center;
+        min-height: 44px;
+        min-width: 44px;
+        font-size: 20px;
+        padding: 0
     }
 
     .mobile-close {
@@ -1777,12 +1809,15 @@ footer span:last-child {
     }
 
     .topbar {
-        padding: 0 14px
+        min-height: 61px;
+        padding: 6px 12px
     }
 
     .command {
-        min-width: 31px;
-        width: 31px
+        min-height: 40px;
+        min-width: 40px;
+        padding: 0 10px;
+        width: auto
     }
 
     .command span,
@@ -1790,8 +1825,29 @@ footer span:last-child {
         display: none
     }
 
+    .icon-btn {
+        font-size: 16px
+    }
+
+    .nav-group button>span {
+        font-size: 17px
+    }
+
     .content {
-        padding: 25px 16px 40px
+        padding: 34px 16px 44px
+    }
+
+    .crumb {
+        align-items: center;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap
+    }
+
+    .crumb a,
+    .crumb b {
+        overflow: hidden;
+        text-overflow: ellipsis
     }
 
     .page-head {
