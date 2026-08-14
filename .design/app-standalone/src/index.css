@@ -59,13 +59,43 @@ select {
     --lime: #6f9918;
     --amber: #9c6100;
     --blue: #2f69d9;
-    --violet: #6750e6
+    --violet: #6750e6;
+    --nav-hover-bg: #e6ebe3;
+    --nav-active-bg: #dbe6d2;
+    --nav-active-fg: #132017;
+    --nav-active-border: #a9bc99;
+    --nav-active-accent: #0f7a4c;
+    --nav-expanded-bg: #edf1e9;
+    --nav-press-bg: #d5e0cc
+}
+
+.app:not(.light) {
+    --nav-hover-bg: #1a1f23;
+    --nav-active-bg: #1e2428;
+    --nav-active-fg: #f2f4f5;
+    --nav-active-border: #2d3439;
+    --nav-active-accent: #b8f440;
+    --nav-expanded-bg: #171c20;
+    --nav-press-bg: #23292e
 }
 
 a,
 a:visited {
     color: inherit;
     text-decoration: none
+}
+
+a,
+button,
+[role="button"],
+.menu,
+.icon-btn,
+.command,
+.mobile-close,
+.domain-link,
+.sidebar-child-link,
+.context-tab {
+    -webkit-tap-highlight-color: transparent
 }
 
 .mono {
