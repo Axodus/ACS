@@ -308,7 +308,7 @@
 }
 
 .summary-row:last-child { border-bottom: 0; padding-bottom: 0; }
-.summary-row span { color: var(--muted); font-size: 12px; }
+.summary-row span { color: var(--muted); font-size: 12px; max-width: 45%; min-width:75px;}
 .summary-row strong { color: var(--text); font-size: 13px; }
 .summary-row strong.good { color: var(--green); }
 .summary-row strong.warn { color: var(--amber); }
@@ -1667,6 +1667,7 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 14px;
+  margin-left: 16px;
 }
 
 .detail-link {

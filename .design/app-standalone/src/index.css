@@ -1328,7 +1328,7 @@ footer span:last-child {
 .form label {
     display: flex;
     flex-direction: row;
-    gap: 6px;
+    gap: 10px;
     color: var(--secondary);
     font-size: 12px
 }
