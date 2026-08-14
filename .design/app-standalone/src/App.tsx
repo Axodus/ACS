@@ -1499,7 +1499,7 @@ function AgentDetail() {
           <div className="duplicate-form">
             <b>Duplicate {detail.agentId}</b>
             <div className="form">
-              <label>New agent ID<input className="mono" value={duplicateAgentId} onChange={e => setDuplicateAgentId(e.target.value)} placeholder="e.g. mazikeen-copy" /></label>
+              <label>New agent ID<input className="mono" value={duplicateAgentId} onChange={e => setDuplicateAgentId(e.target.value)} placeholder="e.g. morpheus-copy" /></label>
               <label>Name (optional)<input value={duplicateName} onChange={e => setDuplicateName(e.target.value)} placeholder={definition.name} /></label>
             </div>
             {duplicateError && <div className="error-banner" role="alert">{duplicateError}</div>}
@@ -1667,7 +1667,7 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
     <section className="panel form-panel">
       <div className="panel-head"><div><h2>{mode === "create" ? "Definition" : "Definition update"}</h2><p>Client-side validation is minimal — the Product API performs the real validation</p></div></div>
       <div className="form">
-        <label>Agent ID{mode !== "create" && <small>Read-only — definition.agentId must match the agent</small>}<input className="mono" value={agentIdValue} readOnly={mode !== "create"} onChange={e => setAgentIdValue(e.target.value)} placeholder="e.g. mazikeen" /></label>
+        <label>Agent ID{mode !== "create" && <small>Read-only — definition.agentId must match the agent</small>}<input className="mono" value={agentIdValue} readOnly={mode !== "create"} onChange={e => setAgentIdValue(e.target.value)} placeholder="e.g. morpheus" /></label>
         <label>Name<input value={name} onChange={e => setName(e.target.value)} placeholder="Agent display name" /></label>
         <label>Status<select value={status} onChange={e => setStatus(e.target.value as GovernedAgentStatus)}><option value="draft">draft</option><option value="active">active</option><option value="disabled">disabled</option></select></label>
         <label>Role<select value={roleId} onChange={e => setRoleId(e.target.value)}><option value="">No role selected</option>{roles.data?.map(role => <option value={role.roleId} key={role.roleId}>{role.name} — {role.roleId}</option>)}</select><small>{roles.loadError ?? "Options from the Product API role catalog."}</small></label>
