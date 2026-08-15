@@ -28,46 +28,27 @@ The future surface should be organized by administrative flow, not by internal s
 
 ### Tenant aggregate
 
-Tenant is the administrative aggregate. It owns:
+Tenant is the administrative aggregate. It owns canonical tenant identity, lifecycle state, ownership, timestamps, and provenance.
 
-- canonical tenant identity;
-- lifecycle state;
-- ownership;
-- membership references;
-- governance policy references;
-- limits and entitlements;
-- audit history pointers;
-- timestamps and provenance.
+Membership, governance, limits, and entitlements are tenant-scoped subdomains. They are not the Tenant aggregate itself.
 
-Ownership is a membership role with stronger invariants than ordinary admin membership.
-
-### Membership
+### Membership and authority
 
 Membership is the scoped relationship between a tenant and a principal. Authentication may be external, but membership truth is canonical in ACS.
 
-### Authority
-
-Administrative authority is separated into:
-
-- platform scope;
-- tenant scope;
-- operational scope.
-
-Agent roles remain separate from administrative roles.
+Administrative authority is separated into platform scope and tenant scope. Agent roles remain separate from administrative roles.
 
 Tenant membership is the source of tenant-scoped administrative authority. Platform authority is explicit and separate.
 
-### Governance
+### Governance, entitlements, and limits
 
-Governance attaches policy references and guardrails to a tenant. It does not become a generic policy engine.
+Governance determines whether an operation is administratively allowed. Entitlements determine whether the tenant is eligible for a capability. Limits constrain capacity.
 
-### Limits and entitlements
-
-Limits express ceilings. Entitlements express allowed capabilities. Usage is the observed counterpoint. Economics and billing enforcement remain deferred where they require separate product boundaries.
+Governance policy is a bounded allow/deny model over a fixed governed-action vocabulary. Entitlements are boolean capability grants. Limits are bounded numeric ceilings that are clamped by hard system limits.
 
 ### Audit
 
-Administrative mutations produce audit-worthy events with actor, scope, tenant, decision and change-set metadata.
+Administrative mutations and decision evaluations produce audit-worthy metadata with tenant id, actor, authority basis, operation, previous value, next value, reason, and timestamp.
 
 ## 4. Lifecycle model
 
@@ -84,6 +65,13 @@ stateDiagram-v2
 ~~~
 
 Lifecycle transitions must be explicit. Archive is the terminal administrative state in Milestone A01; hard deletion remains deferred.
+
+### Governance lifecycle interaction
+
+- provisioning tenants may accept initial governance, entitlement, and limit configuration;
+- active tenants evaluate governance, entitlements, and limits normally;
+- suspended tenants remain readable but block tenant-scoped governance mutations;
+- archived tenants are terminal for governance mutations and return conservative decision receipts.
 
 ## 5. Relationship to adjacent domains
 
@@ -121,8 +109,21 @@ This chain is the governance boundary for tenant-scoped actions.
 - Reads are tenant-scoped projections or platform-scoped listings.
 - Cross-tenant visibility is allowed only when explicitly platform-scoped.
 - Tenant scope must never be inferred from UI state alone.
+- Decision evaluators are read-only consumers of governance state and do not enforce runtime behavior by themselves.
 
-## 7. Control-plane surface shape
+## 7. Decision precedence
+
+Governance resolution follows a deterministic precedence:
+
+1. hard system prohibition;
+2. tenant lifecycle block;
+3. explicit tenant rule;
+4. tenant default;
+5. no-policy default deny.
+
+Entitlement resolution defaults to denied when absent. Limit resolution takes the minimum of configured tenant limit and hard system limit when both exist.
+
+## 8. Control-plane surface shape
 
 Future control-plane navigation should expose:
 
@@ -135,9 +136,10 @@ Future control-plane navigation should expose:
 - audit and history;
 - administrative actions.
 
-## 8. Architecture constraints
+## 9. Architecture constraints
 
 - Do not make runtime or deployment ownership implicit.
 - Do not collapse platform-admin and tenant-admin.
 - Do not treat tenant-aware visibility as tenant administration.
 - Do not move billing enforcement into tenant governance.
+- Do not introduce a generic policy language, generic RBAC, or generic ABAC as a shortcut.

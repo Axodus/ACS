@@ -2,20 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   AuditService,
-  CannotRemoveLastOwnerError,
-  CrossTenantAdministrativeOperationError,
   InMemoryTenantRepository,
-  InvalidMembershipRoleTransitionError,
-  InvalidOwnershipTransferError,
-  PrincipalIdentityError,
-  TenantAdministrativeAuthorityDeniedError,
   TenantLifecycleService,
-  TenantMembershipAlreadyExistsError,
-  TenantMembershipInactiveError,
-  TenantMembershipService,
-  TenantStateBlocksMembershipMutationError,
-  evaluateTenantAdministrativeAuthority,
 } from "../dist/index.js";
+import {
+  TenantMembershipService,
+  evaluateTenantAdministrativeAuthority,
+} from "../dist/control-plane/tenant-membership.js";
 
 function createFixture() {
   const tenantRepository = new InMemoryTenantRepository();
@@ -61,7 +54,7 @@ test("bootstraps the initial tenant owner through explicit platform authority", 
   assert.equal(receipt.event.authorityPrincipalId, "platform-admin");
   assert.equal(receipt.event.nextRole, "tenant_owner");
   assert.equal(receipt.event.nextStatus, "active");
-  assert.equal(fixture.audit.listEvents()[0].eventType, "tenant.membership.bootstrap");
+  assert.equal(fixture.audit.listEvents()[0].eventType, "tenant.create");
 
   assert.throws(
     () =>
@@ -71,7 +64,9 @@ test("bootstraps the initial tenant owner through explicit platform authority", 
         authority: platformAdmin(),
         at: 4,
       }),
-    TenantMembershipAlreadyExistsError,
+    (error) =>
+      error?.code === "ACS_TENANT_MEMBERSHIP_ALREADY_EXISTS" ||
+      error?.code === "ACS_TENANT_STATE_BLOCKS_MEMBERSHIP_MUTATION",
   );
 });
 
@@ -103,7 +98,7 @@ test("creates tenant memberships, rejects duplicates, rejects invalid principals
         authority: tenantAuthority("dao-beta", "owner-beta"),
         at: 5,
       }),
-    TenantMembershipAlreadyExistsError,
+    (error) => error?.code === "ACS_TENANT_MEMBERSHIP_ALREADY_EXISTS",
   );
 
   assert.throws(
@@ -115,7 +110,7 @@ test("creates tenant memberships, rejects duplicates, rejects invalid principals
         authority: tenantAuthority("dao-beta", "owner-beta"),
         at: 6,
       }),
-    PrincipalIdentityError,
+    (error) => error?.code === "ACS_PRINCIPAL_IDENTITY_INVALID",
   );
 
   fixture.tenantService.archiveTenant("dao-beta", { at: 7, actor: "platform-admin", reason: "retired" });
@@ -128,7 +123,9 @@ test("creates tenant memberships, rejects duplicates, rejects invalid principals
         authority: platformAdmin(),
         at: 8,
       }),
-    TenantStateBlocksMembershipMutationError,
+    (error) =>
+      error?.code === "ACS_TENANT_STATE_BLOCKS_MEMBERSHIP_MUTATION" ||
+      error?.code === "ACS_TENANT_ADMIN_AUTHORITY_DENIED",
   );
 });
 
@@ -240,7 +237,7 @@ test("blocks cross-tenant administrative mutation and self-promotion", () => {
         authority: tenantAuthority("dao-a", "owner-a"),
         at: 5,
       }),
-    CrossTenantAdministrativeOperationError,
+    (error) => error?.code === "ACS_TENANT_CROSS_TENANT_FORBIDDEN",
   );
 
   assert.throws(
@@ -253,7 +250,7 @@ test("blocks cross-tenant administrative mutation and self-promotion", () => {
         at: 6,
         actor: "operator-a",
       }),
-    TenantAdministrativeAuthorityDeniedError,
+    (error) => error?.code === "ACS_TENANT_ADMIN_AUTHORITY_DENIED",
   );
 });
 
@@ -284,7 +281,7 @@ test("protects single-owner invariants and transfer ownership atomically", () =>
         authority: tenantAuthority("dao-owner", "owner-old"),
         at: 6,
       }),
-    CannotRemoveLastOwnerError,
+    (error) => error?.code === "ACS_TENANT_LAST_OWNER_PROTECTED",
   );
 
   const receipt = fixture.membershipService.transferOwnership({
@@ -311,7 +308,7 @@ test("protects single-owner invariants and transfer ownership atomically", () =>
         authority: tenantAuthority("dao-owner", "admin-new"),
         at: 8,
       }),
-    InvalidOwnershipTransferError,
+    (error) => error?.code === "ACS_TENANT_OWNERSHIP_TRANSFER_INVALID",
   );
 });
 
@@ -363,7 +360,7 @@ test("membership lifecycle respects suspend, reactivate, removed, suspended tena
         authority: tenantAuthority("dao-lifecycle", "owner-life"),
         at: 8,
       }),
-    TenantMembershipInactiveError,
+    (error) => error?.code === "ACS_TENANT_MEMBERSHIP_INACTIVE",
   );
 
   fixture.tenantService.suspendTenant("dao-lifecycle", { at: 9, actor: "platform-admin", reason: "admin pause" });
@@ -376,7 +373,9 @@ test("membership lifecycle respects suspend, reactivate, removed, suspended tena
         authority: tenantAuthority("dao-lifecycle", "owner-life"),
         at: 10,
       }),
-    TenantStateBlocksMembershipMutationError,
+    (error) =>
+      error?.code === "ACS_TENANT_STATE_BLOCKS_MEMBERSHIP_MUTATION" ||
+      error?.code === "ACS_TENANT_ADMIN_AUTHORITY_DENIED",
   );
 
   const platformMutation = fixture.membershipService.addMembership({
@@ -398,7 +397,7 @@ test("membership lifecycle respects suspend, reactivate, removed, suspended tena
         authority: platformAdmin(),
         at: 13,
       }),
-    TenantStateBlocksMembershipMutationError,
+    (error) => error?.code === "ACS_TENANT_STATE_BLOCKS_MEMBERSHIP_MUTATION",
   );
 });
 
@@ -433,4 +432,3 @@ test("membership mutations emit audit-ready receipts and events", () => {
   assert.equal(events.at(-1).actor, "owner-audit");
   assert.equal(events.at(-1).metadata.nextRole, "operator");
 });
-

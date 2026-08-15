@@ -1,103 +1,118 @@
 # EPIC-15 Story Specifications
 
-Each story is a planning unit for the future implementation track. The stories below are intentionally narrow and ordered.
+Each story is a planning unit for the EPIC-15 implementation track. The stories below are intentionally narrow and ordered.
 
 ## Story T01 — Tenant aggregate and lifecycle
 
 - ID: T01
-- Objective: define the canonical tenant aggregate, status model and lifecycle.
-- Scope: identity, ownership, timestamps, provenance, terminal states.
-- Dependencies: EPIC-10 isolation primitives; EPIC-12 claim discipline.
+- Objective: establish the canonical tenant aggregate, lifecycle, and archive semantics.
+- Scope: tenant identity, status transitions, timestamps, provenance, archive/deactivation behavior.
+- Dependencies: EPIC-15 normative plan.
 - Acceptance criteria:
-  - tenant status vocabulary is explicit;
-  - allowed transitions are listed;
-  - ownership is represented canonically;
-  - deletion policy is not assumed.
-- Non-goals: tenant CRUD implementation, storage, schema migration.
-- Evidence expected: architecture and contract sections that a coder can use without guessing.
+  - tenant identity is canonical and immutable;
+  - lifecycle transitions are explicit and deterministic;
+  - hard delete remains deferred;
+  - archive semantics are documented and enforced at the domain boundary.
+- Non-goals: membership, governance, quotas, billing, UI.
+- Evidence expected: tenant domain contract, lifecycle service, and regression tests.
+- Status: implemented in Sprint A01.
 
 ## Story T02 — Membership and administrative authority
 
 - ID: T02
-- Objective: define membership, roles and scoped authority.
-- Scope: owner, tenant admin, platform admin, auditor, operator separation.
-- Dependencies: T01, identity assumptions, governance boundary.
+- Objective: model tenant membership, owner semantics, and tenant-scoped administrative authority.
+- Scope: principal identity, role semantics, bootstrap owner, cross-tenant authorization, receipts.
+- Dependencies: T01.
 - Acceptance criteria:
-  - membership source of truth is explicit;
-  - roles are minimal and scoped;
-  - operator is not conflated with tenant admin;
-  - privilege escalation paths are addressed.
-- Non-goals: full RBAC engine, IdP implementation.
-- Evidence expected: role matrix and authorization semantics.
+  - membership is canonical and tenant-scoped;
+  - owner invariants are protected;
+  - privilege escalation is blocked;
+  - platform authority remains explicit and separate.
+- Non-goals: authentication, invitations, generic IAM, UI.
+- Evidence expected: membership contract, authority evaluator, and regression tests.
 - Status: implemented in Sprint B01.
 
-## Story T03 — Governance policies and limits
+## Story T03 — Governance policy, entitlements, and limits
 
 - ID: T03
-- Objective: define tenant governance policy references and limit contracts.
-- Scope: agent, deployment, tool, capability and execution guardrails, quotas, entitlements, usage and economic limits.
-- Dependencies: T01, T02, EPIC-13 boundary.
+- Objective: define governance policies, entitlements, limits, and deterministic decision evaluation.
+- Scope: governed actions, governance precedence, entitlement grants/revocations, limit resolution, audit-ready decision receipts.
+- Dependencies: T01, T02.
 - Acceptance criteria:
-  - policy references are named;
-  - hard system limits are separated from tenant quotas;
-  - economic limits are explicitly bounded;
-  - deferred enforcement is documented.
-- Non-goals: generic policy engine, quota enforcement.
-- Evidence expected: policy and limits contract and boundary review.
+  - policy, entitlement, and limit contracts are separate;
+  - default behavior is explicit;
+  - precedence is deterministic;
+  - hard system limits cannot be widened by tenant configuration.
+- Non-goals: runtime enforcement, billing, generic policy engine.
+- Evidence expected: governance evaluator, decision receipts, and regression tests.
+- Status: implemented in Sprint C01.
 
-## Story T04 — Administrative API boundary
+## Story T04 — Administrative read models
 
 - ID: T04
-- Objective: define tenant-scoped and platform-scoped API surfaces.
-- Scope: commands, queries, read models, error semantics, authorization boundaries.
-- Dependencies: T01 to T03.
+- Objective: expose tenant administration read models for lifecycle, membership, and governance.
+- Scope: list/detail projections, decision history projections, tenant-scoped administrative views.
+- Dependencies: T01, T02, T03.
 - Acceptance criteria:
-  - commands and queries are enumerated;
-  - read models are defined;
-  - error codes and denial semantics are explicit;
-  - tenant scope is mandatory where needed.
-- Non-goals: endpoint implementation, transport wiring.
-- Evidence expected: contracts that can drive implementation.
+  - read models remain separated from mutation contracts;
+  - tenant scope remains explicit;
+  - projections are compatible with future UI work.
+- Non-goals: browser UI, mutation endpoints, runtime enforcement.
+- Evidence expected: read-model contracts and query tests.
+- Status: planning artifact.
 
-## Story T05 — Control Plane surface plan
+## Story T05 — Administrative mutation surface
 
 - ID: T05
-- Objective: define the future ACS UI shape for tenant administration.
-- Scope: tenant list, detail, members, governance, limits, usage, audit, actions.
-- Dependencies: T04, EPIC-14 IA patterns.
+- Objective: define the future mutation surface for tenant administration.
+- Scope: lifecycle mutation commands, membership mutation commands, governance mutation commands, audit receipts.
+- Dependencies: T01, T02, T03.
 - Acceptance criteria:
-  - surface is organized by flow;
-  - read/write boundaries are visible;
-  - unsupported actions are explicit;
-  - tenant context is preserved.
-- Non-goals: page implementation, visual redesign.
-- Evidence expected: architecture and milestone sequencing.
+  - commands are tenant-scoped and explicit;
+  - authority checks are reusable;
+  - audit-ready receipts are available for every privileged mutation.
+- Non-goals: HTTP routes, browser UI, storage migration.
+- Evidence expected: command contract and service tests.
+- Status: planning artifact.
 
-## Story T06 — Auditability and isolation hardening
+## Story T06 — Control Plane surface design
 
 - ID: T06
-- Objective: define the audit events and invariants for tenant administration.
-- Scope: creation, lifecycle, membership, role, policy, limit and privileged actions.
-- Dependencies: T01 to T05.
+- Objective: specify the Control Plane surface needed for tenant administration.
+- Scope: navigation entry points, tenant list/detail layouts, governance read views, history views.
+- Dependencies: T01 through T05.
 - Acceptance criteria:
-  - audit-worthy events are listed;
-  - event fields are specified;
-  - isolation invariants are explicit;
-  - cross-tenant mutation is forbidden without scope.
-- Non-goals: audit storage, tracing platform, analytics.
-- Evidence expected: audit contract and boundary review.
+  - UI boundaries match documented contracts;
+  - no runtime truth is duplicated in the UI;
+  - browser acceptance remains future work.
+- Non-goals: implementation, design redesign, production activation claims.
+- Evidence expected: surface map and milestone plan.
+- Status: planning artifact.
 
-## Story T07 — Acceptance package and implementation order
+## Story T07 — Isolation and governance hardening
 
 - ID: T07
-- Objective: package the implementation order and exit criteria for later work.
-- Scope: milestone ordering, risks, decision gates, DONE definition.
-- Dependencies: T01 to T06.
+- Objective: verify that new tenant administration contracts do not weaken isolation or governance boundaries.
+- Scope: boundary review, regression coverage, explicit deferred decisions.
+- Dependencies: T01 through T06.
 - Acceptance criteria:
-  - milestone order is clear;
-  - open decisions are labeled;
-  - deferred items are separated;
-  - another agent can start implementation from the docs alone.
-- Non-goals: executing the implementation.
-- Evidence expected: milestone README and strategic plan.
-- Status: planning artifact; implementation continues from A01 and B01.
+  - tenant isolation remains intact;
+  - administrative scope is explicit;
+  - no generic IAM, RBAC, ABAC, or policy engine is introduced by accident.
+- Non-goals: new runtime enforcement paths, broad refactors.
+- Evidence expected: boundary review and regression test results.
+- Status: planning artifact; implementation continues as the EPIC advances.
+
+## Story T08 — Enforcement integration readiness
+
+- ID: T08
+- Objective: prepare enforcement boundaries to consume tenant governance decisions without redefining the governance model.
+- Scope: decision consumption interfaces, runtime handoff points, enforcement contract mapping.
+- Dependencies: T03, T04, T07.
+- Acceptance criteria:
+  - consumers can read decision receipts deterministically;
+  - enforcement remains separated from decision production;
+  - no policy DSL or cross-tenant bypass is introduced.
+- Non-goals: broad runtime blocking, billing, metering, or product-wide security rewrites.
+- Evidence expected: handoff contract and targeted integration tests.
+- Status: deferred until enforcement milestones.

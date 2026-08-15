@@ -6,10 +6,11 @@
 - isolation helpers that enforce same-tenant and same-workload boundaries;
 - system-level projections for administration and tenants that are explicitly future scope;
 - governance and production-readiness reports that keep tenant-admin readiness false;
-- UX patterns that show tenant context without granting tenant administration.
+- UX patterns that show tenant context without granting tenant administration;
 - canonical tenant lifecycle service and repository;
 - canonical tenant membership and administrative authority service;
-- audit-ready receipts for tenant lifecycle and membership mutations.
+- canonical governance policy, entitlement, and limit evaluators;
+- audit-ready receipts for tenant lifecycle, membership, and governance mutations and decisions.
 
 ## Reuse
 
@@ -18,9 +19,10 @@
 - audit correlation fields;
 - read-only system tenants projection;
 - governance-boundary claim discipline;
-- EPIC-14 navigation and state language patterns.
+- EPIC-14 navigation and state language patterns;
 - tenant membership repository and receipt shape;
-- canonical principal identity validation.
+- canonical principal identity validation;
+- deterministic decision receipts for policy, entitlement, and limit evaluation.
 
 ## Extend
 
@@ -31,7 +33,8 @@
 - limits, entitlements and usage read models;
 - administrative event schema;
 - platform-scoped and tenant-scoped authority checks;
-- tenant-scoped and platform-scoped API boundaries.
+- tenant-scoped and platform-scoped API boundaries;
+- governance decision evaluation.
 
 ## Create
 
@@ -40,8 +43,9 @@
 - command and query surface for tenant administration;
 - tenant audit and history surface;
 - future UI flow spec for tenant administration;
-- clear distinction between platform admin and tenant admin.
-- explicit bootstrap semantics for the first owner.
+- clear distinction between platform admin and tenant admin;
+- explicit bootstrap semantics for the first owner;
+- deterministic governance decision receipts consumed by future enforcement.
 
 ## Do not touch
 
@@ -51,7 +55,8 @@
 - billing implementation or money-movement semantics;
 - production readiness claims;
 - static assets under ./static;
-- generic IAM or policy-engine rewrites.
+- generic IAM or policy-engine rewrites;
+- generic RBAC or ABAC frameworks.
 
 ## Deferred
 
@@ -61,7 +66,8 @@
 - external identity-provider integration details;
 - advanced observability beyond audit and history requirements;
 - runtime reaction semantics for every tenant lifecycle transition;
-- any membership/UI surface beyond the domain and service contracts.
+- any membership/UI surface beyond the domain and service contracts;
+- runtime enforcement of governance decisions.
 
 ## Adjacent domain review
 

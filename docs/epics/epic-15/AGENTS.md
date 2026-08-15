@@ -9,6 +9,7 @@ Agents working in EPIC-15 must treat this directory as the canonical tenant gove
 - Preserve explicit tenant scope in every proposed command, query or event.
 - Reuse existing tenant-aware control-plane projections before proposing new domain objects.
 - Keep runtime, deployment, worker and billing enforcement out of tenant administration work unless a milestone explicitly calls for the boundary.
+- Keep governance policy, entitlement, and limit contracts separate; do not merge them into a generic policy engine.
 
 ## Invariants
 
@@ -17,6 +18,7 @@ Agents working in EPIC-15 must treat this directory as the canonical tenant gove
 - No administrative authority without an explicit role and scope.
 - No claim of tenant-admin readiness, production readiness or billing readiness.
 - No bypass of existing isolation or governance boundaries.
+- No entitlement or limit expansion above hard system ceilings.
 
 ## Protected areas
 
@@ -24,6 +26,9 @@ Agents working in EPIC-15 must treat this directory as the canonical tenant gove
 - src/tenant-context.ts
 - src/control-plane/governance-boundary.ts
 - src/control-plane/product-api-client.ts
+- src/control-plane/tenant-domain.ts
+- src/control-plane/tenant-membership.ts
+- src/control-plane/tenant-governance.ts
 - EPIC-10 to EPIC-14 normative docs
 - ./static
 
@@ -38,14 +43,15 @@ Agents working in EPIC-15 must treat this directory as the canonical tenant gove
 ## Test expectations
 
 - Run git diff --check.
-- Run any lightweight documentation or repository checks that already exist and are relevant.
-- Do not run broad product suites unless discovery shows a doc change depends on validation evidence.
+- Run the smallest relevant unit and regression tests for the touched EPIC-15 boundary.
+- Keep build validation honest; if the environment blocks full emit, document the limitation and use the closest viable typecheck/regression path.
 
 ## Scope expansion policy
 
 - Expand scope only when discovery shows a real gap in the current tenant-aware boundary.
 - Any open decision must remain labeled as OPEN DECISION.
 - Defer billing, RBAC engines, runtime enforcement and audit storage unless the document is explicitly about those deferred boundaries.
+- Treat A01/B01/C01 contracts as stable inputs; do not reopen them without an actual incompatibility.
 
 ## Compatibility and regression
 

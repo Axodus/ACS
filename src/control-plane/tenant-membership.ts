@@ -1,5 +1,6 @@
 import { AcsError } from "../errors.js";
 import type { AuditService } from "./audit-service.js";
+import { TenantIdentityError } from "./tenant-domain.js";
 import type { TenantRepository, Tenant, TenantStatus } from "./tenant-domain.js";
 
 export type PrincipalId = string;
@@ -423,6 +424,17 @@ function validatePrincipalId(principalId: string): string {
   return normalized;
 }
 
+function validateTenantId(tenantId: string): string {
+  const normalized = tenantId.trim();
+  if (!normalized) {
+    throw new TenantIdentityError("tenant identity is required");
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(normalized)) {
+    throw new TenantIdentityError("invalid tenant identity: " + tenantId);
+  }
+  return normalized;
+}
+
 function membershipKey(tenantId: string, principalId: string): string {
   return tenantId + "::" + principalId;
 }
@@ -515,15 +527,10 @@ export class TenantMembershipService {
     const tenant = this.#tenant(input.tenantId);
     const principalId = validatePrincipalId(input.principalId);
     this.#assertBootstrapEligible(tenant, input.authority, false);
-    const authority = this.#authoritativeMembership(tenant, input.authority);
-
-    if (input.role === "tenant_owner") {
-      throw new InvalidMembershipRoleTransitionError("use ownership transfer or bootstrap for tenant_owner");
-    }
 
     this.#assertAuthorizedForMutation({
       action: "membership.add",
-      authority,
+      authority: input.authority,
       tenant,
       targetRole: input.role,
       isBootstrap: false,
@@ -566,9 +573,6 @@ export class TenantMembershipService {
   changeRole(input: TenantMembershipRoleChangeInput): TenantMembershipReceipt {
     const tenant = this.#tenant(input.tenantId);
     const principalId = validatePrincipalId(input.principalId);
-    if (input.role === "tenant_owner") {
-      throw new InvalidMembershipRoleTransitionError("ownership must be transferred explicitly");
-    }
 
     const current = this.#membership(tenant.tenantId, principalId);
     this.#assertMembershipMutationAllowed(tenant, input.authority, current, "membership.change_role");
@@ -611,11 +615,11 @@ export class TenantMembershipService {
   }
 
   suspendMembership(input: TenantMembershipLifecycleInput): TenantMembershipReceipt {
-    return this.#setMembershipStatus(input, "suspend", "suspended");
+    return this.#setMembershipStatus(input, "membership.suspend", "suspended");
   }
 
   reactivateMembership(input: TenantMembershipLifecycleInput): TenantMembershipReceipt {
-    return this.#setMembershipStatus(input, "reactivate", "active");
+    return this.#setMembershipStatus(input, "membership.reactivate", "active");
   }
 
   removeMembership(input: TenantMembershipLifecycleInput): TenantMembershipReceipt {
@@ -725,7 +729,7 @@ export class TenantMembershipService {
 
   #setMembershipStatus(
     input: TenantMembershipLifecycleInput,
-    operation: "suspend" | "reactivate",
+    operation: "membership.suspend" | "membership.reactivate",
     nextStatus: TenantMembershipStatus,
   ): TenantMembershipReceipt {
     const tenant = this.#tenant(input.tenantId);
@@ -748,7 +752,7 @@ export class TenantMembershipService {
     const saved = this.#repository.save(updated, current.revision);
     return this.#record({
       membership: saved,
-      operation,
+      operation: actionToOperation(operation),
       previousRole: current.role,
       nextRole: saved.role,
       previousStatus: current.status,
