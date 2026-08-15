@@ -1,6 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import { AcsError } from "../../errors.js";
 import type { GovernedAction, TenantGovernanceRule } from "../../control-plane/tenant-governance.js";
+import { projectAdministrativeAuditEntries, projectAdministrativeAuditEntry, type TenantAdministrativeAuditFilter } from "../../control-plane/tenant-audit.js";
 import { fail, ok, type AcsHttpEnvelopeMeta } from "../responses.js";
 import { AcsHttpValidationError, assertAllowedQueryParams, assertSafeIdentifier, readPathSegment } from "../validation.js";
 import type { AcsRouteOptions } from "./acs-routes.js";
@@ -108,6 +109,52 @@ export async function routeTenantAdministrationRequest(
     };
   };
 
+  const assertRequestTenantScope = (body: Record<string, unknown>, pathTenantId: string) => {
+    if (!("tenantId" in body)) return;
+    const bodyTenantId = typeof body.tenantId === "string" ? assertSafeIdentifier(body.tenantId, "tenantId") : undefined;
+    if (bodyTenantId && bodyTenantId !== pathTenantId) {
+      throw new AcsHttpValidationError("body tenantId must match path tenantId");
+    }
+  };
+
+  const tenantAuditList = (tenantId: string, url: URL) => {
+    const filter: {
+      category?: TenantAdministrativeAuditFilter["category"];
+      outcome?: TenantAdministrativeAuditFilter["outcome"];
+      actor?: string;
+      correlationId?: string;
+      eventType?: string;
+    } = {};
+    const category = url.searchParams.get("category");
+    const outcome = url.searchParams.get("outcome");
+    const actor = url.searchParams.get("actor");
+    const correlationId = url.searchParams.get("correlationId");
+    const eventType = url.searchParams.get("eventType");
+    if (category === "tenant.lifecycle" || category === "tenant.membership" || category === "tenant.ownership" || category === "tenant.governance" || category === "tenant.entitlement" || category === "tenant.limit" || category === "tenant.enforcement" || category === "tenant.unknown") {
+      filter.category = category;
+    }
+    if (outcome === "succeeded" || outcome === "denied" || outcome === "failed" || outcome === "allowed") {
+      filter.outcome = outcome;
+    }
+    if (actor) filter.actor = assertSafeIdentifier(actor, "actor");
+    if (correlationId) filter.correlationId = assertSafeIdentifier(correlationId, "correlationId");
+    if (eventType) filter.eventType = eventType;
+    const events = context.auditService.queryEvents({ tenantId, ...(filter.actor ? { actor: filter.actor } : {}), ...(filter.correlationId ? { correlationId: filter.correlationId } : {}), ...(filter.eventType ? { eventType: filter.eventType } : {}) });
+    return projectAdministrativeAuditEntries(events, filter).filter((entry) => entry.category !== "tenant.unknown");
+  };
+
+  const tenantAuditDetail = (tenantId: string, eventId: string) => {
+    const event = context.auditService.queryEvents({ tenantId }).find((entry) => entry.eventId === eventId);
+    if (!event) {
+      throw new AcsError("audit event not found: " + tenantId + "/" + eventId, "ACS_TENANT_AUDIT_EVENT_NOT_FOUND");
+    }
+    const projected = projectAdministrativeAuditEntry(event);
+    if (projected.category === "tenant.unknown") {
+      throw new AcsError("audit event not found: " + tenantId + "/" + eventId, "ACS_TENANT_AUDIT_EVENT_NOT_FOUND");
+    }
+    return projected;
+  };
+
   const tenantId = segments[2] ? readPathSegment(segments, 2, "tenantId") : undefined;
 
   try {
@@ -185,6 +232,23 @@ export async function routeTenantAdministrationRequest(
     const scope = segments[3];
     const tail = segments.slice(4);
 
+    if (scope === "audit") {
+      if (tail.length === 0 && request.method === "GET") {
+        assertAllowedQueryParams(url, ["category", "outcome", "actor", "correlationId", "eventType"]);
+        const entries = tenantAuditList(tenantId, url);
+        return { status: 200, body: ok({ tenantId, entries, total: entries.length }, [], options.correlationId, meta) };
+      }
+      if (tail.length === 1 && request.method === "GET") {
+        const eventId = readPathSegment(tail, 0, "eventId");
+        const entry = tenantAuditDetail(tenantId, eventId);
+        return { status: 200, body: ok({ tenantId, event: entry }, [], options.correlationId, meta) };
+      }
+      return fail("method not allowed; allowed methods: GET", 405, "method_not_allowed", options.correlationId, { allowed: "GET" }, meta, "method_not_allowed", {
+        retryable: false,
+        severity: "warning",
+      });
+    }
+
     if (scope === "activate" || scope === "suspend" || scope === "reactivate" || scope === "archive") {
       if (request.method !== "POST") {
         return fail("method not allowed; allowed methods: POST", 405, "method_not_allowed", options.correlationId, { allowed: "POST" }, meta, "method_not_allowed", {
@@ -209,6 +273,7 @@ export async function routeTenantAdministrationRequest(
     if (scope === "ownership") {
       if (tail.length === 1 && tail[0] === "bootstrap" && request.method === "POST") {
         const body = await readBody();
+        assertRequestTenantScope(body, tenantId);
         const principalId = typeof body.principalId === "string" ? assertSafeIdentifier(body.principalId, "principalId") : undefined;
         if (!principalId) throw new AcsHttpValidationError("principalId is required");
         const receipt = context.tenantMembershipService.bootstrapTenantOwner({
@@ -225,6 +290,7 @@ export async function routeTenantAdministrationRequest(
       }
       if (tail.length === 1 && tail[0] === "transfer" && request.method === "POST") {
         const body = await readBody();
+        assertRequestTenantScope(body, tenantId);
         const fromPrincipalId = typeof body.fromPrincipalId === "string" ? assertSafeIdentifier(body.fromPrincipalId, "fromPrincipalId") : undefined;
         const toPrincipalId = typeof body.toPrincipalId === "string" ? assertSafeIdentifier(body.toPrincipalId, "toPrincipalId") : undefined;
         if (!fromPrincipalId || !toPrincipalId) throw new AcsHttpValidationError("fromPrincipalId and toPrincipalId are required");
@@ -254,6 +320,7 @@ export async function routeTenantAdministrationRequest(
       }
       if (tail.length === 0 && request.method === "POST") {
         const body = await readBody();
+        assertRequestTenantScope(body, tenantId);
         const principalId = typeof body.principalId === "string" ? assertSafeIdentifier(body.principalId, "principalId") : undefined;
         if (!principalId) throw new AcsHttpValidationError("principalId is required");
         const role = typeof body.role === "string" ? body.role : "operator";
@@ -288,6 +355,7 @@ export async function routeTenantAdministrationRequest(
         const principalId = readPathSegment(tail, 0, "principalId");
         const action = tail[1];
         const body = await readBody();
+        assertRequestTenantScope(body, tenantId);
         if (action === "change-role") {
           const role = typeof body.role === "string" ? body.role : undefined;
           if (!role || role === "tenant_owner") throw new AcsHttpValidationError("role must be tenant_admin, operator, or auditor");
@@ -334,6 +402,7 @@ export async function routeTenantAdministrationRequest(
       }
       if (tail.length === 1 && tail[0] === "policy" && request.method === "PUT") {
         const body = await readBody();
+        assertRequestTenantScope(body, tenantId);
         const policyId = typeof body.policyId === "string" ? assertSafeIdentifier(body.policyId, "policyId") : undefined;
         const defaultEffect = body.defaultEffect === "allow" || body.defaultEffect === "deny" ? body.defaultEffect : undefined;
         if (!policyId || !defaultEffect) throw new AcsHttpValidationError("policyId and defaultEffect are required");
@@ -364,6 +433,7 @@ export async function routeTenantAdministrationRequest(
       }
       if (tail.length === 1 && tail[0] === "evaluate" && request.method === "POST") {
         const body = await readBody();
+        assertRequestTenantScope(body, tenantId);
         const action = typeof body.action === "string" ? body.action : undefined;
         if (!action) throw new AcsHttpValidationError("action is required");
         const receipt = context.tenantGovernanceService.evaluateGovernedAction({ tenantId, action: action as GovernedAction, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}) });
@@ -384,6 +454,7 @@ export async function routeTenantAdministrationRequest(
         const entitlementKey = readPathSegment(tail, 0, "entitlementKey");
         if (request.method === "PUT") {
           const body = await readBody();
+          assertRequestTenantScope(body, tenantId);
           const enabled = body.enabled === true;
           const receipt = enabled
             ? context.tenantGovernanceService.grantEntitlement({ tenantId, authority, entitlementKey, enabled: true, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(typeof body.reason === "string" ? { reason: body.reason } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}), ...(typeof body.provenance === "string" ? { provenance: body.provenance } : {}) })
@@ -391,7 +462,9 @@ export async function routeTenantAdministrationRequest(
           return { status: 200, body: ok({ value: receipt.nextValue, receipt, tenant: tenantDetail(tenantId, authority) }, [], options.correlationId, meta) };
         }
         if (request.method === "DELETE") {
-          const receipt = context.tenantGovernanceService.revokeEntitlement({ tenantId, authority, entitlementKey, enabled: false, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}) });
+          const body = await readBody().catch(() => ({} as Record<string, unknown>));
+          assertRequestTenantScope(body, tenantId);
+          const receipt = context.tenantGovernanceService.revokeEntitlement({ tenantId, authority, entitlementKey, enabled: false, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(typeof body.reason === "string" ? { reason: body.reason } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}) });
           return { status: 200, body: ok({ value: receipt.nextValue, receipt, tenant: tenantDetail(tenantId, authority) }, [], options.correlationId, meta) };
         }
       }
@@ -422,13 +495,16 @@ export async function routeTenantAdministrationRequest(
         const limitKey = readPathSegment(tail, 0, "limitKey");
         if (request.method === "PUT") {
           const body = await readBody();
+          assertRequestTenantScope(body, tenantId);
           const value = typeof body.value === "number" ? body.value : undefined;
           if (value === undefined) throw new AcsHttpValidationError("value is required");
           const receipt = context.tenantGovernanceService.setLimit({ tenantId, authority, limitKey, value, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(typeof body.reason === "string" ? { reason: body.reason } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}), ...(typeof body.provenance === "string" ? { provenance: body.provenance } : {}) });
           return { status: 200, body: ok({ value: receipt.nextValue, receipt, tenant: tenantDetail(tenantId, authority) }, [], options.correlationId, meta) };
         }
         if (request.method === "DELETE") {
-          const receipt = context.tenantGovernanceService.clearLimit({ tenantId, authority, limitKey, value: 0, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}) });
+          const body = await readBody().catch(() => ({} as Record<string, unknown>));
+          assertRequestTenantScope(body, tenantId);
+          const receipt = context.tenantGovernanceService.clearLimit({ tenantId, authority, limitKey, value: 0, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(typeof body.reason === "string" ? { reason: body.reason } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}) });
           return { status: 200, body: ok({ value: receipt.nextValue, receipt, tenant: tenantDetail(tenantId, authority) }, [], options.correlationId, meta) };
         }
       }

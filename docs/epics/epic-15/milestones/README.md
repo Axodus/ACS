@@ -68,3 +68,22 @@ Exit criteria:
 - read models are suitable for the future UI;
 - D02 browser acceptance passed across the supported viewport matrix;
 - no direct domain, repository, or runtime imports are needed in the UI.
+
+## Milestone E — Auditability, Isolation Hardening & Acceptance
+
+Status: implemented in Sprint E01.
+
+Focus:
+- canonical administrative audit trail and history read model;
+- tenant-scoped audit access and correlation;
+- forged tenant-context hardening;
+- cross-tenant and privilege-escalation regression coverage;
+- final acceptance evidence and closure preparation.
+
+Exit criteria:
+- privileged administrative actions are attributable and tenant-scoped;
+- audit history is consultable only from real data and remains isolated per tenant;
+- forged or conflicting tenant context is rejected deterministically;
+- platform-scoped authority remains explicit;
+- suspended and archived states remain consistent across domain, API, and UI;
+- EPIC-15 is ready for the final closure pass.

@@ -196,6 +196,7 @@ Read models may project:
 - entitlement view;
 - limit view;
 - decision history.
+- administrative audit history entries and detail views.
 
 Read models must remain separate from enforcement and runtime truth.
 
@@ -204,16 +205,21 @@ Read models must remain separate from enforcement and runtime truth.
 Audit-ready events or receipts should carry:
 
 - tenantId;
+- correlationId when the event participates in a broader administrative flow;
 - actor or authority basis;
+- actorPrincipalId when a principal is known;
 - operation;
+- targetType and targetId when applicable;
 - previous value;
 - next value;
+- governanceDecision, entitlementDecision, and limitDecision where relevant;
+- outcome or denial layer where relevant;
 - timestamp;
 - reason when supplied;
 - revision;
 - decision basis where applicable.
 
-Audit storage is deferred, but event shape is normative.
+Audit storage is deferred, but event shape is normative. Tenant-scoped administrative audit read models may project from these events without introducing synthetic history.
 
 ## 10. Error semantics
 
@@ -311,6 +317,7 @@ Enforcement is a consumer of canonical governance decisions. It is fail-closed f
     }
 
 Administrative routes are thin Product API adapters. They resolve actor and tenant scope, call domain/application services, and map domain errors to HTTP semantics. They do not duplicate lifecycle, authority, governance, or limit rules.
+Administrative audit routes, when present, expose read-only tenant-scoped history projected from real events and reject conflicting tenant context.
 
 ## 14. Open decisions
 

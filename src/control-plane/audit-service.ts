@@ -1,6 +1,13 @@
 export type AuditEventType =
   | "agent.plan_resolved"
   | "governance.evaluated"
+  | "tenant.lifecycle"
+  | "tenant.membership"
+  | "tenant.ownership"
+  | "tenant.governance"
+  | "tenant.entitlement"
+  | "tenant.limit"
+  | "tenant.enforcement"
   | "economic.quoted"
   | "economic.reserved"
   | "economic.released"
@@ -42,6 +49,7 @@ export interface AuditQueryFilter {
   readonly runtimeInstanceId?: string;
   readonly executionRunId?: string;
   readonly eventType?: string;
+  readonly actor?: string;
 }
 
 const SECRET_PATTERNS = [/api_?key/i, /secret/i, /bearer/i, /password/i, /token/i, /^sk-/i, /private_?key/i];
@@ -124,6 +132,7 @@ export class AuditService {
       if (filter.runtimeInstanceId && evt.runtimeInstanceId !== filter.runtimeInstanceId) return false;
       if (filter.executionRunId && evt.executionRunId !== filter.executionRunId) return false;
       if (filter.eventType && evt.eventType !== filter.eventType) return false;
+      if (filter.actor && evt.actor !== filter.actor) return false;
       return true;
     });
   }

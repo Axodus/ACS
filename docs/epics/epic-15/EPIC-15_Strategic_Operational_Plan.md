@@ -14,6 +14,7 @@ The repository already contains:
 - governance and production-readiness reports that explicitly state tenant administration is not ready;
 - UX language that shows tenant context without promising tenant-admin capability.
 - a tenant administration Product API surface for tenant lifecycle, membership, governance, entitlement, and limit operations.
+- an administrative audit/history read model with tenant-scoped correlation and isolation hardening.
 
 The gap is not tenant-awareness. The gap is a formal administrative model.
 
@@ -51,6 +52,10 @@ Define read models, commands, queries, authorization boundaries and the future s
 
 Define the administrative events that must exist and the isolation invariants they may not break.
 
+### 6. Acceptance and closure
+
+Validate the full EPIC package against the implemented routes, UI, audit trail, and isolation hardening before closure.
+
 ## Sequencing
 
 1. Formalize the tenant aggregate and lifecycle.
@@ -58,6 +63,7 @@ Define the administrative events that must exist and the isolation invariants th
 3. Formalize governance policies, limits and entitlements.
 4. Formalize commands, queries and read models.
 5. Formalize audit events, errors and acceptance evidence.
+6. Formalize hardening and closure evidence.
 
 ## Dependencies
 

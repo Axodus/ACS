@@ -49,6 +49,7 @@ Governance policy is a bounded allow/deny model over a fixed governed-action voc
 ### Audit
 
 Administrative mutations and decision evaluations produce audit-worthy metadata with tenant id, actor, authority basis, operation, previous value, next value, reason, and timestamp.
+E01 formalizes a tenant-scoped administrative audit projection so those events can be queried without exposing cross-tenant history or synthetic records.
 
 ## 4. Lifecycle model
 
@@ -179,9 +180,11 @@ Milestone D02 implements the Control Plane UX as a governed client of those rout
 /admin/tenants/:tenantId/governance
 /admin/tenants/:tenantId/entitlements
 /admin/tenants/:tenantId/limits
+/admin/tenants/:tenantId/audit
 ~~~
 
 The UI consumes the Product API only, keeps mutation confirmation explicit, and renders loading, empty, error, forbidden, and terminal-state semantics without duplicating domain rules.
+The audit view is read-only and only renders real tenant-scoped audit entries projected from administrative events.
 
 ## 10. Boundary safety notes
 
@@ -189,6 +192,8 @@ The UI consumes the Product API only, keeps mutation confirmation explicit, and 
 - Administrative authority and governance are distinct checks.
 - Enforcement adapters may consume receipts, but they do not become the source of truth for policy state.
 - Broad runtime, queue, and metering redesign stay outside Milestone C02.
+- Administrative audit history must remain tenant-scoped, attributable, and consult real events only.
+- Conflicting tenant context sources must be rejected rather than silently resolved.
 
 ## 11. Architecture constraints
 

@@ -13,6 +13,8 @@
 - audit-ready receipts for tenant lifecycle, membership, and governance mutations and decisions.
 - tenant administration Product API routes for canonical tenant, membership, governance, entitlement, and limit operations.
 - Control Plane UX under ./static for tenant list/detail and the tenant administration tabs.
+- tenant-scoped administrative audit history routes and isolation hardening for forged context, cross-tenant reads, and platform authority boundaries.
+- canonical administrative audit event projection with tenant-scoped read-only history and correlation metadata.
 
 ## Reuse
 
@@ -25,6 +27,8 @@
 - tenant membership repository and receipt shape;
 - canonical principal identity validation;
 - deterministic decision receipts for policy, entitlement, and limit evaluation.
+- canonical administrative audit entries and read projections for tenant history.
+- audit history filtering and detail views that remain tenant-scoped and consult real events only.
 
 ## Extend
 
@@ -40,6 +44,8 @@
 - enforcement adapters at selected control-plane mutation boundaries;
 - failure mapping for governance, entitlement, limit, and state denials.
 - browser-accepted administrative pages and route state for D02.
+- audit/history UI, when present, consumes only real tenant-scoped audit data.
+- canonical audit read routes and UI surfaces for tenant-scoped history inspection.
 
 ## Create
 
@@ -53,6 +59,8 @@
 - deterministic governance decision receipts consumed by future enforcement.
 - shared enforcement contract that consumes canonical governance receipts before side effects.
 - administrative Product API adapters that remain thin and domain-driven.
+- tenant-scoped audit history projections and read APIs.
+- administrative audit event correlation and history detail contracts.
 
 ## Do not touch
 
@@ -80,6 +88,8 @@
 - any membership/UI surface beyond the domain and service contracts;
 - runtime enforcement of governance decisions beyond the selected control-plane boundaries;
 - broad queue, worker, and metering redesign.
+- audit storage remains minimal and tenant-scoped; no generic observability layer is introduced.
+- no synthetic audit history is introduced for display purposes.
 
 ## Adjacent domain review
 

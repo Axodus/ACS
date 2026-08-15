@@ -158,6 +158,49 @@ export interface TenantLimitView {
   };
 }
 
+export type AdministrativeAuditCategory = "tenant.lifecycle" | "tenant.membership" | "tenant.ownership" | "tenant.governance" | "tenant.entitlement" | "tenant.limit" | "tenant.enforcement" | "tenant.unknown";
+export type AdministrativeAuditOutcome = "succeeded" | "denied" | "failed" | "allowed";
+
+export interface TenantAdministrativeAuditEntry {
+  readonly eventId: string;
+  readonly correlationId: string;
+  readonly tenantId: string;
+  readonly category: AdministrativeAuditCategory;
+  readonly eventType: string;
+  readonly action: string;
+  readonly targetType?: string;
+  readonly targetId?: string;
+  readonly actor?: string;
+  readonly authorityBasis?: string;
+  readonly authorityKind?: string;
+  readonly authorityPrincipalId?: string;
+  readonly deniedLayer?: string;
+  readonly previousState?: string;
+  readonly nextState?: string;
+  readonly governanceDecision?: string;
+  readonly entitlementDecision?: string;
+  readonly limitDecision?: string;
+  readonly outcome: AdministrativeAuditOutcome;
+  readonly reason?: string;
+  readonly timestamp: number;
+  readonly revision?: number;
+  readonly summary: string;
+}
+
+export interface TenantAdministrativeAuditFilter {
+  readonly category?: AdministrativeAuditCategory;
+  readonly outcome?: AdministrativeAuditOutcome;
+  readonly actor?: string;
+  readonly correlationId?: string;
+  readonly eventType?: string;
+}
+
+export interface TenantAdministrativeAuditList {
+  readonly tenantId: string;
+  readonly entries: readonly TenantAdministrativeAuditEntry[];
+  readonly total: number;
+}
+
 export interface TenantGovernanceStateView {
   readonly tenantId: string;
   readonly policy?: TenantGovernancePolicyView | null;
@@ -295,6 +338,15 @@ function resolveUrl(path: string): string {
   return base ? base + path : path;
 }
 
+function appendQuery(path: string, params: Record<string, string | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query.set(key, value);
+  }
+  const suffix = query.toString();
+  return suffix ? path + "?" + suffix : path;
+}
+
 function correlationId(): string {
   return "admin-" + Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
 }
@@ -350,6 +402,14 @@ export function createAdminApi(context: AdminAccessContext) {
     listTenants: () => requestJson<readonly TenantAdminSummary[]>(context, "/api/v1/admin/tenants"),
     createTenant: (input: TenantCreateInput) => requestJson<{ readonly tenant: TenantAdminSummary; readonly receipt: unknown }>(context, "/api/v1/admin/tenants", { method: "POST", body: JSON.stringify(input) }),
     getTenant: (tenantId: string) => requestJson<TenantAdminDetail>(context, "/api/v1/admin/tenants/" + encodeURIComponent(tenantId)),
+    listTenantAuditEntries: (tenantId: string, filter?: TenantAdministrativeAuditFilter) => requestJson<TenantAdministrativeAuditList>(context, appendQuery("/api/v1/admin/tenants/" + encodeURIComponent(tenantId) + "/audit", {
+      category: filter?.category,
+      outcome: filter?.outcome,
+      actor: filter?.actor,
+      correlationId: filter?.correlationId,
+      eventType: filter?.eventType,
+    })),
+    getTenantAuditEntry: (tenantId: string, eventId: string) => requestJson<{ readonly tenantId: string; readonly event: TenantAdministrativeAuditEntry }>(context, "/api/v1/admin/tenants/" + encodeURIComponent(tenantId) + "/audit/" + encodeURIComponent(eventId)),
     activateTenant: (tenantId: string) => requestJson<MutationReceipt>(context, "/api/v1/admin/tenants/" + encodeURIComponent(tenantId) + "/activate", { method: "POST" }),
     suspendTenant: (tenantId: string) => requestJson<MutationReceipt>(context, "/api/v1/admin/tenants/" + encodeURIComponent(tenantId) + "/suspend", { method: "POST" }),
     reactivateTenant: (tenantId: string) => requestJson<MutationReceipt>(context, "/api/v1/admin/tenants/" + encodeURIComponent(tenantId) + "/reactivate", { method: "POST" }),

@@ -60,6 +60,43 @@ export interface TenantGovernanceEnforcementDecision {
   readonly evaluatedAt: number;
 }
 
+function recordEnforcementOutcome(input: {
+  readonly context: ControlPlaneContext;
+  readonly tenantId: string;
+  readonly correlationId?: string;
+  readonly evaluatedAt: number;
+  readonly authority: AdministrativeAuthority;
+  readonly authorityBasis: string;
+  readonly decision: TenantGovernanceEnforcementDecision;
+  readonly tenantStatus?: string;
+  readonly tenantRevision?: number;
+}) {
+  input.context.auditService.recordEvent({
+    eventType: "tenant.enforcement",
+    correlationId: input.correlationId ?? "tenant-enforcement-" + input.evaluatedAt,
+    tenantId: input.tenantId,
+    actor: input.authority.kind === "tenant_member" ? input.authority.principalId : input.authority.principalId,
+    revision: input.tenantRevision,
+    decision: input.decision.allowed ? "allowed" : "denied",
+    result: input.decision.allowed ? "success" : "failure",
+    metadata: {
+      tenantId: input.tenantId,
+      operation: input.decision.operation,
+      governedAction: input.decision.governedAction,
+      authorityKind: input.authority.kind,
+      authorityPrincipalId: input.authority.principalId,
+      authorityBasis: input.authorityBasis,
+      deniedLayer: input.decision.deniedLayer,
+      reason: input.decision.reason,
+      tenantStatus: input.tenantStatus,
+      governanceDecision: input.decision.governanceDecision ? input.decision.governanceDecision.decision + ":" + input.decision.governanceDecision.basis : undefined,
+      entitlementDecision: input.decision.entitlementDecision ? (input.decision.entitlementDecision.granted ? "granted" : "denied") + ":" + input.decision.entitlementDecision.entitlementKey : undefined,
+      limitDecision: input.decision.limitDecision ? (input.decision.limitDecision.withinLimit ? "within_limit" : "exceeded") + ":" + input.decision.limitDecision.limitKey : undefined,
+      evaluatedAt: input.evaluatedAt,
+    },
+  });
+}
+
 export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforcementInput): TenantGovernanceEnforcementDecision {
   const evaluatedAt = input.at ?? Date.now();
   const tenantId = input.context.isolation.scope.tenantId;
@@ -76,18 +113,31 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
     });
 
     if (!authorityDecision.allowed) {
-      return {
+      const deniedLayer: TenantGovernanceEnforcementLayer = authorityDecision.reason.includes("tenant state blocks governance mutation") ? "tenant_state" : "authority";
+      const decision: TenantGovernanceEnforcementDecision = {
         tenantId,
         operation: input.operation,
         governedAction: input.requirement.governedAction,
         allowed: false,
-        deniedLayer: authorityDecision.reason.includes("tenant state blocks governance mutation") ? "tenant_state" : "authority",
+        deniedLayer,
         reason: authorityDecision.reason,
         authority,
         authorityBasis: authorityDecision.authorityBasis,
         authorityDecision,
         evaluatedAt,
       };
+      recordEnforcementOutcome({
+        context: input.context,
+        tenantId,
+        correlationId: input.correlationId,
+        evaluatedAt,
+        authority,
+        authorityBasis: authorityDecision.authorityBasis,
+        decision,
+        tenantStatus: tenant.status,
+        tenantRevision: tenant.revision,
+      });
+      return decision;
     }
 
     const governanceDecision = input.context.tenantGovernanceService.evaluateGovernedAction({
@@ -99,14 +149,16 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
     });
 
     if (governanceDecision.decision !== "allow") {
-      return {
+      const deniedLayer: TenantGovernanceEnforcementLayer =
+        governanceDecision.basis === "tenant_state_archived" || governanceDecision.basis === "tenant_state_suspended"
+          ? "tenant_state"
+          : "governance";
+      const decision: TenantGovernanceEnforcementDecision = {
         tenantId,
         operation: input.operation,
         governedAction: input.requirement.governedAction,
         allowed: false,
-        deniedLayer: governanceDecision.basis === "tenant_state_archived" || governanceDecision.basis === "tenant_state_suspended"
-          ? "tenant_state"
-          : "governance",
+        deniedLayer,
         reason: governanceDecision.reason,
         authority,
         authorityBasis: authorityDecision.authorityBasis,
@@ -114,6 +166,18 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
         governanceDecision,
         evaluatedAt,
       };
+      recordEnforcementOutcome({
+        context: input.context,
+        tenantId,
+        correlationId: input.correlationId,
+        evaluatedAt,
+        authority,
+        authorityBasis: authorityDecision.authorityBasis,
+        decision,
+        tenantStatus: tenant.status,
+        tenantRevision: tenant.revision,
+      });
+      return decision;
     }
 
     let entitlementDecision: TenantEntitlementDecisionReceipt | undefined;
@@ -124,7 +188,7 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
         at: evaluatedAt,
       });
       if (!entitlementDecision.granted) {
-        return {
+        const decision: TenantGovernanceEnforcementDecision = {
           tenantId,
           operation: input.operation,
           governedAction: input.requirement.governedAction,
@@ -138,6 +202,18 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
           entitlementDecision,
           evaluatedAt,
         };
+        recordEnforcementOutcome({
+          context: input.context,
+          tenantId,
+          correlationId: input.correlationId,
+          evaluatedAt,
+          authority,
+          authorityBasis: authorityDecision.authorityBasis,
+          decision,
+          tenantStatus: tenant.status,
+          tenantRevision: tenant.revision,
+        });
+        return decision;
       }
     }
 
@@ -156,7 +232,7 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
           && (limitDecision.configuredLimit === undefined || limitDecision.hardSystemLimit <= limitDecision.configuredLimit)
             ? "system_hard_limit"
             : "limit";
-        return {
+        const decision: TenantGovernanceEnforcementDecision = {
           tenantId,
           operation: input.operation,
           governedAction: input.requirement.governedAction,
@@ -171,10 +247,22 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
           limitDecision,
           evaluatedAt,
         };
+        recordEnforcementOutcome({
+          context: input.context,
+          tenantId,
+          correlationId: input.correlationId,
+          evaluatedAt,
+          authority,
+          authorityBasis: authorityDecision.authorityBasis,
+          decision,
+          tenantStatus: tenant.status,
+          tenantRevision: tenant.revision,
+        });
+        return decision;
       }
     }
 
-    return {
+    const decision = {
       tenantId,
       operation: input.operation,
       governedAction: input.requirement.governedAction,
@@ -188,16 +276,29 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
       ...(limitDecision ? { limitDecision } : {}),
       evaluatedAt,
     };
+    recordEnforcementOutcome({
+      context: input.context,
+      tenantId,
+      correlationId: input.correlationId,
+      evaluatedAt,
+      authority,
+      authorityBasis: authorityDecision.authorityBasis,
+      decision,
+      tenantStatus: tenant.status,
+      tenantRevision: tenant.revision,
+    });
+    return decision;
   } catch (error) {
+    const authority = resolveAuthority(input.auth, tenantId);
     if (error instanceof TenantNotFoundError) {
-      return {
+      const decision: TenantGovernanceEnforcementDecision = {
         tenantId,
         operation: input.operation,
         governedAction: input.requirement.governedAction,
         allowed: false,
         deniedLayer: "invalid_request",
         reason: error.message,
-        authority: { kind: "platform_admin", principalId: "system" },
+        authority,
         authorityBasis: "unknown",
         authorityDecision: {
           allowed: false,
@@ -206,16 +307,26 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
         },
         evaluatedAt,
       };
+      recordEnforcementOutcome({
+        context: input.context,
+        tenantId,
+        correlationId: input.correlationId,
+        evaluatedAt,
+        authority,
+        authorityBasis: "unknown",
+        decision,
+      });
+      return decision;
     }
 
-    return {
+    const decision: TenantGovernanceEnforcementDecision = {
       tenantId,
       operation: input.operation,
       governedAction: input.requirement.governedAction,
       allowed: false,
       deniedLayer: "infrastructure",
       reason: error instanceof Error ? error.message : "tenant governance enforcement failed",
-      authority: { kind: "platform_admin", principalId: "system" },
+      authority,
       authorityBasis: "unknown",
       authorityDecision: {
         allowed: false,
@@ -224,6 +335,16 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
       },
       evaluatedAt,
     };
+    recordEnforcementOutcome({
+      context: input.context,
+      tenantId,
+      correlationId: input.correlationId,
+      evaluatedAt,
+      authority,
+      authorityBasis: "unknown",
+      decision,
+    });
+    return decision;
   }
 }
 

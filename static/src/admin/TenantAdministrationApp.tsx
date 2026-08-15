@@ -3,6 +3,9 @@ import {
   type AdministrativeRole,
   AdminApiError,
   type AdminAccessContext,
+  type AdministrativeAuditCategory,
+  type AdministrativeAuditOutcome,
+  type TenantAdministrativeAuditEntry,
   type GovernanceDecisionView,
   type GovernedAction,
   type TenantAdminDetail,
@@ -15,11 +18,11 @@ import {
   writeAdminAccessContext,
 } from './api'
 
-type AdminTab = 'overview' | 'members' | 'governance' | 'entitlements' | 'limits'
+type AdminTab = 'overview' | 'members' | 'governance' | 'entitlements' | 'limits' | 'audit'
 type AdminRoute = { kind: 'list' } | { kind: 'detail'; tenantId: string; tab: AdminTab }
 type Confirmation = { title: string; message: string; confirmLabel?: string; run: () => Promise<void> } | null
 
-const TABS: readonly AdminTab[] = ['overview', 'members', 'governance', 'entitlements', 'limits']
+const TABS: readonly AdminTab[] = ['overview', 'members', 'governance', 'entitlements', 'limits', 'audit']
 const GOVERNED_ACTIONS: readonly GovernedAction[] = ['agent.create', 'agent.configure', 'deployment.create', 'deployment.start', 'tool.install', 'plugin.install', 'execution.start']
 const ROLE_OPTIONS: readonly AdministrativeRole[] = ['tenant_owner', 'tenant_admin', 'operator', 'auditor']
 const ACTOR_OPTIONS = ['system', 'tenant-admin', 'tenant-member', 'auditor'] as const
@@ -38,6 +41,7 @@ function parseAdminRoute(pathname: string): AdminRoute {
   if (tabSegment === 'governance') return { kind: 'detail', tenantId: decodeURIComponent(tenantId), tab: 'governance' }
   if (tabSegment === 'entitlements') return { kind: 'detail', tenantId: decodeURIComponent(tenantId), tab: 'entitlements' }
   if (tabSegment === 'limits') return { kind: 'detail', tenantId: decodeURIComponent(tenantId), tab: 'limits' }
+  if (tabSegment === 'audit') return { kind: 'detail', tenantId: decodeURIComponent(tenantId), tab: 'audit' }
   return { kind: 'detail', tenantId: decodeURIComponent(tenantId), tab: 'overview' }
 }
 
@@ -545,6 +549,56 @@ function LimitsTab({ api, detail, onReload, onBusy, busy, onConfirm }: { api: Re
   </div>
 }
 
+function AuditTab({ api, detail }: { api: ReturnType<typeof createAdminApi>; detail: TenantAdminDetail }) {
+  const [category, setCategory] = useState<AdministrativeAuditCategory | ''>('')
+  const [outcome, setOutcome] = useState<AdministrativeAuditOutcome | ''>('')
+  const [actor, setActor] = useState('')
+  const [correlationId, setCorrelationId] = useState('')
+  const [eventType, setEventType] = useState('')
+  const resource = useResource(() => api.listTenantAuditEntries(detail.tenantId, {
+    ...(category ? { category } : {}),
+    ...(outcome ? { outcome } : {}),
+    ...(actor.trim() ? { actor: actor.trim() } : {}),
+    ...(correlationId.trim() ? { correlationId: correlationId.trim() } : {}),
+    ...(eventType.trim() ? { eventType: eventType.trim() } : {}),
+  }), [api, detail.tenantId, category, outcome, actor, correlationId, eventType])
+
+  return <div className='admin-stack'>
+    <Panel title='Audit filters' actions={<button type='button' className='button ghost' onClick={() => resource.reload()}>Refresh</button>}>
+      <div className='admin-filters'>
+        <label><span>Category</span><select value={category} onChange={event => setCategory(event.target.value as AdministrativeAuditCategory | '')}><option value=''>All</option><option value='tenant.lifecycle'>tenant.lifecycle</option><option value='tenant.membership'>tenant.membership</option><option value='tenant.ownership'>tenant.ownership</option><option value='tenant.governance'>tenant.governance</option><option value='tenant.entitlement'>tenant.entitlement</option><option value='tenant.limit'>tenant.limit</option><option value='tenant.enforcement'>tenant.enforcement</option></select></label>
+        <label><span>Outcome</span><select value={outcome} onChange={event => setOutcome(event.target.value as AdministrativeAuditOutcome | '')}><option value=''>All</option><option value='allowed'>allowed</option><option value='succeeded'>succeeded</option><option value='denied'>denied</option><option value='failed'>failed</option></select></label>
+        <label><span>Actor</span><input value={actor} onChange={event => setActor(event.target.value)} placeholder='principal id' /></label>
+        <label><span>Correlation</span><input value={correlationId} onChange={event => setCorrelationId(event.target.value)} placeholder='corr-...' /></label>
+        <label><span>Event type</span><input value={eventType} onChange={event => setEventType(event.target.value)} placeholder='tenant.membership' /></label>
+      </div>
+    </Panel>
+    {resource.loading ? <div className='admin-grid'>{Array.from({ length: 3 }, (_, index) => <div key={index} className='admin-skeleton' />)}</div> : resource.error ? <ErrorState error={resource.error} onRetry={resource.reload} /> : resource.data && resource.data.entries.length ? <div className='admin-cards'>{resource.data.entries.map((entry: TenantAdministrativeAuditEntry) => <article key={entry.eventId} className='admin-card'>
+      <div className='admin-card__head'>
+        <div>
+          <h3>{entry.action}</h3>
+          <p className='admin-mono'>{entry.summary}</p>
+        </div>
+        <StatusBadge status={entry.outcome} />
+      </div>
+      <dl className='admin-grid-2'>
+        <div><dt>Category</dt><dd>{entry.category}</dd></div>
+        <div><dt>Actor</dt><dd>{entry.actor ?? '—'}</dd></div>
+        <div><dt>Target</dt><dd>{entry.targetType && entry.targetId ? entry.targetType + ":" + entry.targetId : '—'}</dd></div>
+        <div><dt>Correlation</dt><dd className='admin-mono'>{entry.correlationId}</dd></div>
+        <div><dt>Timestamp</dt><dd>{formatAdminDate(entry.timestamp)}</dd></div>
+        <div><dt>Revision</dt><dd>{entry.revision ?? '—'}</dd></div>
+      </dl>
+      <div className='admin-chip-row'>
+        {entry.authorityBasis && <span className='pill'>{entry.authorityBasis}</span>}
+        {entry.deniedLayer && <span className='pill'>{entry.deniedLayer}</span>}
+        {entry.governanceDecision && <span className='pill'>{entry.governanceDecision}</span>}
+      </div>
+      {entry.reason ? <p>{entry.reason}</p> : null}
+    </article>)}</div> : <EmptyState title='No audit events' message='Administrative events for this tenant will appear here when mutations and decisions are recorded.' />}
+  </div>
+}
+
 function TenantDetailPage({ api, detail, tab, onReload, onNavigate }: { api: ReturnType<typeof createAdminApi>; detail: TenantAdminDetail; tab: AdminTab; onReload: () => void; onNavigate: (pathname: string) => void }) {
   const [confirmation, setConfirmation] = useState<Confirmation>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -588,6 +642,7 @@ function TenantDetailPage({ api, detail, tab, onReload, onNavigate }: { api: Ret
       {currentTab === 'governance' && <GovernanceTab api={api} detail={detail} onReload={onReload} onBusy={setBusy} busy={busy} />}
       {currentTab === 'entitlements' && <EntitlementsTab api={api} detail={detail} onReload={onReload} onBusy={setBusy} busy={busy} onConfirm={setConfirmation} />}
       {currentTab === 'limits' && <LimitsTab api={api} detail={detail} onReload={onReload} onBusy={setBusy} busy={busy} onConfirm={setConfirmation} />}
+      {currentTab === 'audit' && <AuditTab api={api} detail={detail} />}
     </main>
   </div>
 }

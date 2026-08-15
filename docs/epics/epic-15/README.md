@@ -8,8 +8,9 @@ Transform tenant isolation into an explicit, auditable, governed administrative 
 
 ~~~text
 Status: ACTIVE IMPLEMENTATION
-Tenant administration readiness: A01, B01, C01, C02, D01, and D02 complete
-Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, entitlements, selected enforcement boundaries, the administrative Product API, and the Control Plane UX are in place
+Tenant administration readiness: A01, B01, C01, C02, D01, D02, and E01 complete
+Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, entitlements, selected enforcement boundaries, the administrative Product API, the Control Plane UX, and administrative audit/isolation hardening are in place
+Final acceptance and closure: E02 remains the last closure pass
 ~~~
 
 ## Problem
@@ -91,6 +92,7 @@ ACS already carries tenant scope across several runtime and control-plane projec
 - auditability requirements are defined;
 - control-plane surface and API boundaries are documented;
 - tenant administration Control Plane UX is implemented and browser-accepted;
+- administrative audit trails and isolation hardening are implemented and tenant-scoped;
 - deferred items are separated from EPIC-15 scope.
 
 ## Initial state

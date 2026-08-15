@@ -9,6 +9,7 @@ Agents working in EPIC-15 must treat this directory as the canonical tenant gove
 - Preserve explicit tenant scope in every proposed command, query or event.
 - Reuse existing tenant-aware control-plane projections before proposing new domain objects.
 - Keep the Administrative Product API thin: resolve context, call domain/application services, and map results/errors only.
+- Keep audit/history read paths tenant-scoped and backed by real administrative events only.
 - Keep runtime, deployment, worker and billing enforcement out of tenant administration work unless a milestone explicitly calls for the boundary.
 - Keep governance policy, entitlement, and limit contracts separate; do not merge them into a generic policy engine.
 
@@ -61,6 +62,7 @@ Agents working in EPIC-15 must treat this directory as the canonical tenant gove
 - Do not convert visibility into authority.
 - Do not normalize unsupported states into supported ones.
 - Do not conflate Agent roles with tenant administrative authority.
+- Do not accept conflicting tenant context sources; reject forged scope instead of guessing.
 
 ## EPIC-15 UI guidance
 

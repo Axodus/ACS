@@ -221,6 +221,21 @@ async function scenarioMembershipGovernance() {
     });
     assert.equal(archive.status, 200);
 
+    const auditList = await request(context, "/api/v1/admin/tenants/tenant-d01-flow/audit", {
+      auth: newOwnerAuth,
+    });
+    assert.equal(auditList.status, 200);
+    assert.equal(auditList.body.data.tenantId, "tenant-d01-flow");
+    assert.equal(auditList.body.data.entries.length > 0, true);
+    assert.equal(auditList.body.data.entries.some((entry) => entry.category === "tenant.membership"), true);
+
+    const auditDetail = await request(context, "/api/v1/admin/tenants/tenant-d01-flow/audit/" + auditList.body.data.entries[0].eventId, {
+      auth: newOwnerAuth,
+    });
+    assert.equal(auditDetail.status, 200);
+    assert.equal(auditDetail.body.data.event.eventId, auditList.body.data.entries[0].eventId);
+    assert.equal(auditDetail.body.data.event.tenantId, "tenant-d01-flow");
+
     const blockedAfterArchive = await request(context, "/api/v1/admin/tenants/tenant-d01-flow/members", {
       method: "POST",
       auth: ownerAuth,
@@ -304,6 +319,27 @@ async function scenarioCrossTenantAccess() {
     });
     assert.equal(unauthorizedMemberMutation.status, 403);
     assert.equal(unauthorizedMemberMutation.body.error.reason, "cross_tenant_scope");
+
+    const crossTenantAuditRead = await request(context, "/api/v1/admin/tenants/tenant-d01-b/audit", {
+      auth: createAcsAuthContext({
+        mode: "mock",
+        actorType: "tenant-admin",
+        actorId: "owner-a",
+        tenantId: "tenant-d01-a",
+        authenticated: true,
+      }),
+    });
+    assert.equal(crossTenantAuditRead.status, 403);
+    assert.equal(crossTenantAuditRead.body.error.reason, "cross_tenant_scope");
+
+    const forgedTenantBody = await request(context, "/api/v1/admin/tenants/tenant-d01-a/members", {
+      method: "POST",
+      auth: platformAuth,
+      payload: { tenantId: "tenant-d01-b", principalId: "forged", role: "operator" },
+    });
+    assert.equal(forgedTenantBody.status, 400);
+    assert.equal(forgedTenantBody.body.error.code, "invalid_query");
+    assert.equal(forgedTenantBody.body.error.reason, "validation_error");
   } finally {
     await context.close();
   }

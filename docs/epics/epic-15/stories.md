@@ -117,3 +117,19 @@ Each story is a planning unit for the EPIC-15 implementation track. The stories 
 - Non-goals: broad runtime blocking, billing, metering, or product-wide security rewrites.
 - Evidence expected: shared enforcement adapter, targeted integration tests, and route-level receipts.
 - Status: implemented in Sprint C02.
+
+## Story T09 — Administrative auditability and isolation hardening
+
+- ID: T09
+- Objective: make privileged administrative actions attributable, tenant-scoped, and reconstructable from real audit history.
+- Scope: canonical audit event projection, audit read routes, tenant-scoped history access, forged-context rejection, cross-tenant hardening, suspended/archived consistency.
+- Dependencies: T01 through T08.
+- Acceptance criteria:
+  - administrative events remain tenant-scoped and correlatable;
+  - audit history is read-only and sourced from real events;
+  - forged tenant context is rejected;
+  - cross-tenant audit reads and writes are blocked;
+  - platform authority remains explicit and separate.
+- Non-goals: generic observability platform, synthetic audit records, SIEM, broad runtime redesign.
+- Evidence expected: audit read model, hardening tests, and browser evidence if UI audit surface is present.
+- Status: implemented in Sprint E01.
