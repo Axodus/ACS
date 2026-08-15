@@ -1,0 +1,100 @@
+# EPIC-15.5 Milestones
+
+This index is the normative consumption order for implementation. A milestone may start design work before a dependency closes, but it may not claim readiness or expose a production path until its entry gates pass.
+
+| Milestone | Status | Findings primarily owned | Entry gate | Exit evidence |
+| --- | --- | --- | --- | --- |
+| A — System-Wide Gap Discovery & Readiness Baseline | **PASS** | all discovery | EPIC-15 closure | verified inventory, baseline, journeys, stories and plan |
+| B — Durable Platform State & Production Adapters | PLANNED | 001, 002, 007, 009, 019 | B1–B3 decisions | restart, two-instance, managed secret, durable audit/economics |
+| C — Production Identity, Security & Edge Controls | PLANNED | 003, 008, 010, 013 | C1–C2 decisions | trusted identity, forged-context denial, HTTP/limit edge matrix |
+| D — Distributed Runtime & Execution Readiness | PLANNED | 004, 005, 017 | B state + C identity + D1 | remote dispatch, durable jobs, crash/retry/cancel recovery |
+| E — Observability & Operational Diagnostics | PLANNED | 011, 012 | durable correlation + D runtime + E1 | external telemetry, actionable diagnostics, readiness probe |
+| F — End-to-End Product UX Operationalization | PLANNED | 014–018, 021–024 | B–E supported contracts | authenticated operator journey and browser evidence |
+| G — Production Deployment Readiness & Governance Gate | BLOCKED BY B–F | 006 | all B–F exits + G1 | production target, rollout/rollback and fail-closed gate |
+| H — Full-System Acceptance & Gap Closure | BLOCKED BY G | 020 and residuals | G exit | full regression, security, restart, replica, browser and closure report |
+
+## Milestone A — PASS
+
+A01 established 24 findings: 8 BLOCKER, 4 CRITICAL, 9 HIGH, 2 MEDIUM and 1 LOW. No major implementation was performed. The current readiness classification is Development Ready, Integration Ready PARTIAL, Operational Ready BLOCKED and Production Ready BLOCKED.
+
+## Milestone B — Durable Platform State & Production Adapters
+
+Recommended sprint order:
+
+1. **B01 — Adapter Composition & Startup Profiles**
+2. **B02 — Durable Administrative and Agent State**
+3. **B03 — Durable Deployment, Runtime and Job Records**
+4. **B04 — Managed Secrets**
+5. **B05 — Durable Audit**
+6. **B06 — Durable Economics & Settlement**
+
+Do not create one generic repository for every domain. Preserve aggregate-specific invariants and migrate DEV fixture behavior into explicit development bootstrap.
+
+## Milestone C — Production Identity, Security & Edge Controls
+
+Recommended sprint order:
+
+1. **C01 — Trusted Identity Validation**
+2. **C02 — Principal, Tenant and Platform Authority Binding**
+3. **C03 — HTTP Method, CORS and Request Safety Alignment**
+4. **C04 — Distributed Rate Limiting**
+
+C03 may repair ACS-ORG-008 early, but the administrative API remains non-production until C01/C02 establish trusted actor context.
+
+## Milestone D — Distributed Runtime & Execution Readiness
+
+Recommended sprint order:
+
+1. **D01 — Durable Job, Attempt and Lease State**
+2. **D02 — Authenticated Remote Worker Dispatch**
+3. **D03 — Runtime Recovery and Reconciliation**
+
+Remote proof requires a second process or network boundary. A local worker implementing the same interface is insufficient.
+
+## Milestone E — Observability & Operational Diagnostics
+
+Recommended sprint order:
+
+1. **E01 — External Structured Telemetry**
+2. **E02 — Dependency-Aware Liveness and Readiness**
+
+Exporter configuration is not enough: an operator must diagnose an injected failure without shell access.
+
+## Milestone F — End-to-End Product UX Operationalization
+
+Recommended sprint order:
+
+1. **F01 — Canonical Authenticated Control Plane**
+2. **F02 — Governed Composition & Secret References**
+3. **F03 — Execution & Recovery UX**
+4. **F04 — Readiness Truth & Source Hygiene**
+
+Reuse EPIC-14 navigation, accessibility, responsive and browser acceptance patterns. Do not redesign the product or duplicate domain rules in the UI.
+
+## Milestone G — Production Deployment Readiness & Governance Gate
+
+Recommended sprint order:
+
+1. **G01 — Production Prerequisite Certification**
+2. **G02 — Production Target, Rollout & Rollback**
+
+The first G change must not remove sandbox guards. The production capability is added behind an explicit gate after prerequisites are certified.
+
+## Milestone H — Full-System Acceptance & Gap Closure
+
+Recommended sprint order:
+
+1. **H01 — Restart, Multi-Replica, Security & Remote Execution Certification**
+2. **H02 — Browser Operational Journey Certification**
+3. **H03 — Finding Closure & Readiness Report**
+
+H is an acceptance milestone. Material defects found in H receive a scoped functional fix and regression evidence before closure; new features are deferred.
+
+## Global milestone rules
+
+- Update `operational-gap-inventory.md` with status and evidence in every resolving sprint.
+- Never convert a finding to `CLOSED` based only on interface/unit evidence when operational proof is required.
+- Preserve unrelated workspace changes and stage explicitly.
+- Keep production adapters vendor-neutral at the domain boundary but concrete in runtime composition.
+- Maintain sandbox/local development workflows without allowing production fallback to them.
+- No push without explicit instruction.
