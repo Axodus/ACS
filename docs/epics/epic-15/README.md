@@ -8,8 +8,8 @@ Transform tenant isolation into an explicit, auditable, governed administrative 
 
 ~~~text
 Status: ACTIVE IMPLEMENTATION
-Tenant administration readiness: A01, B01, and C01 complete
-Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, and entitlements are in place
+Tenant administration readiness: A01, B01, C01, and C02 complete
+Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, entitlements, and selected enforcement boundaries are in place
 ~~~
 
 ## Problem
@@ -79,8 +79,9 @@ ACS already carries tenant scope across several runtime and control-plane projec
 1. Tenant Domain & Lifecycle
 2. Membership & Administrative Authority
 3. Governance, Limits & Entitlements
-4. Administrative API & Control Plane
-5. Auditability, Isolation Hardening & Acceptance
+4. Governance Enforcement Boundaries
+5. Administrative API & Control Plane
+6. Auditability, Isolation Hardening & Acceptance
 
 ## Global completion criteria
 
@@ -88,10 +89,11 @@ ACS already carries tenant scope across several runtime and control-plane projec
 - lifecycle and membership contracts are settled;
 - administrative authority is minimal and scoped;
 - governance, limits and entitlements have bounded contracts;
+- selected enforcement boundaries consume canonical governance decisions;
 - auditability requirements are defined;
 - control-plane surface and API boundaries are documented;
 - deferred items are separated from EPIC-15 scope.
 
 ## Initial state
 
-EPIC-15 now has implemented foundations in Milestones A01, B01, and C01. Remaining milestones continue from that baseline without changing the no-production / no-billing posture.
+EPIC-15 now has implemented foundations in Milestones A01, B01, C01, and C02. Remaining milestones continue from that baseline without changing the no-production / no-billing posture.

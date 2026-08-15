@@ -34,7 +34,7 @@ Exit criteria:
 
 ## Milestone C — Governance, Limits and Entitlements
 
-Status: implemented in Sprint C01.
+Status: implemented in Sprints C01 and C02.
 
 Focus:
 - governance policy evaluation;
@@ -42,13 +42,15 @@ Focus:
 - limit evaluation;
 - deterministic decision receipts;
 - hard system ceiling protection;
-- enforcement handoff boundaries.
+- enforcement handoff boundaries;
+- selective enforcement at real operational boundaries.
 
 Exit criteria:
 - governance, entitlement, and limit contracts remain separate;
 - precedence and default semantics are explicit;
 - decision receipts are audit-ready;
-- enforcement remains deferred to later milestones.
+- selected control-plane boundaries consume the canonical evaluators;
+- runtime redesign and broad metering remain deferred.
 
 ## Milestone D — Administrative Surface and Enforcement Integration
 

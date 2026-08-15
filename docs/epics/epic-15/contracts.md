@@ -241,8 +241,39 @@ Stable error codes include:
 - auditor is read-only for governance.
 - platform_admin is explicit platform scope and separate from membership roles.
 
-## 12. Open decisions
+## 12. Enforcement contract
 
-- Which governance actions will be consumed first by enforcement boundaries.
-- Which entitlements are necessary for the first runtime integration.
-- Which limits remain read-only until economics or usage boundaries are ready.
+    type EnforcementLayer =
+      | authority
+      | governance
+      | entitlement
+      | limit
+      | tenant_state
+      | system_hard_limit
+      | invalid_request
+      | infrastructure
+
+    interface EnforcementDecision {
+      tenantId: string
+      operation: string
+      allowed: boolean
+      deniedLayer?: EnforcementLayer
+      basis?: string
+      evaluatedAt: number
+      governanceDecision?: GovernanceDecision
+      entitlementDecision?: EntitlementDecision
+      limitDecision?: LimitDecision
+    }
+
+    type EnforcedOperation =
+      | agent.create
+      | agent.configure
+      | deployment.create
+
+Enforcement is a consumer of canonical governance decisions. It is fail-closed for missing or inconsistent decision inputs. The first selected operations are representative control-plane mutations; execution and broader runtime gating remain deferred until their boundaries can consume the same contract safely.
+
+## 13. Open decisions
+
+- Which additional operations will be enrolled in enforcement after the initial selected set.
+- Which entitlements become mandatory for the next runtime integration boundary.
+- Which usage-backed limits remain deferred until metering exists.

@@ -123,7 +123,30 @@ Governance resolution follows a deterministic precedence:
 
 Entitlement resolution defaults to denied when absent. Limit resolution takes the minimum of configured tenant limit and hard system limit when both exist.
 
-## 8. Control-plane surface shape
+## 8. Enforcement boundaries
+
+Decision production stays in the governance domain. Enforcement is a separate consumer that runs at concrete application boundaries before side effects.
+
+~~~text
+operation intent
+  ↓
+tenant + actor context
+  ↓
+administrative authority
+  ↓
+governance decision
+  ↓
+entitlement decision
+  ↓
+limit decision
+  ↓
+ALLOW → side effect
+DENY  → semantic failure + audit-ready receipt
+~~~
+
+Milestone C02 integrates the first selected boundaries with a shared enforcer rather than duplicating policy logic in controllers, services, or workers. The initial enforced operations are representative control-plane mutations such as agent creation, agent configuration changes, and deployment creation. Execution and broad runtime gating remain deferred unless the boundary can consume the same contract without redesign.
+
+## 9. Control-plane surface shape
 
 Future control-plane navigation should expose:
 
@@ -136,7 +159,14 @@ Future control-plane navigation should expose:
 - audit and history;
 - administrative actions.
 
-## 9. Architecture constraints
+## 10. Boundary safety notes
+
+- Governance decisions are tenant-scoped and must never be reused across tenants.
+- Administrative authority and governance are distinct checks.
+- Enforcement adapters may consume receipts, but they do not become the source of truth for policy state.
+- Broad runtime, queue, and metering redesign stay outside Milestone C02.
+
+## 11. Architecture constraints
 
 - Do not make runtime or deployment ownership implicit.
 - Do not collapse platform-admin and tenant-admin.

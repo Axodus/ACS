@@ -106,13 +106,14 @@ Each story is a planning unit for the EPIC-15 implementation track. The stories 
 ## Story T08 — Enforcement integration readiness
 
 - ID: T08
-- Objective: prepare enforcement boundaries to consume tenant governance decisions without redefining the governance model.
-- Scope: decision consumption interfaces, runtime handoff points, enforcement contract mapping.
+- Objective: integrate a representative set of operational boundaries with canonical governance enforcement.
+- Scope: decision consumption interfaces, route/application handoff points, enforcement contract mapping, selective side-effect gating.
 - Dependencies: T03, T04, T07.
 - Acceptance criteria:
   - consumers can read decision receipts deterministically;
   - enforcement remains separated from decision production;
+  - at least one representative control-plane mutation boundary is gated before side effects;
   - no policy DSL or cross-tenant bypass is introduced.
 - Non-goals: broad runtime blocking, billing, metering, or product-wide security rewrites.
-- Evidence expected: handoff contract and targeted integration tests.
-- Status: deferred until enforcement milestones.
+- Evidence expected: shared enforcement adapter, targeted integration tests, and route-level receipts.
+- Status: implemented in Sprint C02.

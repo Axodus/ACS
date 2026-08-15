@@ -12,6 +12,12 @@ import { RuntimeLifecycleService } from "../control-plane/runtime-lifecycle-serv
 import { AuditService } from "../control-plane/audit-service.js";
 import { ExecutionPlanResolver } from "../control-plane/execution-plan-resolver.js";
 import { EconomicService } from "../control-plane/neurons-economic-contract.js";
+import { TenantLifecycleService, InMemoryTenantRepository } from "../control-plane/tenant-domain.js";
+import {
+  TenantMembershipService,
+  type AdministrativeAuthority,
+} from "../control-plane/tenant-membership.js";
+import { TenantGovernanceService } from "../control-plane/tenant-governance.js";
 import { ModelProviderRegistry } from "../intelligence/model-provider-registry.js";
 import { ModelProviderService } from "../intelligence/model-provider-service.js";
 import { AgentRunnerRegistry } from "../intelligence/agent-runner-registry.js";
@@ -47,6 +53,10 @@ export interface ControlPlaneContext {
   readonly deploymentService: DeploymentService;
   readonly runtimeService: RuntimeLifecycleService;
   readonly auditService: AuditService;
+  readonly tenantRepository: InMemoryTenantRepository;
+  readonly tenantService: TenantLifecycleService;
+  readonly tenantMembershipService: TenantMembershipService;
+  readonly tenantGovernanceService: TenantGovernanceService;
   readonly providerService: ModelProviderService;
   readonly runnerService: AgentRunnerService;
   readonly credentials: CredentialConnectionRegistry;
@@ -265,6 +275,75 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   }));
 
   const compositionResources = new CompositionResourceService();
+  const auditService = new AuditService();
+
+  const tenantRepository = new InMemoryTenantRepository();
+  const tenantService = new TenantLifecycleService({ repository: tenantRepository, auditService });
+  const tenantMembershipService = new TenantMembershipService({ tenantRepository, auditService });
+  const tenantGovernanceService = new TenantGovernanceService({
+    tenantRepository,
+    membershipService: tenantMembershipService,
+    auditService,
+  });
+
+  const bootstrapTenantId = isolation.scope.tenantId;
+  const bootstrapAt = Date.now();
+  const bootstrapAuthority: AdministrativeAuthority = { kind: "platform_admin", principalId: "system" };
+
+  try {
+    tenantService.createTenant({
+      tenantId: bootstrapTenantId,
+      displayName: "DEV Tenant",
+      createdBy: "system",
+      actor: "system",
+      reason: "dev bootstrap tenant",
+      at: bootstrapAt,
+    });
+  } catch {
+    // context-local bootstrap is best-effort and idempotent for inspection flows
+  }
+
+  try {
+    tenantService.activateTenant(bootstrapTenantId, {
+      actor: "system",
+      reason: "dev bootstrap tenant",
+      at: bootstrapAt + 1,
+    });
+  } catch {
+    // ignore duplicate activation when a caller reuses an existing tenant fixture
+  }
+
+  try {
+    tenantMembershipService.bootstrapTenantOwner({
+      tenantId: bootstrapTenantId,
+      principalId: "dev-operator",
+      authority: bootstrapAuthority,
+      actor: "system",
+      reason: "dev bootstrap owner",
+      at: bootstrapAt + 2,
+    });
+  } catch {
+    // keep the fixture resilient if the tenant already has an owner
+  }
+
+  try {
+    tenantGovernanceService.replacePolicy({
+      tenantId: bootstrapTenantId,
+      authority: bootstrapAuthority,
+      policyId: "policy_dev_epic15",
+      defaultEffect: "deny",
+      rules: [
+        { ruleId: "allow_agent_create", action: "agent.create", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
+        { ruleId: "allow_agent_configure", action: "agent.configure", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
+        { ruleId: "allow_deployment_create", action: "deployment.create", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
+      ],
+      actor: "system",
+      reason: "dev bootstrap policy",
+      at: bootstrapAt + 3,
+    });
+  } catch {
+    // keep dev routes functional even if a caller already seeded governance
+  }
 
   const agentService = new AgentService({
     providers: modelProviderRegistry,
@@ -288,7 +367,6 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   agentService.create({ definition: devAgentDefinition, createdAt: Date.now() });
 
   const economicService = new EconomicService({ policy: DEV_BILLING_POLICY });
-  const auditService = new AuditService();
   const planResolver = new ExecutionPlanResolver({
     targetService,
     providers: modelProviderRegistry,
@@ -345,6 +423,10 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     deploymentService,
     runtimeService,
     auditService,
+    tenantRepository,
+    tenantService,
+    tenantMembershipService,
+    tenantGovernanceService,
     providerService: new ModelProviderService(modelProviderRegistry),
     runnerService: new AgentRunnerService(runnerRegistry),
     credentials,

@@ -35,6 +35,8 @@
 - platform-scoped and tenant-scoped authority checks;
 - tenant-scoped and platform-scoped API boundaries;
 - governance decision evaluation.
+- enforcement adapters at selected control-plane mutation boundaries;
+- failure mapping for governance, entitlement, limit, and state denials.
 
 ## Create
 
@@ -46,6 +48,7 @@
 - clear distinction between platform admin and tenant admin;
 - explicit bootstrap semantics for the first owner;
 - deterministic governance decision receipts consumed by future enforcement.
+- shared enforcement contract that consumes canonical governance receipts before side effects.
 
 ## Do not touch
 
@@ -67,7 +70,8 @@
 - advanced observability beyond audit and history requirements;
 - runtime reaction semantics for every tenant lifecycle transition;
 - any membership/UI surface beyond the domain and service contracts;
-- runtime enforcement of governance decisions.
+- runtime enforcement of governance decisions beyond the selected control-plane boundaries;
+- broad queue, worker, and metering redesign.
 
 ## Adjacent domain review
 
@@ -85,7 +89,7 @@ Tenant governance may constrain their use, but this EPIC does not redesign the c
 
 ### Deployments and runtime
 
-Tenant state can constrain deployment and execution starts. It does not replace deployment or runtime truth.
+Tenant state can constrain deployment and execution starts. Milestone C02 only consumes this at selected control-plane boundaries; it does not replace deployment or runtime truth.
 
 ### Control Plane
 
@@ -102,6 +106,10 @@ Identity may be external, but tenant membership and authority are ACS-canonical.
 ### Observability and audit
 
 Auditability is required for administrative actions. Full audit storage is deferred, but the event contract must be explicit.
+
+### Enforcement boundaries
+
+Tenant governance decisions are consumed at a small number of explicit application boundaries. They are not duplicated as controller-local policy logic and they do not become a general middleware system.
 
 ## Boundary conclusion
 

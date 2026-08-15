@@ -8,6 +8,7 @@ import {
 } from "../validation.js";
 import type { ControlPlaneContext } from "../control-plane-context.js";
 import { ProductApiClient } from "../../control-plane/product-api-client.js";
+import { enforceTenantGovernanceMutation } from "../tenant-governance-enforcer.js";
 import type {
   AgentCreateInput,
   AgentCreateRevisionInput,
@@ -351,6 +352,21 @@ export async function routeProductApiRequest(
     // POST /api/v1/agents (create agent)
     if (segments[2] === "agents" && segments.length === 3 && request.method === "POST") {
       assertAllowedQueryParams(url, []);
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "agent.create",
+        requirement: {
+          governedAction: "agent.create",
+          limitKey: "max_agents",
+          requestedAmount: 1,
+          usage: (await api.listAgents()).length,
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const body = await readJsonBody(request);
       const input: AgentCreateInput = parseAgentCreateInput(body);
       const result = await api.createAgent(input);
@@ -422,6 +438,19 @@ export async function routeProductApiRequest(
         targetId: typeof body.targetId === "string" ? body.targetId : "local",
       };
 
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "deployment.create",
+        requirement: {
+          governedAction: "deployment.create",
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
+
       const deployment = await api.deployAgent(requestData);
       return { status: 201, body: ok(deployment, [], options.correlationId, routeMeta) };
     }
@@ -438,6 +467,18 @@ export async function routeProductApiRequest(
     if (segments[2] === "agents" && segments[3] && segments[4] === "revisions" && segments.length === 5 && request.method === "POST") {
       assertAllowedQueryParams(url, []);
       const agentId = readPathSegment(segments, 3, "agentId");
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "agent.configure",
+        requirement: {
+          governedAction: "agent.configure",
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const body = await readJsonBody(request);
       const input: AgentCreateRevisionInput = parseAgentCreateRevisionInput(body, agentId);
       const result = await api.createAgentRevision(agentId, input);
@@ -456,6 +497,18 @@ export async function routeProductApiRequest(
       assertAllowedQueryParams(url, []);
       const agentId = readPathSegment(segments, 3, "agentId");
       const revisionId = readPathSegment(segments, 5, "revisionId");
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "agent.configure",
+        requirement: {
+          governedAction: "agent.configure",
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const result = segments[6] === "adopt"
         ? await api.adoptAgentRevision(agentId, revisionId)
         : await api.restoreAgentRevision(agentId, revisionId);
@@ -486,6 +539,21 @@ export async function routeProductApiRequest(
     if (segments[2] === "agents" && segments[3] && segments[4] === "duplicate" && segments.length === 5 && request.method === "POST") {
       assertAllowedQueryParams(url, []);
       const agentId = readPathSegment(segments, 3, "agentId");
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "agent.create",
+        requirement: {
+          governedAction: "agent.create",
+          limitKey: "max_agents",
+          requestedAmount: 1,
+          usage: (await api.listAgents()).length,
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const body = await readJsonBody(request);
       const input: AgentDuplicateInput = parseAgentDuplicateInput(body);
       const result = await api.duplicateAgent(agentId, input);
@@ -500,6 +568,18 @@ export async function routeProductApiRequest(
     if (segments[2] === "agents" && segments[3] && segments[4] === "archive" && segments.length === 5 && request.method === "POST") {
       assertAllowedQueryParams(url, []);
       const agentId = readPathSegment(segments, 3, "agentId");
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "agent.configure",
+        requirement: {
+          governedAction: "agent.configure",
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const result = await api.archiveAgent(agentId);
       return { status: 200, body: ok(result, [], options.correlationId, routeMeta) };
     }
@@ -512,6 +592,18 @@ export async function routeProductApiRequest(
     if (segments[2] === "agents" && segments[3] && segments[4] === "restore" && segments.length === 5 && request.method === "POST") {
       assertAllowedQueryParams(url, []);
       const agentId = readPathSegment(segments, 3, "agentId");
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "agent.configure",
+        requirement: {
+          governedAction: "agent.configure",
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const result = await api.restoreAgent(agentId);
       return { status: 200, body: ok(result, [], options.correlationId, routeMeta) };
     }
@@ -524,6 +616,18 @@ export async function routeProductApiRequest(
     if (segments[2] === "agents" && segments[3] && segments.length === 4 && request.method === "PATCH") {
       assertAllowedQueryParams(url, []);
       const agentId = readPathSegment(segments, 3, "agentId");
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "agent.configure",
+        requirement: {
+          governedAction: "agent.configure",
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const body = await readJsonBody(request);
       const input: UpdateAgentInput = parseAgentUpdateInput(body, agentId);
       const result = await api.updateAgent(agentId, input);
@@ -534,6 +638,18 @@ export async function routeProductApiRequest(
     if (segments[2] === "agents" && segments[3] && segments.length === 4 && request.method === "DELETE") {
       assertAllowedQueryParams(url, []);
       const agentId = readPathSegment(segments, 3, "agentId");
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "agent.configure",
+        requirement: {
+          governedAction: "agent.configure",
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const result = await api.deleteAgent(agentId);
       return { status: 200, body: ok(result, [], options.correlationId, routeMeta) };
     }
@@ -1620,6 +1736,66 @@ function readStringArray(value: unknown, name: string): readonly string[] {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function mapGovernanceEnforcementFailure(
+  decision: {
+    readonly allowed: boolean;
+    readonly deniedLayer?: string;
+    readonly reason: string;
+  },
+  correlationId: string | undefined,
+  meta: AcsHttpEnvelopeMeta,
+) {
+  switch (decision.deniedLayer) {
+    case "authority":
+      return fail(decision.reason, 403, "forbidden", correlationId, { enforcement: decision }, meta, "blocked_by_authority", {
+        retryable: false,
+        severity: "warning",
+        guardrails: ["tenant_governance_enforcement"],
+      });
+    case "governance":
+      return fail(decision.reason, 403, "policy_rejected", correlationId, { enforcement: decision }, meta, "blocked_by_governance", {
+        retryable: false,
+        severity: "warning",
+        guardrails: ["tenant_governance_enforcement"],
+      });
+    case "entitlement":
+      return fail(decision.reason, 403, "entitlement_required", correlationId, { enforcement: decision }, meta, "blocked_by_entitlement", {
+        retryable: false,
+        severity: "warning",
+        guardrails: ["tenant_governance_enforcement"],
+      });
+    case "limit":
+      return fail(decision.reason, 429, "limit_exceeded", correlationId, { enforcement: decision }, meta, "blocked_by_limit", {
+        retryable: false,
+        severity: "warning",
+        guardrails: ["tenant_governance_enforcement"],
+      });
+    case "system_hard_limit":
+      return fail(decision.reason, 429, "limit_exceeded", correlationId, { enforcement: decision }, meta, "blocked_by_system_limit", {
+        retryable: false,
+        severity: "warning",
+        guardrails: ["tenant_governance_enforcement"],
+      });
+    case "tenant_state":
+      return fail(decision.reason, 409, "conflict", correlationId, { enforcement: decision }, meta, "tenant_state_blocked", {
+        retryable: false,
+        severity: "warning",
+        guardrails: ["tenant_governance_enforcement"],
+      });
+    case "invalid_request":
+      return fail(decision.reason, 400, "invalid_request", correlationId, { enforcement: decision }, meta, "invalid_request", {
+        retryable: false,
+        severity: "error",
+      });
+    case "infrastructure":
+    default:
+      return fail(decision.reason, 500, "internal_error", correlationId, { enforcement: decision }, meta, "runtime_failure", {
+        retryable: true,
+        severity: "error",
+      });
+  }
 }
 
 function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined, meta: AcsHttpEnvelopeMeta) {
