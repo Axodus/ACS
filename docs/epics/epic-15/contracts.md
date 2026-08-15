@@ -218,7 +218,6 @@ Audit storage is deferred, but event shape is normative.
 ## 10. Error semantics
 
 Stable error codes include:
-
 - ACS_TENANT_GOVERNANCE_POLICY_INVALID
 - ACS_TENANT_GOVERNED_ACTION_INVALID
 - ACS_TENANT_GOVERNANCE_EFFECT_INVALID
@@ -229,6 +228,15 @@ Stable error codes include:
 - ACS_TENANT_ENTITLEMENT_INVALID
 - ACS_TENANT_LIMIT_INVALID
 - ACS_TENANT_LIMIT_EXCEEDS_HARD_MAXIMUM
+
+## 11. Control Plane UX contract
+
+The administrative Control Plane is a client of the Product API, not an alternate source of tenant truth.
+
+- Routes are organized around tenant list, tenant detail, membership, governance, entitlements, and limits.
+- UI state must surface loading, empty, error, forbidden, and terminal states explicitly.
+- UI mutation flows consume read models and receipts from the Product API and do not duplicate lifecycle, authority, precedence, or limit evaluation.
+- The public view models are stable administrative summaries, details, memberships, governance views, entitlements, and limit views.
 - ACS_TENANT_GOVERNANCE_RULE_NOT_FOUND
 - ACS_TENANT_GOVERNANCE_STATE_NOT_FOUND
 - ACS_TENANT_GOVERNANCE_REVISION_CONFLICT

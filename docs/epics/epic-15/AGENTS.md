@@ -61,3 +61,10 @@ Agents working in EPIC-15 must treat this directory as the canonical tenant gove
 - Do not convert visibility into authority.
 - Do not normalize unsupported states into supported ones.
 - Do not conflate Agent roles with tenant administrative authority.
+
+## EPIC-15 UI guidance
+
+- D02 Control Plane UX lives under ./static and must remain a client of the Product API only.
+- Keep /admin/tenants routes aligned to D01 contracts and browser-accepted states.
+- Do not import control-plane domain services or repositories into the UI layer.
+- Keep loading, empty, error, forbidden, and confirmation states explicit in the control plane surface.

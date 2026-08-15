@@ -54,16 +54,17 @@ Exit criteria:
 
 ## Milestone D — Administrative Surface and Enforcement Integration
 
-Status: D01 implemented; D02 pending.
+Status: D01 and D02 implemented.
 
 Focus:
 - governed administrative Product API;
 - tenant, membership, governance, entitlement, and limit read/write contracts;
-- audit and receipt consumption for the future Control Plane UI;
-- future runtime and control-plane enforcement integration remains a separate boundary.
+- audit and receipt consumption for the Control Plane UI;
+- tenant administration Control Plane UX consumes the Product API without reaching into repositories or runtime internals.
 
 Exit criteria:
 - administrative routes stay thin and reuse domain/application services;
 - tenant scope and platform scope remain explicit;
 - read models are suitable for the future UI;
-- D02 can consume the Product API without reaching into repositories or runtime internals.
+- D02 browser acceptance passed across the supported viewport matrix;
+- no direct domain, repository, or runtime imports are needed in the UI.

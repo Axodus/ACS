@@ -8,8 +8,8 @@ Transform tenant isolation into an explicit, auditable, governed administrative 
 
 ~~~text
 Status: ACTIVE IMPLEMENTATION
-Tenant administration readiness: A01, B01, C01, C02, and D01 complete
-Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, entitlements, selected enforcement boundaries, and the administrative Product API are in place
+Tenant administration readiness: A01, B01, C01, C02, D01, and D02 complete
+Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, entitlements, selected enforcement boundaries, the administrative Product API, and the Control Plane UX are in place
 ~~~
 
 ## Problem
@@ -28,8 +28,6 @@ ACS already carries tenant scope across several runtime and control-plane projec
 
 ## Non-goals
 
-- no product implementation in this sprint;
-- no new UI pages or backend endpoints;
 - no schema migrations or storage changes;
 - no runtime, deployment, or worker changes;
 - no policy engine, RBAC engine, or billing engine implementation;
@@ -92,6 +90,7 @@ ACS already carries tenant scope across several runtime and control-plane projec
 - selected enforcement boundaries consume canonical governance decisions;
 - auditability requirements are defined;
 - control-plane surface and API boundaries are documented;
+- tenant administration Control Plane UX is implemented and browser-accepted;
 - deferred items are separated from EPIC-15 scope.
 
 ## Initial state

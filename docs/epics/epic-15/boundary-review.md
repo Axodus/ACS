@@ -12,6 +12,7 @@
 - canonical governance policy, entitlement, and limit evaluators;
 - audit-ready receipts for tenant lifecycle, membership, and governance mutations and decisions.
 - tenant administration Product API routes for canonical tenant, membership, governance, entitlement, and limit operations.
+- Control Plane UX under ./static for tenant list/detail and the tenant administration tabs.
 
 ## Reuse
 
@@ -38,6 +39,7 @@
 - governance decision evaluation.
 - enforcement adapters at selected control-plane mutation boundaries;
 - failure mapping for governance, entitlement, limit, and state denials.
+- browser-accepted administrative pages and route state for D02.
 
 ## Create
 
@@ -45,7 +47,7 @@
 - tenant list and detail read models;
 - command and query surface for tenant administration;
 - tenant audit and history surface;
-- future UI flow spec for tenant administration;
+- UI flow implementation for tenant administration;
 - clear distinction between platform admin and tenant admin;
 - explicit bootstrap semantics for the first owner;
 - deterministic governance decision receipts consumed by future enforcement.
@@ -59,9 +61,13 @@
 - existing tenant and workload isolation primitives;
 - billing implementation or money-movement semantics;
 - production readiness claims;
-- static assets under ./static;
 - generic IAM or policy-engine rewrites;
 - generic RBAC or ABAC frameworks.
+
+## In scope for D02
+
+- static Control Plane routes and components under ./static that render tenant administration UX;
+- browser acceptance harness and evidence for the implemented routes.
 
 ## Deferred
 
@@ -95,7 +101,7 @@ Tenant state can constrain deployment and execution starts. Milestone C02 only c
 
 ### Control Plane
 
-Tenant administration belongs inside the control plane and must use explicit tenant scope.
+Tenant administration belongs inside the control plane and must use explicit tenant scope. The implemented UX consumes the administrative Product API only and does not import control-plane domain internals.
 
 ### Economics
 

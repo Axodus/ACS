@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { Header } from './components/Header'
 import { ProductUI } from './components/ProductUI'
 import { Architecture, OpenClawDiagram } from './components/Diagrams'
 import { HeroSystemGraphic } from './components/HeroSystemGraphic'
 import { CoreEvolution, WorkflowEvidence } from './components/CoreEvolution'
+import { TenantAdministrationApp } from './admin/TenantAdministrationApp'
 import { EXTERNAL_LINKS } from './config/links'
 
 const APP=import.meta.env.VITE_ACS_APP_URL||'https://acs-app.axodus.country'
@@ -18,7 +20,21 @@ const concepts=[
 
 function SectionHead({eyebrow,title,copy}:{eyebrow:string,title:string,copy?:string}){return <div className="section-head"><span className="eyebrow">{eyebrow}</span><h2>{title}</h2>{copy&&<p>{copy}</p>}</div>}
 
-export default function App(){return <div id="top">
+function usePathname() {
+ const [pathname, setPathname] = useState(() => window.location.pathname)
+ useEffect(() => {
+  const update = () => setPathname(window.location.pathname)
+  window.addEventListener('popstate', update)
+  window.addEventListener('acs:navigation', update)
+  return () => {
+   window.removeEventListener('popstate', update)
+   window.removeEventListener('acs:navigation', update)
+  }
+ }, [])
+ return pathname
+}
+
+function PublicLandingPage(){return <div id="top">
  <Header getStarted={APP}/>
  <main>
   <section className="hero"><div className="hero-grid"/><HeroSystemGraphic/><div className="hero-copy"><div className="availability"><i/> OPEN CONTROL PLANE <span>Built around OpenClaw</span></div><h1>Operate AI agents<br/><em>like infrastructure.</em></h1><p>ACS turns agent configuration, capabilities, permissions and runtime state into an operational system you can inspect, validate and control.</p><div className="cta-group"><a className="button" href={APP}>Open control plane <span>↗</span></a><a className="button ghost" href="#system">Explore the system <span>↓</span></a></div><div className="hero-note"><span>LOCAL-FIRST</span><span>POLICY-BOUND</span><span>AUDITABLE</span><span>OPENCLAW-NATIVE</span></div></div><div className="hero-product"><ProductUI/><div className="product-glow"/></div></section>
@@ -53,3 +69,8 @@ export default function App(){return <div id="top">
  </main>
  <footer><div className="footer-brand"><div className="brand"><img className="footer-axodus" src="/assets/Axodus_logo.svg" alt="Axodus"/><span>ACS</span></div><p>Agent Control System<br/>Part of the Axodus ecosystem.</p></div><div className="footer-links"><div><b>Product</b><a href="#product">Overview</a><a href="#architecture">Architecture</a><a href="#openclaw">OpenClaw</a></div><div><b>Developers</b><a href={DOCS} target="_blank" rel="noopener noreferrer">Documentation</a><a href={GITHUB}>GitHub</a><a href="#developers">CLI</a></div><div><b>Project</b><a href={GITHUB}>Releases</a><a href={GITHUB}>License</a></div></div><div className="footer-bottom"><span>© 2026 ACS — Agent Control System</span><span><i/> Open development</span></div></footer>
  </div>}
+
+export default function App() {
+ const pathname = usePathname()
+ return pathname.startsWith('/admin/tenants') ? <TenantAdministrationApp /> : <PublicLandingPage />
+}

@@ -2560,3 +2560,63 @@ footer {
         width: 120px
     }
 }.logo-mark{border:0;clip-path:none;object-fit:contain;object-position:center;padding:2px}.app-logo-mark{grid-row:1/3;width:24px;height:24px;object-fit:contain;object-position:center}
+
+.admin-app{min-height:100vh;padding:32px max(20px,calc((100vw - 1240px)/2)) 48px;color:#edf0f3;background:radial-gradient(circle at top,#11161d 0%,#090b0e 55%)}
+.admin-shell,.admin-context,.admin-page,.admin-stack,.admin-detail-body{display:grid;gap:20px}
+.admin-shell{grid-template-columns:1fr auto;align-items:end;margin-bottom:18px}
+.admin-shell h1,.admin-page__header h1,.admin-detail-header h1,.admin-panel h3{margin:0}
+.admin-shell p,.admin-page__header p,.admin-detail-header p,.admin-context p,.admin-empty p,.admin-state p{margin:0;color:#a8afba}
+.admin-shell__actions,.admin-chip-row,.admin-form__actions,.admin-card__foot,.admin-page__meta,.modal-actions,.admin-tabs{display:flex;flex-wrap:wrap;gap:10px}
+.admin-context,.admin-panel,.admin-card,.admin-detail-header,.admin-empty,.admin-state,.modal-card{background:rgba(16,19,24,.96);border:1px solid #27303a;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+.admin-context,.admin-panel,.admin-empty,.admin-state,.modal-card{padding:18px}
+.admin-context{grid-template-columns:1fr minmax(320px,520px);align-items:start}
+.admin-context__form,.admin-form,.admin-rule-editor{display:grid;gap:12px}
+.admin-context__form,.admin-form{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.admin-context__form label,.admin-form label,.admin-rule-editor__row{display:grid;gap:8px}
+.admin-context__form span,.admin-form span,.admin-rule-editor__row strong,.admin-panel dt,.admin-card__head p,.admin-mono,.eyebrow{font:12px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.admin-context__form input,.admin-context__form select,.admin-form input,.admin-form select,.admin-rule-editor__row input,.admin-rule-editor__row select{width:100%;min-width:0;background:#0d1015;color:#f2f4f6;border:1px solid #2c3440;border-radius:14px;padding:12px 13px}
+.admin-form--compact{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.admin-page__header,.admin-detail-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start}
+.admin-page__header{padding:4px 2px 0}
+.admin-page__meta{align-items:center;justify-content:flex-end}
+.pill,.status-pill,.pill-allow,.pill-deny,.pill-active,.pill-suspended,.pill-archived,.pill-provisioning,.pill-enabled,.pill-disabled{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 10px;border-radius:999px;background:#171d24;border:1px solid #2f3742;color:#d4d9df;white-space:nowrap}
+.pill-active,.pill-allow,.pill-enabled{border-color:#335f33;background:#152217;color:#b7f391}
+.pill-suspended,.pill-disabled,.pill-deny,.pill-archived,.pill-provisioning{border-color:#4a3d1f;background:#211c11;color:#f3cf7d}
+.pill-pill-tenant-admin,.pill-pill-tenant-owner,.pill-pill-operator,.pill-pill-auditor,.pill-pill-system{text-transform:capitalize}
+.admin-grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.admin-grid-2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.admin-grid-2 dt,.admin-grid-2 dd{margin:0}
+.admin-grid-2 dd{overflow-wrap:anywhere}
+.admin-cards{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.admin-card{padding:16px;display:grid;gap:16px;min-width:0}
+.admin-card__head{display:flex;justify-content:space-between;gap:14px;align-items:start}
+.admin-card__head h3,.admin-panel h3{font-size:18px;line-height:1.3}
+.admin-card__head p{margin:4px 0 0;color:#9fa6b0}
+.admin-card__foot{align-items:center;justify-content:space-between;color:#9ba3ad;font-size:13px}
+.admin-panel__head{display:flex;gap:12px;justify-content:space-between;align-items:start;margin-bottom:14px}
+.admin-panel__actions{justify-content:flex-end}
+.admin-tabs{padding:6px;margin:4px 0 6px;border-radius:18px;background:rgba(14,17,22,.82);border:1px solid #242c36}
+.admin-tab,.link-button{border:0;background:transparent;color:inherit;cursor:pointer}
+.admin-tab{min-height:40px;padding:0 14px;border-radius:14px;color:#aeb5bf}
+.admin-tab.active{background:#e8ebef;color:#0b0d10}
+.link-button{padding:0;font-weight:600;text-align:left}
+.link-button:hover,.admin-tab:hover{opacity:.92}
+.button-danger{background:#f5c0c0;border-color:#f5c0c0;color:#270c0c}
+.admin-pre,.runtime-log,.admin-rule-list,.admin-rule{background:#0b0e12;border:1px solid #232b35;border-radius:16px}
+.admin-pre{margin:0;padding:14px;overflow:auto;max-width:100%;white-space:pre-wrap;word-break:break-word}
+.admin-rule-list{display:grid;gap:10px;padding:12px}
+.admin-rule{padding:12px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center}
+.admin-rule-editor__row{grid-template-columns:minmax(0,1fr) 120px 120px;align-items:center}
+.admin-breadcrumbs{display:flex;gap:8px;align-items:center;color:#98a0aa;font:12px var(--mono);letter-spacing:.08em}
+.admin-detail-body{min-width:0}
+.admin-empty,.admin-state{display:grid;gap:8px}
+.admin-state-error{border-color:#6b3841;background:linear-gradient(180deg,#251116,#150b0e)}
+.admin-skeleton{min-height:160px;border-radius:20px;border:1px solid #222936;background:linear-gradient(90deg,#11151b 0%,#181d24 50%,#11151b 100%);background-size:200% 100%;animation:admin-skeleton 1.2s linear infinite}
+.modal-backdrop{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.64)}
+.modal-card{width:min(560px,100%)}
+.modal-card h3{margin-top:0}
+.admin-stack>.admin-panel,.admin-stack>.admin-empty,.admin-stack>.admin-state{min-width:0}
+.admin-mono{font-family:var(--mono);color:#8f97a2;overflow-wrap:anywhere}
+@keyframes admin-skeleton{0%{background-position:0 0}100%{background-position:-200% 0}}
+@media (max-width:900px){.admin-shell,.admin-page__header,.admin-detail-header,.admin-context{grid-template-columns:1fr}.admin-page__meta,.admin-shell__actions{justify-content:flex-start}.admin-rule,.admin-rule-editor__row{grid-template-columns:1fr}}
+@media (max-width:640px){.admin-app{padding-inline:14px;padding-top:18px}.admin-panel,.admin-card,.admin-context,.admin-detail-header,.admin-empty,.admin-state,.modal-card{border-radius:18px}.admin-tabs{overflow-x:auto;scrollbar-width:none}.admin-tabs::-webkit-scrollbar{display:none}}

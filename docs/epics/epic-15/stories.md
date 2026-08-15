@@ -84,10 +84,10 @@ Each story is a planning unit for the EPIC-15 implementation track. The stories 
 - Acceptance criteria:
   - UI boundaries match documented contracts;
   - no runtime truth is duplicated in the UI;
-  - browser acceptance remains future work.
-- Non-goals: implementation, design redesign, production activation claims.
-- Evidence expected: surface map and milestone plan.
-- Status: planning artifact.
+  - browser acceptance is captured for the implemented routes.
+- Non-goals: design redesign, production activation claims, direct domain imports.
+- Evidence expected: implemented tenant administration UX, browser manifest, and screenshots.
+- Status: implemented in Sprint D02.
 
 ## Story T07 — Isolation and governance hardening
 

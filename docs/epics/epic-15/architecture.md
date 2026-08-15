@@ -170,6 +170,19 @@ Milestone D01 adds the Product API boundary that feeds those screens. Its routes
 
 Routes must not reimplement authority, lifecycle, precedence, or limit logic.
 
+Milestone D02 implements the Control Plane UX as a governed client of those routes. The implemented surface is:
+
+~~~text
+/admin/tenants
+/admin/tenants/:tenantId
+/admin/tenants/:tenantId/members
+/admin/tenants/:tenantId/governance
+/admin/tenants/:tenantId/entitlements
+/admin/tenants/:tenantId/limits
+~~~
+
+The UI consumes the Product API only, keeps mutation confirmation explicit, and renders loading, empty, error, forbidden, and terminal-state semantics without duplicating domain rules.
+
 ## 10. Boundary safety notes
 
 - Governance decisions are tenant-scoped and must never be reused across tenants.
@@ -184,3 +197,4 @@ Routes must not reimplement authority, lifecycle, precedence, or limit logic.
 - Do not treat tenant-aware visibility as tenant administration.
 - Do not move billing enforcement into tenant governance.
 - Do not introduce a generic policy language, generic RBAC, or generic ABAC as a shortcut.
+- Do not let the Control Plane UI import or re-evaluate control-plane domain services.
