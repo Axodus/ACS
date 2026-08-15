@@ -29,6 +29,7 @@ Each story is a planning unit for the future implementation track. The stories b
   - privilege escalation paths are addressed.
 - Non-goals: full RBAC engine, IdP implementation.
 - Evidence expected: role matrix and authorization semantics.
+- Status: implemented in Sprint B01.
 
 ## Story T03 — Governance policies and limits
 
@@ -99,4 +100,4 @@ Each story is a planning unit for the future implementation track. The stories b
   - another agent can start implementation from the docs alone.
 - Non-goals: executing the implementation.
 - Evidence expected: milestone README and strategic plan.
-
+- Status: planning artifact; implementation continues from A01 and B01.

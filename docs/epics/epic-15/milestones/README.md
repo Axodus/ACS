@@ -48,6 +48,12 @@ Exit criteria:
 - operator is not conflated with admin;
 - membership semantics are implementation-ready.
 
+Status:
+
+- implemented in Sprint B01;
+- canonical membership, role semantics, bootstrap owner, scoped authority and audit-ready receipts are in place;
+- hard delete and generic RBAC remain out of scope.
+
 ## Milestone C — Governance, Limits and Entitlements
 
 Focus:

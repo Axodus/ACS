@@ -7,6 +7,9 @@
 - system-level projections for administration and tenants that are explicitly future scope;
 - governance and production-readiness reports that keep tenant-admin readiness false;
 - UX patterns that show tenant context without granting tenant administration.
+- canonical tenant lifecycle service and repository;
+- canonical tenant membership and administrative authority service;
+- audit-ready receipts for tenant lifecycle and membership mutations.
 
 ## Reuse
 
@@ -16,6 +19,8 @@
 - read-only system tenants projection;
 - governance-boundary claim discipline;
 - EPIC-14 navigation and state language patterns.
+- tenant membership repository and receipt shape;
+- canonical principal identity validation.
 
 ## Extend
 
@@ -25,6 +30,7 @@
 - governance policy references;
 - limits, entitlements and usage read models;
 - administrative event schema;
+- platform-scoped and tenant-scoped authority checks;
 - tenant-scoped and platform-scoped API boundaries.
 
 ## Create
@@ -35,6 +41,7 @@
 - tenant audit and history surface;
 - future UI flow spec for tenant administration;
 - clear distinction between platform admin and tenant admin.
+- explicit bootstrap semantics for the first owner.
 
 ## Do not touch
 
@@ -53,7 +60,8 @@
 - billing enforcement;
 - external identity-provider integration details;
 - advanced observability beyond audit and history requirements;
-- runtime reaction semantics for every tenant lifecycle transition.
+- runtime reaction semantics for every tenant lifecycle transition;
+- any membership/UI surface beyond the domain and service contracts.
 
 ## Adjacent domain review
 
@@ -83,7 +91,7 @@ Tenant budget and spend limits may be represented here, but money movement and b
 
 ### Authentication and identity
 
-Identity may be external, but tenant membership and authority are ACS-canonical.
+Identity may be external, but tenant membership and authority are ACS-canonical. Principal identity is validated locally only as a governance identifier.
 
 ### Observability and audit
 
@@ -92,4 +100,3 @@ Auditability is required for administrative actions. Full audit storage is defer
 ## Boundary conclusion
 
 EPIC-15 is the correct place to formalize tenant administration as a governed domain. It is not the place to build a generic IAM platform, a billing system, or a runtime control plane.
-

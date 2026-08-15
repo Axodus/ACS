@@ -39,7 +39,7 @@ Tenant is the administrative aggregate. It owns:
 - audit history pointers;
 - timestamps and provenance.
 
-Ownership is a membership role, not a separate authority channel.
+Ownership is a membership role with stronger invariants than ordinary admin membership.
 
 ### Membership
 
@@ -54,6 +54,8 @@ Administrative authority is separated into:
 - operational scope.
 
 Agent roles remain separate from administrative roles.
+
+Tenant membership is the source of tenant-scoped administrative authority. Platform authority is explicit and separate.
 
 ### Governance
 
@@ -104,6 +106,14 @@ flowchart LR
 ~~~
 
 Tenant administration may constrain or inspect these domains, but it must not recreate them.
+
+### Principal to authority chain
+
+~~~text
+principal -> TenantMembership -> administrative role -> scoped authority
+~~~
+
+This chain is the governance boundary for tenant-scoped actions.
 
 ## 6. Write/read boundaries
 

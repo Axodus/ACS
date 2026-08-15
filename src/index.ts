@@ -70,6 +70,7 @@ export {
 export * from "./control-plane/composition-resources.js";
 export * from "./control-plane/agent-service.js";
 export * from "./control-plane/neurons-economic-contract.js";
+export * from "./control-plane/tenant-membership.js";
 export * from "./fixtures/acs-fixtures.js";
 export * from "./fixtures/acs-operational-gate-fixtures.js";
 export * from "./fixtures/acs-permission-fixtures.js";
@@ -120,6 +121,7 @@ export * from "./control-plane/operational-reliability.js";
 export * from "./control-plane/secrets-boundary.js";
 export * from "./control-plane/isolation.js";
 export * from "./control-plane/tenant-domain.js";
+export * from "./control-plane/tenant-membership.js";
 
 export * from "./control-plane/runtime-lifecycle-service.js";
 

@@ -1,6 +1,6 @@
 # EPIC-15 Agent Guide
 
-Agents working in EPIC-15 must treat this directory as a planning-only tenant governance package.
+Agents working in EPIC-15 must treat this directory as the canonical tenant governance package for the ACS Control Plane.
 
 ## Boundaries
 
@@ -8,7 +8,7 @@ Agents working in EPIC-15 must treat this directory as a planning-only tenant go
 - Keep membership, authority, governance and audit distinct.
 - Preserve explicit tenant scope in every proposed command, query or event.
 - Reuse existing tenant-aware control-plane projections before proposing new domain objects.
-- Keep runtime, deployment, worker and billing enforcement out of this sprint.
+- Keep runtime, deployment, worker and billing enforcement out of tenant administration work unless a milestone explicitly calls for the boundary.
 
 ## Invariants
 
@@ -29,8 +29,9 @@ Agents working in EPIC-15 must treat this directory as a planning-only tenant go
 
 ## Change rules
 
-- This sprint is documentation only.
-- Do not add runtime implementation, schema migrations, or new production endpoints.
+- Preserve the implemented tenant domain and membership foundations.
+- Do not reopen A01 or B01 decisions without a concrete incompatibility.
+- Do not add schema migrations or new production endpoints unless a milestone explicitly requires them.
 - If a proposed document conflicts with current code or prior EPIC contracts, resolve the conflict in the docs before proposing code.
 - Prefer bounded decisions over generic IAM or policy abstractions.
 
@@ -52,4 +53,4 @@ Agents working in EPIC-15 must treat this directory as a planning-only tenant go
 - Do not weaken existing isolation or audit correlation language.
 - Do not convert visibility into authority.
 - Do not normalize unsupported states into supported ones.
-
+- Do not conflate Agent roles with tenant administrative authority.

@@ -3,49 +3,61 @@
 ## 1. Tenant aggregate contract
 
 ~~~text
- type TenantStatus = provisioning | active | suspended | archived
-
-interface Tenant {
-  tenantId: string
-  canonicalName: string
-  status: TenantStatus
-  ownerMembershipId?: string
-  ownerPrincipalId?: string
-  administrativeMetadata:
-    displayName?
-    description?
-    provenance
-    createdAt
-    createdBy
-    updatedAt?
-    updatedBy?
-  lifecycle:
-    activatedAt?
-    suspendedAt?
-    archivedAt?
-  }
+type TenantStatus = provisioning | active | suspended | archived
 ~~~
+
+Tenant is the administrative aggregate. Its canonical id is stable, its lifecycle is explicit, and hard delete remains deferred.
 
 ## 2. Membership contract
 
 ~~~text
-type AdministrativeRole = platform_admin | tenant_owner | tenant_admin | auditor
+type PrincipalId = string
+
+type AdministrativeRole = tenant_owner | tenant_admin | operator | auditor
+
+type TenantMembershipStatus = active | suspended | removed
+
+type AdministrativeAuthority =
+  | { kind: platform_admin; principalId: PrincipalId }
+  | { kind: tenant_member; tenantId: string; principalId: PrincipalId }
 
 interface TenantMembership {
-  membershipId: string
   tenantId: string
-  principalId: string
-  status: invited | active | suspended | removed
-  roles: AdministrativeRole[]
-  createdAt: string
-  createdBy: string
-  updatedAt?: string
+  principalId: PrincipalId
+  role: AdministrativeRole
+  status: TenantMembershipStatus
+  createdAt: number
+  updatedAt: number
+  revision: number
+  createdBy?: string
+  updatedBy?: string
+  provenance?: {
+    actor?: string
+    reason?: string
+    source?: string
+  }
 }
 ~~~
 
-Membership is ACS-canonical for administration. Authentication may remain external.
+Membership is ACS-canonical for tenant administration. Authentication may remain external. `platform_admin` is an explicit authority basis, not a membership role.
 
-## 3. Governance policy contract
+## 3. Authority contract
+
+~~~text
+type TenantAdministrativeAction =
+  | tenant.read
+  | membership.read
+  | membership.add
+  | membership.change_role
+  | membership.suspend
+  | membership.reactivate
+  | membership.remove
+  | ownership.transfer
+~~~
+
+Authority semantics are explicit and tenant-scoped unless platform scope is explicitly declared.
+
+## 4. Governance policy contract
 
 ~~~text
 interface GovernancePolicyRef {
@@ -56,9 +68,9 @@ interface GovernancePolicyRef {
 }
 ~~~
 
-Policies may reference agents, deployments, tools, plugins, capabilities, execution, resource usage, economics and administrative actions.
+Policies may reference agents, deployments, tools, plugins, capabilities, execution, resource usage, economics, and administrative actions. No generic policy engine is implied.
 
-## 4. Limits and entitlements contract
+## 5. Limits and entitlements contract
 
 ~~~text
 interface TenantLimits {
@@ -74,34 +86,28 @@ interface TenantEntitlements {
 }
 ~~~
 
-Hard system limits belong to platform and runtime boundaries. Economic limits are surfaced here, but enforcement remains deferred to the economics and billing boundary.
+Hard system limits remain platform/runtime concerns. Economic limits are modeled here only as contracts; enforcement is deferred to the economics and billing boundary.
 
-## 5. Command contract
+## 6. Command and mutation contract
 
-Tenant mutations must be scoped and explicit:
+Tenant mutations must be explicit and scoped:
 
 - create tenant;
 - activate tenant;
 - suspend tenant;
 - reactivate tenant;
 - archive tenant;
-- invite member;
-- admit member;
+- bootstrap owner;
+- add member;
+- change role;
+- suspend member;
+- reactivate member;
 - remove member;
-- promote or demote role;
-- attach or detach policy;
-- adjust limits and entitlements.
+- transfer ownership.
 
-Every command MUST carry:
+Every command MUST carry actor identity, tenant scope or platform scope, correlation id, reason when relevant, and a governed timestamp.
 
-- actor identity;
-- tenant scope or platform scope;
-- correlation id;
-- reason or justification;
-- timestamp or request time;
-- change intent.
-
-## 6. Read model contract
+## 7. Read model contract
 
 Minimum read models:
 
@@ -113,24 +119,25 @@ Minimum read models:
 - TenantUsageView
 - TenantAuditTrailView
 
-## 7. Audit event contract
+## 8. Audit event contract
 
 Administrative events SHOULD include:
 
 - eventType;
 - eventId;
 - tenantId;
-- actorId;
-- principalId when relevant;
-- role or authority scope;
+- principalId;
+- actor;
+- authorityKind;
 - correlationId;
 - decision;
-- before and after summary;
+- previous state summary;
+- next state summary;
 - reason;
 - timestamp;
-- source.
+- revision.
 
-## 8. Error semantics
+## 9. Error semantics
 
 Tenant administration errors SHOULD distinguish:
 
@@ -139,60 +146,25 @@ Tenant administration errors SHOULD distinguish:
 - cross_tenant_forbidden
 - authority_denied
 - membership_conflict
+- membership_inactive
 - tenant_state_conflict
 - policy_restricted
 - quota_exceeded
 - unsupported_action
 - deferred_boundary
 
-## 9. Authorization semantics
+## 10. Authorization semantics
 
-- platform_admin may act across tenants only with explicit platform scope;
-- tenant_admin may act only within the tenant scope granted to it;
-- tenant_owner may have the narrowest tenant-control authority;
-- auditor is read-only;
-- operator is not automatically an admin role;
+- platform_admin is explicit platform scope and may bootstrap the first owner;
+- tenant_owner and tenant_admin are tenant-scoped roles;
+- tenant_owner has stronger tenant-control authority than tenant_admin;
+- operator and auditor are read-only for administrative mutations;
 - agent role or runtime role does not imply administrative authority.
 
-## 10. OPEN DECISIONs
+## 11. Open decisions
 
-### OPEN DECISION: membership source of truth
+The following are resolved for the current sprint baseline:
 
-Options:
-
-- ACS-canonical membership with external identity integration
-- external IdP as source of truth with ACS projection only
-
-Preferred direction:
-
-- ACS-canonical membership for administrative authority; external identity for authentication.
-
-Decision gate:
-
-- make the authority boundary explicit before implementation starts.
-
-### OPEN DECISION: deletion policy
-
-Options:
-
-- archive-only
-- policy-gated deletion
-
-Preferred direction:
-
-- archive-only for Milestone A01; policy-gated deletion remains deferred until retention and audit requirements are explicitly closed.
-
-Decision gate:
-
-- do not enable deletion semantics until retention and audit requirements are explicit.
-
-### OPEN DECISION: quota enforcement boundary
-
-Options:
-
-- EPIC-15 owns read/write quota enforcement
-- EPIC-15 owns contracts and read models only
-
-Preferred direction:
-
-- EPIC-15 defines the contracts and read models; enforcement remains deferred where it depends on economics, billing or runtime guards.
+- membership source of truth: ACS-canonical administrative membership with external authentication;
+- deletion policy: archive-only terminal state for tenant lifecycle, no hard delete;
+- quota enforcement: contracts first, enforcement deferred.
