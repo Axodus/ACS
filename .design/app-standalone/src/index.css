@@ -1844,10 +1844,11 @@ footer span:last-child {
     }
 
     .command {
-        min-height: 40px;
-        min-width: 40px;
+        min-height: 31px;
+        min-width: 31px;
         padding: 0 10px;
-        width: auto
+        width: auto;
+        font-size: 18px;
     }
 
     .command span,
