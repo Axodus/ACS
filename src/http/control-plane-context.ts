@@ -77,6 +77,13 @@ import {
   type IsolationRoots,
   type IsolationScope,
 } from "../control-plane/isolation.js";
+import {
+  DevelopmentHeaderIdentityValidator,
+  HttpIdentityConfigurationError,
+  OidcJwtIdentityValidator,
+  type HttpIdentityValidator,
+  type JwksProvider,
+} from "./auth.js";
 
 export interface ControlPlaneContext {
   readonly engineRegistry: EngineRegistry;
@@ -101,6 +108,7 @@ export interface ControlPlaneContext {
   readonly workerRegistry: ExecutionWorkerRegistry;
   readonly workerAssignmentService: WorkerAssignmentService;
   readonly localWorker: LocalExecutionWorker | null;
+  readonly identityValidator: HttpIdentityValidator;
   readonly isolation: ControlPlaneIsolation;
   readonly administrativeState: {
     readonly mode: "memory" | "filesystem";
@@ -113,6 +121,7 @@ export interface ControlPlaneContext {
     readonly secretProvider: SecretStore["descriptor"];
     readonly economicStore: EconomicStateStore["descriptor"];
     readonly settlementProvider: SettlementProvider["descriptor"];
+    readonly identityValidator: HttpIdentityValidator["descriptor"];
   };
   close(): Promise<void>;
 }
@@ -171,6 +180,15 @@ export interface ControlPlaneContextOptions {
   readonly settlementProvider?: SettlementProvider;
   readonly useDurableEconomicState?: boolean;
   readonly economicStatePath?: string;
+  readonly identityValidator?: HttpIdentityValidator;
+  readonly authMode?: "development" | "oidc";
+  readonly oidcIssuer?: string;
+  readonly oidcAudience?: string;
+  readonly oidcJwksUri?: string;
+  readonly oidcJwksProvider?: JwksProvider;
+  readonly oidcTenantClaim?: string;
+  readonly oidcPlatformAdminClaim?: string;
+  readonly oidcPlatformAdminValue?: string;
 }
 
 function resolveDefaultOperationalRoots(options: ControlPlaneContextOptions): {
@@ -509,6 +527,24 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       "production mode requires durable economic state and settlement providers; in-memory fallback is disabled",
     );
   }
+  const authMode = options.authMode
+    ?? (process.env.ACS_AUTH_MODE === "oidc" ? "oidc" : "development");
+  const identityValidator = options.identityValidator ?? (authMode === "oidc"
+    ? new OidcJwtIdentityValidator({
+        issuer: options.oidcIssuer ?? process.env.ACS_OIDC_ISSUER ?? "",
+        audience: options.oidcAudience ?? process.env.ACS_OIDC_AUDIENCE ?? "",
+        jwksUri: options.oidcJwksUri ?? process.env.ACS_OIDC_JWKS_URI,
+        jwksProvider: options.oidcJwksProvider,
+        tenantClaim: options.oidcTenantClaim ?? process.env.ACS_OIDC_TENANT_CLAIM,
+        platformAdminClaim: options.oidcPlatformAdminClaim ?? process.env.ACS_OIDC_PLATFORM_ADMIN_CLAIM,
+        platformAdminValue: options.oidcPlatformAdminValue ?? process.env.ACS_OIDC_PLATFORM_ADMIN_VALUE,
+      })
+    : new DevelopmentHeaderIdentityValidator());
+  if (adapterProfile === "production" && !identityValidator.descriptor.productionOriented) {
+    throw new HttpIdentityConfigurationError(
+      "production mode requires a production-oriented HTTP identity validator; disabled/mock/development fallback is prohibited",
+    );
+  }
   const economicService = new EconomicService({
     policy: DEV_BILLING_POLICY,
     store: economicStateStore,
@@ -586,6 +622,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     workerRegistry,
     workerAssignmentService,
     localWorker,
+    identityValidator,
     isolation,
     administrativeState: durableAdministrativeState
       ? {
@@ -604,6 +641,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       secretProvider: secretStore.descriptor,
       economicStore: economicStateStore.descriptor,
       settlementProvider: settlementProvider.descriptor,
+      identityValidator: identityValidator.descriptor,
     },
     async close(): Promise<void> {
       if (localWorker) {

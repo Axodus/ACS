@@ -16,7 +16,7 @@ contract exists
 | Capability | Contract | Implementation | Production adapter | Operational proof | Final assessment |
 | --- | --- | --- | --- | --- | --- |
 | Tenant lifecycle | Yes | Yes | Single-node durable adapter; no shared production database | Domain/API/browser plus restart/revision proof | PARTIAL |
-| Membership/authority | Yes | Yes | Single-node durable adapter; identity remains untrusted | Negative API tests plus restart/atomic owner transfer proof | PARTIAL |
+| Membership/authority | Yes | Yes | Single-node durable adapter fed by trusted HTTP principal | Negative API/auth tests plus restart/atomic owner transfer proof | PARTIAL pending shared state/live IdP |
 | Governance/limits/entitlements | Yes | Yes | Single-node durable adapter; no shared production database | Evaluator/enforcement, real HTTP method and restart proof | PARTIAL |
 | Agent domain/lifecycle | Yes | Yes | No durable repository | Domain/Product API/browser evidence | PARTIAL |
 | Composition resources | Yes | Read projections and compatibility | No mutable production catalog | Mutation journey absent | PARTIAL |
@@ -27,7 +27,7 @@ contract exists
 | Audit events/read model | Yes | Durable single-node event store selected by HTTP server | No shared append/retention production service | Restart/correlation proof; replica/outbox unproven | PARTIAL |
 | HTTP method contract | Yes | Server, CORS and route layer aligned for GET/POST/PUT/PATCH/DELETE | N/A | Real entry-handler integration tests | READY for method compatibility scope |
 | Economics | Yes | Store-backed quotes/reservations/usage/settlement | SQLite economic/settlement adapters; no shared/external provider proof | Restart, idempotency, failure and reconciliation tests | PARTIAL |
-| HTTP authentication | Mock contract | Header parser | No validator | Mock tests | BLOCKED |
+| HTTP authentication | `HttpIdentityValidator` | OIDC JWT/JWKS validator plus explicit DEV adapter | Production-oriented adapter selected fail-closed | cryptographic/claims/key-rotation and real HTTP forged-header tests; live IdP unproven | PARTIAL |
 | HTTP authorization | Yes | Yes after actor resolution | Depends on trusted identity | Domain/API negative tests | PARTIAL |
 | Rate limiting | Error/context contract | Header-driven mock | No | Mock tests | BLOCKED |
 | Telemetry | Event/sink contracts | Memory/JSONL | No external exporter | Local tests | PARTIAL |
@@ -54,7 +54,9 @@ Later milestones must replace adapters and connect flows without introducing com
 
 ```mermaid
 flowchart TD
-  Browser[Control Plane clients] -->|mock actor headers| HTTP[ACS HTTP server]
+  Browser[Control Plane clients] -->|Bearer in production; explicit DEV headers locally| HTTP[ACS HTTP server]
+  HTTP --> Identity[HttpIdentityValidator]
+  Identity --> JWKS[Trusted issuer JWKS]
   HTTP --> Context[createControlPlaneContext]
   Context --> Tenant[Single-node durable tenant, membership and governance repositories]
   Context --> Agent[Map-backed agent and composition services]
@@ -68,7 +70,7 @@ flowchart TD
   Context --> Evidence[Read-only readiness/evidence projections]
 ```
 
-This is a more restart-safe development/single-node composition after B02. It is not a production topology because identity is untrusted, several authoritative aggregates remain process-local, local SQLite/snapshot adapters are not replica-certified, execution is local and external diagnostics are absent.
+This is a more restart-safe development/single-node composition after C01. Production HTTP identity is now validated, but the whole system is not a production topology because several authoritative aggregates remain process-local, local SQLite/snapshot adapters are not replica-certified, execution is local, edge controls are incomplete and external diagnostics are absent.
 
 ## B01 applied boundaries
 
@@ -110,6 +112,22 @@ flowchart LR
 Secret material and metadata are deliberately separate. The Vault adapter never serializes raw material into the ACS catalog, API or audit event. The SQLite catalog remains the Tenant ownership/version authority, which means its single-node limitation is part of the finding status.
 
 Economic settlement also has two authorities: provider-confirmed effects and the local operational projection. Idempotency prevents duplicate provider effects; an atomic local commit updates settlement, reservation and receipt together; reconciliation repairs a provider-success/local-failure crash window.
+
+## C01 applied boundary
+
+```mermaid
+flowchart LR
+  Client[Untrusted HTTP client] --> Bearer[Bearer credential]
+  Bearer --> Validator[OidcJwtIdentityValidator]
+  Validator --> JWKS[RemoteJwksProvider]
+  Validator --> Principal[AuthenticatedPrincipal]
+  Principal --> Context[Trusted AcsAuthContext]
+  Context --> Authority[Existing Tenant / platform authority]
+  Authority --> Governance[Governance and operation]
+  Governance --> Audit[Authenticated actor attribution]
+```
+
+The validator retains only the canonical principal, issuer/method summary, scopes, optional Tenant binding and explicit platform flag. Raw credentials and full claims do not cross the boundary. The DEV header adapter is separate and rejected by production composition. Downstream enforcement no longer maps absent/disabled auth or actor type names to global authority.
 
 ## Target topology boundaries
 
@@ -192,7 +210,7 @@ The implementation task is therefore “add a certified production target behind
 
 - **Database/vendor choice:** SQLite is adopted for bounded single-node B02 durability; a shared production database remains an OPEN DECISION at the B03/B04 gate. Required characteristics are transactional revisions, tenant partitioning, append support and multi-instance access.
 - **Secret provider:** Vault KV v2 is the implemented production-oriented provider boundary. Live deployment/HA/service identity and whether metadata moves to a shared database remain OPEN DECISIONS; local filesystem is development-only.
-- **Identity provider:** OPEN DECISION at Milestone C gate. OIDC/JWT or trusted gateway are alternatives; server-owned verification is mandatory.
+- **Identity provider deployment:** protocol decision is CLOSED for the active HTTP boundary: interoperable OIDC/JWT with RS256/JWKS and server-owned verification. Vendor/live issuer selection and deployment acceptance remain environment decisions.
 - **Rate limiter:** OPEN DECISION at Milestone C gate. Must be distributed and keyed from trusted request context.
 - **Dispatcher/broker:** OPEN DECISION at Milestone D gate. Transport is not prescribed; delivery, fencing, idempotency and recovery semantics are.
 - **Telemetry backend:** OPEN DECISION at Milestone E gate. Standard structured export and operator diagnostics are required; a generic observability platform is not.

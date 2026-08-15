@@ -45,6 +45,24 @@ function createMockEngine() {
   return { identity: { id: "openclaw", provider: "agentsai" }, async close() {} };
 }
 
+const productionTestIdentityValidator = {
+  descriptor: { mode: "oidc", provider: "test-oidc", productionOriented: true, issuer: "https://issuer.test", audience: "acs" },
+  async authenticate() {
+    return {
+      mode: "oidc",
+      actorType: "user",
+      actorId: "b02-platform",
+      scopes: [],
+      authenticated: true,
+      trusted: true,
+      platformAdmin: true,
+      principal: { principalId: "b02-platform", issuer: "https://issuer.test", subject: "b02-platform", authenticationMethod: "oidc_bearer" },
+      warnings: [],
+    };
+  },
+  async health() { return { configured: true, reachable: true, detail: "B02 production identity test fixture" }; },
+};
+
 class FakeVaultTransport {
   records = new Map();
   requests = [];
@@ -297,6 +315,7 @@ test("production profile rejects insecure secret and economic fallback", async (
       vaultTransport: transport,
       secretCatalogPath: join(root, "catalog.sqlite"),
       economicStatePath: join(root, "economic.sqlite"),
+      identityValidator: productionTestIdentityValidator,
     });
     assert.equal(context.productionAdapters.profile, "production");
     assert.equal(context.productionAdapters.secretProvider.productionOriented, true);

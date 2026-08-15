@@ -1,6 +1,6 @@
 # Operational Gap Inventory
 
-This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01 and B02 status/evidence were updated on 2026-08-15 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
+This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01, B02 and C01 status/evidence were updated on 2026-08-15 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
 
 ## Severity model
 
@@ -24,7 +24,7 @@ Findings use a primary area plus affected areas from this controlled set:
 | --- | --- | --- | --- | --- | --- |
 | ACS-ORG-001 | PERSISTENCE | Active authoritative Control Plane state is process-local | BLOCKER | B | PARTIALLY_RESOLVED — B01 |
 | ACS-ORG-002 | SECURITY | No production-grade secret adapter is available or active | BLOCKER | B | PARTIALLY_RESOLVED — B02 |
-| ACS-ORG-003 | IDENTITY | HTTP actor and platform authority are forgeable by the caller | BLOCKER | C | OPEN — VERIFIED |
+| ACS-ORG-003 | IDENTITY | HTTP actor and platform authority are forgeable by the caller | BLOCKER | C | RESOLVED — C01 |
 | ACS-ORG-004 | DISTRIBUTED_EXECUTION | Operational execution uses a same-process local worker, not remote dispatch | BLOCKER | D | OPEN — VERIFIED |
 | ACS-ORG-005 | RECOVERY | Runtime jobs, assignments and leases lack durable recovery semantics | BLOCKER | D | OPEN — VERIFIED |
 | ACS-ORG-006 | DEPLOYMENT | Production deployment is blocked by a deliberate sandbox-only gate | BLOCKER | G | OPEN — VERIFIED |
@@ -79,14 +79,13 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-003 — HTTP actor and platform authority are forgeable by the caller
 
 - **Area:** IDENTITY; affects SECURITY, GOVERNANCE, TENANT.
-- **Severity / status:** **BLOCKER**, OPEN — VERIFIED.
-- **Evidence:** `src/http/auth.ts:27-78`; `src/http/server.ts:33-45`; `src/http/tenant-governance-enforcer.ts:351-366`; `static/src/admin/api.ts:299-365`.
-- **Current behavior:** the server trusts `x-acs-actor-*`, tenant and authentication headers. Disabled mode is authenticated by default. Governance enforcement maps missing/disabled auth and actor types `system` or `governance` to `platform_admin`. The browser stores and edits a mock system actor in `localStorage`.
-- **Operational impact:** an untrusted HTTP client can forge a principal, tenant scope or global authority. Correct B01/E01 authorization rules cannot provide security without a trusted principal.
-- **Root cause:** inspection/mock context was promoted as the only HTTP identity path.
-- **Required target state:** validated tokens or a trusted upstream identity contract with signature, issuer, audience, expiry and key rotation; server-owned principal construction; explicit platform-role assignment; strict development/production profiles.
-- **Dependencies / milestone:** precedes all exposed administration and production deployment; Milestone C.
-- **Acceptance evidence:** valid/invalid token tests, forged-header rejection, platform-admin negative matrix, tenant-binding tests and production startup refusal without an identity validator.
+- **Severity / status:** **BLOCKER**, RESOLVED — C01.
+- **Previous evidence:** the HTTP server used `parseMockAuthContext`; routes/enforcement derived platform authority from caller-selected actor type or missing/disabled auth.
+- **Current behavior after C01:** `createAcsHttpHandler` authenticates protected requests through `HttpIdentityValidator`. `OidcJwtIdentityValidator` verifies RS256 signature/JWKS key, issuer, audience, expiration/not-before and subject. It ignores legacy identity/Tenant/platform headers. Platform authority requires one configured signed claim/value; normal tokens still require existing Tenant membership. Production rejects development identity or incomplete OIDC configuration.
+- **Operational impact:** untrusted callers can no longer construct actor identity or `platform_admin` through request headers in the production OIDC composition. Authentication failure occurs before authority/governance evaluation.
+- **C01 evidence:** `tests/s47-epic-15-5-trusted-http-identity.test.mjs` covers invalid-token categories, JWKS rotation, forged headers through the real HTTP server, platform mapping, cross-Tenant scope, suspended/removed membership, audit actor attribution and production fail-closed configuration.
+- **Residual risk:** a live IdP/JWKS deployment, TLS/DNS availability and service identities are not certified by the deterministic adapter tests. C02 edge controls/rate limiting and Milestone H live-topology acceptance remain open; they do not reopen caller-header forgery.
+- **Follow-up:** C02 distributed rate limiting and trusted edge/proxy policy, F authenticated UX and H live identity-provider acceptance.
 
 ### ACS-ORG-004 — Operational execution uses a same-process local worker, not remote dispatch
 

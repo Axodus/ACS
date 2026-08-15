@@ -39,20 +39,20 @@ export async function routeTenantAdministrationRequest(
   const segments = apiPath.split("/").filter(Boolean);
   const auth = meta.auth;
   const actorId = auth?.actorId?.trim();
-  if (!actorId) {
+  if (!auth || !actorId || !auth.authenticated || !auth.trusted) {
     return fail("administrative actor context required", 401, "unauthorized", options.correlationId, undefined, meta, "unauthorized", {
       retryable: false,
       severity: "warning",
     });
   }
 
-  const isSystemActor = auth?.actorType === "system";
+  const isPlatformActor = auth.platformAdmin;
   const platformAuthority: Authority = { kind: "platform_admin", principalId: actorId };
   const tenantAuthority = (tenantId: string): Authority => ({ kind: "tenant_member", principalId: actorId, tenantId });
 
   const resolveAuthority = (tenantId: string): Authority | undefined => {
-    if (isSystemActor) return platformAuthority;
-    if (!auth?.tenantId || auth.tenantId !== tenantId) return undefined;
+    if (isPlatformActor) return platformAuthority;
+    if (auth.tenantId && auth.tenantId !== tenantId) return undefined;
     return tenantAuthority(tenantId);
   };
 
@@ -161,7 +161,7 @@ export async function routeTenantAdministrationRequest(
     if (!tenantId) {
       if (request.method === "GET") {
         assertAllowedQueryParams(url, []);
-        if (!isSystemActor) {
+        if (!isPlatformActor) {
           return fail("tenant listing is platform-scoped", 403, "forbidden", options.correlationId, undefined, meta, "platform_scope_required", {
             retryable: false,
             severity: "warning",
@@ -170,7 +170,7 @@ export async function routeTenantAdministrationRequest(
         return { status: 200, body: ok(context.tenantService.listTenants().map((tenant) => tenantSummary(tenant.tenantId, platformAuthority)), [], options.correlationId, meta) };
       }
       if (request.method === "POST") {
-        if (!isSystemActor) {
+        if (!isPlatformActor) {
           return fail("tenant creation is platform-scoped", 403, "forbidden", options.correlationId, undefined, meta, "platform_scope_required", {
             retryable: false,
             severity: "warning",
@@ -188,7 +188,7 @@ export async function routeTenantAdministrationRequest(
           tenantId: tenantIdValue,
           ...(typeof body.displayName === "string" ? { displayName: body.displayName } : {}),
           ...(typeof body.description === "string" ? { description: body.description } : {}),
-          ...(typeof body.createdBy === "string" ? { createdBy: body.createdBy } : {}),
+          createdBy: actorId,
           at: Date.now(),
           ...(auth?.actorId ? { actor: auth.actorId } : {}),
           ...(typeof body.reason === "string" ? { reason: body.reason } : {}),

@@ -349,12 +349,12 @@ export function enforceTenantGovernanceMutation(input: TenantGovernanceEnforceme
 }
 
 function resolveAuthority(auth: AcsAuthContext | undefined, tenantId: string): AdministrativeAuthority {
-  if (!auth || auth.mode === "disabled") {
-    return { kind: "platform_admin", principalId: "system" };
+  if (!auth?.authenticated || !auth.trusted || !auth.actorId) {
+    throw new Error("trusted authenticated actor is required for tenant governance enforcement");
   }
 
-  if (auth.actorType === "system" || auth.actorType === "governance") {
-    return { kind: "platform_admin", principalId: auth.actorId ?? "system" };
+  if (auth.platformAdmin) {
+    return { kind: "platform_admin", principalId: auth.actorId };
   }
 
   const principalId = resolveActorId(auth);
@@ -378,8 +378,8 @@ function resolveActorMembership(context: ControlPlaneContext, authority: Adminis
 }
 
 function resolveActorId(auth: AcsAuthContext | undefined): string {
-  if (!auth?.actorId) {
-    return "system";
+  if (!auth?.authenticated || !auth.trusted || !auth.actorId) {
+    throw new Error("trusted authenticated actor is required");
   }
   return auth.actorId;
 }

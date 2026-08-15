@@ -27,9 +27,9 @@ The repository is strong in domain modeling and bounded acceptance:
 - Main Control Plane and Tenant Administration browser routes have acceptance evidence.
 - Readiness, evidence, diagnostics, audit and economics have useful projections.
 
-After B02, the active HTTP composition has single-node durable Tenant Administration, audit, secret metadata/references and economics plus aligned HTTP methods, but the overall topology remains development-grade:
+After C01, the active HTTP composition has single-node durable Tenant Administration, audit, secret metadata/references and economics, aligned HTTP methods and a production-oriented OIDC validator, but the overall topology remains non-production:
 
-- identity and rate limiting are mock/header driven;
+- production HTTP identity is OIDC/JWT validated; rate limiting and remaining edge controls are still mock/incomplete;
 - Agent, deployment, runtime and worker authoritative state is local to a process; durable adapters are still single-node and unshared;
 - Vault and SQLite secret/economic adapters exist, but live managed-service identity/HA and shared settlement/database proof remain absent;
 - worker execution is same-process/local;
@@ -37,7 +37,7 @@ After B02, the active HTTP composition has single-node durable Tenant Administra
 - production deployment is correctly sandbox-gated;
 - important composition, execution and recovery journeys are incomplete.
 
-`ACS-ORG-008` is resolved. `ACS-ORG-002` and `ACS-ORG-007` are partially resolved. Runtime start/stop route reachability is corrected, but this does not prove durable or remote execution.
+`ACS-ORG-003` and `ACS-ORG-008` are resolved. `ACS-ORG-002` and `ACS-ORG-007` are partially resolved. Runtime start/stop route reachability is corrected, but this does not prove durable or remote execution.
 
 See the 24 findings in `operational-gap-inventory.md`.
 
@@ -55,7 +55,7 @@ B01 partially resolved ACS-ORG-001/009 for single-node Tenant Administration. B0
 
 ### W2 — Trusted identity and edge
 
-Resolve ACS-ORG-003, 010 and 013. `ACS-ORG-008` method compatibility was resolved in B01; Milestone C still authenticates the principal before authority evaluation, hardens trusted CORS/request handling and implements distributed rate limiting. Reuse B01/E01 authority and forged-context protections.
+`ACS-ORG-003` was resolved by C01 using OIDC/JWT validation and explicit signed platform mapping. Continue with ACS-ORG-010 and 013: harden trusted CORS/request/proxy handling and implement distributed rate limiting. Reuse the C01 principal context and B01/E01 authority/forged-context protections.
 
 ### W3 — Distributed runtime and recovery
 
@@ -126,6 +126,8 @@ B and C may run in parallel after their decision gates, but no public mutation s
 - forged-context and abuse tests.
 
 **Exit:** an untrusted client cannot forge actor, tenant or platform authority.
+
+**Current status:** IN PROGRESS. C01 passes for HTTP identity, trusted Tenant/platform authority binding and actor/platform forgery. C02 edge controls/rate limiting plus live-provider acceptance remain open, so the milestone exit is not yet claimed globally.
 
 ### Milestone D — Distributed Runtime & Execution Readiness
 

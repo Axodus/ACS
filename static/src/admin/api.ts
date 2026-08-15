@@ -353,7 +353,7 @@ function correlationId(): string {
 
 function createHeaders(context: AdminAccessContext, body?: BodyInit): HeadersInit {
   const headers: Record<string, string> = {
-    "x-acs-auth-mode": "mock",
+    "x-acs-auth-mode": "development",
     "x-acs-authenticated": String(context.authenticated),
     "x-acs-actor-type": context.actorType,
     "x-acs-actor-id": context.actorId,

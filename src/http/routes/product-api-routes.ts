@@ -41,6 +41,8 @@ import type { IncomingMessage } from "node:http";
 import type { DeploymentMode } from "../../control-plane/unified-agent-model.js";
 import type { DeploymentRequest } from "../../control-plane/deployment-service.js";
 import { routeTenantAdministrationRequest } from "./admin-tenant-routes.js";
+import { HttpAuthenticationError } from "../auth.js";
+import { TenantMembershipNotFoundError } from "../../control-plane/tenant-membership.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -52,6 +54,28 @@ export async function routeProductApiRequest(
   context: ControlPlaneContext,
   options: AcsRouteOptions = {},
 ) {
+  const url = new URL(requestUrl, "http://localhost");
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  const publicRoute = path === "/api/v1/health";
+  if (!options.auth && context.identityValidator.descriptor.mode === "development") {
+    options = { ...options, auth: await context.identityValidator.authenticate({}) };
+  } else if (!options.auth && !publicRoute) {
+    try {
+      const headers: Record<string, string | undefined> = {};
+      for (const [key, value] of Object.entries(request.headers ?? {})) {
+        headers[key] = Array.isArray(value) ? value[0] : value;
+      }
+      options = { ...options, auth: await context.identityValidator.authenticate(headers) };
+    } catch (error) {
+      if (error instanceof HttpAuthenticationError) {
+        return fail(error.message, 401, "authentication_failed", options.correlationId, { category: error.code }, undefined, error.code, {
+          retryable: error.code === "identity_provider_unavailable",
+          severity: "warning",
+        });
+      }
+      throw error;
+    }
+  }
   const routeMeta: AcsHttpEnvelopeMeta = {
     ...(options.auth ? { auth: options.auth } : {}),
     ...(options.rateLimit ? { rateLimit: options.rateLimit } : {}),
@@ -72,15 +96,15 @@ export async function routeProductApiRequest(
     compositionResources: context.compositionResources,
     credentialRegistry: context.credentials,
     secretStore: context.secretStore,
+    identityValidator: context.identityValidator,
     readinessSignals: {
+      authMode: context.identityValidator.descriptor.mode,
       persistenceBackend: context.administrativeState.durability === "single_node_durable" ? "filesystem" : "memory",
       secretBackend: context.productionAdapters.secretProvider.provider === "vault-kv-v2" ? "vault" : "memory",
       settlementBackend: context.productionAdapters.settlementProvider.productionOriented ? "production" : "memory",
     },
   });
 
-  const url = new URL(requestUrl, "http://localhost");
-  const path = url.pathname.replace(/\/+$/, "") || "/";
   const segments = path.split("/").filter(Boolean);
 
   if (segments[0] !== "api" || segments[1] !== "v1") {
@@ -88,6 +112,46 @@ export async function routeProductApiRequest(
   }
 
   const apiPath = segments.slice(2).join("/");
+
+  if (apiPath !== "health" && !apiPath.startsWith("admin/tenants")) {
+    const auth = options.auth;
+    if (!auth?.authenticated || !auth.trusted || !auth.actorId) {
+      return fail("authenticated principal is required", 401, "authentication_failed", options.correlationId, undefined, routeMeta, "missing_credentials", {
+        retryable: false,
+        severity: "warning",
+      });
+    }
+    if (apiPath.startsWith("system/") && !auth.platformAdmin) {
+      return fail("platform authority is required", 403, "forbidden", options.correlationId, undefined, routeMeta, "platform_scope_required", {
+        retryable: false,
+        severity: "warning",
+      });
+    }
+    if (!apiPath.startsWith("system/") && !auth.platformAdmin) {
+      const tenantId = context.isolation.scope.tenantId;
+      if (auth.tenantId && auth.tenantId !== tenantId) {
+        return fail("tenant scope mismatch", 403, "forbidden", options.correlationId, { tenantId }, routeMeta, "cross_tenant_scope", {
+          retryable: false,
+          severity: "warning",
+        });
+      }
+      try {
+        const membership = context.tenantMembershipService.getMembership(tenantId, auth.actorId);
+        if (membership.status !== "active") {
+          return fail("active tenant membership is required", 403, "forbidden", options.correlationId, { tenantId }, routeMeta, "tenant_membership_inactive", {
+            retryable: false,
+            severity: "warning",
+          });
+        }
+      } catch (error) {
+        if (!(error instanceof TenantMembershipNotFoundError)) throw error;
+        return fail("active tenant membership is required", 403, "forbidden", options.correlationId, { tenantId }, routeMeta, "tenant_membership_required", {
+          retryable: false,
+          severity: "warning",
+        });
+      }
+    }
+  }
 
   try {
     // A01 exposes only boundary connectivity; it does not assert runtime readiness.

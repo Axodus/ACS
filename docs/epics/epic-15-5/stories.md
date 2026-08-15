@@ -98,7 +98,7 @@ Stories are ordered by dependency. A story is complete only when its required op
 
 ## Milestone C — Production Identity, Security & Edge Controls
 
-### ORG-C01 — Validate incoming production identity
+### ORG-C01 — Validate incoming production identity — COMPLETE
 
 - **Findings:** ACS-ORG-003.
 - **Objective:** construct the actor only from a trusted credential or upstream assertion.
@@ -108,7 +108,9 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Acceptance criteria:** caller actor headers are ignored/rejected in operational profile; unauthenticated requests cannot reach authority evaluation.
 - **Required evidence:** token/assertion positive and adversarial tests.
 
-### ORG-C02 — Bind trusted principal, tenant and platform authority
+Implemented by `tests/s47-epic-15-5-trusted-http-identity.test.mjs` and `milestones/C01-trusted-http-identity-authorization-boundary.md`. Production OIDC mode validates signature/JWKS, issuer, audience, expiration/not-before and subject; DEV headers are isolated in a non-production adapter.
+
+### ORG-C02 — Bind trusted principal, tenant and platform authority — COMPLETE
 
 - **Findings:** ACS-ORG-003.
 - **Objective:** feed the existing B01 authority model from authenticated claims without creating parallel RBAC.
@@ -117,6 +119,8 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Non-goals:** Agent Role changes or generic IAM.
 - **Acceptance criteria:** platform authority is explicit; path/body/header/context conflicts fail; cross-tenant E01 matrix passes.
 - **Required evidence:** forged tenant, self-escalation, removed/suspended member and platform-only negative tests.
+
+C01 completed principal propagation, signed Tenant-claim conflict rejection, explicit platform claim mapping and removed/suspended member HTTP negatives. Remote service identity remains Milestone D scope; the edge/proxy source matrix remains C02 scope.
 
 ### ORG-C03 — Align HTTP method, CORS and request safety contracts — PARTIAL
 
@@ -137,6 +141,8 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Non-goals:** generic WAF or billing quotas.
 - **Acceptance criteria:** client headers cannot alter counters; two instances share enforcement.
 - **Required evidence:** concurrency, multi-instance, reset, sensitive-route and backend-outage tests.
+
+ORG-C03 and ORG-C04 are the implementation stories consumed together by **Sprint C02 — Distributed Rate Limiting & HTTP Edge Hardening**. They remain separate stories because their failure semantics and acceptance evidence differ.
 
 ## Milestone D — Distributed Runtime & Execution Readiness
 

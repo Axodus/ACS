@@ -2,7 +2,7 @@
 
 **Assessment date:** 2026-08-15
 
-**Source revision:** `ed46412` plus B01/B02 implementation evidence
+**Source revision:** `ed46412` plus B01/B02/C01 implementation evidence
 
 **Overall classification:** **Development Ready / Integration Ready PARTIAL / Operational Ready BLOCKED / Production Ready BLOCKED**
 
@@ -12,8 +12,8 @@ This baseline evaluates the active composition, not only interfaces or milestone
 
 | Dimension | Status | Evidence-based conclusion | Blocking findings |
 | --- | --- | --- | --- |
-| Identity | BLOCKED | HTTP accepts caller-selected mock identity; disabled mode can become platform authority. | ACS-ORG-003 |
-| Security | BLOCKED | Tenant rules/redaction and a fail-closed Vault boundary exist, but live managed-service identity, HTTP identity and edge trust are not production-certified. | ACS-ORG-002, 003, 010, 013 |
+| Identity | PARTIAL | Production OIDC/JWT validation and trusted principal/platform mapping pass deterministic and real-HTTP tests; live IdP/JWKS deployment evidence remains. | live-provider acceptance |
+| Security | PARTIAL | Tenant rules, redaction, Vault and trusted HTTP identity exist; live managed-service identity, distributed rate limiting and edge trust are not production-certified. | ACS-ORG-002, 010, 013 |
 | Secrets | PARTIAL | Vault KV v2 plus durable metadata/reference catalog is selectable and production fallback fails closed; live provider/HA/service-identity and shared catalog proof remain. | ACS-ORG-002, 016, 019 |
 | Persistence | PARTIAL | Tenant Administration, audit, secret metadata/references and economics survive a single-node restart; Agents, deployments, runtime and jobs remain process-local and no shared multi-instance store is proven. | ACS-ORG-001, 009, 019 |
 | Runtime | PARTIAL | Sandbox lifecycle and engine adapters work; durable run state and recovery do not. | ACS-ORG-005, 017 |
@@ -60,7 +60,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 - **Development implementation:** local JSONL, local filesystem and local workers selected only in a named development profile.
 - **Authoritative production state:** tenant, agent, deployment, runtime, job, audit and economic records. These require durable shared adapters before production.
 
-`createAcsHttpServer` now selects durable administrative, secret-catalog and economic adapters explicitly. Direct `createControlPlaneContext` callers remain memory-backed unless the corresponding durable options/paths are supplied. `adapterProfile: "production"` rejects insecure secret or economic fallback instead of silently selecting memory.
+`createAcsHttpServer` now selects durable administrative, secret-catalog and economic adapters explicitly. Direct `createControlPlaneContext` callers remain memory-backed unless the corresponding durable options/paths are supplied. `adapterProfile: "production"` rejects insecure secret/economic adapters and non-production HTTP identity instead of silently selecting development fallbacks.
 
 ## Production-adapter inventory
 
@@ -79,7 +79,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Settlement provider | `SettlementProvider` | `SqliteSettlementProvider` in HTTP composition; memory only explicit DEV | Single-node adapter | HTTP: yes | idempotency/restart/reconciliation tests | ACS-ORG-007 PARTIAL |
 | Audit store | `AuditEventStore` consumed by `AuditService` | atomic filesystem adapter in HTTP composition; memory in explicit tests | Single-node adapter only | HTTP: yes | Restart/correlation tests | ACS-ORG-009 PARTIAL |
 | Telemetry sink | `TelemetrySink` | memory/JSONL | No external adapter | Local runtime defaults JSONL | Local tests | ACS-ORG-011 |
-| Identity validator | no production validator contract in active HTTP chain | mock header parser | No | Yes | Mock negative/positive tests | ACS-ORG-003 |
+| Identity validator | `HttpIdentityValidator` | `OidcJwtIdentityValidator` + `RemoteJwksProvider`; explicit DEV header adapter | Yes | Production: explicit OIDC required | signature/claims/rotation/real HTTP forged-header tests; live IdP unproven | ACS-ORG-003 RESOLVED |
 | Rate limiter | context contract only | mock header parser | No | Disabled | Mock tests | ACS-ORG-010 |
 | Worker dispatcher | registry/assignment contracts | direct `LocalExecutionWorker` | No remote adapter | Yes | Same-process tests | ACS-ORG-004 |
 | Queue/broker | none | none | No | N/A | No | ACS-ORG-004/005 |
@@ -89,25 +89,25 @@ This baseline evaluates the active composition, not only interfaces or milestone
 ## Identity and authorization trust chain
 
 ```text
-untrusted request headers
+untrusted HTTP request
         ↓
-parseMockAuthContext
+OIDC bearer + RS256/JWKS/issuer/audience/time validation
         ↓
-AcsAuthContext (disabled or mock)
+AuthenticatedPrincipal from signed sub
         ↓
-resolveAuthority
+optional signed tenant binding + configured platform claim/value
         ↓
-platform_admin or tenant_member
+existing TenantMembership / AdministrativeAuthority
         ↓
-correct domain authority/governance rules
+governance and operation
 ```
 
-The lower authorization layers are valuable and tested, but the first trusted step is absent. Therefore:
+The production HTTP chain now has a trusted first step. Therefore:
 
-- **Can an untrusted HTTP client forge actor identity today?** Yes.
-- **Can an untrusted HTTP client forge `platform_admin` or global authority?** Yes, through caller-selected actor type or disabled mode.
+- **Can an untrusted HTTP client forge actor identity through `x-acs-*` headers?** No in OIDC mode; real-server negative tests pass.
+- **Can an untrusted HTTP client forge `platform_admin` or global authority?** No; only the configured trusted claim/value maps to platform authority.
 - **Does cross-tenant domain enforcement exist?** Yes.
-- **Does it establish production security without authenticated principal binding?** No.
+- **Is a live external IdP deployment certified?** No; Identity remains PARTIAL pending environment-specific acceptance.
 
 ## Restart survivability
 

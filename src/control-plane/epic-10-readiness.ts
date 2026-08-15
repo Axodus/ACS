@@ -315,7 +315,8 @@ function persistenceDomain(signals: Epic10ReadinessSignals): Epic10ReadinessDoma
 }
 
 function authDomain(signals: Epic10ReadinessSignals): Epic10ReadinessDomainReport {
-  const findings: Epic10ReadinessFinding[] = signals.authMode === "required"
+  const trustedAuthenticationActive = signals.authMode === "required" || signals.authMode === "oidc";
+  const findings: Epic10ReadinessFinding[] = trustedAuthenticationActive
     ? []
     : [{
       domain: "authentication-authorization",

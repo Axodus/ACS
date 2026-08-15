@@ -88,6 +88,7 @@ export interface ProductionReadinessSignals {
   readonly workerStatus?: "available" | "unavailable" | "stale" | "unverified";
   readonly targetStatus?: "ready" | "degraded" | "unavailable" | "unverified";
   readonly authMode?: string;
+  readonly authProviderReachable?: boolean;
   readonly persistenceBackend?: "memory" | "filesystem" | "database";
   readonly secretBackend?: SecretBoundaryStorage;
   readonly secretProviderReachable?: boolean;
@@ -101,6 +102,7 @@ const DEFAULT_SIGNALS: Required<ProductionReadinessSignals> = {
   workerStatus: "unavailable",
   targetStatus: "unavailable",
   authMode: "disabled",
+  authProviderReachable: false,
   persistenceBackend: "memory",
   secretBackend: "memory",
   secretProviderReachable: true,
@@ -319,6 +321,7 @@ function buildGates(
         "M04 — Operational Reliability & Runtime Confidence",
       ),
     ];
+  const trustedIdentityReady = signals.authMode === "oidc" && signals.authProviderReachable;
 
   return [
     gate(
@@ -405,41 +408,46 @@ function buildGates(
     gate(
       "G04",
       "Auth / Actor Boundary",
-      signals.authMode === "disabled" ? "blocked" : "partial",
+      trustedIdentityReady ? "partial" : "blocked",
       "critical",
       "authentication",
       ["M02"],
       {
-        blockers: [
-          blocker(
-            "AUTH_ACTOR_BOUNDARY_DISABLED",
-            "G04",
-            "critical",
-            `Authentication mode is ${signals.authMode}; authenticated actor identity is not implemented.`,
-            "authentication",
-            "M02 — Governance & Access Control Boundary",
-          ),
-        ],
+        blockers: trustedIdentityReady ? [] : [blocker(
+          signals.authMode === "oidc" ? "AUTH_PROVIDER_UNREACHABLE" : "AUTH_ACTOR_BOUNDARY_DISABLED",
+          "G04",
+          "critical",
+          signals.authMode === "oidc"
+            ? "OIDC validation is configured, but signing-key reachability is not proven."
+            : `Authentication mode is ${signals.authMode}; trusted production actor identity is not active.`,
+          "authentication",
+          "EPIC-15.5 C01 — Trusted HTTP Identity",
+        )],
+        caveats: trustedIdentityReady ? [caveat(
+          "LIVE_IDENTITY_PROVIDER_ACCEPTANCE_PENDING",
+          "G04",
+          "medium",
+          "OIDC signature and claim validation are active; live provider availability remains deployment-specific evidence.",
+          "authentication",
+        )] : [],
       },
     ),
     gate(
       "G05",
       "Authorization / RBAC Boundary",
-      signals.authMode === "disabled" ? "blocked" : "partial",
+      trustedIdentityReady ? "partial" : "blocked",
       "critical",
       "authorization-rbac",
       ["M02"],
       {
-        blockers: [
-          blocker(
-            "RBAC_BASELINE_NOT_IMPLEMENTED",
+        blockers: trustedIdentityReady ? [] : [blocker(
+            "AUTHORIZATION_TRUST_CHAIN_UNAVAILABLE",
             "G05",
             "critical",
-            "Authorization and RBAC baseline are not implemented; read vs mutate authority is not proven.",
+            "Tenant and platform authority models exist, but their production trust chain is unavailable until trusted identity validation is active and reachable.",
             "authorization-rbac",
             "M02 — Governance & Access Control Boundary",
-          ),
-        ],
+          )],
       },
     ),
     gate(

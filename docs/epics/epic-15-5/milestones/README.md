@@ -6,7 +6,7 @@ This index is the normative consumption order for implementation. A milestone ma
 | --- | --- | --- | --- | --- |
 | A — System-Wide Gap Discovery & Readiness Baseline | **PASS** | all discovery | EPIC-15 closure | verified inventory, baseline, journeys, stories and plan |
 | B — Durable Platform State & Production Adapters | **IN PROGRESS — B01/B02 PASS** | 001, 002, 007, 009, 019 plus resolved 008 | A baseline; B1–B3 for remaining production adapters | admin/audit plus secret/economic restart complete; shared state and operational aggregates remain |
-| C — Production Identity, Security & Edge Controls | PLANNED | 003, 010, 013 | C1–C2 decisions | trusted identity, forged-context denial and distributed edge controls |
+| C — Production Identity, Security & Edge Controls | **IN PROGRESS — C01 PASS** | resolved 003; open 010, 013 | C1 decision closed; C2 edge dependencies | trusted HTTP identity complete; broader edge/rate limiting remain |
 | D — Distributed Runtime & Execution Readiness | PLANNED | 004, 005, 017 | B state + C identity + D1 | remote dispatch, durable jobs, crash/retry/cancel recovery |
 | E — Observability & Operational Diagnostics | PLANNED | 011, 012 | durable correlation + D runtime + E1 | external telemetry, actionable diagnostics, readiness probe |
 | F — End-to-End Product UX Operationalization | PLANNED | 014–018, 021–024 | B–E supported contracts | authenticated operator journey and browser evidence |
@@ -36,12 +36,12 @@ Do not create one generic repository for every domain. Preserve aggregate-specif
 
 Recommended sprint order:
 
-1. **C01 — Trusted Identity Validation**
-2. **C02 — Principal, Tenant and Platform Authority Binding**
-3. **C03 — Trusted CORS, Request Safety and Proxy Alignment**
-4. **C04 — Distributed Rate Limiting**
+1. **C01 — Trusted HTTP Identity & Authorization Boundary — PASS**
+2. **C02 — Distributed Rate Limiting & HTTP Edge Hardening**
 
-The HTTP method mismatch was resolved in B01. C03 retains origin/header trust, body/timeout bounds, proxy semantics and other ACS-ORG-013 work. The administrative API remains non-production until C01/C02 establish trusted actor context.
+The HTTP method mismatch was resolved in B01. C01 delivered OIDC/JWT signature and claim validation, trusted principal propagation, Tenant binding, explicit signed platform authority, production fail-closed composition and real-server forged-header negatives. `ACS-ORG-003` is resolved for the active production HTTP boundary. See [C01-trusted-http-identity-authorization-boundary.md](./C01-trusted-http-identity-authorization-boundary.md).
+
+C02 retains distributed rate limiting plus trusted origin/header policy, body/timeout bounds, proxy semantics and the remaining ACS-ORG-010/013 work. The ACS remains non-production while those and the other readiness findings are open.
 
 ## Milestone D — Distributed Runtime & Execution Readiness
 

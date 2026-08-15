@@ -18,6 +18,7 @@ import type { DeploymentService, DeploymentRecord, DeploymentRequest } from "./d
 import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord, StartRuntimeServiceRequest } from "./runtime-lifecycle-service.js";
 import type { AuditService, AuditEvent, AuditQueryFilter } from "./audit-service.js";
 import type { ExecutionTargetService } from "../targets/execution-target-service.js";
+import type { HttpIdentityValidator } from "../http/auth.js";
 import type { EconomicService } from "./neurons-economic-contract.js";
 import { OperationalEvidenceService } from "./operational-evidence-service.js";
 import type {
@@ -99,6 +100,7 @@ export interface ProductApiClientOptions {
   readonly credentialRegistry?: CredentialConnectionRegistry;
   readonly readinessSignals?: Partial<Epic10ReadinessSignals>;
   readonly secretStore?: SecretStore;
+  readonly identityValidator?: HttpIdentityValidator;
   readonly baseUrl?: string;
 }
 
@@ -1471,6 +1473,7 @@ export class ProductApiClient {
   readonly #credentialRegistry: CredentialConnectionRegistry | undefined;
   readonly #readinessSignals: Partial<Epic10ReadinessSignals>;
   readonly #secretStore: SecretStore | undefined;
+  readonly #identityValidator: HttpIdentityValidator | undefined;
   readonly #baseUrl: string | undefined;
 
   constructor(options: ProductApiClientOptions = {}) {
@@ -1489,6 +1492,7 @@ export class ProductApiClient {
     this.#credentialRegistry = options.credentialRegistry;
     this.#readinessSignals = options.readinessSignals ?? {};
     this.#secretStore = options.secretStore;
+    this.#identityValidator = options.identityValidator;
     this.#baseUrl = options.baseUrl;
 
     this.#operationalEvidence = new OperationalEvidenceService({
@@ -3486,12 +3490,14 @@ export class ProductApiClient {
           : "unavailable";
 
     const secretHealth = this.#secretStore ? await this.#secretStore.health() : undefined;
+    const identityHealth = this.#identityValidator ? await this.#identityValidator.health() : undefined;
     return createProductionReadinessReport({
       environment: resolveCurrentEnvironment(),
       runtimeConnectivity: summary.runtime.connectivity,
       workerStatus,
       targetStatus,
-      authMode: "disabled",
+      authMode: this.#identityValidator?.descriptor.mode ?? "disabled",
+      authProviderReachable: identityHealth?.reachable ?? false,
       browserAcceptance: "not_started",
       persistenceBackend: this.#readinessSignals.persistenceBackend ?? "memory",
       secretBackend: this.#readinessSignals.secretBackend ?? "memory",

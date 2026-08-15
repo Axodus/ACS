@@ -1,6 +1,6 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** Milestone B in progress — Sprints B01 and B02 complete on 2026-08-15
+**Status:** Milestone C in progress — C01 complete on 2026-08-15; Milestone B residual work remains open
 
 **Readiness conclusion:** ACS is **Development Ready**, more completely **Integration Ready** for Tenant Administration, and **not Operational Ready or Production Ready**.
 
@@ -53,6 +53,14 @@ Economics now uses explicit `EconomicStateStore` and `SettlementProvider` bounda
 
 `ACS-ORG-002` and `ACS-ORG-007` are **PARTIALLY_RESOLVED**, not closed: live Vault/HA/service-identity proof, shared multi-instance storage and an external settlement service remain unproven. Operational and Production Readiness remain blocked.
 
+## C01 outcome
+
+C01 replaced the active production header-trust path with an explicit `HttpIdentityValidator` boundary and a production-oriented OIDC/JWT implementation. The server validates RS256 signature, trusted JWKS key, issuer, audience, expiration/not-before and subject before constructing the principal. Unknown `kid` triggers a bounded JWKS refresh for key rotation.
+
+`platform_admin` now comes only from one explicitly configured signed claim/value. Actor, platform and Tenant headers are ignored by the OIDC adapter; Tenant membership and governance remain separate downstream decisions. Production composition rejects the development adapter and incomplete OIDC configuration. Real HTTP tests prove forged actor/platform headers, invalid tokens, cross-Tenant access and suspended/removed membership cannot bypass the boundary.
+
+`ACS-ORG-003` is **RESOLVED** for the active HTTP production composition. Identity is **PARTIAL**, not globally production-certified, because live IdP/JWKS deployment evidence and broader edge/service identity work remain open. Operational and Production Readiness remain blocked.
+
 ## Principles
 
 - **Evidence before claims.** Contracts and unit tests do not prove operational readiness.
@@ -80,7 +88,8 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 7. [milestones/README.md](./milestones/README.md) — milestone consumption order and exit evidence.
 8. [milestones/B01-durable-control-plane-state-http-contract.md](./milestones/B01-durable-control-plane-state-http-contract.md) — implemented persistence and HTTP compatibility evidence.
 9. [milestones/B02-production-secrets-economic-adapters.md](./milestones/B02-production-secrets-economic-adapters.md) — secrets/economics adapters, restart and reconciliation evidence.
-10. [AGENTS.md](./AGENTS.md) — local execution rules.
+10. [milestones/C01-trusted-http-identity-authorization-boundary.md](./milestones/C01-trusted-http-identity-authorization-boundary.md) — OIDC validation, trusted principal propagation and forged-header evidence.
+11. [AGENTS.md](./AGENTS.md) — local execution rules.
 
 ## Milestone map
 
@@ -88,7 +97,7 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 | --- | --- |
 | A | Verified system-wide baseline and executable backlog |
 | B | **IN PROGRESS:** single-node durable administration, Vault boundary and durable economics delivered; remaining operational state/shared topology open |
-| C | Trusted identity, authorization chain and edge controls |
+| C | **IN PROGRESS:** trusted HTTP identity delivered; edge controls/rate limiting remain |
 | D | Remote dispatch, durable jobs and recovery semantics |
 | E | External observability and dependency-aware readiness |
 | F | Complete supported operator journeys and remediation UX |

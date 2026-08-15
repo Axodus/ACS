@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { parseMockAuthContext } from "./auth.js";
+import { createAnonymousAuthContext, HttpAuthenticationError } from "./auth.js";
 import { parseMockRateLimitContext } from "./rate-limit.js";
 import { fail } from "./responses.js";
 import { routeAcsRequest } from "./routes/acs-routes.js";
@@ -37,11 +37,17 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
     }
 
     const correlationId = readCorrelationId(request);
-    const auth = parseMockAuthContext(readHeaders(request));
-    const rateLimit = parseMockRateLimitContext(readHeaders(request));
+    const headers = readHeaders(request);
+    const rateLimit = parseMockRateLimitContext(headers);
     const requestUrl = request.url ?? "/";
 
     try {
+      const publicRoute = isPublicRoute(requestUrl);
+      const hasCredential = Boolean(headers.authorization)
+        || (context.identityValidator.descriptor.mode === "development" && Boolean(headers["x-acs-actor-id"]));
+      const auth = publicRoute && !hasCredential
+        ? createAnonymousAuthContext(context.identityValidator.descriptor.mode)
+        : await context.identityValidator.authenticate(headers);
       if (requestUrl.startsWith("/api/v1")) {
         const result = await routeProductApiRequest(request, requestUrl, context, {
           ...(correlationId ? { correlationId } : {}),
@@ -60,6 +66,20 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
         writeJson(response, result.status, result.body);
       }
     } catch (error) {
+      if (error instanceof HttpAuthenticationError) {
+        const result = fail(
+          error.message,
+          401,
+          "authentication_failed",
+          correlationId,
+          { category: error.code },
+          undefined,
+          error.code,
+          { retryable: error.code === "identity_provider_unavailable", severity: "warning" },
+        );
+        writeJson(response, result.status, result.body, { "www-authenticate": "Bearer" });
+        return;
+      }
       writeJson(response, 500, fail(
         error instanceof Error ? error.message : "unexpected server error",
         500,
@@ -69,6 +89,11 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
       ).body);
     }
   };
+}
+
+function isPublicRoute(requestUrl: string): boolean {
+  const path = new URL(requestUrl, "http://localhost").pathname.replace(/\/+$/, "") || "/";
+  return path === "/api/v1/health" || path === "/acs/health" || path === "/acs/version";
 }
 
 function readHeaders(request: IncomingMessage): Readonly<Record<string, string | undefined>> {
