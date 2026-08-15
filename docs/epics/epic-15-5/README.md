@@ -1,8 +1,8 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** Milestone A / Sprint A01 complete — operational baseline established on 2026-08-15
+**Status:** Milestone B in progress — Sprint B01 complete on 2026-08-15
 
-**Readiness conclusion:** ACS is **Development Ready**, partially **Integration Ready**, and **not Operational Ready or Production Ready**.
+**Readiness conclusion:** ACS is **Development Ready**, more completely **Integration Ready** for Tenant Administration, and **not Operational Ready or Production Ready**.
 
 ## Mission
 
@@ -37,6 +37,14 @@ A01 verified **24 consolidated findings**:
 
 The canonical source is [operational-gap-inventory.md](./operational-gap-inventory.md). Findings are evidence-backed and deduplicated by root cause. In-memory test doubles, local development adapters and the sandbox gate are not defects by themselves; the gap is their use as the only or active operational path without a certified production alternative.
 
+## B01 outcome
+
+B01 added an aggregate-specific durable administrative adapter for Tenant, Membership/Ownership, Governance/Entitlements/Limits and the shared administrative audit stream. The shipped HTTP server selects this adapter by default, while programmatic tests may still opt into explicit in-memory repositories. Restart tests prove preservation of revisions, timestamps, ownership, governance configuration and audit correlation.
+
+The adapter is a single-node atomic filesystem snapshot. It is **not** a shared production database and has no cross-process locking, migrations, retention or multi-writer proof. Therefore `ACS-ORG-001` and `ACS-ORG-009` are only **PARTIALLY_RESOLVED**.
+
+B01 also resolved `ACS-ORG-008`: the real HTTP entry handler and CORS preflight accept `GET`, `POST`, `PUT`, `PATCH` and `DELETE`; Tenant Administration `PUT`/`DELETE` operations execute through the real server; and runtime `start`/`stop` handlers are reachable before unsupported-operation guards. Production identity and broader edge hardening remain Milestone C work.
+
 ## Principles
 
 - **Evidence before claims.** Contracts and unit tests do not prove operational readiness.
@@ -62,14 +70,15 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 5. [EPIC-15.5_Strategic_Operational_Plan.md](./EPIC-15.5_Strategic_Operational_Plan.md) — sequencing, gates and definition of done.
 6. [stories.md](./stories.md) — implementation-ready stories.
 7. [milestones/README.md](./milestones/README.md) — milestone consumption order and exit evidence.
-8. [AGENTS.md](./AGENTS.md) — local execution rules.
+8. [milestones/B01-durable-control-plane-state-http-contract.md](./milestones/B01-durable-control-plane-state-http-contract.md) — implemented persistence and HTTP compatibility evidence.
+9. [AGENTS.md](./AGENTS.md) — local execution rules.
 
 ## Milestone map
 
 | Milestone | Outcome |
 | --- | --- |
 | A | Verified system-wide baseline and executable backlog |
-| B | Durable authoritative state and production adapters |
+| B | **IN PROGRESS:** single-node durable administration delivered; production/shared adapters remain |
 | C | Trusted identity, authorization chain and edge controls |
 | D | Remote dispatch, durable jobs and recovery semantics |
 | E | External observability and dependency-aware readiness |

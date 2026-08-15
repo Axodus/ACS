@@ -52,6 +52,24 @@ export interface AuditQueryFilter {
   readonly actor?: string;
 }
 
+export interface AuditEventStore {
+  append(event: AuditEvent): AuditEvent;
+  list(): readonly AuditEvent[];
+}
+
+export class InMemoryAuditEventStore implements AuditEventStore {
+  readonly #events: AuditEvent[] = [];
+
+  append(event: AuditEvent): AuditEvent {
+    this.#events.push(event);
+    return event;
+  }
+
+  list(): readonly AuditEvent[] {
+    return [...this.#events];
+  }
+}
+
 const SECRET_PATTERNS = [/api_?key/i, /secret/i, /bearer/i, /password/i, /token/i, /^sk-/i, /private_?key/i];
 
 export function redactValue(value: unknown): unknown {
@@ -80,7 +98,11 @@ export function redactValue(value: unknown): unknown {
 }
 
 export class AuditService {
-  readonly #events: AuditEvent[] = [];
+  readonly #store: AuditEventStore;
+
+  constructor(options: { readonly store?: AuditEventStore } = {}) {
+    this.#store = options.store ?? new InMemoryAuditEventStore();
+  }
 
   recordEvent(input: {
     eventType: AuditEventType | string;
@@ -118,12 +140,11 @@ export class AuditService {
       ...(metadata ? { metadata } : {}),
     };
 
-    this.#events.push(event);
-    return event;
+    return this.#store.append(event);
   }
 
   queryEvents(filter: AuditQueryFilter): readonly AuditEvent[] {
-    return this.#events.filter((evt) => {
+    return this.#store.list().filter((evt) => {
       if (filter.correlationId && evt.correlationId !== filter.correlationId) return false;
       if (filter.tenantId && evt.tenantId !== filter.tenantId) return false;
       if (filter.workloadId && evt.workloadId !== filter.workloadId) return false;
@@ -138,6 +159,6 @@ export class AuditService {
   }
 
   listEvents(): readonly AuditEvent[] {
-    return [...this.#events];
+    return this.#store.list();
   }
 }

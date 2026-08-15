@@ -15,16 +15,17 @@ contract exists
 
 | Capability | Contract | Implementation | Production adapter | Operational proof | Final assessment |
 | --- | --- | --- | --- | --- | --- |
-| Tenant lifecycle | Yes | Yes | No durable repository | Domain/API/browser evidence only | PARTIAL |
-| Membership/authority | Yes | Yes | No trusted identity or durable repository | Strong negative domain/API tests | PARTIAL |
-| Governance/limits/entitlements | Yes | Yes | No durable repository | Evaluator/enforcement tests; HTTP method gap | PARTIAL |
+| Tenant lifecycle | Yes | Yes | Single-node durable adapter; no shared production database | Domain/API/browser plus restart/revision proof | PARTIAL |
+| Membership/authority | Yes | Yes | Single-node durable adapter; identity remains untrusted | Negative API tests plus restart/atomic owner transfer proof | PARTIAL |
+| Governance/limits/entitlements | Yes | Yes | Single-node durable adapter; no shared production database | Evaluator/enforcement, real HTTP method and restart proof | PARTIAL |
 | Agent domain/lifecycle | Yes | Yes | No durable repository | Domain/Product API/browser evidence | PARTIAL |
 | Composition resources | Yes | Read projections and compatibility | No mutable production catalog | Mutation journey absent | PARTIAL |
 | Secret references | Yes | Yes | No managed secret provider | Redaction/reference tests | PARTIAL |
 | Deployment lifecycle | Yes | Sandbox implementation | No production target | Sandbox tests | PARTIAL |
-| Runtime lifecycle | Yes | Local engine lifecycle | No durable job store | Local tests; no restart/recovery | PARTIAL |
+| Runtime lifecycle | Yes | Local engine lifecycle with reachable HTTP start/stop | No durable job store | Handler reachability only; no restart/recovery | PARTIAL |
 | Worker registration/assignment | Yes | In-process registry/lease/local worker | No remote dispatcher/broker | Unit/local tests | NOT PROVEN as distributed |
-| Audit events/read model | Yes | Yes | No durable append store | Domain/API/browser history in one process | PARTIAL |
+| Audit events/read model | Yes | Durable single-node event store selected by HTTP server | No shared append/retention production service | Restart/correlation proof; replica/outbox unproven | PARTIAL |
+| HTTP method contract | Yes | Server, CORS and route layer aligned for GET/POST/PUT/PATCH/DELETE | N/A | Real entry-handler integration tests | READY for method compatibility scope |
 | Economics | Yes | In-memory quotes/reservations/settlement | No ledger/settlement adapter | Contract tests | PARTIAL, production BLOCKED |
 | HTTP authentication | Mock contract | Header parser | No validator | Mock tests | BLOCKED |
 | HTTP authorization | Yes | Yes after actor resolution | Depends on trusted identity | Domain/API negative tests | PARTIAL |
@@ -55,10 +56,10 @@ Later milestones must replace adapters and connect flows without introducing com
 flowchart TD
   Browser[Control Plane clients] -->|mock actor headers| HTTP[ACS HTTP server]
   HTTP --> Context[createControlPlaneContext]
-  Context --> Tenant[Map-backed tenant and governance services]
+  Context --> Tenant[Single-node durable tenant, membership and governance repositories]
   Context --> Agent[Map-backed agent and composition services]
   Context --> Deploy[Map-backed deployment and runtime services]
-  Context --> Audit[In-process audit array]
+  Context --> Audit[Single-node durable AuditEventStore]
   Context --> Econ[In-memory economics and settlement]
   Context --> Secret[In-memory secret store]
   Context --> Worker[LocalExecutionWorker]
@@ -66,7 +67,27 @@ flowchart TD
   Context --> Evidence[Read-only readiness/evidence projections]
 ```
 
-This is a valid development composition. It is not a production topology because identity, state, execution and evidence share the same process and local filesystem assumptions.
+This is a more restart-safe development/single-node composition after B01. It is not a production topology because identity is untrusted, several authoritative aggregates remain process-local, the administrative snapshot is not replica-safe, execution is local and external diagnostics are absent.
+
+## B01 applied boundaries
+
+```mermaid
+flowchart LR
+  Domain[Tenant / Membership / Governance services] --> Repo[Aggregate repository interfaces]
+  Repo --> Memory[Explicit in-memory test adapters]
+  Repo --> Durable[DurableAdministrativeState]
+  Durable --> File[Atomic single-node snapshot]
+  Audit[AuditService] --> AuditStore[AuditEventStore]
+  AuditStore --> Durable
+
+  Client[Product API client] --> Server[HTTP method boundary]
+  Server --> Router[Product API route matching]
+  Router --> Handler[Semantic route handler]
+```
+
+The administrative file is updated by write-to-temporary-path plus atomic rename. The in-process snapshot is replaced only after the filesystem commit succeeds. Membership ownership transfer uses repository `saveMany`, so the previous and next owner are persisted in one snapshot replacement. A corrupt file fails startup, and a write failure propagates instead of falling back to memory.
+
+These semantics provide restart survivability and per-file atomicity on one node. They do not provide distributed locking, live reload, cross-instance optimistic concurrency, schema migration tooling or a transaction that combines the resource commit and subsequent audit append. The architecture classification is therefore `SINGLE_NODE_DURABLE / MULTI_INSTANCE_NOT_PROVEN`.
 
 ## Target topology boundaries
 
@@ -110,7 +131,7 @@ The diagram is normative only at the boundary level. It does not prescribe a dat
 
 ### Development composition is the only composition
 
-`createControlPlaneContext` constructs development adapters directly. There is no configuration profile that validates and selects production adapters. This root cause drives ACS-ORG-001, 002, 007, 009, 010 and 019.
+`createAcsHttpServer` now selects durable administrative state explicitly; direct contexts use memory unless persistence is requested. There is still no operational profile that validates and selects production adapters for Agents, secrets, deployments, runtime, economics, rate limiting or remote workers. The root cause is reduced for ACS-ORG-001/009 but remains for 002, 007, 010, 019 and the residual state scope.
 
 ### Trust starts too late
 
@@ -122,7 +143,7 @@ Engine and worker contracts exist separately. The normal Product API runtime pat
 
 ### Evidence is derived from ephemeral truth
 
-Audit, readiness, diagnostics and economics projections are useful, but they read process-local structures. Exporters cannot make ephemeral domain state durable. Milestone B must establish truth before Milestone E exports it.
+Administrative audit now survives single-node restart. Readiness, diagnostics, economics and operational runtime projections still depend on process-local structures. Exporters cannot make those remaining ephemeral sources durable; later Milestone B work must establish truth before Milestone E exports it.
 
 ### Surfaces are accepted independently, not as one journey
 

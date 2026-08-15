@@ -1,6 +1,6 @@
 # Operational Gap Inventory
 
-This is the canonical A01 finding register. The inventory reflects the repository at commit `b104895` on 2026-08-15. `OPEN — VERIFIED` means the behavior was confirmed in current code or tests and still requires a later milestone.
+This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01 status and evidence were updated on 2026-08-15 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
 
 ## Severity model
 
@@ -22,15 +22,15 @@ Findings use a primary area plus affected areas from this controlled set:
 
 | ID | Primary area | Finding | Severity | Milestone | Status |
 | --- | --- | --- | --- | --- | --- |
-| ACS-ORG-001 | PERSISTENCE | Active authoritative Control Plane state is process-local | BLOCKER | B | OPEN — VERIFIED |
+| ACS-ORG-001 | PERSISTENCE | Active authoritative Control Plane state is process-local | BLOCKER | B | PARTIALLY_RESOLVED — B01 |
 | ACS-ORG-002 | SECURITY | No production-grade secret adapter is available or active | BLOCKER | B | OPEN — VERIFIED |
 | ACS-ORG-003 | IDENTITY | HTTP actor and platform authority are forgeable by the caller | BLOCKER | C | OPEN — VERIFIED |
 | ACS-ORG-004 | DISTRIBUTED_EXECUTION | Operational execution uses a same-process local worker, not remote dispatch | BLOCKER | D | OPEN — VERIFIED |
 | ACS-ORG-005 | RECOVERY | Runtime jobs, assignments and leases lack durable recovery semantics | BLOCKER | D | OPEN — VERIFIED |
 | ACS-ORG-006 | DEPLOYMENT | Production deployment is blocked by a deliberate sandbox-only gate | BLOCKER | G | OPEN — VERIFIED |
 | ACS-ORG-007 | ECONOMICS | Economic settlement and records use an in-memory provider and maps | BLOCKER | B | OPEN — VERIFIED |
-| ACS-ORG-008 | PRODUCT_API | Real HTTP rejects Product API `PUT` and `DELETE` administration routes | BLOCKER | C | OPEN — VERIFIED |
-| ACS-ORG-009 | OBSERVABILITY | Administrative and operational audit history is process-local | CRITICAL | B | OPEN — VERIFIED |
+| ACS-ORG-008 | PRODUCT_API | Real HTTP rejects Product API `PUT` and `DELETE` administration routes | BLOCKER | B | RESOLVED — B01 |
+| ACS-ORG-009 | OBSERVABILITY | Administrative and operational audit history is process-local | CRITICAL | B | PARTIALLY_RESOLVED — B01 |
 | ACS-ORG-010 | EDGE | Rate limiting is disabled or caller-selected mock state | CRITICAL | C | OPEN — VERIFIED |
 | ACS-ORG-011 | OBSERVABILITY | External telemetry, HTTP telemetry, raw logs and traces are unavailable | CRITICAL | E | OPEN — VERIFIED |
 | ACS-ORG-012 | OPERATIONS | No dependency-aware production traffic readiness gate exists | HIGH | E | OPEN — VERIFIED |
@@ -52,19 +52,20 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-001 — Active authoritative Control Plane state is process-local
 
 - **Area:** PERSISTENCE; affects TENANT, GOVERNANCE, RUNTIME, DEPLOYMENT, PRODUCT_API.
-- **Severity / status:** **BLOCKER**, OPEN — VERIFIED.
+- **Severity / status:** **BLOCKER**, PARTIALLY_RESOLVED — B01.
 - **Evidence:** `src/http/control-plane-context.ts:277-391`; `src/control-plane/agent-service.ts:56-57,160-161`; `src/control-plane/tenant-domain.ts:108-109`; `src/control-plane/tenant-membership.ts:166-167`; `src/control-plane/tenant-governance.ts:392-393`; `src/control-plane/deployment-service.ts:52`; `src/control-plane/runtime-lifecycle-service.ts:79-80`.
-- **Current behavior:** each server context constructs new repositories/services backed by arrays or `Map`. Tenant, membership, governance, agent, composition, deployment and runtime truth disappears when that context ends and is not shared with another replica.
+- **Current behavior after B01:** `createAcsHttpServer` explicitly selects `DurableAdministrativeState`. Tenant, membership/ownership, governance/entitlements/limits and the shared audit stream persist through an atomic local snapshot and survive a new context/process instance. Direct test contexts remain memory-backed unless persistence is requested. Agent, composition, deployment, runtime, worker and economic truth remains process-local.
 - **Operational impact:** restart loses authoritative administration and operational state; two replicas can return divergent answers and accept conflicting mutations.
-- **Root cause:** domain contracts were stabilized before a durable application persistence boundary was selected.
+- **B01 evidence:** `src/control-plane/durable-administrative-state.ts`; repository wiring in `src/http/control-plane-context.ts`; restart, ownership-batch, serialization, corruption and write-failure coverage in `tests/s45-epic-15-5-durable-http-contract.test.mjs`.
+- **Residual risk:** the local snapshot is `SINGLE_NODE_DURABLE`, has no cross-process locking/refresh, migration framework or shared transaction service, and does not make the remaining operational aggregates durable.
 - **Required target state:** transactional, tenant-scoped repositories for authoritative resources, explicit migrations, optimistic concurrency/idempotency and a composition profile that refuses production startup when durable adapters are absent.
-- **Dependencies / milestone:** schema and adapter decisions precede remote execution and production deploy; Milestone B.
+- **Dependencies / milestone:** B02/B03 must add production/shared adapters for secrets, economics, Agents, deployments, runtime and jobs; multi-instance certification remains H scope.
 - **Acceptance evidence:** restart survival, two-instance consistency, conflict tests, migration/rollback evidence and no production composition using memory authority.
 
 ### ACS-ORG-002 — No production-grade secret adapter is available or active
 
 - **Area:** SECURITY; affects PERSISTENCE, RUNTIME, DEPLOYMENT.
-- **Severity / status:** **BLOCKER**, OPEN — VERIFIED.
+- **Severity / status:** **BLOCKER**, RESOLVED — B01.
 - **Evidence:** `src/intelligence/secret-store.ts:6-93`; `src/secret-storage.ts:3-79`; `src/http/control-plane-context.ts:161-185`; `src/inspection.ts:571-581`.
 - **Current behavior:** the active server selects `InMemorySecretStore`; the alternative filesystem store writes the raw value to a local file with mode `0600`; a second `MockAcsSecretStorage` returns a redacted mock value. No Vault/KMS/cloud secret adapter, encryption lifecycle, rotation, version selection or production adapter selection was found.
 - **Operational impact:** restart loses active secrets, local files do not work across replicas, and production credentials cannot be governed or recovered safely.
@@ -138,23 +139,24 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Area:** PRODUCT_API; affects CONTROL_PLANE, TENANT, GOVERNANCE.
 - **Severity / status:** **BLOCKER**, OPEN — VERIFIED.
 - **Evidence:** `src/http/server.ts:11-31`; `src/http/routes/admin-tenant-routes.ts:403-507`; `static/src/admin/api.ts:426-433`; `tests/http.test.mjs:130-134`; D01 tests call `routeProductApiRequest` directly with `PUT`.
-- **Current behavior:** the route layer supports policy, entitlement and limit `PUT`/`DELETE`, and the browser client calls them. The actual HTTP handler and CORS preflight allow only `GET`, `POST`, `OPTIONS`, returning `405` before routing.
+- **Current behavior after B01:** the server entry handler accepts `GET`, `POST`, `PUT`, `PATCH` and `DELETE`; preflight advertises the same methods plus `OPTIONS`; Tenant policy, entitlement and limit `PUT`/`DELETE` operations reach their real handlers. Unsupported top-level methods retain `405` and `Allow` metadata.
 - **Operational impact:** governance, entitlement and limit mutations certified at route level cannot complete through the shipped HTTP server/UI path.
-- **Root cause:** server method allowlist was not updated when the administrative API expanded; integration tests bypassed the entry handler.
+- **Resolution evidence:** `src/http/server.ts`; route-level read safety in `src/http/routes/acs-routes.ts`; real handler coverage in `tests/s45-epic-15-5-durable-http-contract.test.mjs` for all five application methods, CORS preflight and unsupported method behavior.
 - **Required target state:** one method contract across server, CORS, route layer and client, with end-to-end tests through `createAcsHttpHandler`.
-- **Dependencies / milestone:** pair with edge/auth changes in Milestone C; no domain redesign.
+- **Residual scope:** production authentication, trusted origins/headers, request bounds and distributed rate limiting remain ACS-ORG-003/010/013. They do not reopen method compatibility.
 - **Acceptance evidence:** HTTP-level `PUT`/`DELETE` success and denial tests, browser mutation proof and no permissive method fallback.
 
 ### ACS-ORG-009 — Administrative and operational audit history is process-local
 
 - **Area:** OBSERVABILITY; affects PERSISTENCE, SECURITY, OPERATIONS.
-- **Severity / status:** **CRITICAL**, OPEN — VERIFIED.
+- **Severity / status:** **CRITICAL**, PARTIALLY_RESOLVED — B01.
 - **Evidence:** `src/control-plane/audit-service.ts:82-142`; admin audit routes query that same service; `src/control-plane/observability.ts:436-450` acknowledges session-scoped retention.
-- **Current behavior:** events are redacted, correlated and tenant-queryable, but stored in an array. Restart erases history; replicas have different histories; retention, tamper evidence and export are absent.
+- **Current behavior after B01:** `AuditService` consumes an `AuditEventStore`; the HTTP composition selects the same single-node durable snapshot used by Tenant Administration. Administrative event IDs, correlations, actors, tenant scope, metadata, timestamps and revisions survive restart and remain queryable through the existing read model.
 - **Operational impact:** privileged actions cannot be reconstructed reliably after restart or across instances, weakening incident response and governance evidence.
-- **Root cause:** EPIC-15 completed the event/read model contract without a durable audit adapter.
+- **B01 evidence:** `src/control-plane/audit-service.ts`; `src/control-plane/durable-administrative-state.ts`; restart/correlation assertions in `tests/s45-epic-15-5-durable-http-contract.test.mjs`.
+- **Residual risk:** the store is not a replica-shared append service; retention, tamper evidence and transactional coupling between resource state and its audit event remain deferred. A domain commit and audit append are two atomic file replacements, not one transaction.
 - **Required target state:** append-only durable audit sink, tenant-scoped query projection, retention/ordering, immutable IDs, delivery failure semantics and optional export boundary.
-- **Dependencies / milestone:** durable storage and trusted actor identity; Milestone B, exporter integration in E.
+- **Dependencies / milestone:** shared durable audit/outbox semantics remain Milestone B follow-up; trusted actor remains C; exporter integration remains E.
 - **Acceptance evidence:** restart/replica history, denied-attempt capture, ordering/correlation, retention policy, write-failure behavior and cross-tenant read tests.
 
 ### ACS-ORG-010 — Rate limiting is disabled or caller-selected mock state
@@ -245,10 +247,10 @@ Findings use a primary area plus affected areas from this controlled set:
 
 - **Area:** RUNTIME; affects UX, PRODUCT_API, RECOVERY.
 - **Severity / status:** **HIGH**, OPEN — VERIFIED.
-- **Evidence:** in `src/http/routes/product-api-routes.ts:798-817`, the runtime guard returns `unsupported_action` for `start`, `stop` and `restart`; later handlers at `:909-928` are therefore unreachable for the same paths. Execution runs are read projections and no supported retry/cancel/remediate flow was found.
-- **Current behavior:** runtime application-service methods exist, but the public Product API route rejects their mutations before reaching the handlers. Agent sandbox deployment remains a separate bounded action. No end-to-end run path connects a supported request to remote assignment, durable result and recovery.
+- **Evidence after B01:** `src/http/routes/product-api-routes.ts` now resolves the typed `POST .../start` and `POST .../stop` handlers before unsupported-operation guards; `tests/s45-epic-15-5-durable-http-contract.test.mjs` proves real handler invocation and wrong-method `405`. Execution runs remain read projections and no supported retry/cancel/remediate flow exists.
+- **Current behavior:** local runtime lifecycle start/stop is reachable through the Product API. It still does not provide durable dispatch intent, remote worker execution, restart recovery, retry/cancel/remediation or production execution proof.
 - **Operational impact:** an operator cannot reliably execute, observe terminal result, retry safely, cancel or reconcile stuck work.
-- **Root cause:** lifecycle and evidence slices were developed independently from a durable dispatch subsystem.
+- **Root cause:** the route-order contradiction is resolved; the remaining gap is the absent durable distributed dispatch and recovery subsystem.
 - **Required target state:** integrate run intent with the D milestone dispatcher, durable outcome and semantic retry/cancel operations, then expose them through the Product API and UI.
 - **Dependencies / milestone:** ACS-ORG-004/005; Milestones D and F.
 - **Acceptance evidence:** UI-to-remote-worker run with result, failure, retry, cancellation and audit correlation.

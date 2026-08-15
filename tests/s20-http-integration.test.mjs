@@ -1387,13 +1387,14 @@ test("operational execution routes expose read-only governed contracts", async (
     assert.equal(unsupportedCredentials.status, 405);
     assert.equal(unsupportedCredentials.body.error.code, "unsupported_action");
 
-    const unsupportedRuntimeStop = await routeProductApiRequest(
+    const reachableRuntimeStop = await routeProductApiRequest(
       { method: "POST", url: "/api/v1/runtimes/runtime-1/stop", headers: {} },
       "/api/v1/runtimes/runtime-1/stop",
       context,
-      { correlationId: "test_runtime_stop_unsupported" },
+      { correlationId: "test_runtime_stop_reachable" },
     );
-    assert.equal(unsupportedRuntimeStop.status, 405);
+    assert.equal(reachableRuntimeStop.status, 404);
+    assert.equal(reachableRuntimeStop.body.error.code, "not_found");
 
     const unsupportedWorkerDrain = await routeProductApiRequest(
       { method: "POST", url: "/api/v1/workers/worker-1/drain", headers: {} },

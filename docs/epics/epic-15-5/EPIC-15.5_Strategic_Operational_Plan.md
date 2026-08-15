@@ -27,15 +27,17 @@ The repository is strong in domain modeling and bounded acceptance:
 - Main Control Plane and Tenant Administration browser routes have acceptance evidence.
 - Readiness, evidence, diagnostics, audit and economics have useful projections.
 
-The active composition is nevertheless a development topology:
+After B01, the active HTTP composition has single-node durable Tenant Administration and aligned HTTP methods, but the overall topology remains development-grade:
 
 - identity and rate limiting are mock/header driven;
-- authoritative state is local to a process;
+- Agent, deployment, runtime, worker and economic authoritative state is local to a process; Tenant Administration is durable only on one local node;
 - secrets and settlement have no production adapter;
 - worker execution is same-process/local;
 - audit and telemetry are not durable/shared/exported;
 - production deployment is correctly sandbox-gated;
 - important composition, execution and recovery journeys are incomplete.
+
+`ACS-ORG-008` is resolved. Runtime start/stop route reachability is also corrected, but this does not prove durable or remote execution.
 
 See the 24 findings in `operational-gap-inventory.md`.
 
@@ -49,11 +51,11 @@ Production deployment remains gated until the final target and acceptance eviden
 
 ### W1 — Durable truth and adapter composition
 
-Resolve ACS-ORG-001, 002, 007, 009 and the state half of 019. Define repository/provider contracts only where needed, select production adapters, migrate seeded/dev behavior into explicit profiles and make missing production configuration fail closed.
+B01 partially resolved ACS-ORG-001/009 for single-node Tenant Administration. Continue with ACS-ORG-002, 007, 019 and the remaining Agent/deployment/runtime/job state; select shared production adapters, migrate seeded/dev behavior into explicit profiles and make missing production configuration fail closed.
 
 ### W2 — Trusted identity and edge
 
-Resolve ACS-ORG-003, 008, 010 and 013. Authenticate the principal before authority evaluation, align HTTP method/CORS contracts, implement distributed rate limiting and bound request handling. Reuse B01/E01 authority and forged-context protections.
+Resolve ACS-ORG-003, 010 and 013. `ACS-ORG-008` method compatibility was resolved in B01; Milestone C still authenticates the principal before authority evaluation, hardens trusted CORS/request handling and implements distributed rate limiting. Reuse B01/E01 authority and forged-context protections.
 
 ### W3 — Distributed runtime and recovery
 
@@ -105,19 +107,20 @@ B and C may run in parallel after their decision gates, but no public mutation s
 
 ### Milestone B — Durable Platform State & Production Adapters
 
-- durable tenant, membership, governance, agent, deployment and runtime repositories;
+- B01: single-node durable tenant, membership, governance and audit repositories plus HTTP contract compatibility;
+- remaining: shared/production tenant and agent/deployment/runtime repositories;
 - durable audit and economic records;
 - managed secret adapter;
 - explicit development versus operational composition;
 - restart and multi-instance state proof.
 
-**Exit:** no authoritative production resource depends on a local map or unshared filesystem.
+**Current status:** IN PROGRESS. B01 restart evidence passes, but the milestone exit remains unchanged: no authoritative production resource may depend on a local map or unshared filesystem.
 
 ### Milestone C — Production Identity, Security & Edge Controls
 
 - trusted principal validation and explicit platform authority;
 - tenant binding from trusted context;
-- aligned HTTP method/CORS contract;
+- trusted CORS/request/proxy contract; HTTP method compatibility is already established by B01;
 - distributed rate limiting, request bounds and security headers;
 - forged-context and abuse tests.
 

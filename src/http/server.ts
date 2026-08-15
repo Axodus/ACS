@@ -4,29 +4,35 @@ import { parseMockRateLimitContext } from "./rate-limit.js";
 import { fail } from "./responses.js";
 import { routeAcsRequest } from "./routes/acs-routes.js";
 import { routeProductApiRequest } from "./routes/product-api-routes.js";
-import { createControlPlaneContext, type ControlPlaneContext } from "./control-plane-context.js";
+import {
+  createControlPlaneContext,
+  type ControlPlaneContext,
+  type ControlPlaneContextOptions,
+} from "./control-plane-context.js";
+
+const SUPPORTED_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
 export function createAcsHttpHandler(context: ControlPlaneContext) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     if (request.method === "OPTIONS") {
       response.writeHead(204, {
         "access-control-allow-origin": "*",
-        "access-control-allow-methods": "GET, POST, OPTIONS",
+        "access-control-allow-methods": SUPPORTED_HTTP_METHODS.join(", ") + ", OPTIONS",
         "access-control-allow-headers": "content-type, x-correlation-id, x-request-id, authorization",
       });
       response.end();
       return;
     }
 
-    if (request.method !== "GET" && request.method !== "POST") {
+    if (!request.method || !SUPPORTED_HTTP_METHODS.includes(request.method as typeof SUPPORTED_HTTP_METHODS[number])) {
       const correlationId = readCorrelationId(request);
       writeJson(response, 405, fail(
         "method not allowed",
         405,
         "method_not_allowed",
         correlationId,
-        { allowedMethods: ["GET", "POST"] },
-      ).body);
+        { allowedMethods: [...SUPPORTED_HTTP_METHODS] },
+      ).body, { allow: SUPPORTED_HTTP_METHODS.join(", ") });
       return;
     }
 
@@ -74,8 +80,11 @@ function readHeaders(request: IncomingMessage): Readonly<Record<string, string |
   return headers;
 }
 
-export async function createAcsHttpServer() {
-  const context = createControlPlaneContext();
+export async function createAcsHttpServer(options: ControlPlaneContextOptions = {}) {
+  const context = createControlPlaneContext({
+    ...options,
+    useDurableAdministrativeState: options.useDurableAdministrativeState ?? true,
+  });
   const server = createServer(createAcsHttpHandler(context));
 
   process.on("SIGINT", async () => {
@@ -91,11 +100,17 @@ export async function createAcsHttpServer() {
   return { server, context };
 }
 
-function writeJson(response: ServerResponse, status: number, body: unknown): void {
+function writeJson(
+  response: ServerResponse,
+  status: number,
+  body: unknown,
+  extraHeaders: Readonly<Record<string, string>> = {},
+): void {
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
     "access-control-allow-origin": "*",
+    ...extraHeaders,
   });
   response.end(JSON.stringify(body));
 }

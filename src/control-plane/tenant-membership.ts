@@ -87,7 +87,13 @@ export interface TenantMembershipRepository {
   list(): readonly TenantMembership[];
   listByTenant(tenantId: string): readonly TenantMembership[];
   save(membership: TenantMembership, expectedRevision: number): TenantMembership;
+  saveMany(updates: readonly TenantMembershipRepositoryUpdate[]): readonly TenantMembership[];
   history(tenantId: string, principalId: string): readonly TenantMembership[];
+}
+
+export interface TenantMembershipRepositoryUpdate {
+  readonly membership: TenantMembership;
+  readonly expectedRevision: number;
 }
 
 export interface TenantAuthorityDecision {
@@ -198,17 +204,28 @@ export class InMemoryTenantMembershipRepository implements TenantMembershipRepos
   }
 
   save(membership: TenantMembership, expectedRevision: number): TenantMembership {
-    const current = this.get(membership.tenantId, membership.principalId);
-    if (current.revision !== expectedRevision) {
-      throw new AcsError(
-        "membership revision conflict: expected " + expectedRevision + " but found " + current.revision,
-        "ACS_TENANT_MEMBERSHIP_REVISION_CONFLICT",
-      );
+    return this.saveMany([{ membership, expectedRevision }])[0]!;
+  }
+
+  saveMany(updates: readonly TenantMembershipRepositoryUpdate[]): readonly TenantMembership[] {
+    for (const update of updates) {
+      const current = this.get(update.membership.tenantId, update.membership.principalId);
+      if (current.revision !== update.expectedRevision) {
+        throw new AcsError(
+          "membership revision conflict: expected " + update.expectedRevision + " but found " + current.revision,
+          "ACS_TENANT_MEMBERSHIP_REVISION_CONFLICT",
+        );
+      }
     }
 
-    this.#memberships.set(membershipKey(membership.tenantId, membership.principalId), membership);
-    this.#appendHistory(membership);
-    return membership;
+    for (const update of updates) {
+      this.#memberships.set(
+        membershipKey(update.membership.tenantId, update.membership.principalId),
+        update.membership,
+      );
+      this.#appendHistory(update.membership);
+    }
+    return updates.map((update) => update.membership);
   }
 
   history(tenantId: string, principalId: string): readonly TenantMembership[] {
@@ -698,8 +715,13 @@ export class TenantMembershipService {
       provenance: appendProvenance(nextOwner.provenance, input),
     });
 
-    this.#repository.save(updatedOwner, currentOwner.revision);
-    const saved = this.#repository.save(updatedNext, nextOwner.revision);
+    const [, saved] = this.#repository.saveMany([
+      { membership: updatedOwner, expectedRevision: currentOwner.revision },
+      { membership: updatedNext, expectedRevision: nextOwner.revision },
+    ]);
+    if (!saved) {
+      throw new InvalidOwnershipTransferError("ownership transfer did not persist the target owner");
+    }
     return this.#record({
       membership: saved,
       operation: "transfer_ownership",

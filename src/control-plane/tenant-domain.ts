@@ -63,6 +63,7 @@ export interface TenantRepository {
   get(tenantId: string): Tenant;
   list(): readonly Tenant[];
   save(tenant: Tenant, expectedRevision: number): Tenant;
+  history(tenantId: string): readonly Tenant[];
 }
 
 export class TenantIdentityError extends AcsError {
@@ -279,7 +280,7 @@ export class TenantLifecycleService {
   }
 
   history(tenantId: string): readonly Tenant[] {
-    return (this.#repository as InMemoryTenantRepository).history(validateTenantId(tenantId));
+    return this.#repository.history(validateTenantId(tenantId));
   }
 
   #transition(

@@ -5,8 +5,8 @@ This index is the normative consumption order for implementation. A milestone ma
 | Milestone | Status | Findings primarily owned | Entry gate | Exit evidence |
 | --- | --- | --- | --- | --- |
 | A — System-Wide Gap Discovery & Readiness Baseline | **PASS** | all discovery | EPIC-15 closure | verified inventory, baseline, journeys, stories and plan |
-| B — Durable Platform State & Production Adapters | PLANNED | 001, 002, 007, 009, 019 | B1–B3 decisions | restart, two-instance, managed secret, durable audit/economics |
-| C — Production Identity, Security & Edge Controls | PLANNED | 003, 008, 010, 013 | C1–C2 decisions | trusted identity, forged-context denial, HTTP/limit edge matrix |
+| B — Durable Platform State & Production Adapters | **IN PROGRESS — B01 PASS** | 001, 002, 007, 009, 019 plus resolved 008 | A baseline; B1–B3 for remaining production adapters | single-node admin restart complete; shared state, secrets and economics remain |
+| C — Production Identity, Security & Edge Controls | PLANNED | 003, 010, 013 | C1–C2 decisions | trusted identity, forged-context denial and distributed edge controls |
 | D — Distributed Runtime & Execution Readiness | PLANNED | 004, 005, 017 | B state + C identity + D1 | remote dispatch, durable jobs, crash/retry/cancel recovery |
 | E — Observability & Operational Diagnostics | PLANNED | 011, 012 | durable correlation + D runtime + E1 | external telemetry, actionable diagnostics, readiness probe |
 | F — End-to-End Product UX Operationalization | PLANNED | 014–018, 021–024 | B–E supported contracts | authenticated operator journey and browser evidence |
@@ -21,12 +21,12 @@ A01 established 24 findings: 8 BLOCKER, 4 CRITICAL, 9 HIGH, 2 MEDIUM and 1 LOW. 
 
 Recommended sprint order:
 
-1. **B01 — Adapter Composition & Startup Profiles**
-2. **B02 — Durable Administrative and Agent State**
-3. **B03 — Durable Deployment, Runtime and Job Records**
-4. **B04 — Managed Secrets**
-5. **B05 — Durable Audit**
-6. **B06 — Durable Economics & Settlement**
+1. **B01 — Durable Control Plane State & HTTP Contract Compatibility — PASS**
+2. **B02 — Production Secrets & Economic State Adapters — PLANNED**
+3. **B03 — Durable Agent, Deployment, Runtime and Job Records — PLANNED**
+4. **B04 — Shared-State/Multi-Instance Hardening — PLANNED**
+
+B01 delivered single-node restart durability for Tenant, Membership/Ownership, Governance/Entitlements/Limits and administrative audit. It resolved `ACS-ORG-008` and made existing runtime start/stop handlers reachable. `ACS-ORG-001` and `ACS-ORG-009` remain partial because the adapter is a local atomic snapshot, not shared multi-instance production storage. See [B01-durable-control-plane-state-http-contract.md](./B01-durable-control-plane-state-http-contract.md).
 
 Do not create one generic repository for every domain. Preserve aggregate-specific invariants and migrate DEV fixture behavior into explicit development bootstrap.
 
@@ -36,10 +36,10 @@ Recommended sprint order:
 
 1. **C01 — Trusted Identity Validation**
 2. **C02 — Principal, Tenant and Platform Authority Binding**
-3. **C03 — HTTP Method, CORS and Request Safety Alignment**
+3. **C03 — Trusted CORS, Request Safety and Proxy Alignment**
 4. **C04 — Distributed Rate Limiting**
 
-C03 may repair ACS-ORG-008 early, but the administrative API remains non-production until C01/C02 establish trusted actor context.
+The HTTP method mismatch was resolved in B01. C03 retains origin/header trust, body/timeout bounds, proxy semantics and other ACS-ORG-013 work. The administrative API remains non-production until C01/C02 establish trusted actor context.
 
 ## Milestone D — Distributed Runtime & Execution Readiness
 

@@ -34,6 +34,7 @@ import type {
 import { validateAgentDefinition } from "../../control-plane/unified-agent-model.js";
 import {
   EngineSandboxOnlyError,
+  EngineRuntimeNotFoundError,
 } from "../../engines/engine-errors.js";
 import type { AcsRouteOptions } from "./acs-routes.js";
 import type { IncomingMessage } from "node:http";
@@ -84,7 +85,7 @@ export async function routeProductApiRequest(
 
   try {
     // A01 exposes only boundary connectivity; it does not assert runtime readiness.
-    if (apiPath === "health") {
+    if (apiPath === "health" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       return {
         status: 200,
@@ -95,6 +96,9 @@ export async function routeProductApiRequest(
           automation: "disabled",
         }, [], options.correlationId, routeMeta),
       };
+    }
+    if (apiPath === "health") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
     // A02 exposes only a read-only aggregate; it does not introduce mutations.
@@ -676,10 +680,13 @@ export async function routeProductApiRequest(
     }
 
     // GET /api/v1/targets
-    if (apiPath === "targets") {
+    if (apiPath === "targets" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       const targets = await api.listTargets();
       return { status: 200, body: ok(targets, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "targets") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
     // GET /api/v1/providers and GET /api/v1/providers/:providerId
@@ -810,6 +817,35 @@ export async function routeProductApiRequest(
       }
       return { status: 200, body: ok(runtime, [], options.correlationId, routeMeta) };
     }
+
+    // POST /api/v1/runtimes/:runtimeInstanceId/start
+    if (segments[2] === "runtimes" && segments[3] && segments[4] === "start" && segments.length === 5) {
+      if (request.method !== "POST") {
+        return methodNotAllowed(options.correlationId, routeMeta, "POST");
+      }
+      const runtimeInstanceId = readPathSegment(segments, 3, "runtimeInstanceId");
+      const body = readBodyRecord(await readJsonBody(request));
+      const requestData = {
+        deploymentId: typeof body.deploymentId === "string" ? body.deploymentId : "",
+        runtimeInstanceId,
+        deploymentMode: "sandbox",
+        ...(typeof body.agentId === "string" && body.agentId ? { agentId: body.agentId } : {}),
+        ...(typeof body.targetId === "string" && body.targetId ? { targetId: body.targetId } : {}),
+      };
+      const runtime = await api.startRuntime(requestData);
+      return { status: 200, body: ok(runtime, [], options.correlationId, routeMeta) };
+    }
+
+    // POST /api/v1/runtimes/:runtimeInstanceId/stop
+    if (segments[2] === "runtimes" && segments[3] && segments[4] === "stop" && segments.length === 5) {
+      if (request.method !== "POST") {
+        return methodNotAllowed(options.correlationId, routeMeta, "POST");
+      }
+      const runtimeInstanceId = readPathSegment(segments, 3, "runtimeInstanceId");
+      const runtime = await api.stopRuntime(runtimeInstanceId);
+      return { status: 200, body: ok(runtime, [], options.correlationId, routeMeta) };
+    }
+
     if (segments[2] === "runtimes" && segments.length === 4) {
       return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
     }
@@ -889,10 +925,13 @@ export async function routeProductApiRequest(
     }
 
     // GET /api/v1/runners
-    if (apiPath === "runners") {
+    if (apiPath === "runners" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       const runners = await api.listRunners();
       return { status: 200, body: ok(runners, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "runners") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
     // GET /api/v1/deployments/:deploymentId
@@ -904,28 +943,6 @@ export async function routeProductApiRequest(
         return fail(`deployment not found: ${deploymentId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
       }
       return { status: 200, body: ok(deployment, [], options.correlationId, routeMeta) };
-    }
-
-    // POST /api/v1/runtimes/:runtimeInstanceId/start
-    if (segments[2] === "runtimes" && segments[3] && segments[4] === "start") {
-      const runtimeInstanceId = readPathSegment(segments, 3, "runtimeInstanceId");
-      const body = readBodyRecord(await readJsonBody(request));
-      const requestData = {
-        deploymentId: typeof body.deploymentId === "string" ? body.deploymentId : "",
-        runtimeInstanceId,
-        deploymentMode: "sandbox",
-        ...(typeof body.agentId === "string" && body.agentId ? { agentId: body.agentId } : {}),
-        ...(typeof body.targetId === "string" && body.targetId ? { targetId: body.targetId } : {}),
-      };
-      const runtime = await api.startRuntime(requestData);
-      return { status: 200, body: ok(runtime, [], options.correlationId, routeMeta) };
-    }
-
-    // POST /api/v1/runtimes/:runtimeInstanceId/stop
-    if (segments[2] === "runtimes" && segments[3] && segments[4] === "stop") {
-      const runtimeInstanceId = readPathSegment(segments, 3, "runtimeInstanceId");
-      const runtime = await api.stopRuntime(runtimeInstanceId);
-      return { status: 200, body: ok(runtime, [], options.correlationId, routeMeta) };
     }
 
     // ---- Milestone E: Operational Evidence & Economics ----
@@ -1842,6 +1859,12 @@ function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined,
       retryable: false,
       severity: "warning",
       guardrails: ["sandbox_only"],
+    });
+  }
+  if (error instanceof EngineRuntimeNotFoundError) {
+    return fail(error.message, 404, "not_found", correlationId, error.details, meta, "not_found", {
+      retryable: false,
+      severity: "error",
     });
   }
   if (error instanceof AcsHttpValidationError) {

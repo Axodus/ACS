@@ -79,6 +79,17 @@ export function routeAcsRequest(requestUrl: string, options: AcsRouteOptions = {
     return fail("route not found", 404, "not_found", options.correlationId, undefined, routeMeta);
   }
 
+  if ((options.method ?? "GET") !== "GET") {
+    return fail(
+      "method not allowed; allowed methods: GET",
+      405,
+      "method_not_allowed",
+      options.correlationId,
+      { allowed: "GET" },
+      routeMeta,
+    );
+  }
+
   try {
     if (path === "/acs/health") {
       assertAllowedQueryParams(url, []);

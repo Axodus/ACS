@@ -10,14 +10,27 @@ import { CompositionResourceService } from "../control-plane/composition-resourc
 import { DeploymentService } from "../control-plane/deployment-service.js";
 import { RuntimeLifecycleService } from "../control-plane/runtime-lifecycle-service.js";
 import { AuditService } from "../control-plane/audit-service.js";
+import { DurableAdministrativeState } from "../control-plane/durable-administrative-state.js";
 import { ExecutionPlanResolver } from "../control-plane/execution-plan-resolver.js";
 import { EconomicService } from "../control-plane/neurons-economic-contract.js";
-import { TenantLifecycleService, InMemoryTenantRepository } from "../control-plane/tenant-domain.js";
 import {
+  TenantLifecycleService,
+  InMemoryTenantRepository,
+  TenantNotFoundError,
+  type TenantRepository,
+} from "../control-plane/tenant-domain.js";
+import {
+  InMemoryTenantMembershipRepository,
   TenantMembershipService,
   type AdministrativeAuthority,
+  type TenantMembershipRepository,
 } from "../control-plane/tenant-membership.js";
-import { TenantGovernanceService } from "../control-plane/tenant-governance.js";
+import {
+  InMemoryTenantGovernanceRepository,
+  TenantGovernanceService,
+  TenantGovernanceStateNotFoundError,
+  type TenantGovernanceRepository,
+} from "../control-plane/tenant-governance.js";
 import { ModelProviderRegistry } from "../intelligence/model-provider-registry.js";
 import { ModelProviderService } from "../intelligence/model-provider-service.js";
 import { AgentRunnerRegistry } from "../intelligence/agent-runner-registry.js";
@@ -53,7 +66,9 @@ export interface ControlPlaneContext {
   readonly deploymentService: DeploymentService;
   readonly runtimeService: RuntimeLifecycleService;
   readonly auditService: AuditService;
-  readonly tenantRepository: InMemoryTenantRepository;
+  readonly tenantRepository: TenantRepository;
+  readonly tenantMembershipRepository: TenantMembershipRepository;
+  readonly tenantGovernanceRepository: TenantGovernanceRepository;
   readonly tenantService: TenantLifecycleService;
   readonly tenantMembershipService: TenantMembershipService;
   readonly tenantGovernanceService: TenantGovernanceService;
@@ -65,6 +80,12 @@ export interface ControlPlaneContext {
   readonly workerAssignmentService: WorkerAssignmentService;
   readonly localWorker: LocalExecutionWorker | null;
   readonly isolation: ControlPlaneIsolation;
+  readonly administrativeState: {
+    readonly mode: "memory" | "filesystem";
+    readonly durability: "process_local" | "single_node_durable";
+    readonly filePath?: string;
+    readonly multiInstance: "not_applicable" | "not_proven";
+  };
   close(): Promise<void>;
 }
 
@@ -104,6 +125,8 @@ export interface ControlPlaneContextOptions {
   readonly pythonCommand?: string;
   readonly timeoutMs?: number;
   readonly startLocalWorker?: boolean;
+  readonly useDurableAdministrativeState?: boolean;
+  readonly administrativeStatePath?: string;
 }
 
 function resolveDefaultOperationalRoots(options: ControlPlaneContextOptions): {
@@ -275,14 +298,30 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   }));
 
   const compositionResources = new CompositionResourceService();
-  const auditService = new AuditService();
+  const useDurableAdministrativeState = options.useDurableAdministrativeState === true
+    || options.administrativeStatePath !== undefined;
+  const administrativeStatePath = options.administrativeStatePath
+    ?? join(roots.stateRoot, "control-plane", "administrative-state.json");
+  const durableAdministrativeState = useDurableAdministrativeState
+    ? new DurableAdministrativeState({ filePath: administrativeStatePath })
+    : undefined;
+  const auditService = new AuditService({ store: durableAdministrativeState?.auditStore });
 
-  const tenantRepository = new InMemoryTenantRepository();
+  const tenantRepository = durableAdministrativeState?.tenantRepository ?? new InMemoryTenantRepository();
+  const tenantMembershipRepository = durableAdministrativeState?.membershipRepository
+    ?? new InMemoryTenantMembershipRepository();
+  const tenantGovernanceRepository = durableAdministrativeState?.governanceRepository
+    ?? new InMemoryTenantGovernanceRepository();
   const tenantService = new TenantLifecycleService({ repository: tenantRepository, auditService });
-  const tenantMembershipService = new TenantMembershipService({ tenantRepository, auditService });
+  const tenantMembershipService = new TenantMembershipService({
+    tenantRepository,
+    repository: tenantMembershipRepository,
+    auditService,
+  });
   const tenantGovernanceService = new TenantGovernanceService({
     tenantRepository,
     membershipService: tenantMembershipService,
+    repository: tenantGovernanceRepository,
     auditService,
   });
 
@@ -290,43 +329,36 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   const bootstrapAt = Date.now();
   const bootstrapAuthority: AdministrativeAuthority = { kind: "platform_admin", principalId: "system" };
 
+  let bootstrapTenant;
   try {
-    tenantService.createTenant({
+    bootstrapTenant = tenantService.getTenant(bootstrapTenantId);
+  } catch (error) {
+    if (!(error instanceof TenantNotFoundError)) throw error;
+    bootstrapTenant = tenantService.createTenant({
       tenantId: bootstrapTenantId,
       displayName: "DEV Tenant",
       createdBy: "system",
       actor: "system",
       reason: "dev bootstrap tenant",
       at: bootstrapAt,
-    });
-  } catch {
-    // context-local bootstrap is best-effort and idempotent for inspection flows
+    }).tenant;
   }
 
-  try {
-    tenantService.activateTenant(bootstrapTenantId, {
-      actor: "system",
-      reason: "dev bootstrap tenant",
-      at: bootstrapAt + 1,
-    });
-  } catch {
-    // ignore duplicate activation when a caller reuses an existing tenant fixture
-  }
-
-  try {
+  if (bootstrapTenant.status === "provisioning" && tenantMembershipService.listMemberships(bootstrapTenantId).length === 0) {
     tenantMembershipService.bootstrapTenantOwner({
       tenantId: bootstrapTenantId,
       principalId: "dev-operator",
       authority: bootstrapAuthority,
       actor: "system",
       reason: "dev bootstrap owner",
-      at: bootstrapAt + 2,
+      at: bootstrapAt + 1,
     });
-  } catch {
-    // keep the fixture resilient if the tenant already has an owner
   }
 
   try {
+    tenantGovernanceRepository.get(bootstrapTenantId);
+  } catch (error) {
+    if (!(error instanceof TenantGovernanceStateNotFoundError)) throw error;
     tenantGovernanceService.replacePolicy({
       tenantId: bootstrapTenantId,
       authority: bootstrapAuthority,
@@ -339,10 +371,16 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       ],
       actor: "system",
       reason: "dev bootstrap policy",
-      at: bootstrapAt + 3,
+      at: bootstrapAt + 2,
     });
-  } catch {
-    // keep dev routes functional even if a caller already seeded governance
+  }
+
+  if (bootstrapTenant.status === "provisioning") {
+    bootstrapTenant = tenantService.activateTenant(bootstrapTenantId, {
+      actor: "system",
+      reason: "dev bootstrap tenant",
+      at: bootstrapAt + 3,
+    }).tenant;
   }
 
   const agentService = new AgentService({
@@ -424,6 +462,8 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     runtimeService,
     auditService,
     tenantRepository,
+    tenantMembershipRepository,
+    tenantGovernanceRepository,
     tenantService,
     tenantMembershipService,
     tenantGovernanceService,
@@ -435,6 +475,18 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     workerAssignmentService,
     localWorker,
     isolation,
+    administrativeState: durableAdministrativeState
+      ? {
+          mode: "filesystem",
+          durability: "single_node_durable",
+          filePath: administrativeStatePath,
+          multiInstance: "not_proven",
+        }
+      : {
+          mode: "memory",
+          durability: "process_local",
+          multiInstance: "not_applicable",
+        },
     async close(): Promise<void> {
       if (localWorker) {
         await localWorker.stop();

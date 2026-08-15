@@ -16,24 +16,34 @@ Stories are ordered by dependency. A story is complete only when its required op
 
 ## Milestone B — Durable Platform State & Production Adapters
 
-### ORG-B01 — Introduce explicit development and operational composition profiles
+### EPIC-15.5-B01 — Durable Control Plane State & HTTP Contract Compatibility — COMPLETE
+
+- **Findings:** ACS-ORG-001, ACS-ORG-008, ACS-ORG-009 and route-order portion of ACS-ORG-017.
+- **Objective:** make Tenant Administration recoverable on one node and align the shipped HTTP entry point with declared Product API methods.
+- **Scope:** aggregate repository boundaries, atomic administrative snapshot, durable audit store, restart/failure semantics, HTTP/CORS method alignment and runtime start/stop reachability.
+- **Dependencies:** EPIC-15 A01–E02 contracts and A01 baseline `ed46412`.
+- **Non-goals:** shared production database, multi-instance writers, Agents/deployment/runtime/economic persistence, managed secrets, production identity or remote dispatch.
+- **Acceptance criteria:** selected administrative state survives a new context, revisions continue, persistence failure cannot return success, all declared Tenant Administration `PUT`/`DELETE` handlers are reachable, and runtime start/stop route before unsupported guards.
+- **Required evidence:** `tests/s45-epic-15-5-durable-http-contract.test.mjs`, affected regressions and `milestones/B01-durable-control-plane-state-http-contract.md`.
+
+### ORG-B01 — Introduce explicit development and operational composition profiles — PARTIAL
 
 - **Findings:** ACS-ORG-001, 002, 007, 009, 019, 021.
 - **Objective:** prevent silent selection of development adapters in an operational profile.
 - **Scope:** adapter configuration contract, startup validation, dependency health and explicit DEV defaults.
 - **Dependencies:** decision gates B1–B3.
 - **Non-goals:** implement every adapter in this story.
-- **Acceptance criteria:** operational profile fails closed with semantic missing-adapter errors; DEV remains deterministic.
+- **Acceptance criteria:** operational profile fails closed with semantic missing-adapter errors; DEV remains deterministic. B01 made durable HTTP composition explicit, but a complete operational profile across all adapters remains open.
 - **Required evidence:** profile matrix, startup tests and configuration documentation.
 
-### ORG-B02 — Persist Tenant, Membership, Governance and Agent truth
+### ORG-B02 — Persist Tenant, Membership, Governance and Agent truth — PARTIAL
 
 - **Findings:** ACS-ORG-001, 019.
 - **Objective:** make administrative and agent state restart-safe and replica-shared.
 - **Scope:** repositories, revisions, uniqueness, migrations and compatibility for existing DEV fixtures.
 - **Dependencies:** ORG-B01 and gate B1.
 - **Non-goals:** new tenant roles, policies or Agent lifecycle states.
-- **Acceptance criteria:** existing A01–E01 domain/API tests pass against the durable adapter; no lost update across two instances.
+- **Acceptance criteria:** Tenant, Membership and Governance now pass single-node restart evidence. Agent persistence and two-instance lost-update proof remain open.
 - **Required evidence:** migration, restart, concurrency and tenant isolation tests.
 
 ### ORG-B03 — Persist deployment, runtime and execution records
@@ -56,14 +66,14 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Acceptance criteria:** operational profile never uses memory/filesystem; raw values remain absent from API, audit and logs.
 - **Required evidence:** provider, restart, tenant isolation, rotation/revoke and exposure tests.
 
-### ORG-B05 — Make administrative audit durable and append-only
+### ORG-B05 — Make administrative audit durable and append-only — PARTIAL
 
 - **Findings:** ACS-ORG-009.
 - **Objective:** preserve attributable history across restart and replicas.
 - **Scope:** append adapter/outbox where required, ordering, retention metadata, query projection and failure semantics.
 - **Dependencies:** ORG-B01/B02 and trusted actor contract from C design.
 - **Non-goals:** SIEM or arbitrary event query language.
-- **Acceptance criteria:** existing event contract/read API remains compatible and critical mutations cannot silently lose audit evidence.
+- **Acceptance criteria:** existing event/read contracts remain compatible and history survives a new single-node context. Shared append semantics, retention and transactional resource-plus-audit commit remain open.
 - **Required evidence:** restart, replica, correlation, denied-attempt, write-failure and cross-tenant tests.
 
 ### ORG-B06 — Persist economics and integrate idempotent settlement
@@ -98,14 +108,14 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Acceptance criteria:** platform authority is explicit; path/body/header/context conflicts fail; cross-tenant E01 matrix passes.
 - **Required evidence:** forged tenant, self-escalation, removed/suspended member and platform-only negative tests.
 
-### ORG-C03 — Align HTTP method, CORS and request safety contracts
+### ORG-C03 — Align HTTP method, CORS and request safety contracts — PARTIAL
 
 - **Findings:** ACS-ORG-008, 013.
 - **Objective:** make supported Product API routes executable through the real HTTP server and bounded at the edge.
 - **Scope:** method/preflight allowlists, allowed headers/origins, body size, timeouts, security headers and trusted proxy policy.
 - **Dependencies:** ORG-C01 context design.
 - **Non-goals:** new admin mutations.
-- **Acceptance criteria:** Tenant governance/entitlement/limit operations pass through `createAcsHttpHandler`; unsupported methods remain explicit.
+- **Acceptance criteria:** the B01 method-compatibility portion is complete: Tenant governance/entitlement/limit operations pass through `createAcsHttpHandler` and unsupported methods remain explicit. Trusted origins/headers, request bounds, timeouts and proxy policy remain Milestone C scope.
 - **Required evidence:** HTTP-level integration, preflight, oversize, timeout and proxy spoof tests.
 
 ### ORG-C04 — Implement distributed rate limiting
