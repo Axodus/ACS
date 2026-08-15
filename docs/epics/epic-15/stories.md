@@ -101,7 +101,7 @@ Each story is a planning unit for the EPIC-15 implementation track. The stories 
   - no generic IAM, RBAC, ABAC, or policy engine is introduced by accident.
 - Non-goals: new runtime enforcement paths, broad refactors.
 - Evidence expected: boundary review and regression test results.
-- Status: planning artifact; implementation continues as the EPIC advances.
+- Status: complete in Sprint E02; closure evidence and browser certification now complete.
 
 ## Story T08 — Enforcement integration readiness
 
@@ -132,4 +132,8 @@ Each story is a planning unit for the EPIC-15 implementation track. The stories 
   - platform authority remains explicit and separate.
 - Non-goals: generic observability platform, synthetic audit records, SIEM, broad runtime redesign.
 - Evidence expected: audit read model, hardening tests, and browser evidence if UI audit surface is present.
-- Status: implemented in Sprint E01.
+- Status: complete in Sprint E01 and verified again in Sprint E02.
+
+## Closure summary
+
+All EPIC-15 stories are now complete. Deferred scope is limited to the explicitly out-of-EPIC domains named in the closure report.

@@ -4,7 +4,7 @@ This directory contains the implementation-oriented sequence for EPIC-15 tenant 
 
 ## Milestone A — Tenant Domain and Lifecycle
 
-Status: implemented in Sprint A01.
+Status: COMPLETE / PASS.
 
 Focus:
 - canonical tenant identity;
@@ -18,7 +18,7 @@ Exit criteria:
 
 ## Milestone B — Membership and Administrative Authority
 
-Status: implemented in Sprint B01.
+Status: COMPLETE / PASS.
 
 Focus:
 - tenant membership;
@@ -34,7 +34,7 @@ Exit criteria:
 
 ## Milestone C — Governance, Limits and Entitlements
 
-Status: implemented in Sprints C01 and C02.
+Status: COMPLETE / PASS.
 
 Focus:
 - governance policy evaluation;
@@ -54,7 +54,7 @@ Exit criteria:
 
 ## Milestone D — Administrative Surface and Enforcement Integration
 
-Status: D01 and D02 implemented.
+Status: COMPLETE / PASS.
 
 Focus:
 - governed administrative Product API;
@@ -71,7 +71,7 @@ Exit criteria:
 
 ## Milestone E — Auditability, Isolation Hardening & Acceptance
 
-Status: implemented in Sprint E01.
+Status: COMPLETE / PASS.
 
 Focus:
 - canonical administrative audit trail and history read model;
@@ -87,3 +87,7 @@ Exit criteria:
 - platform-scoped authority remains explicit;
 - suspended and archived states remain consistent across domain, API, and UI;
 - EPIC-15 is ready for the final closure pass.
+
+## EPIC-15 closure
+
+Sprint E02 completed the final acceptance, readiness, and closure pass. The EPIC-15 closure report and browser acceptance evidence are authoritative for the final status.

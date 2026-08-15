@@ -117,4 +117,4 @@ Rechecked and enforced:
 
 ## Acceptance
 
-E01 is complete at the code and documentation level for the implemented audit/history hardening. Browser certification remains deferred because this repository does not expose a dedicated EPIC-15 browser acceptance harness or manifest.
+E01 is complete at the code and documentation level for the implemented audit/history hardening. Browser certification was completed in Sprint E02 and is recorded in the EPIC-15 browser acceptance evidence and closure report.

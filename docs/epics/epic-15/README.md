@@ -7,10 +7,12 @@ Transform tenant isolation into an explicit, auditable, governed administrative 
 ## Current status
 
 ~~~text
-Status: ACTIVE IMPLEMENTATION
-Tenant administration readiness: A01, B01, C01, C02, D01, D02, and E01 complete
+Status: CLOSED / PASS
+Tenant administration readiness: A01, B01, C01, C02, D01, D02, E01, and E02 complete
 Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, entitlements, selected enforcement boundaries, the administrative Product API, the Control Plane UX, and administrative audit/isolation hardening are in place
-Final acceptance and closure: E02 remains the last closure pass
+Final acceptance and closure: complete
+Browser acceptance: passed
+Readiness classification: PASS
 ~~~
 
 ## Problem
@@ -62,6 +64,9 @@ ACS already carries tenant scope across several runtime and control-plane projec
 - Stories
 - Milestones
 - AGENTS.md
+- Browser Acceptance
+- Regression Inventory
+- EPIC-15 Closure Report
 
 ## Recommended reading order
 
@@ -97,4 +102,10 @@ ACS already carries tenant scope across several runtime and control-plane projec
 
 ## Initial state
 
-EPIC-15 now has implemented foundations in Milestones A01, B01, C01, and C02. Remaining milestones continue from that baseline without changing the no-production / no-billing posture.
+EPIC-15 has been fully certified and closed. The final closure report and browser acceptance evidence are authoritative for readiness, caveats, and deferred scope.
+
+## Closure references
+
+- [Browser Acceptance](browser-acceptance.md)
+- [Regression Inventory](regression-inventory.md)
+- [EPIC-15 Closure Report](epic-15-closure-report.md)
