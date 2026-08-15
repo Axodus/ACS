@@ -3,7 +3,7 @@
 ## 1. Tenant aggregate contract
 
 ~~~text
-type TenantStatus = provisioning | active | suspended | archived | deleted
+ type TenantStatus = provisioning | active | suspended | archived
 
 interface Tenant {
   tenantId: string
@@ -23,8 +23,7 @@ interface Tenant {
     activatedAt?
     suspendedAt?
     archivedAt?
-    deletedAt?
-}
+  }
 ~~~
 
 ## 2. Membership contract
@@ -86,7 +85,6 @@ Tenant mutations must be scoped and explicit:
 - suspend tenant;
 - reactivate tenant;
 - archive tenant;
-- delete tenant if policy permits;
 - invite member;
 - admit member;
 - remove member;
@@ -182,7 +180,7 @@ Options:
 
 Preferred direction:
 
-- archive-first with policy-gated deletion as a separate terminal action.
+- archive-only for Milestone A01; policy-gated deletion remains deferred until retention and audit requirements are explicitly closed.
 
 Decision gate:
 
@@ -198,4 +196,3 @@ Options:
 Preferred direction:
 
 - EPIC-15 defines the contracts and read models; enforcement remains deferred where it depends on economics, billing or runtime guards.
-

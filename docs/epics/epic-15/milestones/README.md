@@ -2,6 +2,8 @@
 
 This directory contains the implementation-oriented sequence for the future tenant administration track. The current sprint is normative planning only.
 
+Milestone A01 is now implemented and documented in detail in A01-tenant-domain-lifecycle.md.
+
 ## Read order
 
 1. Tenant Domain and Lifecycle
@@ -24,6 +26,12 @@ Exit criteria:
 - tenant lifecycle is explicit;
 - terminal-state policy is explicit;
 - ownership is not ambiguous.
+
+Status:
+
+- implemented in Sprint A01;
+- archive-only terminal state;
+- hard delete deferred.
 
 ## Milestone B — Membership and Administrative Authority
 
@@ -98,4 +106,3 @@ A Tenant Domain and Lifecycle
 ## Rule
 
 Do not start implementation from this directory until the normative docs are settled and the open decisions are explicitly reviewed.
-

@@ -73,16 +73,15 @@ Administrative mutations produce audit-worthy events with actor, scope, tenant, 
 stateDiagram-v2
   [*] --> provisioning: create
   provisioning --> active: activate
+  provisioning --> archived: archive
   active --> suspended: suspend
   suspended --> active: reactivate
   active --> archived: archive
   suspended --> archived: archive
-  archived --> deleted: delete policy permits
-  active --> deleted: delete policy permits
-  suspended --> deleted: delete policy permits
+  archived --> [*]
 ~~~
 
-Lifecycle transitions must be explicit. Terminal deletion is policy-gated and not assumed to be universally available.
+Lifecycle transitions must be explicit. Archive is the terminal administrative state in Milestone A01; hard deletion remains deferred.
 
 ## 5. Relationship to adjacent domains
 
@@ -132,4 +131,3 @@ Future control-plane navigation should expose:
 - Do not collapse platform-admin and tenant-admin.
 - Do not treat tenant-aware visibility as tenant administration.
 - Do not move billing enforcement into tenant governance.
-

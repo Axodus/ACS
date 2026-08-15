@@ -119,6 +119,7 @@ export * from "./control-plane/governance-boundary.js";
 export * from "./control-plane/operational-reliability.js";
 export * from "./control-plane/secrets-boundary.js";
 export * from "./control-plane/isolation.js";
+export * from "./control-plane/tenant-domain.js";
 
 export * from "./control-plane/runtime-lifecycle-service.js";
 
