@@ -8,8 +8,8 @@ Transform tenant isolation into an explicit, auditable, governed administrative 
 
 ~~~text
 Status: ACTIVE IMPLEMENTATION
-Tenant administration readiness: A01, B01, C01, and C02 complete
-Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, entitlements, and selected enforcement boundaries are in place
+Tenant administration readiness: A01, B01, C01, C02, and D01 complete
+Functional implementation: canonical tenant domain, lifecycle, membership, administrative authority, governance decisions, limits, entitlements, selected enforcement boundaries, and the administrative Product API are in place
 ~~~
 
 ## Problem

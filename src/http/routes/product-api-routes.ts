@@ -24,7 +24,7 @@ import type {
   WorkerSummary,
   UpdateAgentInput,
 } from "../../control-plane/product-api-client.js";
-import { DuplicateRegistrationError, NotFoundError, PolicyRejectedError, toEntityRef } from "../../errors.js";
+import { AcsError, DuplicateRegistrationError, NotFoundError, PolicyRejectedError, toEntityRef } from "../../errors.js";
 import { AgentLifecycleGuardError, AgentRevisionConflictError } from "../../control-plane/agent-service.js";
 import type {
   AgentDefinition,
@@ -39,6 +39,7 @@ import type { AcsRouteOptions } from "./acs-routes.js";
 import type { IncomingMessage } from "node:http";
 import type { DeploymentMode } from "../../control-plane/unified-agent-model.js";
 import type { DeploymentRequest } from "../../control-plane/deployment-service.js";
+import { routeTenantAdministrationRequest } from "./admin-tenant-routes.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -108,6 +109,10 @@ export async function routeProductApiRequest(
       assertAllowedQueryParams(url, []);
       const summary = await api.getGlobalReadinessSummary();
       return { status: 200, body: ok(summary, [], options.correlationId, routeMeta) };
+    }
+
+    if (apiPath === "admin/tenants" || apiPath.startsWith("admin/tenants/")) {
+      return routeTenantAdministrationRequest(request, url, apiPath, context, options, routeMeta);
     }
 
     // S03 exposes only the billing boundary and financial truth projection; it does not mutate billing state.

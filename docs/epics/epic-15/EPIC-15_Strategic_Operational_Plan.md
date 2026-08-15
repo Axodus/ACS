@@ -13,6 +13,7 @@ The repository already contains:
 - read-only Product API projections for system administration and system tenants;
 - governance and production-readiness reports that explicitly state tenant administration is not ready;
 - UX language that shows tenant context without promising tenant-admin capability.
+- a tenant administration Product API surface for tenant lifecycle, membership, governance, entitlement, and limit operations.
 
 The gap is not tenant-awareness. The gap is a formal administrative model.
 
@@ -98,4 +99,3 @@ The package is acceptable when another agent can derive a bounded implementation
 ## Definition of DONE
 
 EPIC-15 is done when the normative package is internally consistent, aligned with repository truth, and precise enough to start the first implementation milestone without reopening the tenant or governance boundary.
-

@@ -272,7 +272,39 @@ Stable error codes include:
 
 Enforcement is a consumer of canonical governance decisions. It is fail-closed for missing or inconsistent decision inputs. The first selected operations are representative control-plane mutations; execution and broader runtime gating remain deferred until their boundaries can consume the same contract safely.
 
-## 13. Open decisions
+## 13. Administrative Product API contract
+
+    interface TenantAdminSummary {
+      tenantId: string
+      status: TenantStatus
+      revision: number
+      administrativeMetadata?: unknown
+      ownerSummary?: { principalIds: string[]; count: number }
+      membershipSummary?: { total: number; active: number; suspended: number; removed: number }
+      governanceSummary?: { hasPolicy: boolean; policyId?: string; defaultEffect?: GovernanceEffect; ruleCount: number }
+      entitlementSummary?: { total: number; enabled: number }
+      limitSummary?: { total: number }
+    }
+
+    interface TenantAdminDetail extends TenantAdminSummary {
+      memberships: TenantMembership[]
+      governance: TenantGovernanceState
+    }
+
+    interface AdministrativeErrorBody {
+      code: string
+      message: string
+      reason?: string
+      details?: {
+        enforcement?: {
+          deniedLayer?: EnforcementLayer
+        }
+      }
+    }
+
+Administrative routes are thin Product API adapters. They resolve actor and tenant scope, call domain/application services, and map domain errors to HTTP semantics. They do not duplicate lifecycle, authority, governance, or limit rules.
+
+## 14. Open decisions
 
 - Which additional operations will be enrolled in enforcement after the initial selected set.
 - Which entitlements become mandatory for the next runtime integration boundary.

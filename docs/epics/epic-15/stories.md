@@ -59,7 +59,7 @@ Each story is a planning unit for the EPIC-15 implementation track. The stories 
   - projections are compatible with future UI work.
 - Non-goals: browser UI, mutation endpoints, runtime enforcement.
 - Evidence expected: read-model contracts and query tests.
-- Status: planning artifact.
+- Status: implemented in Sprint D01.
 
 ## Story T05 — Administrative mutation surface
 
@@ -73,7 +73,7 @@ Each story is a planning unit for the EPIC-15 implementation track. The stories 
   - audit-ready receipts are available for every privileged mutation.
 - Non-goals: HTTP routes, browser UI, storage migration.
 - Evidence expected: command contract and service tests.
-- Status: planning artifact.
+- Status: implemented in Sprint D01.
 
 ## Story T06 — Control Plane surface design
 

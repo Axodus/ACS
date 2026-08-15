@@ -11,6 +11,7 @@
 - canonical tenant membership and administrative authority service;
 - canonical governance policy, entitlement, and limit evaluators;
 - audit-ready receipts for tenant lifecycle, membership, and governance mutations and decisions.
+- tenant administration Product API routes for canonical tenant, membership, governance, entitlement, and limit operations.
 
 ## Reuse
 
@@ -49,6 +50,7 @@
 - explicit bootstrap semantics for the first owner;
 - deterministic governance decision receipts consumed by future enforcement.
 - shared enforcement contract that consumes canonical governance receipts before side effects.
+- administrative Product API adapters that remain thin and domain-driven.
 
 ## Do not touch
 

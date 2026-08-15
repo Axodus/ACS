@@ -159,6 +159,17 @@ Future control-plane navigation should expose:
 - audit and history;
 - administrative actions.
 
+Milestone D01 adds the Product API boundary that feeds those screens. Its routes are thin adapters over the canonical domain services and read models:
+
+- platform-scoped tenant listing and tenant creation;
+- tenant-scoped tenant detail;
+- lifecycle mutations;
+- membership mutations and ownership transfer;
+- governance policy, entitlement, and limit reads and mutations;
+- decision inspection for future debugging and UI consumption.
+
+Routes must not reimplement authority, lifecycle, precedence, or limit logic.
+
 ## 10. Boundary safety notes
 
 - Governance decisions are tenant-scoped and must never be reused across tenants.
