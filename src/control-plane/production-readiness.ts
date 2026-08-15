@@ -90,6 +90,7 @@ export interface ProductionReadinessSignals {
   readonly authMode?: string;
   readonly persistenceBackend?: "memory" | "filesystem" | "database";
   readonly secretBackend?: SecretBoundaryStorage;
+  readonly secretProviderReachable?: boolean;
   readonly settlementBackend?: "memory" | "production";
   readonly browserAcceptance?: "not_started" | "partial" | "deferred";
 }
@@ -102,6 +103,7 @@ const DEFAULT_SIGNALS: Required<ProductionReadinessSignals> = {
   authMode: "disabled",
   persistenceBackend: "memory",
   secretBackend: "memory",
+  secretProviderReachable: true,
   settlementBackend: "memory",
   browserAcceptance: "not_started",
 };
@@ -352,20 +354,34 @@ function buildGates(
     gate(
       "G03",
       "Secrets Boundary",
-      signals.secretBackend === "memory" || signals.secretBackend === "filesystem" ? "blocked" : "partial",
+      signals.secretBackend === "memory" || signals.secretBackend === "filesystem" || !signals.secretProviderReachable
+        ? "blocked"
+        : "partial",
       "critical",
       "secrets-boundary",
       ["M02", "M07"],
       {
-        blockers: [
-          blocker(
-            "SECRETS_BOUNDARY_NOT_PRODUCTION",
-            "G03",
-            "critical",
-            `Secret storage is ${signals.secretBackend}; managed references and production secret storage are not proven.`,
-            "secrets-boundary",
-          ),
-        ],
+        blockers: signals.secretBackend === "memory" || signals.secretBackend === "filesystem"
+          ? [
+              blocker(
+                "SECRETS_BOUNDARY_NOT_PRODUCTION",
+                "G03",
+                "critical",
+                `Secret storage is ${signals.secretBackend}; managed references and production secret storage are not proven.`,
+                "secrets-boundary",
+              ),
+            ]
+          : !signals.secretProviderReachable
+            ? [
+                blocker(
+                  "SECRETS_PROVIDER_UNREACHABLE",
+                  "G03",
+                  "critical",
+                  `Secret storage is configured as ${signals.secretBackend}, but the provider health check is not reachable.`,
+                  "secrets-boundary",
+                ),
+              ]
+          : [],
         caveats: [
           caveat(
             "RAW_SECRETS_REDACTED",
@@ -374,6 +390,15 @@ function buildGates(
             "This projection never returns raw secrets; no-secret-leak validation is required in S02 tests.",
             "secrets-boundary",
           ),
+          ...(signals.secretBackend === "vault" || signals.secretBackend === "kms"
+            ? [caveat(
+                "MANAGED_SECRET_PROVIDER_LIVE_PROOF_PENDING",
+                "G03",
+                "medium",
+                "A production-oriented managed provider is configured; live service availability and multi-instance catalog behavior remain separate acceptance evidence.",
+                "secrets-boundary",
+              )]
+            : []),
         ],
       },
     ),

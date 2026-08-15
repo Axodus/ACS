@@ -1,4 +1,4 @@
-export type SecretBoundaryStorage = "memory" | "filesystem" | "not_configured" | "unavailable";
+export type SecretBoundaryStorage = "memory" | "filesystem" | "vault" | "kms" | "not_configured" | "unavailable";
 
 export interface SecretsBoundarySummary {
   readonly storage: SecretBoundaryStorage;
@@ -20,16 +20,19 @@ export function createSecretsBoundarySummary(
   backend: SecretBoundaryStorage = "memory",
 ): SecretsBoundarySummary {
   const memoryOnly = backend === "memory" || backend === "filesystem";
+  const managed = backend === "vault" || backend === "kms";
   const referenceMode: SecretsBoundarySummary["referenceMode"] = memoryOnly
     ? "redacted_reference"
-    : "not_configured";
+    : managed ? "redacted_reference" : "not_configured";
 
   return {
     storage: backend,
     referenceMode,
-    environmentInjection: memoryOnly
-      ? "Environment variables may carry references, not raw production secrets."
-      : "Environment injection is not configured for a production secret boundary.",
+    environmentInjection: managed
+      ? "Runtime consumers resolve tenant-scoped references through the configured managed provider."
+      : memoryOnly
+        ? "Environment variables may carry references, not raw production secrets."
+        : "Environment injection is not configured for a production secret boundary.",
     uiDisclosure: "redacted_only",
     apiDisclosure: "redacted_only",
     logsDisclosure: "redacted_only",
@@ -42,13 +45,21 @@ export function createSecretsBoundarySummary(
       "Secret references are redacted unless a governed boundary proves otherwise.",
     ],
     noSecretLeakValidation: "required",
-    unsupportedOperations: [
-      "Production secret provisioning",
-      "Automatic secret rotation",
-      "Provider credential lifecycle management",
-      "Cloud IAM or managed vault integration",
-    ],
-    productionBlockers: memoryOnly
+    unsupportedOperations: managed
+      ? [
+          "Automatic rotation scheduling",
+          "Distributed runtime propagation of revoked versions",
+          "Cloud IAM lifecycle management",
+        ]
+      : [
+          "Production secret provisioning",
+          "Automatic secret rotation",
+          "Provider credential lifecycle management",
+          "Cloud IAM or managed vault integration",
+        ],
+    productionBlockers: managed
+      ? []
+      : memoryOnly
       ? [
         "Current secret storage is in-memory or filesystem-local and is not a production boundary.",
         "Managed secret storage and rotation are not implemented.",

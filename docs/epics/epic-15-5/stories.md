@@ -26,6 +26,16 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Acceptance criteria:** selected administrative state survives a new context, revisions continue, persistence failure cannot return success, all declared Tenant Administration `PUT`/`DELETE` handlers are reachable, and runtime start/stop route before unsupported guards.
 - **Required evidence:** `tests/s45-epic-15-5-durable-http-contract.test.mjs`, affected regressions and `milestones/B01-durable-control-plane-state-http-contract.md`.
 
+### EPIC-15.5-B02 — Production Secrets & Economic State Adapters — COMPLETE
+
+- **Findings:** ACS-ORG-002 and ACS-ORG-007; composition-profile portion of ACS-ORG-001/019/021.
+- **Objective:** introduce an external secret-material provider plus durable, idempotent and recoverable economic state.
+- **Scope:** Vault KV v2, durable non-secret catalog/credential references, production fail-closed selection, secret lifecycle/isolation/leakage, economic store, settlement provider, atomic projection commit and reconciliation.
+- **Dependencies:** B01 adapter composition and EPIC-15 Tenant/audit contracts.
+- **Non-goals:** live Vault provisioning, shared cluster database, billing, pricing, broad metering, identity or remote runtime.
+- **Acceptance criteria:** raw secrets remain external to ACS persistence/read models; restart resolution and isolation pass; settlement survives restart, is idempotent, and reconciles the provider-success/local-failure window without false success.
+- **Required evidence:** `tests/s46-epic-15-5-production-secrets-economic-adapters.test.mjs`, affected regressions and `milestones/B02-production-secrets-economic-adapters.md`.
+
 ### ORG-B01 — Introduce explicit development and operational composition profiles — PARTIAL
 
 - **Findings:** ACS-ORG-001, 002, 007, 009, 019, 021.
@@ -33,7 +43,7 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Scope:** adapter configuration contract, startup validation, dependency health and explicit DEV defaults.
 - **Dependencies:** decision gates B1–B3.
 - **Non-goals:** implement every adapter in this story.
-- **Acceptance criteria:** operational profile fails closed with semantic missing-adapter errors; DEV remains deterministic. B01 made durable HTTP composition explicit, but a complete operational profile across all adapters remains open.
+- **Acceptance criteria:** production profile now fails closed for insecure secret/economic adapters and DEV remains deterministic. Agent/deployment/runtime/jobs, identity, limiter and telemetry adapters keep the story `PARTIAL`.
 - **Required evidence:** profile matrix, startup tests and configuration documentation.
 
 ### ORG-B02 — Persist Tenant, Membership, Governance and Agent truth — PARTIAL
@@ -56,15 +66,15 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Acceptance criteria:** state survives ACS restart and one replica can continue reads/mutations after another dies.
 - **Required evidence:** restart/multi-instance tests and stale-state recovery contract.
 
-### ORG-B04 — Integrate a managed secret provider
+### ORG-B04 — Integrate a managed secret provider — PARTIAL
 
 - **Findings:** ACS-ORG-002.
 - **Objective:** store and resolve secrets through a production-grade tenant-scoped provider.
 - **Scope:** canonical provider adapter, version/rotation/revoke, availability health, worker-safe references and DEV adapter separation.
 - **Dependencies:** ORG-B01, trusted service identity design and gate B2.
 - **Non-goals:** secrets UI, provider-specific account directory or exposing raw values.
-- **Acceptance criteria:** operational profile never uses memory/filesystem; raw values remain absent from API, audit and logs.
-- **Required evidence:** provider, restart, tenant isolation, rotation/revoke and exposure tests.
+- **Acceptance criteria:** the B02 production profile never uses memory/filesystem and raw values remain absent from API/audit/errors. Live Vault HA/service identity and shared catalog proof remain open.
+- **Required evidence:** B02 provider/restart/isolation/rotation/revoke/exposure tests plus future live-provider acceptance.
 
 ### ORG-B05 — Make administrative audit durable and append-only — PARTIAL
 
@@ -76,15 +86,15 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Acceptance criteria:** existing event/read contracts remain compatible and history survives a new single-node context. Shared append semantics, retention and transactional resource-plus-audit commit remain open.
 - **Required evidence:** restart, replica, correlation, denied-attempt, write-failure and cross-tenant tests.
 
-### ORG-B06 — Persist economics and integrate idempotent settlement
+### ORG-B06 — Persist economics and integrate idempotent settlement — PARTIAL
 
 - **Findings:** ACS-ORG-007.
 - **Objective:** make quote/reservation/usage/settlement records recoverable and reconcilable.
 - **Scope:** durable records, provider adapter, idempotency and reconciliation states.
 - **Dependencies:** ORG-B01, gate B3 and ORG-B05.
 - **Non-goals:** billing, pricing, invoices or money movement beyond the approved provider boundary.
-- **Acceptance criteria:** duplicate settlement cannot double-apply; provider failure is recoverable and auditable.
-- **Required evidence:** restart, duplicate, partial failure and reconciliation tests.
+- **Acceptance criteria:** duplicate settlement cannot double-apply; restart and provider-to-projection reconciliation pass. Shared/external settlement and multi-instance proof remain open.
+- **Required evidence:** B02 restart, duplicate, partial-failure, reconciliation and Tenant-isolation tests plus future concurrent/shared-provider acceptance.
 
 ## Milestone C — Production Identity, Security & Edge Controls
 

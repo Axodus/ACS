@@ -108,7 +108,7 @@ export class OpenAiByokModelProvider implements ModelProvider {
     if (!lease.secretRef) {
       throw new ProviderAuthenticationError("credential lease does not contain a secret reference");
     }
-    return await this.#secretStore.get(lease.secretRef);
+    return await this.#secretStore.get(lease.secretRef, { tenantId: lease.tenantId });
   }
 
   async #listModelsResponse(): Promise<unknown> {

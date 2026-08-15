@@ -5,10 +5,17 @@ import type {
 } from "./credential-connection.js";
 import type { IsolationScope } from "../control-plane/isolation.js";
 
-export class CredentialConnectionRegistry {
+export interface CredentialConnectionStore {
+  createConnection(connection: CredentialConnection): CredentialConnection;
+  getConnection(id: string): CredentialConnection | undefined;
+  listConnections(): readonly CredentialConnection[];
+  saveConnection(connection: CredentialConnection): CredentialConnection;
+}
+
+export class InMemoryCredentialConnectionStore implements CredentialConnectionStore {
   readonly #connections = new Map<string, CredentialConnection>();
 
-  register(connection: CredentialConnection): CredentialConnection {
+  createConnection(connection: CredentialConnection): CredentialConnection {
     if (this.#connections.has(connection.id)) {
       throw new DuplicateRegistrationError("credential-connection", connection.id);
     }
@@ -16,8 +23,36 @@ export class CredentialConnectionRegistry {
     return connection;
   }
 
+  getConnection(id: string): CredentialConnection | undefined {
+    return this.#connections.get(id);
+  }
+
+  listConnections(): readonly CredentialConnection[] {
+    return [...this.#connections.values()];
+  }
+
+  saveConnection(connection: CredentialConnection): CredentialConnection {
+    if (!this.#connections.has(connection.id)) {
+      throw new NotFoundError("credential-connection", connection.id);
+    }
+    this.#connections.set(connection.id, connection);
+    return connection;
+  }
+}
+
+export class CredentialConnectionRegistry {
+  readonly #store: CredentialConnectionStore;
+
+  constructor(options: { readonly store?: CredentialConnectionStore } = {}) {
+    this.#store = options.store ?? new InMemoryCredentialConnectionStore();
+  }
+
+  register(connection: CredentialConnection): CredentialConnection {
+    return this.#store.createConnection(connection);
+  }
+
   get(id: string): CredentialConnection {
-    const connection = this.#connections.get(id);
+    const connection = this.#store.getConnection(id);
     if (!connection) {
       throw new NotFoundError("credential-connection", id);
     }
@@ -34,7 +69,7 @@ export class CredentialConnectionRegistry {
   }
 
   list(): readonly CredentialConnection[] {
-    return [...this.#connections.values()].sort((left, right) => left.id.localeCompare(right.id));
+    return [...this.#store.listConnections()].sort((left, right) => left.id.localeCompare(right.id));
   }
 
   listByProvider(providerId: string): readonly CredentialConnection[] {
@@ -50,7 +85,6 @@ export class CredentialConnectionRegistry {
       ...(extra.lastVerifiedAt ? { lastVerifiedAt: extra.lastVerifiedAt } : {}),
       ...(extra.expiresAt ? { expiresAt: extra.expiresAt } : {}),
     };
-    this.#connections.set(id, updated);
-    return updated;
+    return this.#store.saveConnection(updated);
   }
 }

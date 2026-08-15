@@ -54,6 +54,7 @@ import type {
 import { createCanonicalModelId } from "../intelligence/model-provider.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
 import type { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
+import type { SecretStore } from "../intelligence/secret-store.js";
 import { EngineSandboxOnlyError } from "../engines/engine-errors.js";
 import type { EngineService } from "../engines/engine-service.js";
 import type { AgentEngine, EngineCapabilities } from "../engines/agent-engine.js";
@@ -96,6 +97,8 @@ export interface ProductApiClientOptions {
   readonly engineService?: EngineService;
   readonly compositionResources?: CompositionResourceService;
   readonly credentialRegistry?: CredentialConnectionRegistry;
+  readonly readinessSignals?: Partial<Epic10ReadinessSignals>;
+  readonly secretStore?: SecretStore;
   readonly baseUrl?: string;
 }
 
@@ -1466,6 +1469,8 @@ export class ProductApiClient {
   readonly #engineService: EngineService | undefined;
   readonly #compositionResources: CompositionResourceService | undefined;
   readonly #credentialRegistry: CredentialConnectionRegistry | undefined;
+  readonly #readinessSignals: Partial<Epic10ReadinessSignals>;
+  readonly #secretStore: SecretStore | undefined;
   readonly #baseUrl: string | undefined;
 
   constructor(options: ProductApiClientOptions = {}) {
@@ -1482,6 +1487,8 @@ export class ProductApiClient {
     this.#engineService = options.engineService;
     this.#compositionResources = options.compositionResources;
     this.#credentialRegistry = options.credentialRegistry;
+    this.#readinessSignals = options.readinessSignals ?? {};
+    this.#secretStore = options.secretStore;
     this.#baseUrl = options.baseUrl;
 
     this.#operationalEvidence = new OperationalEvidenceService({
@@ -3080,9 +3087,6 @@ export class ProductApiClient {
 
     const runtime = await this.#probeRuntimeConnectivity();
     const report = createEpic10ReadinessReport({
-      workerStatus,
-      targetStatus,
-      runtimeStatus: runtime.connectivity === "connected" || runtime.connectivity === "degraded" ? "running" : "failed",
       authMode: "disabled",
       rateLimitEnabled: false,
       observabilityExporterEnabled: false,
@@ -3091,6 +3095,10 @@ export class ProductApiClient {
       settlementBackend: "memory",
       remoteWorkerSupported: false,
       liveDeploymentEnabled: false,
+      ...this.#readinessSignals,
+      workerStatus,
+      targetStatus,
+      runtimeStatus: runtime.connectivity === "connected" || runtime.connectivity === "degraded" ? "running" : "failed",
     });
 
     const blockers = [...report.blockers];
@@ -3477,16 +3485,18 @@ export class ProductApiClient {
           ? "degraded"
           : "unavailable";
 
+    const secretHealth = this.#secretStore ? await this.#secretStore.health() : undefined;
     return createProductionReadinessReport({
       environment: resolveCurrentEnvironment(),
       runtimeConnectivity: summary.runtime.connectivity,
       workerStatus,
       targetStatus,
       authMode: "disabled",
-      persistenceBackend: "memory",
-      secretBackend: "memory",
-      settlementBackend: "memory",
       browserAcceptance: "not_started",
+      persistenceBackend: this.#readinessSignals.persistenceBackend ?? "memory",
+      secretBackend: this.#readinessSignals.secretBackend ?? "memory",
+      secretProviderReachable: secretHealth?.reachable ?? false,
+      settlementBackend: this.#readinessSignals.settlementBackend ?? "memory",
     });
   }
 

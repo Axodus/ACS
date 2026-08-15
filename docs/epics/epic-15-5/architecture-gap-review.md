@@ -20,13 +20,13 @@ contract exists
 | Governance/limits/entitlements | Yes | Yes | Single-node durable adapter; no shared production database | Evaluator/enforcement, real HTTP method and restart proof | PARTIAL |
 | Agent domain/lifecycle | Yes | Yes | No durable repository | Domain/Product API/browser evidence | PARTIAL |
 | Composition resources | Yes | Read projections and compatibility | No mutable production catalog | Mutation journey absent | PARTIAL |
-| Secret references | Yes | Yes | No managed secret provider | Redaction/reference tests | PARTIAL |
+| Secret references | Yes | Tenant-scoped lifecycle plus durable metadata | Vault KV v2 provider; local catalog is single-node | Redaction, isolation, rotation/revoke and restart tests; live HA unproven | PARTIAL |
 | Deployment lifecycle | Yes | Sandbox implementation | No production target | Sandbox tests | PARTIAL |
 | Runtime lifecycle | Yes | Local engine lifecycle with reachable HTTP start/stop | No durable job store | Handler reachability only; no restart/recovery | PARTIAL |
 | Worker registration/assignment | Yes | In-process registry/lease/local worker | No remote dispatcher/broker | Unit/local tests | NOT PROVEN as distributed |
 | Audit events/read model | Yes | Durable single-node event store selected by HTTP server | No shared append/retention production service | Restart/correlation proof; replica/outbox unproven | PARTIAL |
 | HTTP method contract | Yes | Server, CORS and route layer aligned for GET/POST/PUT/PATCH/DELETE | N/A | Real entry-handler integration tests | READY for method compatibility scope |
-| Economics | Yes | In-memory quotes/reservations/settlement | No ledger/settlement adapter | Contract tests | PARTIAL, production BLOCKED |
+| Economics | Yes | Store-backed quotes/reservations/usage/settlement | SQLite economic/settlement adapters; no shared/external provider proof | Restart, idempotency, failure and reconciliation tests | PARTIAL |
 | HTTP authentication | Mock contract | Header parser | No validator | Mock tests | BLOCKED |
 | HTTP authorization | Yes | Yes after actor resolution | Depends on trusted identity | Domain/API negative tests | PARTIAL |
 | Rate limiting | Error/context contract | Header-driven mock | No | Mock tests | BLOCKED |
@@ -60,14 +60,15 @@ flowchart TD
   Context --> Agent[Map-backed agent and composition services]
   Context --> Deploy[Map-backed deployment and runtime services]
   Context --> Audit[Single-node durable AuditEventStore]
-  Context --> Econ[In-memory economics and settlement]
-  Context --> Secret[In-memory secret store]
+  Context --> Econ[SQLite economic state and settlement]
+  Context --> SecretCatalog[SQLite non-secret catalog]
+  SecretCatalog --> Secret[Vault KV v2 when selected; explicit DEV memory otherwise]
   Context --> Worker[LocalExecutionWorker]
   Worker --> Engine[Local OpenClaw engine/target]
   Context --> Evidence[Read-only readiness/evidence projections]
 ```
 
-This is a more restart-safe development/single-node composition after B01. It is not a production topology because identity is untrusted, several authoritative aggregates remain process-local, the administrative snapshot is not replica-safe, execution is local and external diagnostics are absent.
+This is a more restart-safe development/single-node composition after B02. It is not a production topology because identity is untrusted, several authoritative aggregates remain process-local, local SQLite/snapshot adapters are not replica-certified, execution is local and external diagnostics are absent.
 
 ## B01 applied boundaries
 
@@ -88,6 +89,27 @@ flowchart LR
 The administrative file is updated by write-to-temporary-path plus atomic rename. The in-process snapshot is replaced only after the filesystem commit succeeds. Membership ownership transfer uses repository `saveMany`, so the previous and next owner are persisted in one snapshot replacement. A corrupt file fails startup, and a write failure propagates instead of falling back to memory.
 
 These semantics provide restart survivability and per-file atomicity on one node. They do not provide distributed locking, live reload, cross-instance optimistic concurrency, schema migration tooling or a transaction that combines the resource commit and subsequent audit append. The architecture classification is therefore `SINGLE_NODE_DURABLE / MULTI_INSTANCE_NOT_PROVEN`.
+
+## B02 applied boundaries
+
+```mermaid
+flowchart LR
+  Credential[CredentialConnectionRegistry] --> Catalog[SqliteSecretCatalog]
+  SecretCommand[Secret lifecycle command] --> Provider[VaultSecretProvider]
+  Provider --> Catalog
+  Provider --> Vault[Vault KV v2 material]
+
+  Economic[EconomicService] --> State[EconomicStateStore]
+  State --> SqliteState[SqliteEconomicStateStore]
+  Economic --> Settlement[SettlementProvider]
+  Settlement --> SqliteProvider[SqliteSettlementProvider]
+  SqliteProvider --> Reconcile[Provider-to-projection reconciliation]
+  Reconcile --> SqliteState
+```
+
+Secret material and metadata are deliberately separate. The Vault adapter never serializes raw material into the ACS catalog, API or audit event. The SQLite catalog remains the Tenant ownership/version authority, which means its single-node limitation is part of the finding status.
+
+Economic settlement also has two authorities: provider-confirmed effects and the local operational projection. Idempotency prevents duplicate provider effects; an atomic local commit updates settlement, reservation and receipt together; reconciliation repairs a provider-success/local-failure crash window.
 
 ## Target topology boundaries
 
@@ -143,7 +165,7 @@ Engine and worker contracts exist separately. The normal Product API runtime pat
 
 ### Evidence is derived from ephemeral truth
 
-Administrative audit now survives single-node restart. Readiness, diagnostics, economics and operational runtime projections still depend on process-local structures. Exporters cannot make those remaining ephemeral sources durable; later Milestone B work must establish truth before Milestone E exports it.
+Administrative audit, secret metadata/references and economics now survive single-node restart. Readiness consumes selected adapter signals and secret health, but diagnostics and operational runtime projections still depend on process-local structures. Exporters cannot make those remaining ephemeral sources durable; later Milestone B/D work must establish truth before Milestone E exports it.
 
 ### Surfaces are accepted independently, not as one journey
 
@@ -168,8 +190,8 @@ The implementation task is therefore “add a certified production target behind
 
 ## Boundary decisions for future milestones
 
-- **Database/vendor choice:** OPEN DECISION at Milestone B gate. Required characteristics are transactional revisions, tenant partitioning, append support and multi-instance access.
-- **Secret provider:** OPEN DECISION at Milestone B gate. A managed provider or equivalent is required; local filesystem is development-only.
+- **Database/vendor choice:** SQLite is adopted for bounded single-node B02 durability; a shared production database remains an OPEN DECISION at the B03/B04 gate. Required characteristics are transactional revisions, tenant partitioning, append support and multi-instance access.
+- **Secret provider:** Vault KV v2 is the implemented production-oriented provider boundary. Live deployment/HA/service identity and whether metadata moves to a shared database remain OPEN DECISIONS; local filesystem is development-only.
 - **Identity provider:** OPEN DECISION at Milestone C gate. OIDC/JWT or trusted gateway are alternatives; server-owned verification is mandatory.
 - **Rate limiter:** OPEN DECISION at Milestone C gate. Must be distributed and keyed from trusted request context.
 - **Dispatcher/broker:** OPEN DECISION at Milestone D gate. Transport is not prescribed; delivery, fencing, idempotency and recovery semantics are.

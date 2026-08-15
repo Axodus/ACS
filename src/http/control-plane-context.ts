@@ -12,7 +12,15 @@ import { RuntimeLifecycleService } from "../control-plane/runtime-lifecycle-serv
 import { AuditService } from "../control-plane/audit-service.js";
 import { DurableAdministrativeState } from "../control-plane/durable-administrative-state.js";
 import { ExecutionPlanResolver } from "../control-plane/execution-plan-resolver.js";
-import { EconomicService } from "../control-plane/neurons-economic-contract.js";
+import {
+  EconomicService,
+  EconomicAdapterConfigurationError,
+  InMemoryEconomicStateStore,
+  InMemorySettlementProvider,
+  type EconomicStateStore,
+  type SettlementProvider,
+} from "../control-plane/neurons-economic-contract.js";
+import { SqliteEconomicStateStore, SqliteSettlementProvider } from "../control-plane/durable-economic-state.js";
 import {
   TenantLifecycleService,
   InMemoryTenantRepository,
@@ -35,8 +43,21 @@ import { ModelProviderRegistry } from "../intelligence/model-provider-registry.j
 import { ModelProviderService } from "../intelligence/model-provider-service.js";
 import { AgentRunnerRegistry } from "../intelligence/agent-runner-registry.js";
 import { AgentRunnerService } from "../intelligence/agent-runner-service.js";
-import { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
-import { InMemorySecretStore } from "../intelligence/secret-store.js";
+import {
+  CredentialConnectionRegistry,
+  type CredentialConnectionStore,
+} from "../intelligence/credential-registry.js";
+import {
+  InMemorySecretStore,
+  SecretProviderConfigurationError,
+  type SecretStore,
+} from "../intelligence/secret-store.js";
+import {
+  SqliteSecretCatalog,
+  VaultSecretProvider,
+  type SecretMetadataStore,
+  type VaultSecretTransport,
+} from "../intelligence/vault-secret-provider.js";
 import { RegistryBackedCredentialProvider } from "../intelligence/credential-provider.js";
 import { AxodusManagedModelProvider } from "../intelligence/axodus-managed-provider.js";
 import { StaticAxodusModelGateway } from "../intelligence/axodus-model-gateway.js";
@@ -75,6 +96,7 @@ export interface ControlPlaneContext {
   readonly providerService: ModelProviderService;
   readonly runnerService: AgentRunnerService;
   readonly credentials: CredentialConnectionRegistry;
+  readonly secretStore: SecretStore;
   readonly economicService: EconomicService;
   readonly workerRegistry: ExecutionWorkerRegistry;
   readonly workerAssignmentService: WorkerAssignmentService;
@@ -85,6 +107,12 @@ export interface ControlPlaneContext {
     readonly durability: "process_local" | "single_node_durable";
     readonly filePath?: string;
     readonly multiInstance: "not_applicable" | "not_proven";
+  };
+  readonly productionAdapters: {
+    readonly profile: "development" | "production";
+    readonly secretProvider: SecretStore["descriptor"];
+    readonly economicStore: EconomicStateStore["descriptor"];
+    readonly settlementProvider: SettlementProvider["descriptor"];
   };
   close(): Promise<void>;
 }
@@ -127,6 +155,22 @@ export interface ControlPlaneContextOptions {
   readonly startLocalWorker?: boolean;
   readonly useDurableAdministrativeState?: boolean;
   readonly administrativeStatePath?: string;
+  readonly adapterProfile?: "development" | "production";
+  readonly secretProvider?: "memory" | "vault";
+  readonly secretStore?: SecretStore;
+  readonly secretMetadataStore?: SecretMetadataStore;
+  readonly credentialConnectionStore?: CredentialConnectionStore;
+  readonly useDurableSecretCatalog?: boolean;
+  readonly secretCatalogPath?: string;
+  readonly vaultTransport?: VaultSecretTransport;
+  readonly vaultAddress?: string;
+  readonly vaultToken?: string;
+  readonly vaultNamespace?: string;
+  readonly vaultMount?: string;
+  readonly economicStateStore?: EconomicStateStore;
+  readonly settlementProvider?: SettlementProvider;
+  readonly useDurableEconomicState?: boolean;
+  readonly economicStatePath?: string;
 }
 
 function resolveDefaultOperationalRoots(options: ControlPlaneContextOptions): {
@@ -180,32 +224,77 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   engineRegistry.register(engine);
 
   const targetService = new ExecutionTargetService(engineRegistry);
+  const adapterProfile = options.adapterProfile
+    ?? (process.env.ACS_ENVIRONMENT === "production" ? "production" : "development");
+  const compositionResources = new CompositionResourceService();
+  const useDurableAdministrativeState = options.useDurableAdministrativeState === true
+    || options.administrativeStatePath !== undefined;
+  const administrativeStatePath = options.administrativeStatePath
+    ?? join(roots.stateRoot, "control-plane", "administrative-state.json");
+  const durableAdministrativeState = useDurableAdministrativeState
+    ? new DurableAdministrativeState({ filePath: administrativeStatePath })
+    : undefined;
+  const auditService = new AuditService({ store: durableAdministrativeState?.auditStore });
 
-  const credentials = new CredentialConnectionRegistry();
-  const secretStore = new InMemorySecretStore();
+  const selectedSecretProvider = options.secretProvider
+    ?? (process.env.ACS_SECRET_PROVIDER === "vault" ? "vault" : "memory");
+  const useDurableSecretCatalog = options.useDurableSecretCatalog === true
+    || options.secretCatalogPath !== undefined
+    || selectedSecretProvider === "vault";
+  const secretCatalogPath = options.secretCatalogPath
+    ?? process.env.ACS_SECRET_CATALOG_PATH
+    ?? join(roots.stateRoot, "control-plane", "secret-catalog.sqlite");
+  const sqliteSecretCatalog = useDurableSecretCatalog
+    ? new SqliteSecretCatalog({ filePath: secretCatalogPath })
+    : undefined;
+  const secretMetadataStore = options.secretMetadataStore ?? sqliteSecretCatalog;
+  const secretStore = options.secretStore ?? (selectedSecretProvider === "vault"
+    ? new VaultSecretProvider({
+        metadataStore: secretMetadataStore ?? (() => { throw new SecretProviderConfigurationError("durable secret metadata store is required for Vault"); })(),
+        ...(options.vaultTransport ? { transport: options.vaultTransport } : {}),
+        baseUrl: options.vaultAddress ?? process.env.ACS_VAULT_ADDR,
+        token: options.vaultToken ?? process.env.ACS_VAULT_TOKEN,
+        namespace: options.vaultNamespace ?? process.env.ACS_VAULT_NAMESPACE,
+        mount: options.vaultMount ?? process.env.ACS_VAULT_MOUNT,
+        auditService,
+      })
+    : new InMemorySecretStore());
+  if (adapterProfile === "production" && !secretStore.descriptor.productionOriented) {
+    throw new SecretProviderConfigurationError(
+      "production mode requires a production-oriented secret provider; memory/filesystem fallback is disabled",
+    );
+  }
+
+  const credentials = new CredentialConnectionRegistry({
+    store: options.credentialConnectionStore ?? sqliteSecretCatalog,
+  });
   const credentialProvider = new RegistryBackedCredentialProvider({ connections: credentials, secretStore });
 
-  credentials.register({
-    id: "cred_dev_axodus_managed",
-    providerId: "axodus",
-    type: "managed",
-    status: "configured",
-    owner: { userId: "system" },
-    scopes: ["model:inference"],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
-  credentials.register({
-    id: "cred_dev_openai_byok",
-    providerId: "openai",
-    type: "api-key",
-    status: "pending",
-    owner: { userId: "dev-operator" },
-    scopes: ["model:inference"],
-    metadata: { note: "DEV placeholder; configure a real API key through the secret store" },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
+  if (!credentials.list().some((connection) => connection.id === "cred_dev_axodus_managed")) {
+    credentials.register({
+      id: "cred_dev_axodus_managed",
+      providerId: "axodus",
+      type: "managed",
+      status: "configured",
+      owner: { userId: "system" },
+      scopes: ["model:inference"],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+  if (!credentials.list().some((connection) => connection.id === "cred_dev_openai_byok")) {
+    credentials.register({
+      id: "cred_dev_openai_byok",
+      providerId: "openai",
+      type: "api-key",
+      status: "pending",
+      owner: { userId: "dev-operator" },
+      scopes: ["model:inference"],
+      metadata: { note: "DEV placeholder; configure a real API key through the secret store" },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
 
   const modelProviderRegistry = new ModelProviderRegistry();
   modelProviderRegistry.register(new AxodusManagedModelProvider({
@@ -296,16 +385,6 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     endpoint: process.env.ACS_OPENCODE_ENDPOINT ?? "http://127.0.0.1:4096",
     transport: new FetchOpenCodeTransport(process.env.ACS_OPENCODE_ENDPOINT ?? "http://127.0.0.1:4096"),
   }));
-
-  const compositionResources = new CompositionResourceService();
-  const useDurableAdministrativeState = options.useDurableAdministrativeState === true
-    || options.administrativeStatePath !== undefined;
-  const administrativeStatePath = options.administrativeStatePath
-    ?? join(roots.stateRoot, "control-plane", "administrative-state.json");
-  const durableAdministrativeState = useDurableAdministrativeState
-    ? new DurableAdministrativeState({ filePath: administrativeStatePath })
-    : undefined;
-  const auditService = new AuditService({ store: durableAdministrativeState?.auditStore });
 
   const tenantRepository = durableAdministrativeState?.tenantRepository ?? new InMemoryTenantRepository();
   const tenantMembershipRepository = durableAdministrativeState?.membershipRepository
@@ -404,7 +483,39 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   };
   agentService.create({ definition: devAgentDefinition, createdAt: Date.now() });
 
-  const economicService = new EconomicService({ policy: DEV_BILLING_POLICY });
+  const useDurableEconomicState = options.useDurableEconomicState === true
+    || options.economicStatePath !== undefined
+    || process.env.ACS_ECONOMIC_STORE === "sqlite"
+    || process.env.ACS_SETTLEMENT_PROVIDER === "sqlite"
+    || adapterProfile === "production";
+  const economicStatePath = options.economicStatePath
+    ?? process.env.ACS_ECONOMIC_DATABASE_PATH
+    ?? join(roots.stateRoot, "control-plane", "economic-state.sqlite");
+  const sqliteEconomicStore = !options.economicStateStore && useDurableEconomicState
+    ? new SqliteEconomicStateStore({ filePath: economicStatePath })
+    : undefined;
+  const sqliteSettlementProvider = !options.settlementProvider && useDurableEconomicState
+    ? new SqliteSettlementProvider({ filePath: economicStatePath })
+    : undefined;
+  const economicStateStore = options.economicStateStore
+    ?? sqliteEconomicStore
+    ?? new InMemoryEconomicStateStore();
+  const settlementProvider = options.settlementProvider
+    ?? sqliteSettlementProvider
+    ?? new InMemorySettlementProvider();
+  if (adapterProfile === "production"
+    && (!economicStateStore.descriptor.productionOriented || !settlementProvider.descriptor.productionOriented)) {
+    throw new EconomicAdapterConfigurationError(
+      "production mode requires durable economic state and settlement providers; in-memory fallback is disabled",
+    );
+  }
+  const economicService = new EconomicService({
+    policy: DEV_BILLING_POLICY,
+    store: economicStateStore,
+    settlementProvider,
+    tenantId: isolation.scope.tenantId,
+    auditService,
+  });
   const planResolver = new ExecutionPlanResolver({
     targetService,
     providers: modelProviderRegistry,
@@ -470,6 +581,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     providerService: new ModelProviderService(modelProviderRegistry),
     runnerService: new AgentRunnerService(runnerRegistry),
     credentials,
+    secretStore,
     economicService,
     workerRegistry,
     workerAssignmentService,
@@ -487,11 +599,20 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
           durability: "process_local",
           multiInstance: "not_applicable",
         },
+    productionAdapters: {
+      profile: adapterProfile,
+      secretProvider: secretStore.descriptor,
+      economicStore: economicStateStore.descriptor,
+      settlementProvider: settlementProvider.descriptor,
+    },
     async close(): Promise<void> {
       if (localWorker) {
         await localWorker.stop();
       }
       await engine.close();
+      sqliteEconomicStore?.close();
+      sqliteSettlementProvider?.close();
+      sqliteSecretCatalog?.close();
     },
   };
 }

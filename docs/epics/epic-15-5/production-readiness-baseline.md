@@ -2,7 +2,7 @@
 
 **Assessment date:** 2026-08-15
 
-**Source revision:** `ed46412` plus B01 implementation evidence
+**Source revision:** `ed46412` plus B01/B02 implementation evidence
 
 **Overall classification:** **Development Ready / Integration Ready PARTIAL / Operational Ready BLOCKED / Production Ready BLOCKED**
 
@@ -13,14 +13,14 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Dimension | Status | Evidence-based conclusion | Blocking findings |
 | --- | --- | --- | --- |
 | Identity | BLOCKED | HTTP accepts caller-selected mock identity; disabled mode can become platform authority. | ACS-ORG-003 |
-| Security | BLOCKED | Tenant rules/redaction exist, but identity, secrets and edge trust are not production-grade. | ACS-ORG-002, 003, 010, 013 |
-| Secrets | BLOCKED | Active memory store; plaintext local filesystem and mock alternatives only. | ACS-ORG-002, 016 |
-| Persistence | PARTIAL | Tenant Administration and audit survive a single-node restart; Agents, deployments, runtime, jobs and economics remain process-local and no shared multi-instance store is proven. | ACS-ORG-001, 007, 009, 019 |
+| Security | BLOCKED | Tenant rules/redaction and a fail-closed Vault boundary exist, but live managed-service identity, HTTP identity and edge trust are not production-certified. | ACS-ORG-002, 003, 010, 013 |
+| Secrets | PARTIAL | Vault KV v2 plus durable metadata/reference catalog is selectable and production fallback fails closed; live provider/HA/service-identity and shared catalog proof remain. | ACS-ORG-002, 016, 019 |
+| Persistence | PARTIAL | Tenant Administration, audit, secret metadata/references and economics survive a single-node restart; Agents, deployments, runtime and jobs remain process-local and no shared multi-instance store is proven. | ACS-ORG-001, 009, 019 |
 | Runtime | PARTIAL | Sandbox lifecycle and engine adapters work; durable run state and recovery do not. | ACS-ORG-005, 017 |
 | Distributed execution | NOT PROVEN | Worker contracts exist; only same-process local execution is active. | ACS-ORG-004, 005 |
 | Deployment | BLOCKED | Sandbox deployment works; staged/live are intentionally rejected. | ACS-ORG-006 |
 | Observability | BLOCKED | Evidence projections exist; no external exporter, HTTP telemetry, raw logs or traces. | ACS-ORG-009, 011, 012 |
-| Economics | BLOCKED | Authorization/receipts exist; settlement and records are in memory. | ACS-ORG-007 |
+| Economics | PARTIAL | Durable SQLite economic/settlement adapters, idempotency and reconciliation pass; shared/external provider and production financial policy remain unproven. | ACS-ORG-007, 019 |
 | Audit | PARTIAL | Canonical events and Tenant history now survive restart on the selected single-node store; replica sharing, retention/tamper controls and transactional outbox semantics remain unproven. | ACS-ORG-009 |
 | Product API | PARTIAL | HTTP method compatibility is restored and runtime start/stop routes are reachable; unsupported composition/execution journeys and production identity still block an operational claim. | ACS-ORG-015, 017, 023 |
 | Control Plane | PARTIAL | Main operational UX and Tenant Administration are browser-certified separately. | ACS-ORG-014–018 |
@@ -37,8 +37,8 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Tenant governance | policies, entitlements, limits, revisions | `TenantGovernanceRepository` backed by the same atomic snapshot | Single-node | No | Yes | No shared production adapter | `AUTHORITATIVE_DURABLE` for one node / multi-instance NOT PROVEN |
 | Agents | definitions, revisions, lifecycle metadata | service/repository maps | No | No | No | No | Authoritative DEV state / BLOCKER |
 | Composition resources | roles, profiles, skills, tools, capabilities | registry maps and seeded values | No | No | Re-seeded only | No | Registry/authoritative mix / HIGH |
-| Credential connections | secret references and connection metadata | registry maps | No | No | No | No | Authoritative DEV state / BLOCKER dependency |
-| Secrets | raw secret values | active memory map; optional local plaintext files | Memory: no; file: local only | No | File only | No managed adapter | Production blocker |
+| Credential connections | secret references and connection metadata | `CredentialConnectionStore`; SQLite catalog in HTTP composition | Single-node | No | Yes | Single-node adapter | Durable references; multi-instance NOT PROVEN |
+| Secrets | raw secret values | Vault KV v2 when selected; memory/filesystem only in explicit DEV | Provider-managed | Provider-managed | Yes through reference | Production-oriented provider boundary | PARTIAL pending live/HA proof |
 | Deployments | request, target, status | `DeploymentService` map | No | No | No | No | Authoritative operational state / BLOCKER |
 | Runtime instances | lifecycle/status | `RuntimeLifecycleService` map plus engine observation | No | No | No | No | Authoritative/projection mix / BLOCKER |
 | Execution runs | request/status/result projection | runtime service map | No | No | No | No | Authoritative operational state / BLOCKER |
@@ -47,10 +47,10 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Administrative audit | correlated events | `AuditService` over durable `AuditEventStore` in the HTTP server | Single-node | No | Yes | No shared append service | Durable functional projection / CRITICAL residuals |
 | Legacy workflow receipts | execution receipts | local JSONL | Local-durable | No | Yes on same volume | No shared store | Acceptable DEV evidence, not production source |
 | Legacy telemetry | events | memory or local JSONL | Local-durable when JSONL | No | Same volume only | No exporter | Acceptable DEV evidence, not operations |
-| Economics | quotes, reservations, usage, settlements, receipts | `EconomicService` maps | No | No | No | No | Authoritative DEV state / BLOCKER |
-| Settlement | provider response | `InMemorySettlementProvider` | No | No | No | No | Test/DEV implementation / BLOCKER |
+| Economics | quotes, reservations, usage, settlements, receipts | `EconomicStateStore`; SQLite in HTTP composition | Single-node | No | Yes | Production-oriented single-node adapter | PARTIAL / multi-instance NOT PROVEN |
+| Settlement | provider-confirmed settlement records | `SettlementProvider`; SQLite in HTTP composition | Single-node | No | Yes | Production-oriented single-node adapter | PARTIAL / external provider not certified |
 | Rate limiting | request context only | caller-selected mock headers | No state | No | N/A | No | Contract/mock only / CRITICAL |
-| Readiness | computed report | on-demand projection with hardcoded adapter signals | Computed | Per process | Recomputed | No live composite gate | PARTIAL / HIGH |
+| Readiness | computed report | on-demand projection with context adapter signals and secret health | Computed | Per process | Recomputed | No full live composite gate | PARTIAL / HIGH |
 | Tool/plugin installation | catalog/projections | seeded registries; mutation unsupported | No operational install state | No | Re-seeded | No | BACKEND_ONLY/PARTIAL / HIGH |
 
 ### State classifications
@@ -60,7 +60,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 - **Development implementation:** local JSONL, local filesystem and local workers selected only in a named development profile.
 - **Authoritative production state:** tenant, agent, deployment, runtime, job, audit and economic records. These require durable shared adapters before production.
 
-`createAcsHttpServer` now selects durable administrative state explicitly. Direct `createControlPlaneContext` callers remain process-local unless `useDurableAdministrativeState` or `administrativeStatePath` is supplied, preserving deterministic tests without silently treating memory as operational persistence.
+`createAcsHttpServer` now selects durable administrative, secret-catalog and economic adapters explicitly. Direct `createControlPlaneContext` callers remain memory-backed unless the corresponding durable options/paths are supplied. `adapterProfile: "production"` rejects insecure secret or economic fallback instead of silently selecting memory.
 
 ## Production-adapter inventory
 
@@ -72,9 +72,11 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Agent repository | revision repository/service | map-backed repository | No | Yes | Domain/API tests | ACS-ORG-001 |
 | Deployment store | service map, no external store interface | map | No | Yes | Local integration only | ACS-ORG-001 |
 | Runtime/job store | service maps, no durable job adapter | maps | No | Yes | Local lifecycle tests | ACS-ORG-005 |
-| Secret store | `SecretStore` | `InMemorySecretStore` | No | Yes | Test/dev only | ACS-ORG-002 |
+| Secret store | `SecretStore` | DEV memory or selected `VaultSecretProvider` | Yes, Vault KV v2 | HTTP DEV: memory; production: explicit Vault required | Contract/restart/isolation tests; live service not run | ACS-ORG-002 PARTIAL |
+| Secret metadata/credential store | `SecretMetadataStore` / `CredentialConnectionStore` | `SqliteSecretCatalog` in HTTP composition | Single-node adapter | HTTP: yes | Restart/serialization tests | ACS-ORG-002/019 PARTIAL |
 | Secret storage boundary | `AcsSecretStorage` | `MockAcsSecretStorage` | No | Inspection only | Contract tests | ACS-ORG-002 |
-| Settlement provider | `SettlementProvider` | `InMemorySettlementProvider` | No | Yes | Contract tests | ACS-ORG-007 |
+| Economic state | `EconomicStateStore` | `SqliteEconomicStateStore` in HTTP composition | Single-node adapter | HTTP: yes | Restart/failure/tenant tests | ACS-ORG-007 PARTIAL |
+| Settlement provider | `SettlementProvider` | `SqliteSettlementProvider` in HTTP composition; memory only explicit DEV | Single-node adapter | HTTP: yes | idempotency/restart/reconciliation tests | ACS-ORG-007 PARTIAL |
 | Audit store | `AuditEventStore` consumed by `AuditService` | atomic filesystem adapter in HTTP composition; memory in explicit tests | Single-node adapter only | HTTP: yes | Restart/correlation tests | ACS-ORG-009 PARTIAL |
 | Telemetry sink | `TelemetrySink` | memory/JSONL | No external adapter | Local runtime defaults JSONL | Local tests | ACS-ORG-011 |
 | Identity validator | no production validator contract in active HTTP chain | mock header parser | No | Yes | Mock negative/positive tests | ACS-ORG-003 |
@@ -111,11 +113,12 @@ The lower authorization layers are valuable and tested, but the first trusted st
 
 | Event | Current expected behavior |
 | --- | --- |
-| ACS process restarts | Tenant, membership/ownership, governance/entitlements/limits and audit recover from the configured administrative snapshot. Agent, deployment, runtime, worker and economic mutations still disappear. |
+| ACS process restarts | Tenant, membership/ownership, governance/entitlements/limits, audit, secret metadata/references and economic/settlement state recover from configured durable adapters. Agent, deployment, runtime and worker mutations still disappear. |
 | Local worker process is lost | Registration, assignment and lease state disappear with the same ACS process; no durable orphan recovery exists. |
 | One replica dies while another remains | The new local adapter has no cross-process lock or refresh protocol. Replica sharing and concurrent writers remain NOT PROVEN and must not be inferred from restart durability. |
 | Local JSONL volume survives | Legacy workflow receipts/telemetry remain readable on that volume, but are not the active Product API domain source and are not replica-shared. |
-| Secret memory store restarts | Raw values and references held only by the active memory store are lost. |
+| Vault-backed secret context restarts | Metadata/reference reloads from SQLite and material resolves again from the external provider for the owning Tenant. |
+| Secret memory store restarts | DEV-only raw values are lost; production profile refuses this adapter. |
 | Filesystem secret store is used | Values survive on one volume but remain local plaintext and unavailable to other replicas. |
 
 ## Multi-replica baseline
@@ -145,6 +148,21 @@ Horizontal scaling is therefore **NOT PROVEN** and structurally unsafe for autho
 | HTTP `GET/POST/PUT/PATCH/DELETE` entry compatibility | PASS | real `createAcsHttpHandler` integration test; zero unexpected `405` in selected declared routes |
 | Runtime `start/stop` handler reachability | PASS | handlers execute before unsupported-operation guards; wrong method remains `405` |
 
+## B02 acceptance evidence
+
+| Scope | Result | Evidence |
+| --- | --- | --- |
+| Vault create/resolve/rotate/revoke | PASS | KV v2 transport contract and catalog lifecycle tests |
+| Secret Tenant isolation | PASS | forged/cross-Tenant read, rotate and revoke are denied |
+| Secret value exposure | PASS | zero value occurrence in metadata, audit, errors and diagnostic request capture |
+| Secret restart resolution | PASS | new catalog/provider/registry context resolves the current version |
+| Production fallback safety | PASS | production profile rejects memory secret/economic adapters |
+| Economic restart | PASS | quotes, reservation, usage, settlement and receipt reload from SQLite |
+| Settlement idempotency | PASS | repeated key returns one stable settlement and one provider effect |
+| Crash reconciliation | PASS | provider-confirmed/local-missing projection repairs once, then zero |
+| Provider/persistence false success | PASS | failed provider or projection commit returns failure; no local receipt/settlement false success |
+| Multi-instance/live provider | NOT PROVEN | SQLite is single-node; external Vault was exercised with a deterministic transport, not a live HA deployment |
+
 ## Readiness level model
 
 ### Level 1 — Development Ready
@@ -167,7 +185,7 @@ Criteria:
 - failures are semantic and correlated;
 - adapters may be non-production but are explicit.
 
-**Current status: PARTIAL.** Broad routes and browser surfaces exist, but the server method mismatch, split Control Plane, unsupported composition and incomplete execution journey remain.
+**Current status: PARTIAL.** HTTP methods, durable adapter patterns and selected Product API flows exist, but trusted identity, split Control Plane, unsupported composition and incomplete execution/recovery journeys remain.
 
 ### Level 3 — Operational Ready
 

@@ -28,6 +28,7 @@ export interface CredentialConnectionOwner {
 export interface SecretReference {
   readonly id: string;
   readonly backend: string;
+  readonly tenantId?: string;
   readonly keyVersion?: string;
   readonly purpose?: string;
   readonly createdAt: number;
@@ -60,6 +61,7 @@ export interface CredentialLease {
   readonly providerId: string;
   readonly type: CredentialConnectionType;
   readonly purpose: string;
+  readonly tenantId?: string;
   readonly secretRef?: SecretReference;
   readonly expiresAt: number;
   readonly metadata?: Readonly<Record<string, unknown>>;

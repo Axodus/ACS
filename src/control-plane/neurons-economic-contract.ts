@@ -1,3 +1,6 @@
+import { AcsError } from "../errors.js";
+import type { AuditService } from "./audit-service.js";
+
 export type BillingResponsibilityMode = "axodus-managed" | "byok" | "byos";
 export type EconomicRecordStatus = "quoted" | "reserved" | "authorized" | "metered" | "settled" | "released" | "failed";
 
@@ -123,29 +126,191 @@ export interface EconomicReceipt {
   readonly workloadId?: string;
 }
 
+export type EconomicMultiInstanceClassification = "not_applicable" | "not_proven" | "capable";
+
+export interface EconomicAdapterDescriptor {
+  readonly adapter: string;
+  readonly productionOriented: boolean;
+  readonly durability: "process_local" | "single_node_durable" | "external_managed";
+  readonly multiInstance: EconomicMultiInstanceClassification;
+}
+
+export interface SettlementProviderRecord {
+  readonly settlement: Settlement;
+  readonly settledAt: number;
+}
+
+export interface SettlementCommit {
+  readonly settlement: Settlement;
+  readonly reservation: UsageReservation;
+  readonly receipt: EconomicReceipt;
+}
+
+export interface EconomicStateStore {
+  readonly descriptor: EconomicAdapterDescriptor;
+  getQuote(quoteId: string): UsageQuote | undefined;
+  listQuotes(): readonly UsageQuote[];
+  saveQuote(quote: UsageQuote): UsageQuote;
+  getReservation(reservationId: string): UsageReservation | undefined;
+  listReservations(): readonly UsageReservation[];
+  findReservationByIdempotency(idempotencyKey: string, quoteId?: string, tenantId?: string): UsageReservation | undefined;
+  saveReservation(reservation: UsageReservation): UsageReservation;
+  listUsage(runId?: string): readonly UsageRecord[];
+  saveUsage(record: UsageRecord): UsageRecord;
+  getSettlement(settlementId: string): Settlement | undefined;
+  listSettlements(): readonly Settlement[];
+  findSettlementByIdempotency(idempotencyKey: string, runId?: string, tenantId?: string): Settlement | undefined;
+  getReceipt(runId: string): EconomicReceipt | undefined;
+  listReceipts(): readonly EconomicReceipt[];
+  commitSettlement(commit: SettlementCommit): void;
+}
+
 export interface SettlementProvider {
-  settle(settlement: Settlement): Promise<{ settlementId: string; status: Settlement["status"] }>;
+  readonly descriptor: EconomicAdapterDescriptor;
+  settle(settlement: Settlement): Promise<SettlementProviderRecord>;
+  lookupSettlement(input: { readonly idempotencyKey: string; readonly runId?: string; readonly tenantId?: string }): Promise<SettlementProviderRecord | undefined>;
+  listSettlements(): Promise<readonly SettlementProviderRecord[]>;
+}
+
+export class EconomicPersistenceError extends AcsError {
+  constructor(operation: string) {
+    super("economic persistence failed for " + operation, "ACS_ECONOMIC_PERSISTENCE_FAILED");
+  }
+}
+
+export class EconomicAdapterConfigurationError extends AcsError {
+  constructor(message: string) {
+    super(message, "ACS_ECONOMIC_ADAPTER_CONFIGURATION_INVALID");
+  }
+}
+
+export class SettlementProviderUnavailableError extends AcsError {
+  constructor(operation: string) {
+    super("settlement provider is unavailable for " + operation, "ACS_SETTLEMENT_PROVIDER_UNAVAILABLE");
+  }
+}
+
+export class EconomicTenantMismatchError extends AcsError {
+  constructor() {
+    super("economic record is not available for this tenant", "ACS_ECONOMIC_TENANT_MISMATCH");
+  }
+}
+
+export class EconomicIdempotencyConflictError extends AcsError {
+  constructor() {
+    super("economic idempotency key was already used for another operation", "ACS_ECONOMIC_IDEMPOTENCY_CONFLICT");
+  }
+}
+
+export class InMemoryEconomicStateStore implements EconomicStateStore {
+  readonly descriptor: EconomicAdapterDescriptor = {
+    adapter: "memory-economic-state",
+    productionOriented: false,
+    durability: "process_local",
+    multiInstance: "not_applicable",
+  };
+  readonly #quotes = new Map<string, UsageQuote>();
+  readonly #reservations = new Map<string, UsageReservation>();
+  readonly #usage = new Map<string, UsageRecord>();
+  readonly #settlements = new Map<string, Settlement>();
+  readonly #receipts = new Map<string, EconomicReceipt>();
+
+  getQuote(quoteId: string): UsageQuote | undefined { return this.#quotes.get(quoteId); }
+  listQuotes(): readonly UsageQuote[] { return [...this.#quotes.values()]; }
+  saveQuote(quote: UsageQuote): UsageQuote { this.#quotes.set(quote.quoteId, quote); return quote; }
+  getReservation(reservationId: string): UsageReservation | undefined { return this.#reservations.get(reservationId); }
+  listReservations(): readonly UsageReservation[] { return [...this.#reservations.values()]; }
+  findReservationByIdempotency(idempotencyKey: string, quoteId?: string, tenantId?: string): UsageReservation | undefined {
+    return this.listReservations().find((item) => item.idempotencyKey === idempotencyKey
+      && (!quoteId || item.quoteId === quoteId)
+      && (tenantId === undefined || item.tenantId === tenantId));
+  }
+  saveReservation(reservation: UsageReservation): UsageReservation { this.#reservations.set(reservation.reservationId, reservation); return reservation; }
+  listUsage(runId?: string): readonly UsageRecord[] {
+    return [...this.#usage.values()].filter((item) => !runId || item.runId === runId);
+  }
+  saveUsage(record: UsageRecord): UsageRecord { this.#usage.set(record.recordId, record); return record; }
+  getSettlement(settlementId: string): Settlement | undefined { return this.#settlements.get(settlementId); }
+  listSettlements(): readonly Settlement[] { return [...this.#settlements.values()]; }
+  findSettlementByIdempotency(idempotencyKey: string, runId?: string, tenantId?: string): Settlement | undefined {
+    return this.listSettlements().find((item) => item.idempotencyKey === idempotencyKey
+      && (!runId || item.runId === runId)
+      && (tenantId === undefined || item.tenantId === tenantId));
+  }
+  getReceipt(runId: string): EconomicReceipt | undefined { return this.#receipts.get(runId); }
+  listReceipts(): readonly EconomicReceipt[] { return [...this.#receipts.values()]; }
+  commitSettlement(commit: SettlementCommit): void {
+    this.#settlements.set(commit.settlement.settlementId, commit.settlement);
+    this.#reservations.set(commit.reservation.reservationId, commit.reservation);
+    this.#receipts.set(commit.receipt.runId, commit.receipt);
+  }
 }
 
 export class InMemorySettlementProvider implements SettlementProvider {
-  async settle(settlement: Settlement): Promise<{ settlementId: string; status: Settlement["status"] }> {
-    return { settlementId: settlement.settlementId, status: settlement.status };
+  readonly descriptor: EconomicAdapterDescriptor = {
+    adapter: "memory-settlement-provider",
+    productionOriented: false,
+    durability: "process_local",
+    multiInstance: "not_applicable",
+  };
+  readonly #settlements = new Map<string, SettlementProviderRecord>();
+
+  async settle(settlement: Settlement): Promise<SettlementProviderRecord> {
+    const existing = await this.lookupSettlement({
+      idempotencyKey: settlement.idempotencyKey,
+      runId: settlement.runId,
+      tenantId: settlement.tenantId,
+    });
+    if (existing) return existing;
+    const conflicting = await this.lookupSettlement({
+      idempotencyKey: settlement.idempotencyKey,
+      tenantId: settlement.tenantId,
+    });
+    if (conflicting) throw new EconomicIdempotencyConflictError();
+    const record = { settlement, settledAt: Date.now() };
+    this.#settlements.set(settlement.settlementId, record);
+    return record;
   }
+
+  async lookupSettlement(input: { readonly idempotencyKey: string; readonly runId?: string; readonly tenantId?: string }): Promise<SettlementProviderRecord | undefined> {
+    return [...this.#settlements.values()].find((record) =>
+      record.settlement.idempotencyKey === input.idempotencyKey
+      && (!input.runId || record.settlement.runId === input.runId)
+      && (input.tenantId === undefined || record.settlement.tenantId === input.tenantId));
+  }
+
+  async listSettlements(): Promise<readonly SettlementProviderRecord[]> {
+    return [...this.#settlements.values()];
+  }
+}
+
+function sameTenant(left?: string, right?: string): boolean {
+  return !left || left === right;
 }
 
 export class EconomicService {
   readonly #policy: BillingPolicy;
   readonly #settlementProvider: SettlementProvider;
-  readonly #quotes = new Map<string, UsageQuote>();
-  readonly #reservations = new Map<string, UsageReservation>();
-  readonly #usage = new Map<string, UsageRecord[]>();
-  readonly #settlements = new Map<string, Settlement>();
-  readonly #receipts = new Map<string, EconomicReceipt>();
+  readonly #store: EconomicStateStore;
+  readonly #tenantId: string | undefined;
+  readonly #auditService: AuditService | undefined;
 
-  constructor(input: { policy: BillingPolicy; settlementProvider?: SettlementProvider }) {
+  constructor(input: {
+    policy: BillingPolicy;
+    settlementProvider?: SettlementProvider;
+    store?: EconomicStateStore;
+    tenantId?: string;
+    auditService?: AuditService;
+  }) {
     this.#policy = input.policy;
     this.#settlementProvider = input.settlementProvider ?? new InMemorySettlementProvider();
+    this.#store = input.store ?? new InMemoryEconomicStateStore();
+    this.#tenantId = input.tenantId;
+    this.#auditService = input.auditService;
   }
+
+  get stateStoreDescriptor(): EconomicAdapterDescriptor { return this.#store.descriptor; }
+  get settlementProviderDescriptor(): EconomicAdapterDescriptor { return this.#settlementProvider.descriptor; }
 
   quote(input: {
     quoteId: string;
@@ -154,10 +319,14 @@ export class EconomicService {
     estimatedUsage: Readonly<Partial<Record<UsageDimension, bigint>>>;
     expiresAt: number;
   }): UsageQuote {
+    this.#assertTenant(input.account.tenantId);
+    const existing = this.#store.getQuote(input.quoteId);
+    if (existing) return this.#assertVisible(existing);
     const estimatedByDimension: Record<string, string> = {};
     let total = new NeuronsAmount(0n);
     for (const [dimension, quantity] of Object.entries(input.estimatedUsage)) {
       if (quantity === undefined) continue;
+      if (quantity < 0n) throw new AcsError("usage quantity cannot be negative", "ACS_ECONOMIC_INVALID_USAGE");
       const price = this.#policy.pricing[dimension as UsageDimension] ?? 0n;
       const amount = new NeuronsAmount(price * BigInt(quantity));
       estimatedByDimension[dimension] = amount.toJSON();
@@ -176,14 +345,16 @@ export class EconomicService {
       ...(input.account.tenantId ? { tenantId: input.account.tenantId } : {}),
       ...(input.account.workloadId ? { workloadId: input.account.workloadId } : {}),
     };
-    this.#quotes.set(quote.quoteId, quote);
-    return quote;
+    return this.#store.saveQuote(quote);
   }
 
   reserve(input: { reservationId: string; quoteId: string; idempotencyKey: string; expiresAt: number }): UsageReservation {
     const quote = this.#requireQuote(input.quoteId);
-    const existing = [...this.#reservations.values()].find((item) => item.idempotencyKey === input.idempotencyKey && item.quoteId === input.quoteId);
-    if (existing) return existing;
+    const existingForKey = this.#store.findReservationByIdempotency(input.idempotencyKey, undefined, this.#tenantId);
+    if (existingForKey) {
+      if (existingForKey.quoteId !== input.quoteId) throw new EconomicIdempotencyConflictError();
+      return this.#assertVisible(existingForKey);
+    }
     const reservation: UsageReservation = {
       reservationId: input.reservationId,
       quoteId: quote.quoteId,
@@ -196,41 +367,46 @@ export class EconomicService {
       ...(quote.tenantId ? { tenantId: quote.tenantId } : {}),
       ...(quote.workloadId ? { workloadId: quote.workloadId } : {}),
     };
-    this.#reservations.set(reservation.reservationId, reservation);
-    return reservation;
+    return this.#store.saveReservation(reservation);
   }
 
   authorize(input: { reservationId: string; planId: string }): { reservationId: string; planId: string; authorized: boolean } {
     const reservation = this.#requireReservation(input.reservationId);
-    if (reservation.status !== "reserved") {
-      throw new Error("reservation is not active");
-    }
+    if (reservation.status !== "reserved") throw new AcsError("reservation is not active", "ACS_ECONOMIC_RESERVATION_INACTIVE");
     return { reservationId: reservation.reservationId, planId: input.planId, authorized: true };
   }
 
   recordUsage(record: UsageRecord): void {
-    const usage = this.#usage.get(record.runId) ?? [];
-    if (usage.some((entry) => entry.recordId === record.recordId)) return;
-    usage.push(record);
-    this.#usage.set(record.runId, usage);
+    this.#assertTenant(record.tenantId);
+    if (record.quantity < 0n) throw new AcsError("usage quantity cannot be negative", "ACS_ECONOMIC_INVALID_USAGE");
+    if (this.#store.listUsage(record.runId).some((entry) => entry.recordId === record.recordId)) return;
+    this.#store.saveUsage(record);
   }
 
   async settle(input: { settlementId: string; reservationId: string; runId: string; idempotencyKey: string }): Promise<Settlement> {
     const reservation = this.#requireReservation(input.reservationId);
-    const existing = [...this.#settlements.values()].find((item) => item.idempotencyKey === input.idempotencyKey && item.runId === input.runId);
-    if (existing) return existing;
-
-    const usage = this.#usage.get(input.runId) ?? [];
-    let totalCharged = new NeuronsAmount(0n);
-    for (const record of usage) {
-      const price = this.#policy.pricing[record.dimension] ?? 0n;
-      totalCharged = totalCharged.add(new NeuronsAmount(price * record.quantity));
+    const existing = this.#store.findSettlementByIdempotency(input.idempotencyKey, undefined, this.#tenantId);
+    if (existing) {
+      if (existing.runId !== input.runId || existing.reservationId !== input.reservationId) {
+        throw new EconomicIdempotencyConflictError();
+      }
+      return this.#assertVisible(existing);
     }
 
+    const providerExisting = await this.#settlementProvider.lookupSettlement({
+      idempotencyKey: input.idempotencyKey,
+      runId: input.runId,
+      tenantId: this.#tenantId,
+    });
+    if (providerExisting) {
+      await this.#commitProviderRecord(providerExisting);
+      return this.#requireSettlement(providerExisting.settlement.settlementId);
+    }
+
+    const totalCharged = this.#calculateCharge(input.runId);
     if (totalCharged.units > reservation.reserved.units) {
-      throw new Error("reservation exhausted");
+      throw new AcsError("reservation exhausted", "ACS_ECONOMIC_RESERVATION_EXHAUSTED");
     }
-
     const released = reservation.reserved.subtract(totalCharged);
     const settlement: Settlement = {
       settlementId: input.settlementId,
@@ -242,61 +418,141 @@ export class EconomicService {
       ...(reservation.tenantId ? { tenantId: reservation.tenantId } : {}),
       ...(reservation.workloadId ? { workloadId: reservation.workloadId } : {}),
     };
-    await this.#settlementProvider.settle(settlement);
-    this.#settlements.set(settlement.settlementId, settlement);
-    this.#reservations.set(reservation.reservationId, {
-      ...reservation,
-      remaining: released,
-      status: "settled",
-    });
-    this.#receipts.set(input.runId, {
-      receiptId: "receipt_" + input.runId,
-      runId: input.runId,
-      quoteId: reservation.quoteId,
-      reservationId: reservation.reservationId,
-      settlementId: settlement.settlementId,
-      totalQuoted: reservation.reserved,
-      totalCharged,
-      totalReleased: released,
-      mode: this.#requireQuote(reservation.quoteId).mode,
-      status: "settled",
-      ...(reservation.tenantId ? { tenantId: reservation.tenantId } : {}),
-      ...(reservation.workloadId ? { workloadId: reservation.workloadId } : {}),
-    });
-    return settlement;
+    const providerRecord = await this.#settlementProvider.settle(settlement);
+    if (providerRecord.settlement.idempotencyKey !== settlement.idempotencyKey
+      || providerRecord.settlement.runId !== settlement.runId) {
+      throw new EconomicIdempotencyConflictError();
+    }
+    await this.#commitProviderRecord(providerRecord);
+    return this.#requireSettlement(providerRecord.settlement.settlementId);
   }
 
   release(input: { reservationId: string; reason: string }): UsageReservation {
     const reservation = this.#requireReservation(input.reservationId);
     if (reservation.status !== "reserved") return reservation;
-    const released = {
-      ...reservation,
-      status: "released" as const,
-      remaining: new NeuronsAmount(0n),
-    };
-    this.#reservations.set(released.reservationId, released);
-    return released;
+    const released = { ...reservation, status: "released" as const, remaining: new NeuronsAmount(0n) };
+    return this.#store.saveReservation(released);
   }
 
   receipt(runId: string): EconomicReceipt {
-    const receipt = this.#receipts.get(runId);
-    if (!receipt) throw new Error("economic receipt not found");
-    return receipt;
+    const receipt = this.#store.getReceipt(runId);
+    if (!receipt) throw new AcsError("economic receipt not found", "ACS_ECONOMIC_RECEIPT_NOT_FOUND");
+    return this.#assertVisible(receipt);
   }
 
   listUsage(runId: string): readonly UsageRecord[] {
-    return [...(this.#usage.get(runId) ?? [])];
+    return this.#store.listUsage(runId).filter((record) => this.#isVisible(record));
+  }
+
+  listQuotes(): readonly UsageQuote[] { return this.#store.listQuotes().filter((record) => this.#isVisible(record)); }
+  listReservations(): readonly UsageReservation[] { return this.#store.listReservations().filter((record) => this.#isVisible(record)); }
+  listSettlements(): readonly Settlement[] { return this.#store.listSettlements().filter((record) => this.#isVisible(record)); }
+  listReceipts(): readonly EconomicReceipt[] { return this.#store.listReceipts().filter((record) => this.#isVisible(record)); }
+
+  async reconcile(): Promise<{ readonly inspected: number; readonly repaired: number }> {
+    const records = await this.#settlementProvider.listSettlements();
+    let inspected = 0;
+    let repaired = 0;
+    for (const record of records) {
+      if (!this.#isVisible(record.settlement)) continue;
+      inspected += 1;
+      const existing = this.#store.findSettlementByIdempotency(
+        record.settlement.idempotencyKey,
+        record.settlement.runId,
+        this.#tenantId,
+      );
+      if (existing) continue;
+      await this.#commitProviderRecord(record);
+      repaired += 1;
+    }
+    return { inspected, repaired };
+  }
+
+  #calculateCharge(runId: string): NeuronsAmount {
+    let totalCharged = new NeuronsAmount(0n);
+    for (const record of this.#store.listUsage(runId).filter((item) => this.#isVisible(item))) {
+      const price = this.#policy.pricing[record.dimension] ?? 0n;
+      totalCharged = totalCharged.add(new NeuronsAmount(price * record.quantity));
+    }
+    return totalCharged;
+  }
+
+  async #commitProviderRecord(providerRecord: SettlementProviderRecord): Promise<void> {
+    const settlement = this.#assertVisible(providerRecord.settlement);
+    const reservation = this.#requireReservation(settlement.reservationId);
+    if (reservation.status !== "reserved") {
+      const existing = this.#store.findSettlementByIdempotency(
+        settlement.idempotencyKey,
+        settlement.runId,
+        this.#tenantId,
+      );
+      if (existing) return;
+      throw new AcsError("settlement reconciliation found an inactive reservation", "ACS_ECONOMIC_RECONCILIATION_CONFLICT");
+    }
+    const released = reservation.reserved.subtract(settlement.totalCharged);
+    if (released.isNegative()) throw new AcsError("settlement exceeds reservation", "ACS_ECONOMIC_RECONCILIATION_CONFLICT");
+    const updatedReservation: UsageReservation = { ...reservation, remaining: released, status: "settled" };
+    const receipt: EconomicReceipt = {
+      receiptId: "receipt_" + settlement.runId,
+      runId: settlement.runId,
+      quoteId: reservation.quoteId,
+      reservationId: reservation.reservationId,
+      settlementId: settlement.settlementId,
+      totalQuoted: reservation.reserved,
+      totalCharged: settlement.totalCharged,
+      totalReleased: released,
+      mode: this.#requireQuote(reservation.quoteId).mode,
+      status: "settled",
+      ...(reservation.tenantId ? { tenantId: reservation.tenantId } : {}),
+      ...(reservation.workloadId ? { workloadId: reservation.workloadId } : {}),
+    };
+    this.#store.commitSettlement({ settlement, reservation: updatedReservation, receipt });
+    this.#auditService?.recordEvent({
+      eventType: "economic.settled",
+      correlationId: settlement.idempotencyKey,
+      tenantId: settlement.tenantId,
+      workloadId: settlement.workloadId,
+      executionRunId: settlement.runId,
+      decision: "passed",
+      result: "success",
+      timestamp: providerRecord.settledAt,
+      metadata: {
+        settlementId: settlement.settlementId,
+        reservationId: settlement.reservationId,
+        totalCharged: settlement.totalCharged.toJSON(),
+        status: settlement.status,
+      },
+    });
   }
 
   #requireQuote(quoteId: string): UsageQuote {
-    const quote = this.#quotes.get(quoteId);
-    if (!quote) throw new Error("quote not found");
-    return quote;
+    const quote = this.#store.getQuote(quoteId);
+    if (!quote) throw new AcsError("quote not found", "ACS_ECONOMIC_QUOTE_NOT_FOUND");
+    return this.#assertVisible(quote);
   }
 
   #requireReservation(reservationId: string): UsageReservation {
-    const reservation = this.#reservations.get(reservationId);
-    if (!reservation) throw new Error("reservation not found");
-    return reservation;
+    const reservation = this.#store.getReservation(reservationId);
+    if (!reservation) throw new AcsError("reservation not found", "ACS_ECONOMIC_RESERVATION_NOT_FOUND");
+    return this.#assertVisible(reservation);
+  }
+
+  #requireSettlement(settlementId: string): Settlement {
+    const settlement = this.#store.getSettlement(settlementId);
+    if (!settlement) throw new EconomicPersistenceError("settlement lookup");
+    return this.#assertVisible(settlement);
+  }
+
+  #assertTenant(tenantId?: string): void {
+    if (!sameTenant(this.#tenantId, tenantId)) throw new EconomicTenantMismatchError();
+  }
+
+  #isVisible(record: { readonly tenantId?: string }): boolean {
+    return sameTenant(this.#tenantId, record.tenantId);
+  }
+
+  #assertVisible<T extends { readonly tenantId?: string }>(record: T): T {
+    if (!this.#isVisible(record)) throw new EconomicTenantMismatchError();
+    return record;
   }
 }

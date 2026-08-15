@@ -107,6 +107,7 @@ export class AuditService {
   recordEvent(input: {
     eventType: AuditEventType | string;
     correlationId: string;
+    timestamp?: number;
     tenantId?: string;
     workloadId?: string;
     agentId?: string;
@@ -125,7 +126,7 @@ export class AuditService {
     const event: AuditEvent = {
       eventId,
       eventType: input.eventType,
-      timestamp: Date.now(),
+      timestamp: input.timestamp ?? Date.now(),
       correlationId: input.correlationId,
       ...(input.tenantId ? { tenantId: input.tenantId } : {}),
       ...(input.workloadId ? { workloadId: input.workloadId } : {}),

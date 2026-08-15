@@ -1,6 +1,6 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** Milestone B in progress — Sprint B01 complete on 2026-08-15
+**Status:** Milestone B in progress — Sprints B01 and B02 complete on 2026-08-15
 
 **Readiness conclusion:** ACS is **Development Ready**, more completely **Integration Ready** for Tenant Administration, and **not Operational Ready or Production Ready**.
 
@@ -45,6 +45,14 @@ The adapter is a single-node atomic filesystem snapshot. It is **not** a shared 
 
 B01 also resolved `ACS-ORG-008`: the real HTTP entry handler and CORS preflight accept `GET`, `POST`, `PUT`, `PATCH` and `DELETE`; Tenant Administration `PUT`/`DELETE` operations execute through the real server; and runtime `start`/`stop` handlers are reachable before unsupported-operation guards. Production identity and broader edge hardening remain Milestone C work.
 
+## B02 outcome
+
+B02 added a Vault KV v2 `SecretProvider`, a durable SQLite catalog for non-secret metadata and credential references, and fail-closed production adapter selection. Secret values remain external to ACS persistence and administrative read models; tenant-scoped lifecycle, rotation, revocation, health and no-leak tests pass.
+
+Economics now uses explicit `EconomicStateStore` and `SettlementProvider` boundaries. SQLite adapters preserve quotes, reservations, usage, settlements and receipts through restart, enforce idempotency and reconcile the crash window between provider confirmation and local projection commit.
+
+`ACS-ORG-002` and `ACS-ORG-007` are **PARTIALLY_RESOLVED**, not closed: live Vault/HA/service-identity proof, shared multi-instance storage and an external settlement service remain unproven. Operational and Production Readiness remain blocked.
+
 ## Principles
 
 - **Evidence before claims.** Contracts and unit tests do not prove operational readiness.
@@ -71,14 +79,15 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 6. [stories.md](./stories.md) — implementation-ready stories.
 7. [milestones/README.md](./milestones/README.md) — milestone consumption order and exit evidence.
 8. [milestones/B01-durable-control-plane-state-http-contract.md](./milestones/B01-durable-control-plane-state-http-contract.md) — implemented persistence and HTTP compatibility evidence.
-9. [AGENTS.md](./AGENTS.md) — local execution rules.
+9. [milestones/B02-production-secrets-economic-adapters.md](./milestones/B02-production-secrets-economic-adapters.md) — secrets/economics adapters, restart and reconciliation evidence.
+10. [AGENTS.md](./AGENTS.md) — local execution rules.
 
 ## Milestone map
 
 | Milestone | Outcome |
 | --- | --- |
 | A | Verified system-wide baseline and executable backlog |
-| B | **IN PROGRESS:** single-node durable administration delivered; production/shared adapters remain |
+| B | **IN PROGRESS:** single-node durable administration, Vault boundary and durable economics delivered; remaining operational state/shared topology open |
 | C | Trusted identity, authorization chain and edge controls |
 | D | Remote dispatch, durable jobs and recovery semantics |
 | E | External observability and dependency-aware readiness |

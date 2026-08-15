@@ -1,6 +1,6 @@
 # Operational Gap Inventory
 
-This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01 status and evidence were updated on 2026-08-15 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
+This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01 and B02 status/evidence were updated on 2026-08-15 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
 
 ## Severity model
 
@@ -23,12 +23,12 @@ Findings use a primary area plus affected areas from this controlled set:
 | ID | Primary area | Finding | Severity | Milestone | Status |
 | --- | --- | --- | --- | --- | --- |
 | ACS-ORG-001 | PERSISTENCE | Active authoritative Control Plane state is process-local | BLOCKER | B | PARTIALLY_RESOLVED — B01 |
-| ACS-ORG-002 | SECURITY | No production-grade secret adapter is available or active | BLOCKER | B | OPEN — VERIFIED |
+| ACS-ORG-002 | SECURITY | No production-grade secret adapter is available or active | BLOCKER | B | PARTIALLY_RESOLVED — B02 |
 | ACS-ORG-003 | IDENTITY | HTTP actor and platform authority are forgeable by the caller | BLOCKER | C | OPEN — VERIFIED |
 | ACS-ORG-004 | DISTRIBUTED_EXECUTION | Operational execution uses a same-process local worker, not remote dispatch | BLOCKER | D | OPEN — VERIFIED |
 | ACS-ORG-005 | RECOVERY | Runtime jobs, assignments and leases lack durable recovery semantics | BLOCKER | D | OPEN — VERIFIED |
 | ACS-ORG-006 | DEPLOYMENT | Production deployment is blocked by a deliberate sandbox-only gate | BLOCKER | G | OPEN — VERIFIED |
-| ACS-ORG-007 | ECONOMICS | Economic settlement and records use an in-memory provider and maps | BLOCKER | B | OPEN — VERIFIED |
+| ACS-ORG-007 | ECONOMICS | Economic settlement and records use an in-memory provider and maps | BLOCKER | B | PARTIALLY_RESOLVED — B02 |
 | ACS-ORG-008 | PRODUCT_API | Real HTTP rejects Product API `PUT` and `DELETE` administration routes | BLOCKER | B | RESOLVED — B01 |
 | ACS-ORG-009 | OBSERVABILITY | Administrative and operational audit history is process-local | CRITICAL | B | PARTIALLY_RESOLVED — B01 |
 | ACS-ORG-010 | EDGE | Rate limiting is disabled or caller-selected mock state | CRITICAL | C | OPEN — VERIFIED |
@@ -54,25 +54,27 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Area:** PERSISTENCE; affects TENANT, GOVERNANCE, RUNTIME, DEPLOYMENT, PRODUCT_API.
 - **Severity / status:** **BLOCKER**, PARTIALLY_RESOLVED — B01.
 - **Evidence:** `src/http/control-plane-context.ts:277-391`; `src/control-plane/agent-service.ts:56-57,160-161`; `src/control-plane/tenant-domain.ts:108-109`; `src/control-plane/tenant-membership.ts:166-167`; `src/control-plane/tenant-governance.ts:392-393`; `src/control-plane/deployment-service.ts:52`; `src/control-plane/runtime-lifecycle-service.ts:79-80`.
-- **Current behavior after B01:** `createAcsHttpServer` explicitly selects `DurableAdministrativeState`. Tenant, membership/ownership, governance/entitlements/limits and the shared audit stream persist through an atomic local snapshot and survive a new context/process instance. Direct test contexts remain memory-backed unless persistence is requested. Agent, composition, deployment, runtime, worker and economic truth remains process-local.
+- **Current behavior after B02:** `createAcsHttpServer` explicitly selects durable Tenant Administration/audit plus SQLite secret metadata/credential and economic/settlement adapters. These states survive a new context/process instance. Direct test contexts remain memory-backed unless persistence is requested. Agent, composition, deployment, runtime and worker truth remains process-local.
 - **Operational impact:** restart loses authoritative administration and operational state; two replicas can return divergent answers and accept conflicting mutations.
 - **B01 evidence:** `src/control-plane/durable-administrative-state.ts`; repository wiring in `src/http/control-plane-context.ts`; restart, ownership-batch, serialization, corruption and write-failure coverage in `tests/s45-epic-15-5-durable-http-contract.test.mjs`.
 - **Residual risk:** the local snapshot is `SINGLE_NODE_DURABLE`, has no cross-process locking/refresh, migration framework or shared transaction service, and does not make the remaining operational aggregates durable.
 - **Required target state:** transactional, tenant-scoped repositories for authoritative resources, explicit migrations, optimistic concurrency/idempotency and a composition profile that refuses production startup when durable adapters are absent.
-- **Dependencies / milestone:** B02/B03 must add production/shared adapters for secrets, economics, Agents, deployments, runtime and jobs; multi-instance certification remains H scope.
+- **Dependencies / milestone:** B03 must address remaining Agent/deployment/runtime/job authority; shared multi-instance certification remains H scope. B02 adapters remain single-node or externally managed with local metadata.
 - **Acceptance evidence:** restart survival, two-instance consistency, conflict tests, migration/rollback evidence and no production composition using memory authority.
 
 ### ACS-ORG-002 — No production-grade secret adapter is available or active
 
 - **Area:** SECURITY; affects PERSISTENCE, RUNTIME, DEPLOYMENT.
-- **Severity / status:** **BLOCKER**, RESOLVED — B01.
-- **Evidence:** `src/intelligence/secret-store.ts:6-93`; `src/secret-storage.ts:3-79`; `src/http/control-plane-context.ts:161-185`; `src/inspection.ts:571-581`.
-- **Current behavior:** the active server selects `InMemorySecretStore`; the alternative filesystem store writes the raw value to a local file with mode `0600`; a second `MockAcsSecretStorage` returns a redacted mock value. No Vault/KMS/cloud secret adapter, encryption lifecycle, rotation, version selection or production adapter selection was found.
-- **Operational impact:** restart loses active secrets, local files do not work across replicas, and production credentials cannot be governed or recovered safely.
-- **Root cause:** secret reference and redaction contracts exist, but provider lifecycle and managed storage were deferred.
+- **Severity / status:** **BLOCKER**, PARTIALLY_RESOLVED — B02.
+- **Evidence:** `src/intelligence/secret-store.ts`; `src/intelligence/vault-secret-provider.ts`; adapter selection in `src/http/control-plane-context.ts`; `tests/s46-epic-15-5-production-secrets-economic-adapters.test.mjs`.
+- **Current behavior after B02:** a Vault KV v2 provider stores material externally; a SQLite catalog persists non-secret lifecycle metadata and credential references; production profile composition rejects memory/filesystem fallback. Rotation, logical revocation, provider health, Tenant isolation and restart resolution are implemented. DEV memory/filesystem adapters remain explicit.
+- **Operational impact:** the original process-memory/plaintext-only production path is removed when production profile is selected. Live Vault service identity/policy, HA behavior and a replica-shared metadata catalog are not yet certified, so the production blocker is reduced but not closed.
+- **Root cause:** the provider boundary existed only as basic put/get storage and had no production selection or durable catalog.
 - **Required target state:** one canonical secret contract with a managed encrypted adapter, tenant-scoped authorization, rotation/versioning, audit, availability health and runtime lease/injection semantics. Raw values must never enter API/UI/audit records.
-- **Dependencies / milestone:** durable identity and audit integration; Milestone B, with UI completion in F.
-- **Acceptance evidence:** provider integration test, restart/replica proof, rotation/revoke test, tenant isolation negative tests and secret-exposure scan.
+- **B02 evidence:** external-material fake transport exercises the real KV v2 contract; a new catalog/context reload preserves version/reference resolution; cross-Tenant access, rotation, revocation, provider failure and value-exposure tests pass. No live external Vault was provisioned.
+- **Residual risk:** `SqliteSecretCatalog` is single-node and multi-instance behavior is not proven; provider authentication still uses configuration rather than the future trusted service-identity milestone; runtime propagation and Control Plane secret lifecycle UX remain open.
+- **Dependencies / milestone:** trusted service identity in C, operator UX in F and multi-instance/live-provider certification in H.
+- **Acceptance evidence required to close:** live managed-provider integration, service-identity/policy proof, HA/unavailable-provider behavior, replica-shared catalog or external metadata, rotation/revoke negative matrix and secret-exposure scan.
 
 ### ACS-ORG-003 — HTTP actor and platform authority are forgeable by the caller
 
@@ -125,14 +127,16 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-007 — Economic settlement and records use an in-memory provider and maps
 
 - **Area:** ECONOMICS; affects PERSISTENCE, AUDIT.
-- **Severity / status:** **BLOCKER**, OPEN — VERIFIED for production economics.
-- **Evidence:** `src/control-plane/neurons-economic-contract.ts:126-147,139-143`; `src/http/control-plane-context.ts:71-92,369`.
-- **Current behavior:** `EconomicService` defaults to `InMemorySettlementProvider`; quotes, reservations, usage, settlements and receipts are held in maps under a zero-valued DEV policy. The provider returns the supplied settlement without external settlement or reconciliation.
-- **Operational impact:** state is lost on restart, duplicate settlement and reconciliation cannot be proven, and economic authorization does not establish production financial operation.
-- **Root cause:** economic contracts were intentionally bounded ahead of a ledger/settlement adapter.
+- **Severity / status:** **BLOCKER**, PARTIALLY_RESOLVED — B02.
+- **Evidence:** `src/control-plane/neurons-economic-contract.ts`; `src/control-plane/durable-economic-state.ts`; adapter selection in `src/http/control-plane-context.ts`; `tests/s46-epic-15-5-production-secrets-economic-adapters.test.mjs`.
+- **Current behavior after B02:** `EconomicService` delegates quote/reservation/usage/settlement/receipt truth to `EconomicStateStore`; `SqliteEconomicStateStore` and `SqliteSettlementProvider` survive restart. Settlement keys are idempotent, the local settlement projection commits atomically, and `reconcile()` repairs provider-confirmed records missing after a crash window.
+- **Operational impact:** the active HTTP composition no longer depends exclusively on process memory for economic records or settlement. The adapter is still single-node and the pricing policy remains explicitly DEV/non-billing; no external financial provider is certified.
+- **Root cause:** economic contracts previously had no source-of-truth/store boundary and settlement idempotency was only a map scan.
 - **Required target state:** durable economic records, idempotent settlement provider, reconciliation, failure states and explicit non-billing boundary. Billing/pricing are not implied.
-- **Dependencies / milestone:** durable persistence and audit; Milestone B.
-- **Acceptance evidence:** restart-safe quote/reservation/settlement, duplicate request handling, provider failure/reconciliation and tenant isolation tests.
+- **B02 evidence:** restart-safe quote/reservation/usage/settlement/receipt, duplicate request stability, provider failure with zero local success, simulated post-provider crash and one-time reconciliation, and cross-Tenant visibility tests pass.
+- **Residual risk:** SQLite is `SINGLE_NODE_DURABLE` and `MULTI_INSTANCE_NOT_PROVEN`; no external settlement service, ledger, billing, pricing or authoritative broad metering was introduced.
+- **Dependencies / milestone:** shared-state/multi-instance closure in B/H; trusted identity in C; runtime usage source in D; external diagnostics in E.
+- **Acceptance evidence required to close:** shared/external provider operation, concurrent writers, failover/reconciliation against a real service, durable audit/outbox and production policy approval.
 
 ### ACS-ORG-008 — Real HTTP rejects Product API `PUT` and `DELETE` administration routes
 

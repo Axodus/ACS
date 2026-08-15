@@ -5,7 +5,7 @@ This index is the normative consumption order for implementation. A milestone ma
 | Milestone | Status | Findings primarily owned | Entry gate | Exit evidence |
 | --- | --- | --- | --- | --- |
 | A — System-Wide Gap Discovery & Readiness Baseline | **PASS** | all discovery | EPIC-15 closure | verified inventory, baseline, journeys, stories and plan |
-| B — Durable Platform State & Production Adapters | **IN PROGRESS — B01 PASS** | 001, 002, 007, 009, 019 plus resolved 008 | A baseline; B1–B3 for remaining production adapters | single-node admin restart complete; shared state, secrets and economics remain |
+| B — Durable Platform State & Production Adapters | **IN PROGRESS — B01/B02 PASS** | 001, 002, 007, 009, 019 plus resolved 008 | A baseline; B1–B3 for remaining production adapters | admin/audit plus secret/economic restart complete; shared state and operational aggregates remain |
 | C — Production Identity, Security & Edge Controls | PLANNED | 003, 010, 013 | C1–C2 decisions | trusted identity, forged-context denial and distributed edge controls |
 | D — Distributed Runtime & Execution Readiness | PLANNED | 004, 005, 017 | B state + C identity + D1 | remote dispatch, durable jobs, crash/retry/cancel recovery |
 | E — Observability & Operational Diagnostics | PLANNED | 011, 012 | durable correlation + D runtime + E1 | external telemetry, actionable diagnostics, readiness probe |
@@ -22,11 +22,13 @@ A01 established 24 findings: 8 BLOCKER, 4 CRITICAL, 9 HIGH, 2 MEDIUM and 1 LOW. 
 Recommended sprint order:
 
 1. **B01 — Durable Control Plane State & HTTP Contract Compatibility — PASS**
-2. **B02 — Production Secrets & Economic State Adapters — PLANNED**
+2. **B02 — Production Secrets & Economic State Adapters — PASS**
 3. **B03 — Durable Agent, Deployment, Runtime and Job Records — PLANNED**
 4. **B04 — Shared-State/Multi-Instance Hardening — PLANNED**
 
 B01 delivered single-node restart durability for Tenant, Membership/Ownership, Governance/Entitlements/Limits and administrative audit. It resolved `ACS-ORG-008` and made existing runtime start/stop handlers reachable. `ACS-ORG-001` and `ACS-ORG-009` remain partial because the adapter is a local atomic snapshot, not shared multi-instance production storage. See [B01-durable-control-plane-state-http-contract.md](./B01-durable-control-plane-state-http-contract.md).
+
+B02 delivered Vault KV v2 secret-material integration, durable metadata/credential references, fail-closed production selection, durable economic/settlement stores, idempotency and crash reconciliation. `ACS-ORG-002` and `ACS-ORG-007` are partial because live managed-service, external/shared settlement and multi-instance evidence remain open. See [B02-production-secrets-economic-adapters.md](./B02-production-secrets-economic-adapters.md).
 
 Do not create one generic repository for every domain. Preserve aggregate-specific invariants and migrate DEV fixture behavior into explicit development bootstrap.
 

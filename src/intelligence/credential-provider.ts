@@ -14,7 +14,9 @@ export class RegistryBackedCredentialProvider implements CredentialProvider {
 
   async validate(connectionId: string): Promise<CredentialStatus> {
     const connection = this.#connections.get(connectionId);
-    const hasSecret = connection.secretRef ? await this.#secretStore.exists(connection.secretRef) : false;
+    const hasSecret = connection.secretRef
+      ? await this.#secretStore.exists(connection.secretRef, { tenantId: connection.owner.tenantId })
+      : false;
     if (connection.type === "api-key" && !connection.secretRef) {
       return { connectionId, status: "invalid", reason: "API key connections require a secret reference" };
     }
@@ -45,6 +47,7 @@ export class RegistryBackedCredentialProvider implements CredentialProvider {
       providerId: connection.providerId,
       type: connection.type,
       purpose,
+      ...(connection.owner.tenantId ? { tenantId: connection.owner.tenantId } : {}),
       ...(connection.secretRef ? { secretRef: connection.secretRef } : {}),
       expiresAt: Date.now() + 5 * 60 * 1000,
       ...(connection.metadata ? { metadata: connection.metadata } : {}),
@@ -60,7 +63,7 @@ export class RegistryBackedCredentialProvider implements CredentialProvider {
   async revoke(connectionId: string): Promise<void> {
     const connection = this.#connections.get(connectionId);
     if (connection.secretRef) {
-      await this.#secretStore.delete(connection.secretRef);
+      await this.#secretStore.delete(connection.secretRef, { tenantId: connection.owner.tenantId });
     }
     this.#connections.updateStatus(connectionId, "revoked");
   }

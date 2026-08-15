@@ -36,6 +36,7 @@ export * from "./intelligence/model-provider-service.js";
 export * from "./intelligence/credential-connection.js";
 export * from "./intelligence/credential-registry.js";
 export * from "./intelligence/secret-store.js";
+export * from "./intelligence/vault-secret-provider.js";
 export * from "./intelligence/axodus-model-gateway.js";
 export * from "./intelligence/axodus-managed-provider.js";
 export * from "./intelligence/credential-provider.js";
@@ -70,6 +71,7 @@ export {
 export * from "./control-plane/composition-resources.js";
 export * from "./control-plane/agent-service.js";
 export * from "./control-plane/neurons-economic-contract.js";
+export * from "./control-plane/durable-economic-state.js";
 export * from "./control-plane/tenant-membership.js";
 export * from "./fixtures/acs-fixtures.js";
 export * from "./fixtures/acs-operational-gate-fixtures.js";

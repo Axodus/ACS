@@ -27,17 +27,17 @@ The repository is strong in domain modeling and bounded acceptance:
 - Main Control Plane and Tenant Administration browser routes have acceptance evidence.
 - Readiness, evidence, diagnostics, audit and economics have useful projections.
 
-After B01, the active HTTP composition has single-node durable Tenant Administration and aligned HTTP methods, but the overall topology remains development-grade:
+After B02, the active HTTP composition has single-node durable Tenant Administration, audit, secret metadata/references and economics plus aligned HTTP methods, but the overall topology remains development-grade:
 
 - identity and rate limiting are mock/header driven;
-- Agent, deployment, runtime, worker and economic authoritative state is local to a process; Tenant Administration is durable only on one local node;
-- secrets and settlement have no production adapter;
+- Agent, deployment, runtime and worker authoritative state is local to a process; durable adapters are still single-node and unshared;
+- Vault and SQLite secret/economic adapters exist, but live managed-service identity/HA and shared settlement/database proof remain absent;
 - worker execution is same-process/local;
 - audit and telemetry are not durable/shared/exported;
 - production deployment is correctly sandbox-gated;
 - important composition, execution and recovery journeys are incomplete.
 
-`ACS-ORG-008` is resolved. Runtime start/stop route reachability is also corrected, but this does not prove durable or remote execution.
+`ACS-ORG-008` is resolved. `ACS-ORG-002` and `ACS-ORG-007` are partially resolved. Runtime start/stop route reachability is corrected, but this does not prove durable or remote execution.
 
 See the 24 findings in `operational-gap-inventory.md`.
 
@@ -51,7 +51,7 @@ Production deployment remains gated until the final target and acceptance eviden
 
 ### W1 — Durable truth and adapter composition
 
-B01 partially resolved ACS-ORG-001/009 for single-node Tenant Administration. Continue with ACS-ORG-002, 007, 019 and the remaining Agent/deployment/runtime/job state; select shared production adapters, migrate seeded/dev behavior into explicit profiles and make missing production configuration fail closed.
+B01 partially resolved ACS-ORG-001/009 for single-node Tenant Administration. B02 added fail-closed Vault and durable economic boundaries, partially resolving ACS-ORG-002/007. Continue with ACS-ORG-019, live/shared adapter proof and remaining Agent/deployment/runtime/job state; migrate remaining seeded/dev behavior into explicit profiles.
 
 ### W2 — Trusted identity and edge
 
@@ -108,13 +108,14 @@ B and C may run in parallel after their decision gates, but no public mutation s
 ### Milestone B — Durable Platform State & Production Adapters
 
 - B01: single-node durable tenant, membership, governance and audit repositories plus HTTP contract compatibility;
+- B02: Vault secret boundary, durable metadata/references, durable economics/settlement, idempotency and reconciliation;
 - remaining: shared/production tenant and agent/deployment/runtime repositories;
-- durable audit and economic records;
-- managed secret adapter;
+- shared/append audit and multi-instance economic records;
+- live managed-secret service and shared catalog proof;
 - explicit development versus operational composition;
 - restart and multi-instance state proof.
 
-**Current status:** IN PROGRESS. B01 restart evidence passes, but the milestone exit remains unchanged: no authoritative production resource may depend on a local map or unshared filesystem.
+**Current status:** IN PROGRESS. B01/B02 restart evidence passes, but the milestone exit remains unchanged: no authoritative production resource may depend on a local map or unshared single-node store.
 
 ### Milestone C — Production Identity, Security & Edge Controls
 

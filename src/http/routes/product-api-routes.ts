@@ -71,6 +71,12 @@ export async function routeProductApiRequest(
     engineService: context.engineService,
     compositionResources: context.compositionResources,
     credentialRegistry: context.credentials,
+    secretStore: context.secretStore,
+    readinessSignals: {
+      persistenceBackend: context.administrativeState.durability === "single_node_durable" ? "filesystem" : "memory",
+      secretBackend: context.productionAdapters.secretProvider.provider === "vault-kv-v2" ? "vault" : "memory",
+      settlementBackend: context.productionAdapters.settlementProvider.productionOriented ? "production" : "memory",
+    },
   });
 
   const url = new URL(requestUrl, "http://localhost");

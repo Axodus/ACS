@@ -84,6 +84,8 @@ export async function createAcsHttpServer(options: ControlPlaneContextOptions = 
   const context = createControlPlaneContext({
     ...options,
     useDurableAdministrativeState: options.useDurableAdministrativeState ?? true,
+    useDurableSecretCatalog: options.useDurableSecretCatalog ?? true,
+    useDurableEconomicState: options.useDurableEconomicState ?? true,
   });
   const server = createServer(createAcsHttpHandler(context));
 

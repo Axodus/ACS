@@ -147,7 +147,7 @@ export class OpenCodeRunner implements AgentRunner {
     if (!lease.secretRef) {
       return undefined;
     }
-    const password = await this.#secretStore.get(lease.secretRef);
+    const password = await this.#secretStore.get(lease.secretRef, { tenantId: lease.tenantId });
     const token = Buffer.from(this.#username + ":" + password).toString("base64");
     return { Authorization: "Basic " + token };
   }
