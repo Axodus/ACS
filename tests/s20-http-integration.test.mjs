@@ -38,12 +38,9 @@ test("GET /api/v1/health reports Product API connectivity", async () => {
 
     assert.equal(result.status, 200);
     assert.equal(result.body.success, true);
-    assert.deepEqual(result.body.data, {
-      service: "acs-product-api",
-      status: "ok",
-      mode: "inspection",
-      automation: "disabled",
-    });
+    assert.equal(result.body.data.service, "acs-product-api");
+    assert.equal(result.body.data.status, "LIVE");
+    assert.equal(typeof result.body.data.checkedAt, "number");
   } finally {
     await context.close();
   }

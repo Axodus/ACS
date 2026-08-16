@@ -1,263 +1,95 @@
-# Architecture Gap Review
+# Architecture Gap Review — Final EPIC-15.5 State
 
-## Purpose
+**Status:** final, 2026-08-16
 
-This review prevents a recurring classification error: a contract, interface, read model or unit test is not the same as an operational implementation. Each capability is evaluated across four layers:
+## Acceptance vocabulary
+
+| Level | Meaning |
+| --- | --- |
+| Contract exists | interface/type/route is declared |
+| Implementation exists | real application path executes it |
+| Production adapter exists | production profile selects a non-mock boundary and fails closed |
+| Operational proof exists | restart/process/failure/browser evidence proves the supported topology |
+
+EPIC-15.5 closes only the fourth level for `PRODUCTION_LIKE_SINGLE_HOST`; it does not infer global topology proof.
+
+## Final architecture
 
 ```text
-contract exists
-→ implementation exists
-→ production adapter exists and is selected
-→ operational proof exists
+untrusted HTTP client
+    ↓ edge guards / network limiter
+trusted OIDC identity
+    ↓ authenticated principal
+Tenant membership / platform authority
+    ↓ governance
+Product API / domain services
+    ↓ aggregate repository boundaries
+durable authoritative adapters
+    ↓
+job + assignment + lease + fencing
+    ↓ authenticated remote worker process
+durable result / recovery
+    ↓
+structured logs + metrics + traces → external receiver process
+    ↓
+operator diagnostics / readiness / browser UX
 ```
 
-## Capability matrix
+Production deployment adds:
 
-| Capability | Contract | Implementation | Production adapter | Operational proof | Final assessment |
-| --- | --- | --- | --- | --- | --- |
-| Tenant lifecycle | Yes | Yes | Single-node durable adapter; no shared production database | Domain/API/browser plus restart/revision proof | PARTIAL |
-| Membership/authority | Yes | Yes | Single-node durable adapter fed by trusted HTTP principal | Negative API/auth tests plus restart/atomic owner transfer proof | PARTIAL pending shared state/live IdP |
-| Governance/limits/entitlements | Yes | Yes | Single-node durable adapter; no shared production database | Evaluator/enforcement, real HTTP method and restart proof | PARTIAL |
-| Agent domain/lifecycle | Yes | Yes | No durable repository | Domain/Product API/browser evidence | PARTIAL |
-| Composition resources | Yes | Product API catalogs plus governed Agent definition/revision mutation | No mutable production catalog administration | Browser create/edit selects role/profile/model/capability/skill/tool | READY for supported Agent composition / PARTIAL catalog administration |
-| Secret references | Yes | Tenant-scoped lifecycle plus durable metadata and write-only Product API UX | Vault KV v2 provider; local catalog is single-node | Redaction, isolation, rotation/revoke, restart and browser tests; live HA unproven | READY for supported UX / PARTIAL globally |
-| Deployment lifecycle | Yes | Sandbox implementation | No production target | Sandbox tests | PARTIAL |
-| Runtime lifecycle | Yes | Product API creates durable remote runtime jobs; read/cancel/event models exist | SQLite durable runtime store | restart/crash/fencing/process acceptance; multi-host unproven | READY for certified topology / PARTIAL globally |
-| Worker registration/assignment | Yes | authenticated HTTP pull, durable registry/assignment/lease/fencing | SQLite shared-database adapter; signed service identity | two Control Planes/two workers, crash/reassignment/stale result proof | PARTIAL pending multi-host/workload identity |
-| Audit events/read model | Yes | Durable single-node event store selected by HTTP server | No shared append/retention production service | Restart/correlation proof; replica/outbox unproven | PARTIAL |
-| HTTP method contract | Yes | Server, CORS and route layer aligned for GET/POST/PUT/PATCH/DELETE | N/A | Real entry-handler integration tests | READY for method compatibility scope |
-| Economics | Yes | Store-backed quotes/reservations/usage/settlement | SQLite economic/settlement adapters; no shared/external provider proof | Restart, idempotency, failure and reconciliation tests | PARTIAL |
-| HTTP authentication | `HttpIdentityValidator` | OIDC JWT/JWKS validator plus explicit DEV adapter | Production-oriented adapter selected fail-closed | cryptographic/claims/key-rotation and real HTTP forged-header tests; live IdP unproven | PARTIAL |
-| HTTP authorization | Yes | Yes after actor resolution | Depends on trusted identity | Domain/API negative tests | PARTIAL |
-| Rate limiting | `RateLimiter` / `RateLimitStore` | fixed-window server boundary; SQLite active HTTP adapter, memory explicit DEV/test | Single-node shared-database adapter | atomic two-instance and real HTTP spoof/429/outage proof | PARTIAL |
-| Telemetry | Structured log/metric/trace contracts | bounded OTLP provider and worker propagation | External-process receiver path | AEES-E incident/process evidence | READY for certified topology / PARTIAL globally |
-| Readiness | Liveness/readiness/dependency contracts | dependency registry, stable reason codes and Operations projection | traffic-ready HTTP boundary | E02 tests plus browser no-capacity/dependency UX | READY for certified topology |
-| Main Control Plane | Yes | `.design/app-standalone` with Agent, secret, execution, worker and Operations journeys | N/A | AEES-F 56/56 route-viewports and journeys A–E | READY for certified UX scope |
-| Tenant Administration UI | Yes | `static` app securely federated with trusted session/navigation | N/A | AEES-F routes plus Journeys F/G | READY for certified UX scope |
-| Recovery/remediation | Durable runtime cancel/recovery/event contracts | automatic lease/worker/orphan recovery plus job/worker/Operations UX | SQLite recovery coordinator | crash/reassignment/cancel browser and process acceptance | PARTIAL: supported recovery ready; infrastructure actions external |
-
-## Existing architecture to preserve
-
-- Tenant identity and tenant/workload isolation primitives.
-- EPIC-15 Tenant, Membership, Administrative Authority, Governance, Entitlement and Limit contracts.
-- Default-deny governance and explicit platform-versus-tenant authority.
-- Product API as the external Control Plane boundary.
-- Engine protocol and execution target abstraction.
-- Worker registration/assignment types and explicit isolation scope.
-- Audit correlation/redaction and administrative event categories.
-- Economic authorization/receipt distinction from billing.
-- EPIC-14 navigation, responsive and browser acceptance standards.
-
-Later milestones must replace adapters and connect flows without introducing competing tenant, identity, governance, worker or audit models.
-
-## Current active topology
-
-```mermaid
-flowchart TD
-  Browser[Control Plane clients] -->|Bearer in production; explicit DEV headers locally| HTTP[ACS HTTP server]
-  HTTP --> Identity[HttpIdentityValidator]
-  Identity --> JWKS[Trusted issuer JWKS]
-  HTTP --> Context[createControlPlaneContext]
-  Context --> Tenant[Single-node durable tenant, membership and governance repositories]
-  Context --> Agent[Map-backed agent and composition services]
-  Context --> Deploy[Map-backed deployment service]
-  Context --> Audit[Single-node durable AuditEventStore]
-  Context --> Econ[SQLite economic state and settlement]
-  Context --> SecretCatalog[SQLite non-secret catalog]
-  SecretCatalog --> Secret[Vault KV v2 when selected; explicit DEV memory otherwise]
-  Context --> Runtime[SQLite durable jobs, workers, assignments, leases and events]
-  Runtime --> WorkerApi[Authenticated internal worker HTTP]
-  WorkerApi --> RemoteWorker[Independent remote worker process]
-  RemoteWorker --> Engine[Worker-owned OpenClaw engine/target]
-  Context --> Diagnostics[Dependency-aware readiness and diagnostics]
-  Context --> Telemetry[Structured logs, metrics and spans]
-  RemoteWorker --> Telemetry
-  Telemetry --> OTLP[External OTLP receiver]
+```text
+target capability
++ aggregate readiness
++ explicit Tenant production allow
+→ durable deployment revision
+→ deploy
+→ health verification
+→ ACTIVE or diagnostic failure
+→ degradation / rollback
 ```
 
-This is a restart-safe, externally observable local multi-process runtime composition after AEES-E. Production HTTP identity and edge controls are validated, runtime execution no longer requires a same-process worker, and operational evidence leaves the diagnosed processes. The whole system is not a production topology because Agent/deployment and other aggregates remain process-local, local SQLite/snapshot adapters and the telemetry receiver are not multi-host certified, and service identity is not deployed workload OIDC/mTLS.
+## Before and after
 
-## AEES-E applied observability boundary
-
-```mermaid
-flowchart LR
-  Request[HTTP request] --> Context[Server request and trace context]
-  Context --> Job[Durable runtime job]
-  Job --> Worker[Independent worker child span]
-  Context --> Provider[OperationalTelemetryProvider]
-  Worker --> Provider
-  Provider --> Exporter[Bounded OTLP HTTP/JSON exporter]
-  Exporter --> Receiver[External receiver process]
-  Dependencies[Identity, edge, secrets, state, economics, runtime, workers] --> Readiness[READY / DEGRADED / BLOCKED]
-  Readiness --> Product[Public summary + authorized diagnostics]
-```
-
-The provider is a side channel, never domain authority. Production rejects disabled/memory exporters; a configured receiver outage degrades observability without rolling back durable state. Audit and telemetry retain separate semantics.
-
-## AEES-D applied runtime boundary
-
-```mermaid
-flowchart LR
-  Product[Product API runtime intent] --> Job[Durable ExecutionJob]
-  Job --> Store[(SQLite runtime authority)]
-  Worker[Independent authenticated worker] -->|register / heartbeat / claim| Internal[Internal worker HTTP]
-  Internal --> Store
-  Store -->|assignment + lease + fencing token| Worker
-  Worker --> Engine[Worker-owned OpenClaw engine]
-  Worker -->|idempotent fenced result| Internal
-  Recovery[Recovery coordinator in competing Control Planes] --> Store
-```
-
-Delivery and ownership are separate. HTTP only carries claims and results. `runtime_assignments` plus a current lease and fencing token define ownership. A partial unique index and revision/status CAS prevent two active assignments; reassignment advances the job fencing epoch. Result writes validate the full worker/instance/assignment/lease/token tuple before committing.
-
-The production profile rejects local runtime mode and non-production worker identity. Development retains the local engine path explicitly. SQLite is classified `SINGLE_NODE_DURABLE / SHARED_DATABASE_MULTI_INSTANCE / MULTI_HOST_NOT_PROVEN`.
-
-## B01 applied boundaries
-
-```mermaid
-flowchart LR
-  Domain[Tenant / Membership / Governance services] --> Repo[Aggregate repository interfaces]
-  Repo --> Memory[Explicit in-memory test adapters]
-  Repo --> Durable[DurableAdministrativeState]
-  Durable --> File[Atomic single-node snapshot]
-  Audit[AuditService] --> AuditStore[AuditEventStore]
-  AuditStore --> Durable
-
-  Client[Product API client] --> Server[HTTP method boundary]
-  Server --> Router[Product API route matching]
-  Router --> Handler[Semantic route handler]
-```
-
-The administrative file is updated by write-to-temporary-path plus atomic rename. The in-process snapshot is replaced only after the filesystem commit succeeds. Membership ownership transfer uses repository `saveMany`, so the previous and next owner are persisted in one snapshot replacement. A corrupt file fails startup, and a write failure propagates instead of falling back to memory.
-
-These semantics provide restart survivability and per-file atomicity on one node. They do not provide distributed locking, live reload, cross-instance optimistic concurrency, schema migration tooling or a transaction that combines the resource commit and subsequent audit append. The architecture classification is therefore `SINGLE_NODE_DURABLE / MULTI_INSTANCE_NOT_PROVEN`.
-
-## B02 applied boundaries
-
-```mermaid
-flowchart LR
-  Credential[CredentialConnectionRegistry] --> Catalog[SqliteSecretCatalog]
-  SecretCommand[Secret lifecycle command] --> Provider[VaultSecretProvider]
-  Provider --> Catalog
-  Provider --> Vault[Vault KV v2 material]
-
-  Economic[EconomicService] --> State[EconomicStateStore]
-  State --> SqliteState[SqliteEconomicStateStore]
-  Economic --> Settlement[SettlementProvider]
-  Settlement --> SqliteProvider[SqliteSettlementProvider]
-  SqliteProvider --> Reconcile[Provider-to-projection reconciliation]
-  Reconcile --> SqliteState
-```
-
-Secret material and metadata are deliberately separate. The Vault adapter never serializes raw material into the ACS catalog, API or audit event. The SQLite catalog remains the Tenant ownership/version authority, which means its single-node limitation is part of the finding status.
-
-Economic settlement also has two authorities: provider-confirmed effects and the local operational projection. Idempotency prevents duplicate provider effects; an atomic local commit updates settlement, reservation and receipt together; reconciliation repairs a provider-success/local-failure crash window.
-
-## C01 applied boundary
-
-```mermaid
-flowchart LR
-  Client[Untrusted HTTP client] --> Bearer[Bearer credential]
-  Bearer --> Validator[OidcJwtIdentityValidator]
-  Validator --> JWKS[RemoteJwksProvider]
-  Validator --> Principal[AuthenticatedPrincipal]
-  Principal --> Context[Trusted AcsAuthContext]
-  Context --> Authority[Existing Tenant / platform authority]
-  Authority --> Governance[Governance and operation]
-  Governance --> Audit[Authenticated actor attribution]
-```
-
-The validator retains only the canonical principal, issuer/method summary, scopes, optional Tenant binding and explicit platform flag. Raw credentials and full claims do not cross the boundary. The DEV header adapter is separate and rejected by production composition. Downstream enforcement no longer maps absent/disabled auth or actor type names to global authority.
-
-## Target topology boundaries
-
-```mermaid
-flowchart TD
-  Client[Authenticated Control Plane client] --> Edge[Edge controls and trusted identity]
-  Edge --> API[Product API application boundaries]
-  API --> Authority[Administrative authority and governance]
-  API --> Stores[Durable tenant/agent/deployment/runtime repositories]
-  API --> Secrets[Managed secret provider]
-  API --> Audit[Durable audit append path]
-  API --> Dispatcher[Durable dispatcher/queue]
-  Dispatcher --> Workers[Authenticated remote workers]
-  Workers --> Targets[Certified execution targets]
-  API --> Economics[Durable economic records and settlement adapter]
-  API --> Telemetry[External logs/metrics/traces]
-  Stores --> Readiness[Dependency-aware readiness gate]
-  Secrets --> Readiness
-  Dispatcher --> Readiness
-  Audit --> Readiness
-  Economics --> Readiness
-  Telemetry --> Readiness
-```
-
-The diagram is normative only at the boundary level. It does not prescribe a database, cloud, broker or identity vendor.
-
-## Write/read boundaries
-
-| Boundary | Writes | Reads | Rule |
+| Area | A01 state | H final state | Remaining global boundary |
 | --- | --- | --- | --- |
-| Product API | semantic commands only | stable administrative/operational read models | UI never calls repositories or workers directly. |
-| Identity edge | validated principal and scope | token/upstream identity metadata | caller headers cannot construct authority. |
-| Domain/application services | lifecycle, membership, governance, deployment and run transitions | aggregates/revisions | business rules remain here. |
-| Durable repositories | authoritative state and idempotency records | versioned state | no cache becomes authority. |
-| Dispatcher | job, lease, attempt, result transitions | worker/job status | no side effect before durable dispatch intent. |
-| Workers | execution result/heartbeat | assigned work and leased secrets | no cross-tenant implicit context. |
-| Audit | append-only attributable event | minimized tenant-scoped history | audit failure semantics are explicit. |
-| Observability | structured operational signals | dashboards/alerts/diagnostics | telemetry is not authoritative domain state. |
+| administrative authority | in-process maps | repository boundary + atomic durable snapshot | networked shared multi-host store |
+| Agent/deployment state | process-local | durable stores with revision/evidence | multi-host aggregate sharing |
+| secrets | memory/filesystem | Vault KV v2 provider + durable metadata | live/HA provider and managed identity |
+| economics | memory provider/maps | durable idempotent store/provider + reconciliation | external billing is out of scope |
+| HTTP methods | global guard rejected declared routes | route-aware GET/POST/PUT/PATCH/DELETE | none |
+| identity | caller headers | signed OIDC/JWT validation context | live IdP acceptance |
+| rate limiting | mock/caller-derived | server-derived atomic shared-local buckets | global distributed limiter |
+| runtime | same-process worker | independent authenticated processes | cross-host runtime |
+| ownership/recovery | implicit/maps | durable assignment/lease/fencing/CAS | multi-host partition/failover |
+| telemetry | local/disabled | structured logs/metrics/traces + OTLP | managed remote backend/retention |
+| readiness | shallow health | dependency-aware required/optional model | topology-specific capacity policy |
+| UX | fragmented/backend-only | supported Product API/browser journeys | external infrastructure provisioning |
+| production gate | blanket sandbox-only | aggregate readiness/governance/health/rollback | real cloud target acceptance |
 
-## Gap clusters and root causes
+## Boundary integrity
 
-### Development composition is the only composition
+- Domain services do not depend on SQL, filesystem layout, HTTP serialization or provider credentials.
+- Frontend consumes Product API/read models and does not create authoritative UI-only state.
+- Tenant identity is derived from authoritative resource/assignment context, never freely trusted from a worker or browser header.
+- Audit and telemetry remain separate concerns.
+- Transport delivery does not grant ownership; only current durable lease/fencing state does.
+- Telemetry export failure cannot corrupt or roll back authoritative mutations.
+- Production configuration never silently selects a development adapter.
 
-`createAcsHttpServer` now selects durable administrative, secret-catalog, economic, rate-limit and remote-runtime state explicitly; direct contexts use memory/local behavior unless durability/remote mode is requested. The production profile validates secrets, economics, OIDC, rate limiting, CORS, durable runtime and signed worker identity rather than accepting insecure fallbacks. Agents, deployments and shared multi-host state remain open under ACS-ORG-001/019.
+## Multi-instance classification
 
-### Trust boundary is established
+| Component | Classification |
+| --- | --- |
+| runtime ownership/recovery | `MULTI_PROCESS_SINGLE_HOST_PROVEN` |
+| rate limiting | `MULTI_INSTANCE_SAME_HOST_PROVEN` |
+| external telemetry | `EXTERNAL_PROCESS_PROVEN` |
+| deployment target | `INDEPENDENT_PROCESS_SINGLE_HOST_PROVEN` |
+| administration/audit and other SQLite stores | `SINGLE_HOST_DURABLE` |
+| aggregate-wide cross-host state | `NOT_PROVEN` |
+| cross-host Control Plane/worker topology | `NOT_PROVEN` |
 
-Tenant-scoped authorization and governance receive a C01-authenticated principal. AEES-F clients use that trusted request/session context and no longer reconstruct actor or platform authority from local storage or arbitrary headers.
+The unproven rows are recorded as terminal topology deferrals and keep the global claim not certified.
 
-AEES-G adds a separate production-deployment authority path: `Product API → explicit deployment.production governance → ProductionDeploymentReadinessEvaluator → durable deployment repository → DeploymentTargetAdapter → health/rollback`. The Control Plane only presents the decision; it cannot manufacture readiness. Agent/deployment revisions are single-node durable, and the external target contract is vendor-neutral. Shared multi-host persistence and live-provider topology remain H evidence gaps.
+## Final architecture conclusion
 
-### Runtime contracts are connected to durable scheduling
-
-AEES-D connects the normal Product API runtime path to durable jobs and worker claims. The worker transport cannot grant ownership; it can only request an atomic claim and present the resulting lease/fencing identity. Runtime result and recovery state are inspectable through Product API read models. The residual gap is operational UX and multi-host infrastructure, not a missing scheduling boundary.
-
-### Evidence and diagnostics remain separate from authoritative truth
-
-Administrative audit, secret metadata/references, economics and runtime ownership survive single-node restart. AEES-E exports operational signals and computes dependency-aware diagnostics from those boundaries. AEES-F consumes those read models without making browser state authoritative. Exporters and UX do not make Agent/deployment projections durable; residual Milestone B/H work must still establish shared truth.
-
-### Surfaces are securely federated as one journey
-
-The two frontend builds remain separate deployment units, but AEES-F closes the architecture decision with secure federation: reciprocal navigation, one Product API/session contract, server-owned Tenant context and consistent errors. Browser acceptance now crosses tenant administration, Agent configuration, execution, diagnostics and recovery as one journey.
-
-## Sandbox deployment gate prerequisites
-
-Production deployment may be introduced only after all of the following are certified:
-
-1. durable tenant, agent, deployment and runtime state;
-2. managed secrets with rotation and worker-safe delivery;
-3. trusted identity and explicit platform authority;
-4. distributed rate limiting and edge hardening;
-5. authenticated remote worker dispatch with durable jobs and lease fencing;
-6. target health, rollout, rollback and failure recovery;
-7. durable audit and economic reconciliation;
-8. external logs/metrics/traces and dependency-aware readiness;
-9. operator UX for deploy, observe, diagnose and recover;
-10. restart, multi-instance, security and browser acceptance.
-
-The implementation task is therefore “add a certified production target behind a readiness gate”, not “remove `sandbox` checks”.
-
-## Boundary decisions for future milestones
-
-- **Database/vendor choice:** SQLite is adopted for bounded single-node B02 durability; a shared production database remains an OPEN DECISION at the B03/B04 gate. Required characteristics are transactional revisions, tenant partitioning, append support and multi-instance access.
-- **Secret provider:** Vault KV v2 is the implemented production-oriented provider boundary. Live deployment/HA/service identity and whether metadata moves to a shared database remain OPEN DECISIONS; local filesystem is development-only.
-- **Identity provider deployment:** protocol decision is CLOSED for the active HTTP boundary: interoperable OIDC/JWT with RS256/JWKS and server-owned verification. Vendor/live issuer selection and deployment acceptance remain environment decisions.
-- **Rate limiter:** implementation decision CLOSED for the active single-node HTTP composition: fixed-window `RateLimiter`, hashed server-derived keys and atomic SQLite shared-database store. A live multi-host/global provider and deployment topology remain H/ACS-ORG-019 acceptance decisions.
-- **Dispatcher/broker:** implementation decision CLOSED for the certified topology: authenticated HTTP worker pull over SQLite durable ownership. A broker is not required for correctness. Multi-host storage/transport and whether a later deployment adopts a managed queue remain H/environment decisions; ownership continues to live in the runtime store.
-- **Telemetry protocol:** decision CLOSED for the active boundary: bounded OTLP HTTP/JSON through a vendor-neutral provider. Collector/backend vendor, multi-host deployment, retention and alert routing remain environment/H decisions; a generic observability platform is not part of AEES-E.
-- **Control Plane consolidation:** decision CLOSED for the current boundary: secure federation of the main Control Plane and Tenant Administration. One bearer/session, server-owned actor/Tenant context, reciprocal navigation and Product API semantics are mandatory; physical build unification is not required.
-
-## Architecture acceptance rule
-
-A capability advances from `PARTIAL` to `READY` only when the production adapter is selected in an explicit non-development profile and its required operational proof passes. Documentation, interfaces and static read models remain necessary but insufficient evidence.
+No critical active production path is contract-only, mock-only or process-memory-only for the certified topology. The remaining gaps are live-provider and topology certification boundaries, not hidden fallbacks.

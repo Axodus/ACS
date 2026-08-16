@@ -1,5 +1,7 @@
 # B02 — Production Secrets & Economic State Adapters
 
+> Historical milestone snapshot. Partial/readiness labels below describe B02 at execution time; current terminal finding status is authoritative in `../operational-gap-inventory.md` and the H closure report.
+
 **Status:** PASS — 2026-08-15
 
 **Readiness result:** the adapter blockers are materially reduced, but ACS remains **Operational Ready: BLOCKED** and **Production Ready: BLOCKED**. `ACS-ORG-002` and `ACS-ORG-007` are `PARTIALLY_RESOLVED`, not closed, because live managed-service and shared multi-instance proof remain absent.

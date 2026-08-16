@@ -1,5 +1,7 @@
 # C01 — Trusted HTTP Identity & Authorization Boundary
 
+> Historical milestone snapshot. Partial/readiness labels below describe C01 at execution time; current terminal finding status is authoritative in `../operational-gap-inventory.md` and the H closure report.
+
 **Status:** PASS — 2026-08-15
 
 **Finding:** `ACS-ORG-003` RESOLVED for the active production HTTP boundary

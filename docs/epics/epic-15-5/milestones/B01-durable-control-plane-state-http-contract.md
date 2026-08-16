@@ -1,5 +1,7 @@
 # B01 — Durable Control Plane State & HTTP Contract Compatibility
 
+> Historical milestone snapshot. Partial/readiness labels below describe B01 at execution time; current terminal finding status is authoritative in `../operational-gap-inventory.md` and the H closure report.
+
 **Status:** PASS
 
 **Date:** 2026-08-15

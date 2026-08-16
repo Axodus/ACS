@@ -369,9 +369,15 @@ async function accessibilityCheck(page) {
 async function inspectRoute(browser, route, viewport, origins) {
   const context = await browser.newContext({ viewport, deviceScaleFactor: 1, hasTouch: viewport.width <= 768 });
   const page = await context.newPage();
-  const consoleErrors = [];
+  const consoleMessages = [];
+  const failedResponses = [];
   const pageErrors = [];
-  page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleMessages.push({ text: message.text(), location: message.location() ?? null });
+  });
+  page.on("response", (response) => {
+    if (response.status() >= 400) failedResponses.push({ status: response.status(), url: response.url() });
+  });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   const origin = route.app === "control-plane" ? origins.controlPlane : origins.tenantAdmin;
   const url = origin + route.path;
@@ -384,6 +390,9 @@ async function inspectRoute(browser, route, viewport, origins) {
     const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
     if (!response?.ok()) throw new Error(`route returned HTTP ${response?.status()}`);
     await page.locator("h1").first().waitFor({ state: "visible", timeout: 30_000 });
+    if (route.app === "tenant-admin") {
+      await page.locator(".admin-skeleton").first().waitFor({ state: "detached", timeout: 30_000 }).catch(() => {});
+    }
     await page.waitForTimeout(400);
     heading = (await page.locator("h1").first().textContent())?.trim();
     overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
@@ -394,6 +403,16 @@ async function inspectRoute(browser, route, viewport, origins) {
     await page.screenshot({ path: screenshot, fullPage: true }).catch(() => {});
   }
   await context.close();
+  const ignoredConsoleErrors = consoleMessages.filter((entry) => {
+    const location = entry.location?.url?.toLowerCase() ?? "";
+    return location.includes("fonts.googleapis.com") || location.includes("fonts.gstatic.com") || location.endsWith("/favicon.ico");
+  });
+  const consoleErrors = consoleMessages.filter((entry) => !ignoredConsoleErrors.includes(entry));
+  const ignoredResponses = failedResponses.filter((entry) => {
+    const target = entry.url.toLowerCase();
+    return target.includes("fonts.googleapis.com") || target.includes("fonts.gstatic.com") || target.endsWith("/favicon.ico");
+  });
+  const unexpectedResponses = failedResponses.filter((entry) => !ignoredResponses.includes(entry));
   return {
     ...route,
     viewport,
@@ -403,8 +422,10 @@ async function inspectRoute(browser, route, viewport, origins) {
     horizontalOverflow: overflow,
     accessibility,
     consoleErrors,
+    failedResponses: unexpectedResponses,
+    ignoredExternalErrors: [...ignoredConsoleErrors, ...ignoredResponses],
     pageErrors,
-    status: failure || overflow || accessibility.status !== "PASS" || consoleErrors.length || pageErrors.length ? "FAIL" : "PASS",
+    status: failure || overflow || accessibility.status !== "PASS" || consoleErrors.length || unexpectedResponses.length || pageErrors.length ? "FAIL" : "PASS",
     ...(failure ? { failure } : {}),
   };
 }

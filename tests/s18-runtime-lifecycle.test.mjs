@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { RuntimeLifecycleService } from "../dist/control-plane/runtime-lifecycle-service.js";
-import { EngineSandboxOnlyError } from "../dist/engines/engine-errors.js";
 
 function createMockEngine() {
   const runtimes = new Map();
@@ -78,7 +77,7 @@ test("RuntimeLifecycleService starts sandbox runtime instance", async () => {
   assert.ok(instance.runtimeInstanceId.startsWith("run_mazikeen"));
 });
 
-test("RuntimeLifecycleService rejects live runtime execution", async () => {
+test("RuntimeLifecycleService rejects live runtime without an active verified production deployment", async () => {
   const engine = createMockEngine();
   const service = new RuntimeLifecycleService({ engine });
   await assert.rejects(
@@ -90,7 +89,7 @@ test("RuntimeLifecycleService rejects live runtime execution", async () => {
         targetId: "local-wsl",
       });
     },
-    (err) => err instanceof EngineSandboxOnlyError
+    { message: "live runtime requires an active, health-verified production deployment" }
   );
 });
 

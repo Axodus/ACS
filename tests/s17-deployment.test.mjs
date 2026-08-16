@@ -10,8 +10,8 @@ import { CredentialConnectionRegistry } from "../dist/intelligence/credential-re
 import { AgentRunnerRegistry } from "../dist/intelligence/agent-runner-registry.js";
 import { AxodusManagedModelProvider } from "../dist/intelligence/axodus-managed-provider.js";
 import { StaticAxodusModelGateway } from "../dist/intelligence/axodus-model-gateway.js";
-import { EngineSandboxOnlyError } from "../dist/engines/engine-errors.js";
 import { EconomicService } from "../dist/control-plane/neurons-economic-contract.js";
+import { PolicyRejectedError } from "../dist/errors.js";
 
 const devPolicy = {
   policyId: "policy_dev",
@@ -118,7 +118,7 @@ test("DeploymentService deploys governed agent to sandbox target", async () => {
   assert.equal(result.status, "deployed");
   assert.equal(result.agentId, "mazikeen");
   assert.equal(result.deploymentMode, "sandbox");
-  assert.ok(result.deploymentId.startsWith("dep_mazikeen"));
+  assert.ok(result.deploymentId.startsWith("deployment_"));
 });
 
 test("DeploymentService rejects live deployment mode", async () => {
@@ -133,7 +133,8 @@ test("DeploymentService rejects live deployment mode", async () => {
         targetId: "local-wsl",
       });
     },
-    (err) => err instanceof EngineSandboxOnlyError
+    (err) => err instanceof PolicyRejectedError
+      && err.message === "Production deployment requires an explicit deployment.production allow rule."
   );
 });
 

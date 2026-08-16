@@ -1,5 +1,7 @@
 # C02 — Distributed Rate Limiting & HTTP Edge Hardening
 
+> Historical milestone snapshot. Partial/readiness labels below describe C02 at execution time; current terminal finding status is authoritative in `../operational-gap-inventory.md` and the H closure report.
+
 **Status:** PASS WITH CAVEATS
 
 **Completed:** 2026-08-15

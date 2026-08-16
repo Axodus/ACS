@@ -416,8 +416,8 @@ function GovernanceTab({ api, detail, onReload, onBusy, busy }: { api: ReturnTyp
         <div className='admin-rule-editor'>
           {GOVERNED_ACTIONS.map(action => <div key={action} className='admin-rule-editor__row'>
             <strong>{action}</strong>
-            <select value={rules[action].effect} onChange={event => setRules(prev => ({ ...prev, [action]: { ...prev[action], effect: event.target.value as 'allow' | 'deny' } }))}><option value='deny'>deny</option><option value='allow'>allow</option></select>
-            <input type='number' value={rules[action].priority} onChange={event => setRules(prev => ({ ...prev, [action]: { ...prev[action], priority: Number(event.target.value) } }))} />
+            <select aria-label={`${action} effect`} value={rules[action].effect} onChange={event => setRules(prev => ({ ...prev, [action]: { ...prev[action], effect: event.target.value as 'allow' | 'deny' } }))}><option value='deny'>deny</option><option value='allow'>allow</option></select>
+            <input aria-label={`${action} priority`} type='number' value={rules[action].priority} onChange={event => setRules(prev => ({ ...prev, [action]: { ...prev[action], priority: Number(event.target.value) } }))} />
           </div>)}
         </div>
         <div className='admin-form__actions'><button className='button' disabled={busy === 'policy'} type='submit'>Save policy</button></div>

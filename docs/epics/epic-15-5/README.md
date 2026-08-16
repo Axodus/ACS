@@ -1,155 +1,101 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** AEES-G / Milestone G **PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS** on 2026-08-16; Milestone H final acceptance remains open
+**Status:** **CLOSED WITH CERTIFICATION LIMITS** — 2026-08-16
+**Certified topology:** `PRODUCTION_LIKE_SINGLE_HOST`
+**Global production claim:** **NOT CERTIFIED**
 
-**Readiness conclusion:** ACS is **Operational Ready for the certified topology** and **Production Ready for `PRODUCTION_LIKE_SINGLE_HOST`**, while both remain **PARTIAL globally** pending H multi-host/live-provider certification.
+## Mission outcome
 
-## Mission
-
-EPIC-15.5 changes the acceptance question from “does a contract or surface exist?” to “can an operator run the platform safely through supported paths?”. Its target journey is:
+EPIC-15.5 changed ACS acceptance from “a contract or screen exists” to “an operator can safely run, diagnose, recover and govern the supported system”. The certified journey is:
 
 ```text
-authenticate
-→ administer tenants
-→ create and configure agents
-→ assign capabilities, tools and secrets
-→ validate readiness
-→ deploy
-→ execute
-→ observe and diagnose
-→ recover
-→ inspect audit and economics
+trusted authentication
+→ Tenant administration and governance
+→ Agent composition and write-only secret references
+→ readiness and governed deployment
+→ independent remote execution
+→ durable ownership, fencing and recovery
+→ external telemetry and diagnostics
+→ browser-supported remediation and audit
+→ production-like health verification and rollback
 ```
 
-The current repository contains substantial domain, API, governance and UX foundations. A01 found that the active composition still relies on caller-supplied mock identity, process-local authoritative state, local-only execution, development secret and settlement adapters, and incomplete operator journeys. Those facts prevent an operational or production claim.
+A01 established 24 findings. AEES-H closed the register with 17 `RESOLVED`, 7 `ACCEPTABLE_DEFERRED` and 0 `OPEN_BLOCKER` inside the certified topology. The terminal register is [operational-gap-inventory.md](./operational-gap-inventory.md), and the normative decision is [epic-15-5-closure-report.md](./epic-15-5-closure-report.md).
 
-## A01 outcome
+## Final readiness
 
-A01 verified **24 consolidated findings**:
+| Level | Certified topology | Global claim |
+| --- | --- | --- |
+| Development Ready | **READY / CERTIFIED** | **READY** |
+| Integration Ready | **READY / CERTIFIED** | **PARTIALLY_CERTIFIED** |
+| Operational Ready | **READY / CERTIFIED** | **PARTIALLY_CERTIFIED** |
+| Production Ready | **READY for `PRODUCTION_LIKE_SINGLE_HOST`** | **NOT_CERTIFIED** |
 
-| Severity | Count |
-| --- | ---: |
-| BLOCKER | 8 |
-| CRITICAL | 4 |
-| HIGH | 9 |
-| MEDIUM | 2 |
-| LOW | 1 |
+The certified topology is one active Control Plane host with independent worker processes, durable local authoritative stores, an independent OTLP receiver process and an independent health/rollback-capable target process. H also proved contention/single-winner behavior with multiple local Control Plane contexts/processes where the store contract supports it.
 
-The canonical source is [operational-gap-inventory.md](./operational-gap-inventory.md). Findings are evidence-backed and deduplicated by root cause. In-memory test doubles, local development adapters and the sandbox gate are not defects by themselves; the gap is their use as the only or active operational path without a certified production alternative.
+## Milestone outcomes
 
-## B01 outcome
+| Milestone | Result | Delivered boundary |
+| --- | --- | --- |
+| A — Discovery & Baseline | **PASS** | 24 verified findings and readiness baseline |
+| B — Durable State & Adapters | **PASS WITH TOPOLOGY LIMITS** | durable administration/audit, Vault boundary, durable economics/settlement |
+| C — Identity, Security & Edge | **PASS WITH TOPOLOGY LIMITS** | trusted OIDC/JWT identity, hardened edge and real shared-local limiter |
+| D — Distributed Runtime & Recovery | **PASS WITH TOPOLOGY LIMITS** | independent workers, durable jobs/leases/fencing and crash recovery |
+| E — Observability & Diagnostics | **PASS WITH TOPOLOGY LIMITS** | structured telemetry, external-process OTLP and dependency-aware diagnostics |
+| F — Operational UX | **PASS** | supported Agent, execution, recovery, operations and Tenant browser journeys |
+| G — Production Deployment Gate | **PASS WITH TOPOLOGY LIMITS** | aggregate production readiness, governance, target health and rollback |
+| H — Full-System Closure | **PASS WITH ENVIRONMENT LIMITATIONS** | full regression, terminal findings and certified/global claim separation |
 
-B01 added an aggregate-specific durable administrative adapter for Tenant, Membership/Ownership, Governance/Entitlements/Limits and the shared administrative audit stream. The shipped HTTP server selects this adapter by default, while programmatic tests may still opt into explicit in-memory repositories. Restart tests prove preservation of revisions, timestamps, ownership, governance configuration and audit correlation.
+## H acceptance summary
 
-The adapter is a single-node atomic filesystem snapshot. It is **not** a shared production database and has no cross-process locking, migrations, retention or multi-writer proof. Therefore `ACS-ORG-001` and `ACS-ORG-009` are only **PARTIALLY_RESOLVED**.
+- complete serial suite: **569/569 PASS**, 92 files;
+- concurrent B–G core: **47/47 PASS**;
+- browser: **56/56 route-viewports PASS** across four viewports;
+- accessibility, horizontal overflow, page errors and unexpected console errors: **0**;
+- security and cross-Tenant violations: **0**;
+- worker crash, Control Plane restart, fencing, stale/duplicate result, orphan recovery and cancellation race: **PASS**;
+- production readiness deny/allow, deployment, health, degradation and rollback: **PASS**;
+- no-emit and writable-path root/static builds: **PASS**;
+- official repository emit: `ENVIRONMENT_BLOCKER` (`TS5033/EROFS`), not a product compile failure.
 
-B01 also resolved `ACS-ORG-008`: the real HTTP entry handler and CORS preflight accept `GET`, `POST`, `PUT`, `PATCH` and `DELETE`; Tenant Administration `PUT`/`DELETE` operations execute through the real server; and runtime `start`/`stop` handlers are reachable before unsupported-operation guards. Production identity and broader edge hardening were subsequently completed as bounded application contracts in C01/C02.
+Evidence root: `/tmp/acs-epic15-5-aees-h-evidence/manifest.json`.
 
-## B02 outcome
+## Production guarantees
 
-B02 added a Vault KV v2 `SecretProvider`, a durable SQLite catalog for non-secret metadata and credential references, and fail-closed production adapter selection. Secret values remain external to ACS persistence and administrative read models; tenant-scoped lifecycle, rotation, revocation, health and no-leak tests pass.
+Within the certified topology, ACS proves:
 
-Economics now uses explicit `EconomicStateStore` and `SettlementProvider` boundaries. SQLite adapters preserve quotes, reservations, usage, settlements and receipts through restart, enforce idempotency and reconcile the crash window between provider confirmation and local projection commit.
+- signed/validated identity before Tenant or platform authority;
+- Tenant-scoped governance and isolation;
+- fail-closed production adapter selection;
+- restart-survivable operational state;
+- durable remote execution ownership, leases and fencing;
+- deterministic crash/retry/cancellation recovery;
+- structured logs, metrics, traces and external-process export;
+- dependency-aware readiness and operator diagnostics;
+- supported operational browser journeys;
+- explicit production governance/readiness, verified health and rollback.
 
-`ACS-ORG-002` and `ACS-ORG-007` are **PARTIALLY_RESOLVED**, not closed: live Vault/HA/service-identity proof, shared multi-instance storage and an external settlement service remain unproven. Operational and Production Readiness remain blocked.
+## Explicit non-guarantees
 
-## C01 outcome
+EPIC-15.5 does not certify live managed IdP/Vault availability or HA, provider-managed workload identity, networked multi-host authoritative stores, a global limiter, cross-host workers/Control Planes, multi-region recovery, a managed telemetry backend, a real cloud target, unlimited fleet scale, billing or SCIM.
 
-C01 replaced the active production header-trust path with an explicit `HttpIdentityValidator` boundary and a production-oriented OIDC/JWT implementation. The server validates RS256 signature, trusted JWKS key, issuer, audience, expiration/not-before and subject before constructing the principal. Unknown `kid` triggers a bounded JWKS refresh for key rotation.
+Development adapters remain available only through explicit development/test composition. Production does not silently fall back to mock identity, memory/filesystem secrets, process-local runtime, local worker, memory limiter, disabled telemetry or sandbox target.
 
-`platform_admin` now comes only from one explicitly configured signed claim/value. Actor, platform and Tenant headers are ignored by the OIDC adapter; Tenant membership and governance remain separate downstream decisions. Production composition rejects the development adapter and incomplete OIDC configuration. Real HTTP tests prove forged actor/platform headers, invalid tokens, cross-Tenant access and suspended/removed membership cannot bypass the boundary.
+## Document map
 
-`ACS-ORG-003` is **RESOLVED** for the active HTTP production composition. Identity is **PARTIAL**, not globally production-certified, because live IdP/JWKS deployment evidence and broader edge/service identity work remain open. Operational and Production Readiness remain blocked.
+1. [epic-15-5-closure-report.md](./epic-15-5-closure-report.md) — final certification decision.
+2. [operational-gap-inventory.md](./operational-gap-inventory.md) — all 24 terminal findings.
+3. [production-readiness-baseline.md](./production-readiness-baseline.md) — A01 baseline and final readiness by dimension.
+4. [architecture-gap-review.md](./architecture-gap-review.md) — final contract/adapter/proof classification.
+5. [ux-operational-audit.md](./ux-operational-audit.md) — final operator journey status.
+6. [browser-acceptance.md](./browser-acceptance.md) — H browser evidence.
+7. [regression-inventory.md](./regression-inventory.md) — full-system coverage.
+8. [EPIC-15.5_Strategic_Operational_Plan.md](./EPIC-15.5_Strategic_Operational_Plan.md) — milestone sequence and final outcome.
+9. [stories.md](./stories.md) — closed story/gate inventory.
+10. [milestones/README.md](./milestones/README.md) — A–H index and reports.
+11. [milestones/AEES-H-full-system-production-acceptance-closure.md](./milestones/AEES-H-full-system-production-acceptance-closure.md) — H01/H02/H03 evidence.
+12. [AGENTS.md](./AGENTS.md) — local execution rules.
 
-## C02 outcome
+## Closure rule for future work
 
-C02 replaced the server's caller-selected mock rate-limit path with a canonical fixed-window `RateLimiter`. `createAcsHttpServer` selects an atomic SQLite store; independent instances using the same database share counters, while the memory adapter remains DEV/test-only and is rejected by production composition. Network, principal and Tenant+principal buckets are derived server-side and persisted only as hashes.
-
-The HTTP edge now has explicit trusted-proxy resolution, production CORS allowlists, bounded JSON bodies, header/request/keep-alive controls, API security headers and consistent `413`, `429`, `Retry-After` and backend-outage semantics. C01 identity remains downstream of network protection and upstream of tenant authority/governance.
-
-`ACS-ORG-013` is **RESOLVED** for the active server boundary. `ACS-ORG-010` is **PARTIALLY_RESOLVED** because shared SQLite connections/instances are proven on one database, while a live multi-host/global rate-limit service and reverse-proxy topology remain unproven. Security/Edge is **PARTIAL** and Operational/Production Readiness remain blocked.
-
-## AEES-D outcome
-
-AEES-D connected Product API runtime intent to `SqliteDurableRuntimeState`, an authenticated HTTP worker-pull protocol and independent OpenClaw worker processes. Jobs, assignments, registrations, heartbeats, leases, fencing tokens, results, cancellation and recovery events are durable. Atomic claims and revision checks prevent simultaneous valid owners; a reassigned job advances its fencing token and rejects the stale worker.
-
-The process acceptance started two Control Planes and two workers over one shared SQLite database. It proved independent execution, worker crash/requeue/reassignment, stale-result rejection, duplicate-result idempotency, cancellation ordering, Control Plane restart, no-worker backpressure and competing recovery coordinators.
-
-`ACS-ORG-004` and `ACS-ORG-005` are **RESOLVED** for the active production runtime boundary. The runtime subset of `ACS-ORG-001` is resolved. `ACS-ORG-019` is **PARTIALLY_RESOLVED** because local multi-process/shared-database correctness is proven while multi-host topology remains unproven. Runtime is ready for the certified single-host remote topology; global Operational and Production Readiness remain blocked by E/F/G/H.
-
-## AEES-E outcome
-
-AEES-E added structured HTTP/runtime/worker logs, low-cardinality metrics, distributed trace propagation and a bounded OTLP HTTP/JSON exporter. Production composition rejects disabled/memory telemetry. An independent receiver process proved evidence survives outside the diagnosed Control Plane/worker processes, while exporter outage degrades diagnostics without corrupting authoritative state.
-
-`GET /api/v1/health` is now liveness, `GET /api/v1/ready` is aggregate dependency-aware readiness, and authorized operational/telemetry/job diagnostic routes expose stable reason codes and recommended actions without Tenant leakage. Worker crash, stale result, Vault/rate-limiter outages, no eligible worker, retry exhaustion, Control Plane restart and exporter outage/recovery were diagnosed without direct SQLite or filesystem-log inspection.
-
-`ACS-ORG-011` and `ACS-ORG-012` are **RESOLVED** for the active boundary. Observability is ready for the certified local multi-process topology; multi-host collector/storage, managed retention/alerts and complete operator UX remain caveats/deferred scope. Operational and Production Readiness remain blocked by B/F/G/H.
-
-## AEES-F outcome
-
-AEES-F connects the existing Product API, Tenant Administration, Agent composition, write-only secret references, readiness/deploy, durable runtime and E02 diagnostics into one supported operator journey. The main shell exposes Agents, Executions, Workers, System/Operations, secret references and Tenant Administration. The Tenant application remains a separate build but is securely federated through reciprocal navigation and one trusted bearer/session boundary; browser-controlled actor/platform selection was removed.
-
-The browser acceptance certified 14 real routes at four normative viewports: 56/56 route-viewports, 56 accessibility checks, zero horizontal overflow, zero page errors and zero console errors. Journeys A–G created/configured an Agent, wrote a secret reference without read-back, deployed to sandbox, executed through independent workers, observed crash/reassignment, diagnosed failure/capacity, administered a Tenant and proved coherent authorization denial. See [browser-acceptance.md](./browser-acceptance.md) and [milestones/AEES-F-end-to-end-operational-ux-certification.md](./milestones/AEES-F-end-to-end-operational-ux-certification.md).
-
-## AEES-G outcome
-
-AEES-G replaces the deliberate blanket sandbox-only deployment rule with a stronger production gate. Agent/deployment records are durable and revision-safe; the backend evaluates identity, edge, secrets, persistence, economics, remote runtime/recovery, worker capacity, external telemetry, target capability and explicit Tenant governance. A production-like single-host target proves health-gated live deployment, degradation and idempotent rollback. No global multi-host/cloud claim is made. See [milestones/AEES-G-production-deployment-readiness-governance-gate.md](./milestones/AEES-G-production-deployment-readiness-governance-gate.md).
-
-`ACS-ORG-014`, `015`, `016`, `017`, `022`, `023` and `024` are **RESOLVED** within the supported boundary. `ACS-ORG-018` and `021` are **PARTIALLY_RESOLVED** because infrastructure remediation/bootstrap remains external. Production deployment is still sandbox-gated; global Operational Readiness remains partial and Production Readiness remains blocked by G/H and residual shared-state/live-topology evidence.
-
-## Principles
-
-- **Evidence before claims.** Contracts and unit tests do not prove operational readiness.
-- **Durable truth before scale.** Authoritative state must survive restart and be shareable across replicas.
-- **Trusted identity before authority.** Tenant governance is only safe when the incoming principal is authenticated.
-- **Remote proof before distributed claims.** A worker interface or local worker is not remote dispatch.
-- **Recovery is part of operation.** Detection without a supported remediation path is incomplete.
-- **One readiness vocabulary.** Development, integration, operational and production readiness are distinct gates.
-- **No premature feature work.** A01 documents and sequences gaps; it does not replace adapters or remove safety gates.
-
-## Scope and non-goals
-
-A01 covers repository-wide discovery, state and adapter inventory, identity/edge review, runtime and deployment flow, economics, audit, observability, Control Plane journeys, recovery and test evidence.
-
-A01 does not implement OIDC, a durable database, managed secrets, a broker, remote workers, exporters, billing, metering, production deployment, or new UX. Billing, SCIM, generic IAM, arbitrary policy languages and a generic observability platform remain outside the baseline unless a future milestone proves they are required for an approved operational journey.
-
-## Document map and reading order
-
-1. [production-readiness-baseline.md](./production-readiness-baseline.md) — current readiness by dimension, state and adapter inventories.
-2. [operational-gap-inventory.md](./operational-gap-inventory.md) — canonical findings and evidence.
-3. [architecture-gap-review.md](./architecture-gap-review.md) — contract versus implementation versus production proof.
-4. [ux-operational-audit.md](./ux-operational-audit.md) — supported, partial and blocked operator journeys.
-5. [EPIC-15.5_Strategic_Operational_Plan.md](./EPIC-15.5_Strategic_Operational_Plan.md) — sequencing, gates and definition of done.
-6. [stories.md](./stories.md) — implementation-ready stories.
-7. [milestones/README.md](./milestones/README.md) — milestone consumption order and exit evidence.
-8. [milestones/B01-durable-control-plane-state-http-contract.md](./milestones/B01-durable-control-plane-state-http-contract.md) — implemented persistence and HTTP compatibility evidence.
-9. [milestones/B02-production-secrets-economic-adapters.md](./milestones/B02-production-secrets-economic-adapters.md) — secrets/economics adapters, restart and reconciliation evidence.
-10. [milestones/C01-trusted-http-identity-authorization-boundary.md](./milestones/C01-trusted-http-identity-authorization-boundary.md) — OIDC validation, trusted principal propagation and forged-header evidence.
-11. [milestones/C02-distributed-rate-limiting-http-edge-hardening.md](./milestones/C02-distributed-rate-limiting-http-edge-hardening.md) — limiter, proxy, CORS, request-bound and edge-readiness evidence.
-12. [milestones/AEES-D-distributed-runtime-recovery-certification.md](./milestones/AEES-D-distributed-runtime-recovery-certification.md) — D01 durable ownership, D02 remote dispatch and D03 process/failure evidence.
-13. [milestones/AEES-E-observability-operational-diagnostics-certification.md](./milestones/AEES-E-observability-operational-diagnostics-certification.md) — E01 telemetry/export, E02 dependency diagnostics and E03 incident evidence.
-14. [milestones/AEES-F-end-to-end-operational-ux-certification.md](./milestones/AEES-F-end-to-end-operational-ux-certification.md) — F01 navigation/composition, F02 remediation UX and F03 browser evidence.
-15. [browser-acceptance.md](./browser-acceptance.md) — route, viewport, journey and mutation certification.
-16. [regression-inventory.md](./regression-inventory.md) — current backend/frontend/browser coverage.
-17. [AGENTS.md](./AGENTS.md) — local execution rules.
-
-## Milestone map
-
-| Milestone | Outcome |
-| --- | --- |
-| A | Verified system-wide baseline and executable backlog |
-| B | **IN PROGRESS:** single-node durable administration, Vault boundary and durable economics delivered; remaining operational state/shared topology open |
-| C | **PASS WITH CAVEATS:** trusted HTTP identity and hardened edge delivered; live IdP/proxy/multi-host limiter acceptance remains |
-| D | **PASS WITH TOPOLOGY CAVEATS:** durable jobs, authenticated remote dispatch and crash/restart recovery delivered; multi-host proof remains H |
-| E | **PASS WITH TOPOLOGY CAVEATS:** external-process telemetry, distributed correlation and dependency-aware diagnostics delivered; multi-host/managed backend proof remains H |
-| F | **PASS WITH TOPOLOGY/ENVIRONMENT CAVEATS:** supported sandbox operator journeys and remediation UX browser-certified |
-| G | Certified production deployment gate and target path |
-| H | Restart, multi-replica, security, browser and recovery certification |
-
-## EPIC exit criteria
-
-EPIC-15.5 can close only when the operational journey is supported without code edits, direct storage manipulation, forged identity, process-local authoritative truth, restart as remediation or hidden backend-only steps. Production readiness additionally requires trusted identity, durable shared state, managed secrets, remote execution proof, external diagnostics, safe deployment/recovery and reproducible acceptance evidence.
-
-## Baseline relationship
-
-EPIC-15.5 does not reopen the stabilized domain and UX decisions of EPIC-10, EPIC-11, EPIC-12, EPIC-14 or EPIC-15. It distinguishes their valid contract/surface acceptance from production operation. EPIC-15 tenant isolation and governance remain invariants; EPIC-14 browser acceptance remains valid for the certified UI build; neither substitutes for durable state, trusted identity or distributed runtime proof.
+Any expansion beyond `PRODUCTION_LIKE_SINGLE_HOST` must be treated as a new certification target. The seven deferred provider/topology findings cannot be described as resolved without live evidence for the expanded topology.

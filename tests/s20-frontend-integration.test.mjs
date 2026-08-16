@@ -8,7 +8,7 @@ import { AuditService } from "../dist/control-plane/audit-service.js";
 import { ExecutionPlanResolver } from "../dist/control-plane/execution-plan-resolver.js";
 import { ExecutionTargetService } from "../dist/targets/execution-target-service.js";
 import { EngineRegistry } from "../dist/engines/engine-registry.js";
-import { EngineSandboxOnlyError } from "../dist/engines/engine-errors.js";
+import { PolicyRejectedError } from "../dist/errors.js";
 import { ModelProviderRegistry } from "../dist/intelligence/model-provider-registry.js";
 import { CredentialConnectionRegistry } from "../dist/intelligence/credential-registry.js";
 import { AgentRunnerRegistry } from "../dist/intelligence/agent-runner-registry.js";
@@ -126,7 +126,7 @@ test("ProductApiClient queries agents, targets, providers, runners, and audit ev
   assert.equal(events[0].eventType, "agent.created");
 });
 
-test("ProductApiClient deploys governed agent to sandbox mode and rejects live mode", async () => {
+test("ProductApiClient deploys governed agent to sandbox mode and rejects live mode without production governance", async () => {
   const engine = createMockEngine();
   const engineRegistry = new EngineRegistry();
   engineRegistry.register(engine);
@@ -181,7 +181,8 @@ test("ProductApiClient deploys governed agent to sandbox mode and rejects live m
         targetId: "local-wsl",
       });
     },
-    (err) => err instanceof EngineSandboxOnlyError
+    (err) => err instanceof PolicyRejectedError
+      && err.message === "Production deployment requires an explicit deployment.production allow rule."
   );
 });
 
@@ -212,6 +213,6 @@ test("ProductApiClient starts and stops runtime instances", async () => {
         targetId: "local-wsl",
       });
     },
-    (err) => err instanceof EngineSandboxOnlyError
+    { message: "live runtime requires an active, health-verified production deployment" }
   );
 });

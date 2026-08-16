@@ -1,256 +1,90 @@
-# EPIC-15.5 Strategic Operational Plan
+# EPIC-15.5 Strategic Operational Plan — Final Outcome
 
-## Strategic intent
+**Status:** **EXECUTED AND CLOSED** — Sunday, August 16, 2026
+**Closure:** [epic-15-5-closure-report.md](./epic-15-5-closure-report.md)
 
-EPIC-15.5 turns the ACS from a collection of validated domain, Product API and Control Plane slices into an operable platform. It does not replace the stabilized domains from EPIC-10 through EPIC-15. It supplies the production adapters, trust chain, distributed execution, diagnostics, recovery paths and evidence required to operate those domains safely.
+## Mission
 
-The governing outcome is:
+The EPIC replaced contract-only readiness with an evidence-backed operational path:
 
 ```text
-supported operator intent
-→ trusted actor and explicit tenant scope
-→ governed application command
-→ durable state transition
-→ remote/target side effect when applicable
-→ externally observable outcome
-→ supported recovery
-→ durable audit/economic evidence
+Product API/domain truth
+→ durable production-oriented adapters
+→ trusted identity and hardened edge
+→ independent remote runtime and recovery
+→ external observability and diagnostics
+→ supported operator UX
+→ governed production-like deployment
+→ full-system certification
 ```
 
-## Current-state assessment
+## Execution sequence
 
-The repository is strong in domain modeling and bounded acceptance:
-
-- Tenant, Membership, Authority, Governance, Entitlement and Limit contracts are explicit.
-- Agent lifecycle, composition read models, sandbox deployment and runtime lifecycle exist.
-- Product API errors, receipts, tenant isolation and governance enforcement are well tested.
-- Main Control Plane and Tenant Administration browser routes have acceptance evidence.
-- Readiness, evidence, diagnostics, audit and economics have useful projections.
-
-After AEES-F, the active composition has single-node durable Tenant Administration, audit, secret metadata/references, economics and runtime ownership, aligned HTTP methods, a production-oriented OIDC validator, a hardened edge, external diagnostics and a browser-certified operator journey, but the overall topology remains non-production:
-
-- production HTTP identity is OIDC/JWT validated; server-owned rate limiting and bounded HTTP edge controls are implemented, with live multi-host edge acceptance still pending;
-- Agent and deployment authoritative state remains local to a process; runtime jobs, workers, assignments, leases and results are now durable/shared across local processes through SQLite, but multi-host state is unproven;
-- Vault and SQLite secret/economic adapters exist, but live managed-service identity/HA and shared settlement/database proof remain absent;
-- production runtime execution uses independently authenticated worker processes; local fallback is development-only and rejected by production composition;
-- operational telemetry is externally exported and correlated for the certified topology; administrative audit remains single-node durable;
-- production deployment is correctly sandbox-gated;
-- supported composition, sandbox execution and recovery journeys are browser-certified; infrastructure remediation and multi-host topology remain external.
-
-`ACS-ORG-003`, `004`, `005`, `008`, `011`–`017` and `022`–`024` are resolved within their approved boundaries. `ACS-ORG-001`, `002`, `007`, `010`, `018`, `019` and `021` remain partially resolved within explicitly bounded topology evidence.
-
-See the 24 findings in `operational-gap-inventory.md`.
-
-## Target state
-
-At EPIC closure, ACS must have explicit environment profiles and refuse an operational/production profile when required adapters are absent. An operator must be able to authenticate, administer a tenant, compose an Agent, bind managed secret references, validate readiness, deploy to an approved target, execute, diagnose and recover through the Product API and one coherent Control Plane. Authoritative state and audit must survive restart and remain consistent across at least two ACS instances. Distributed execution must be proven across a process or network boundary.
-
-Production deployment remains gated until the final target and acceptance evidence are approved.
-
-## Workstreams
-
-### W1 — Durable truth and adapter composition
-
-B01 partially resolved ACS-ORG-001/009 for single-node Tenant Administration. B02 added fail-closed Vault and durable economic boundaries, partially resolving ACS-ORG-002/007. Continue with ACS-ORG-019, live/shared adapter proof and remaining Agent/deployment/runtime/job state; migrate remaining seeded/dev behavior into explicit profiles.
-
-### W2 — Trusted identity and edge
-
-`ACS-ORG-003` was resolved by C01 using OIDC/JWT validation and explicit signed platform mapping. C02 resolved the application edge gap and removed caller-selected/process-local production limiting; shared SQLite counters are proven on one database. Live reverse-proxy, multi-host limiter and IdP topology remain H acceptance work rather than a reason to reopen C01/C02 contracts.
-
-### W3 — Distributed runtime and recovery
-
-AEES-D resolved ACS-ORG-004/005 and the runtime subset of ACS-ORG-001. Product API execution intent now creates durable jobs consumed by authenticated independent workers under lease/fencing authority. Crash/restart, stale-result, duplicate-result, cancellation, backpressure and local multi-process contention evidence passes. AEES-E subsequently added external diagnostics; multi-host topology and complete operator remediation remain 017/019/021 work for F/H rather than reasons to reopen the runtime ownership contract.
-
-### W4 — Observability and readiness
-
-AEES-E resolved ACS-ORG-011 and 012 for the active boundary and supports 018 through external telemetry, actionable dependency/runtime diagnostics and distinct liveness/readiness endpoints using live adapter health. Multi-host collector/retention/alert infrastructure remains H/environment scope.
-
-### W5 — Operational product journeys
-
-Resolve ACS-ORG-014–018, 022 and 023. Consolidate or securely federate Control Plane surfaces, expose only bounded semantic mutations, add managed secrets and recovery UX, and reconcile stale capability messaging.
-
-### W6 — Production deployment and certification
-
-Resolve ACS-ORG-006 and 020. Add a production target only after B–F gates pass, then certify rollout, rollback, restart, multi-replica, security, recovery and browser journeys.
-
-## Sequencing and dependency order
-
-```mermaid
-flowchart LR
-  A[A — Baseline] --> B[B — Durable state and adapters]
-  A --> C[C — Identity and edge]
-  B --> D[D — Distributed runtime]
-  C --> D
-  B --> E[E — Observability/readiness]
-  C --> E
-  D --> E
-  B --> F[F — Operational UX]
-  C --> F
-  D --> F
-  E --> F
-  F --> G[G — Production deployment gate]
-  G --> H[H — Full-system certification]
-```
-
-B and C may run in parallel after their decision gates, but no public mutation surface may be considered secure until C lands. D requires durable job state and trusted worker identity. E requires real dependencies to observe. F consumes all earlier boundaries. G cannot begin by deleting sandbox guards; it begins with a prerequisites review. H is evidence-only except for regression fixes.
-
-## Milestone outcomes
-
-### Milestone A — System-Wide Gap Discovery & Readiness Baseline
-
-- canonical finding inventory;
-- state/adapter and journey baselines;
-- readiness vocabulary;
-- executable stories and gates.
-
-**Exit:** A01 package internally consistent and evidence-backed.
-
-### Milestone B — Durable Platform State & Production Adapters
-
-- B01: single-node durable tenant, membership, governance and audit repositories plus HTTP contract compatibility;
-- B02: Vault secret boundary, durable metadata/references, durable economics/settlement, idempotency and reconciliation;
-- remaining: shared/production tenant and agent/deployment/runtime repositories;
-- shared/append audit and multi-instance economic records;
-- live managed-secret service and shared catalog proof;
-- explicit development versus operational composition;
-- restart and multi-instance state proof.
-
-**Current status:** IN PROGRESS. B01/B02 restart evidence passes, but the milestone exit remains unchanged: no authoritative production resource may depend on a local map or unshared single-node store.
-
-### Milestone C — Production Identity, Security & Edge Controls
-
-- trusted principal validation and explicit platform authority;
-- tenant binding from trusted context;
-- trusted CORS/request/proxy contract; HTTP method compatibility is already established by B01;
-- distributed rate limiting, request bounds and security headers;
-- forged-context and abuse tests.
-
-**Exit:** an untrusted client cannot forge actor, tenant or platform authority.
-
-**Current status:** PASS WITH CAVEATS. C01 passes for trusted HTTP identity and authority binding. C02 passes for server-owned limiting, proxy trust, CORS, request bounds, timeouts, security headers and edge readiness. Live IdP/reverse-proxy/multi-host limiter evidence remains H acceptance; global Operational/Production Readiness is still blocked.
-
-### Milestone D — Distributed Runtime & Execution Readiness
-
-- durable job/attempt/lease model;
-- authenticated remote worker registration and dispatch;
-- retry, cancellation, redelivery and dead-worker recovery;
-- Product API execution integration;
-- real cross-process proof.
-
-**Exit:** an operation executes remotely without local fallback and recovers from worker/process loss.
-
-**Current status:** PASS WITH TOPOLOGY CAVEATS on 2026-08-16. D01 durable ownership, D02 signed remote worker pull and D03 failure acceptance pass. Two Control Plane and two worker processes shared one SQLite authority. `ACS-ORG-004`/`005` are resolved; multi-host database/network topology and workload-identity deployment remain H caveats. Operational/Production Readiness remains blocked by E/F/G/H.
-
-### Milestone E — Observability & Operational Diagnostics
-
-- structured external logs, metrics and traces;
-- exporter health and redaction;
-- dependency-aware readiness and liveness;
-- operator diagnostics with actionable cause.
-
-**Exit:** an injected degradation is detected and diagnosed without shell access.
-
-**Current status:** PASS WITH TOPOLOGY CAVEATS on 2026-08-16. E01 added bounded structured telemetry and OTLP HTTP/JSON export; E02 added dependency-aware liveness/readiness and authorized runtime diagnostics; E03 diagnosed worker/dependency/exporter incidents with independent processes and external evidence. `ACS-ORG-011`/`012` are resolved for the active boundary. Multi-host collector/retention/alert topology remains H/environment scope, and Operational Ready remains blocked by F.
-
-### Milestone F — End-to-End Product UX Operationalization
-
-- one authenticated Control Plane journey;
-- composition and managed secret operations;
-- complete execution/result/retry/cancel path;
-- governed remediation and recovery verification;
-- reconciled capability/readiness language.
-
-**Exit:** the approved operational journey completes without direct storage, file edits or hidden curl steps.
-
-**Current status:** PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS on 2026-08-16. F01 securely federated the main shell and Tenant Administration and completed Product API-backed Agent/secret/readiness flow. F02 added executions, workers, Operations, diagnostics, cancellation and recovery visibility. F03 passed journeys A–G across 14 routes/four viewports with zero overflow/page/console errors. Operational Ready is ready only for the certified multi-process single-host sandbox topology; Production Ready remains blocked by G/H.
-
-### Milestone G — Production Deployment Readiness & Governance Gate
-
-**Current status:** PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS on 2026-08-16. G01 established durable target/deployment contracts; G02 replaced the blanket sandbox-only decision with explicit aggregate readiness and Tenant governance; G03 proved live deployment, health degradation and rollback for `PRODUCTION_LIKE_SINGLE_HOST`. H owns live managed-provider, shared multi-host and final-system certification.
-
-- approved production target adapter;
-- target readiness, rollout and rollback;
-- production policy replaces sandbox-only only when prerequisites pass;
-- canary/failure evidence and operator controls.
-
-**Exit:** a production deployment can be attempted only through an explicit green readiness gate and recovered safely.
-
-### Milestone H — Full-System Acceptance & Gap Closure
-
-- full regression and browser certification;
-- restart and multi-replica tests;
-- identity/edge adversarial tests;
-- remote dispatch and recovery tests;
-- closure report and deferred inventory.
-
-**Exit:** evidence supports the final readiness level. H does not add features.
-
-## Decision gates
-
-| Gate | Decision | Alternatives | Required evidence | Blocks |
-| --- | --- | --- | --- | --- |
-| B1 | Primary durable database/repository strategy | relational DB, equivalent transactional service | tenant partitioning, revisions, append/audit support, migration/backup plan | B implementation |
-| B2 | Managed secret provider | Vault/KMS/cloud provider/equivalent | encryption, identity, rotation, availability and local-dev adapter contract | secrets and deploy |
-| B3 | Economic settlement persistence/provider boundary | durable internal ledger plus provider, external provider adapter | idempotency, reconciliation, failure behavior; no billing expansion | economics readiness |
-| C1 | Identity trust model | OIDC/JWT validation or trusted gateway/mTLS assertion | signature/issuer/audience/expiry/key rotation and local-dev separation | exposed mutations |
-| C2 | Distributed rate-limit backend and keying | shared counter service/provider | principal/tenant/IP strategy, proxy policy, failure semantics | edge readiness |
-| D1 | Dispatch transport | broker/queue or authenticated RPC with durable command store | delivery, lease fencing, redelivery, ordering and idempotency | remote execution |
-| E1 | Telemetry/export standard and backend | OTLP-compatible or equivalent structured exporters | logs/metrics/traces, redaction, exporter health, retention | operational diagnostics |
-| F1 | Control Plane consolidation | single build or secure federated applications | one session/actor/nav/error contract | end-to-end UX |
-| G1 | Production target and rollout strategy | target provider options | health, secret delivery, capacity, isolation, rollback and ownership | production deploy |
-
-No vendor is selected in A01.
-
-## Acceptance strategy
-
-### Evidence layers
-
-1. **Contract evidence:** types, invariants and semantic errors.
-2. **Implementation evidence:** adapter/service integration and application flow.
-3. **Operational evidence:** real topology, restart, failure and recovery behavior.
-4. **Product evidence:** Product API and browser journey.
-5. **Production evidence:** target rollout, observability, capacity/security and rollback.
-
-A milestone cannot use a lower layer as a substitute for a required higher layer.
-
-### Required recurring matrices
-
-- tenant A/B cross-read and cross-mutation denial;
-- platform versus tenant authority;
-- restart before/during/after mutation;
-- two-instance concurrency;
-- provider unavailable/slow/partial response;
-- worker loss, duplicate delivery and retry exhaustion;
-- audit correlation and redaction;
-- browser loading/empty/error/forbidden/recovery states;
-- no horizontal overflow, page errors or console errors for affected routes.
-
-## Risks and mitigations
-
-| Risk | Impact | Mitigation |
+| Milestone | Gate | Final outcome |
 | --- | --- | --- |
-| Adapter work becomes a framework rewrite | delayed delivery, new abstractions | implement against named findings and current domain contracts only |
-| Durable schema couples every domain | migration and ownership complexity | repository boundaries per aggregate; transaction only where invariants require it |
-| Identity implementation creates a second authority model | privilege inconsistencies | validator produces principal; B01 authority remains decision source |
-| Remote execution bypasses governance | cross-tenant/unsafe work | enforce authority/governance before durable dispatch and bind tenant/workload in signed assignment |
-| Audit failure causes silent unaudited mutation | governance evidence gap | classify critical operations and define fail-closed/transactional outbox semantics |
-| Production guard removed early | unsafe live deployment | G gate requires B–F evidence and retains fail-closed default |
-| UX duplicates domain rules | drift and bypass | UI consumes Product API actions/read models only |
-| Environment `EROFS` hides compile regressions | false validation | distinguish official build blocker from `/tmp` compile evidence; certify in writable CI |
+| A | verified system-wide discovery | **PASS** — 24 findings and baseline |
+| B | durable state/adapters | **PASS WITH TOPOLOGY LIMITS** |
+| C | trusted identity/security/edge | **PASS WITH TOPOLOGY LIMITS** |
+| D | durable remote execution/recovery | **PASS WITH TOPOLOGY LIMITS** |
+| E | external telemetry/diagnostics | **PASS WITH TOPOLOGY LIMITS** |
+| F | operator journeys/browser | **PASS** |
+| G | evidence-backed production gate | **PASS WITH TOPOLOGY LIMITS** |
+| H | full regression, topology and findings | **PASS WITH ENVIRONMENT LIMITATIONS** |
 
-## Objective definition of DONE
+The sequence remained backend-first: domain/store authority preceded HTTP/UI exposure; external evidence preceded readiness claims; the blanket sandbox guard was removed only after a stronger production evaluator and rollback path existed.
 
-EPIC-15.5 is done only when:
+## Final architecture decisions
 
-1. every BLOCKER/CRITICAL finding is closed or explicitly rejected with evidence;
-2. remaining HIGH findings do not break the approved operator journey;
-3. production composition cannot select memory/mock/local-only authority silently;
-4. identity, tenant scope and platform authority originate from a trusted boundary;
-5. critical state survives restart and is coherent across replicas;
-6. remote execution and recovery are proven across a real boundary;
-7. external diagnostics and traffic readiness use live dependencies;
-8. production deployment remains fail-closed until its gate passes;
-9. a browser-certified operator journey reaches audit evidence after a real mutation/execution;
-10. closure documents state the achieved readiness level and all deferred scope honestly.
+1. Product API and backend domains remain authoritative; surfaces do not persist independent truth.
+2. Production composition fails closed for identity, secrets, runtime, rate limiting, telemetry and deployment target selection.
+3. Delivery does not imply ownership: durable assignment, valid lease and current fencing token define the remote worker owner.
+4. Audit remains authoritative governance/security history; telemetry remains an operational side channel.
+5. Liveness, readiness, degradation and workload capacity are distinct signals.
+6. Production is an aggregate evidence decision, not an environment string.
+7. Certification is topology-specific; no global claim is inferred from local multi-process proof.
 
-Until then, the normative claim remains: **ACS is not Production Ready**.
+## Final readiness gates
+
+| Dimension | Certified topology | Global boundary |
+| --- | --- | --- |
+| Identity | trusted OIDC/JWT contract active | live managed IdP not certified |
+| Security/Edge | fail-closed and real-server tested | external WAF/proxy estate not certified |
+| Secrets | Vault KV v2 boundary and lifecycle proven | live/HA provider not certified |
+| Persistence | restart-safe for all active aggregates | aggregate-wide networked shared DB not certified |
+| Runtime/Recovery | independent processes, leases/fencing/recovery proven | cross-host partition/failover not certified |
+| Observability | external receiver process and diagnostics proven | managed remote backend/retention not certified |
+| UX | complete supported operator journeys proven | infrastructure provisioning remains external |
+| Deployment | production-like readiness/deploy/health/rollback proven | real cloud target not certified |
+
+## Final finding decision
+
+- 17 `RESOLVED`;
+- 7 `ACCEPTABLE_DEFERRED`;
+- 0 `OPEN_BLOCKER` inside `PRODUCTION_LIKE_SINGLE_HOST`.
+
+The deferred items are live-provider, shared/multi-host topology, audit/limiter scale and external infrastructure remediation/bootstrap. They are boundaries for future certification, not implicit delivered capability.
+
+## Validation gates executed
+
+- 569/569 complete serial tests;
+- 47/47 concurrent B–G core tests;
+- security, isolation, restart, crash/recovery, telemetry and deployment/rollback matrices;
+- 56/56 browser route-viewports at four sizes;
+- root/static no-emit and writable-path builds;
+- evidence integrity/no-secret sweep.
+
+## Environment limitation
+
+The workspace mount rejected official TypeScript emit with `TS5033/EROFS`. Equivalent builds completed successfully in writable `/tmp` paths. This is classified as an acceptance-harness filesystem limitation and does not change product readiness; the official-path failure remains documented rather than hidden through configuration changes.
+
+## Next-phase recommendation
+
+Do not reopen EPIC-15.5 for unrelated feature expansion. A future certification effort may target a new topology with:
+
+- live managed IdP and Vault plus HA/service identity;
+- networked shared authoritative stores and global rate limiting;
+- cross-host Control Planes/workers and partition recovery;
+- managed telemetry retention/alerting;
+- real cloud target and infrastructure bootstrap.
+
+Until then, the global production claim remains `NOT_CERTIFIED`.

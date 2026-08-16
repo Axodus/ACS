@@ -147,7 +147,7 @@ test("unsupported economic mutations never simulate success and carry not_billin
   }
 });
 
-test("sandbox blockers are normalized with reason blocked_by_sandbox", async () => {
+test("production governance blockers are normalized with reason blocked_by_governance", async () => {
   const context = createControlPlaneContext();
   try {
     const request = jsonBodyRequest({
@@ -164,10 +164,10 @@ test("sandbox blockers are normalized with reason blocked_by_sandbox", async () 
     );
     assert.equal(result.status, 403);
     assert.equal(result.body.success, false);
-    assert.equal(result.body.error.code, "forbidden");
-    assert.equal(result.body.error.reason, "blocked_by_sandbox");
+    assert.equal(result.body.error.code, "policy_rejected");
+    assert.equal(result.body.error.reason, "blocked_by_governance");
     assert.equal(result.body.error.retryable, false);
-    assert.ok(result.body.error.guardrails.includes("sandbox_only"));
+    assert.ok(result.body.error.guardrails.includes("tenant_governance_enforcement"));
   } finally {
     await context.close();
   }

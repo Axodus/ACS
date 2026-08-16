@@ -1,5 +1,7 @@
 # AEES-G — Production Deployment Readiness & Governance Gate
 
+> Historical milestone snapshot. Partial/readiness labels below describe AEES-G at execution time; current terminal finding status is authoritative in `../operational-gap-inventory.md` and the H closure report.
+
 **Date:** 2026-08-16
 
 **Result:** PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS

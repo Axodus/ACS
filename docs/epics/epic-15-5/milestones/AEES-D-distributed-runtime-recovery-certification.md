@@ -1,5 +1,7 @@
 # AEES-D — Distributed Runtime & Recovery Certification
 
+> Historical milestone snapshot. Partial/readiness labels below describe AEES-D at execution time; current terminal finding status is authoritative in `../operational-gap-inventory.md` and the H closure report.
+
 **Date:** 2026-08-16
 **Status:** **PASS WITH TOPOLOGY CAVEATS**
 **Blocks:** D01 → D02 → D03
