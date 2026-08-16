@@ -9,8 +9,8 @@ This index is the normative consumption order for implementation. A milestone ma
 | C — Production Identity, Security & Edge Controls | **PASS WITH CAVEATS — C01/C02 PASS** | resolved 003/013; partial 010 | C1/C2 application decisions closed | trusted identity and hardened edge complete; live topology acceptance remains |
 | D — Distributed Runtime & Execution Readiness | **PASS WITH TOPOLOGY CAVEATS — AEES-D PASS** | resolved 004/005; partial 001/017/019/020 | B state + C identity + D1 | durable ownership, authenticated remote dispatch and crash/restart recovery proven across processes |
 | E — Observability & Operational Diagnostics | **PASS WITH TOPOLOGY CAVEATS — AEES-E PASS** | resolved 011/012; partial 019/020 | durable correlation + D runtime + E1 | external-process OTLP telemetry, actionable diagnostics and dependency-aware readiness proven |
-| F — End-to-End Product UX Operationalization | PLANNED | 014–018, 021–024 | B–E supported contracts | authenticated operator journey and browser evidence |
-| G — Production Deployment Readiness & Governance Gate | BLOCKED BY B–F | 006 | all B–F exits + G1 | production target, rollout/rollback and fail-closed gate |
+| F — End-to-End Product UX Operationalization | **PASS WITH TOPOLOGY/ENVIRONMENT CAVEATS — AEES-F PASS** | resolved 014–017/022–024; partial 018/021 | B–E supported contracts | authenticated operator journey and browser evidence |
+| G — Production Deployment Readiness & Governance Gate | BLOCKED BY B RESIDUALS/F CAVEATS | 006 | all B–F exits + G1 | production target, rollout/rollback and fail-closed gate |
 | H — Full-System Acceptance & Gap Closure | BLOCKED BY G | 020 and residuals | G exit | full regression, security, restart, replica, browser and closure report |
 
 ## Milestone A — PASS
@@ -71,12 +71,14 @@ AEES-E delivered bounded structured logs, low-cardinality metrics, distributed C
 
 Recommended sprint order:
 
-1. **F01 — Canonical Authenticated Control Plane**
-2. **F02 — Governed Composition & Secret References**
-3. **F03 — Execution & Recovery UX**
-4. **F04 — Readiness Truth & Source Hygiene**
+1. **F01 — Unified Operational Navigation & Journey Closure — PASS**
+2. **F02 — Runtime, Recovery & Remediation UX — PASS WITH EXTERNAL-REMEDIATION CAVEAT**
+3. **F03 — End-to-End Browser Operational Acceptance — PASS**
+4. **F04 — Readiness Truth & Source Hygiene — PASS**
 
-Reuse EPIC-14 navigation, accessibility, responsive and browser acceptance patterns. Do not redesign the product or duplicate domain rules in the UI.
+AEES-F securely federated the main shell and Tenant Administration, added Product API-backed Agent/model/composition and write-only secret flows, and exposed durable Executions, Workers, Operations, diagnostics and cancellation. Browser acceptance passed journeys A–G over 14 routes and four viewports: 56/56 route checks, 56 accessibility checks, zero overflow, zero page errors and zero console errors.
+
+`ACS-ORG-014`–`017` and `022`–`024` are resolved within the supported boundary. `ACS-ORG-018`/`021` remain partial because worker/provider/infrastructure remediation is external. See [AEES-F-end-to-end-operational-ux-certification.md](./AEES-F-end-to-end-operational-ux-certification.md). Operational Ready is ready only for the certified multi-process single-host sandbox topology; Production Ready remains blocked.
 
 ## Milestone G — Production Deployment Readiness & Governance Gate
 

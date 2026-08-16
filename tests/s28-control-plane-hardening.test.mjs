@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
 import test from "node:test";
-import { createAcsHttpHandler, routeProductApiRequest } from "../dist/index.js";
-import { createControlPlaneContext } from "../dist/http/control-plane-context.js";
-import { fail } from "../dist/http/responses.js";
+import { pathToFileURL } from "node:url";
+
+const distRoot = resolve(process.env.ACS_TEST_DIST_ROOT ?? "dist");
+const { createAcsHttpHandler, routeProductApiRequest } = await import(new URL("index.js", pathToFileURL(`${distRoot}/`)).href);
+const { createControlPlaneContext } = await import(new URL("http/control-plane-context.js", pathToFileURL(`${distRoot}/`)).href);
+const { fail } = await import(new URL("http/responses.js", pathToFileURL(`${distRoot}/`)).href);
 
 // EPIC-11 Milestone F — Control Plane Hardening & Acceptance.
 //
@@ -260,9 +264,11 @@ test("system guardrails projection exposes the administration/tenants boundary",
     assert.equal(result.status, 200);
     assert.equal(result.body.data.productionReady, false);
     assert.equal(result.body.data.readOnly, true);
-    assert.equal(result.body.data.administration.status, "unavailable");
-    assert.equal(result.body.data.administration.scope, "future");
-    assert.equal(result.body.data.tenants.status, "future_scope");
+    assert.equal(result.body.data.administration.status, "available");
+    assert.equal(result.body.data.administration.scope, "tenant_administration");
+    assert.equal(result.body.data.administration.route, "/admin/tenants");
+    assert.equal(result.body.data.tenants.status, "available");
+    assert.equal(result.body.data.tenants.route, "/admin/tenants");
     assert.ok(result.body.data.futureScope.length > 0);
   } finally {
     await context.close();
@@ -287,10 +293,12 @@ test("system configuration and policies are read-only visibility projections", a
     assert.ok(availabilities.has("unavailable"));
 
     const administration = await get(context, "/api/v1/system/administration");
-    assert.equal(administration.body.data.status, "unavailable");
+    assert.equal(administration.body.data.status, "available");
+    assert.equal(administration.body.data.route, "/admin/tenants");
 
     const tenants = await get(context, "/api/v1/system/tenants");
-    assert.equal(tenants.body.data.status, "future_scope");
+    assert.equal(tenants.body.data.status, "available");
+    assert.equal(tenants.body.data.route, "/admin/tenants");
     assert.ok(Array.isArray(tenants.body.data.isolationVisibility));
   } finally {
     await context.close();

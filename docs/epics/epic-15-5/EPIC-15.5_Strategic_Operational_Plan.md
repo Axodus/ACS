@@ -27,17 +27,17 @@ The repository is strong in domain modeling and bounded acceptance:
 - Main Control Plane and Tenant Administration browser routes have acceptance evidence.
 - Readiness, evidence, diagnostics, audit and economics have useful projections.
 
-After AEES-D, the active composition has single-node durable Tenant Administration, audit, secret metadata/references, economics and runtime ownership, aligned HTTP methods, a production-oriented OIDC validator and a hardened edge, but the overall topology remains non-production:
+After AEES-F, the active composition has single-node durable Tenant Administration, audit, secret metadata/references, economics and runtime ownership, aligned HTTP methods, a production-oriented OIDC validator, a hardened edge, external diagnostics and a browser-certified operator journey, but the overall topology remains non-production:
 
 - production HTTP identity is OIDC/JWT validated; server-owned rate limiting and bounded HTTP edge controls are implemented, with live multi-host edge acceptance still pending;
 - Agent and deployment authoritative state remains local to a process; runtime jobs, workers, assignments, leases and results are now durable/shared across local processes through SQLite, but multi-host state is unproven;
 - Vault and SQLite secret/economic adapters exist, but live managed-service identity/HA and shared settlement/database proof remain absent;
 - production runtime execution uses independently authenticated worker processes; local fallback is development-only and rejected by production composition;
-- audit and telemetry are not durable/shared/exported;
+- operational telemetry is externally exported and correlated for the certified topology; administrative audit remains single-node durable;
 - production deployment is correctly sandbox-gated;
-- important composition, execution and recovery journeys are incomplete.
+- supported composition, sandbox execution and recovery journeys are browser-certified; infrastructure remediation and multi-host topology remain external.
 
-`ACS-ORG-003`, `ACS-ORG-004`, `ACS-ORG-005` and `ACS-ORG-008` are resolved. `ACS-ORG-001`, `ACS-ORG-002`, `ACS-ORG-007`, `ACS-ORG-010` and `ACS-ORG-019` remain partially resolved within explicitly bounded topology evidence.
+`ACS-ORG-003`, `004`, `005`, `008`, `011`–`017` and `022`–`024` are resolved within their approved boundaries. `ACS-ORG-001`, `002`, `007`, `010`, `018`, `019` and `021` remain partially resolved within explicitly bounded topology evidence.
 
 See the 24 findings in `operational-gap-inventory.md`.
 
@@ -161,6 +161,8 @@ B and C may run in parallel after their decision gates, but no public mutation s
 - reconciled capability/readiness language.
 
 **Exit:** the approved operational journey completes without direct storage, file edits or hidden curl steps.
+
+**Current status:** PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS on 2026-08-16. F01 securely federated the main shell and Tenant Administration and completed Product API-backed Agent/secret/readiness flow. F02 added executions, workers, Operations, diagnostics, cancellation and recovery visibility. F03 passed journeys A–G across 14 routes/four viewports with zero overflow/page/console errors. Operational Ready is ready only for the certified multi-process single-host sandbox topology; Production Ready remains blocked by G/H.
 
 ### Milestone G — Production Deployment Readiness & Governance Gate
 

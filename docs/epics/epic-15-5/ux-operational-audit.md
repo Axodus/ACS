@@ -1,162 +1,135 @@
 # UX Operational Audit
 
+**Assessment date:** 2026-08-16
+**Current evidence:** AEES-F browser manifest at `/tmp/acs-epic15-5-aees-f-evidence/manifest.json`.
+
 ## Classification
 
 - **SUPPORTED:** real Product API path and operator surface exist for the bounded behavior.
-- **PARTIAL:** some steps work, but the journey lacks required action, truth or recovery.
-- **BACKEND_ONLY:** a domain/application capability exists without a supported operator surface.
-- **MOCK:** UI/API depends on synthetic identity, data or behavior.
-- **BLOCKED:** a safety/readiness prerequisite deliberately prevents the step.
-- **MISSING:** no supported capability was found.
+- **PARTIAL:** the supported path works, but a declared topology/provider/remediation boundary remains.
+- **BACKEND_ONLY:** an application capability exists without a supported operator surface.
+- **BLOCKED:** a deliberate safety/readiness gate prevents the step.
+- **DEFERRED:** not required for the supported AEES-F journey.
 
-Browser acceptance from EPIC-14 and EPIC-15 proves route rendering, responsiveness and accessibility within those scopes. This audit asks whether the same routes let an operator complete real work.
+## Current surface inventory
 
-## Surface inventory
-
-| Surface/resource | Read | Create/configure | Operate | Observe/audit | Recover | Current assessment |
-| --- | --- | --- | --- | --- | --- | --- |
-| Agents | Yes | Agent create/edit/revisions | Sandbox deploy action exists | readiness, revisions, evidence | archive/restore; no runtime recovery | PARTIAL |
-| Composition roles/profiles | Yes | Unsupported through semantic Product API mutations | N/A | compatibility/readiness | N/A | BACKEND_ONLY/PARTIAL |
-| Capabilities/skills/tools/plugins | Catalog reads | Assignment/install mutations unsupported | N/A | read projection | N/A | PARTIAL |
-| Providers/credentials | Reads and connection metadata | Secret provisioning not supported | Connection state only | readiness summaries | rotate/revoke/reconnect absent | PARTIAL |
-| Deployments | List/detail | Agent sandbox deploy | No staged/live, rollback or reconcile | status/evidence | no rollback/retry | PARTIAL/BLOCKED |
-| Runtimes | List/detail/jobs/events | Product API start/stop creates/cancels durable jobs | authenticated independent sandbox worker | durable status/result/recovery events | automatic lease/orphan recovery; operator retry UI absent | BACKEND_ONLY/PARTIAL |
-| Execution runs | List/detail | durable remote dispatch path exists | cancellation API; retry UI absent | durable result/evidence projection | automatic recovery, no operator remediation surface | PARTIAL |
-| Workers/targets | List/detail/readiness | remote registration/heartbeat exists; scheduling UI absent | authenticated worker pull | durable heartbeat/lease/recovery projection | automatic reassign; drain UI absent | BACKEND_ONLY/PARTIAL |
-| Readiness/diagnostics | Yes | No configuration | inspection only | blockers/evidence | recommended action text only | SUPPORTED read / PARTIAL operation |
-| Economics | quotes/reservations/usage/settlement reads | in-memory DEV flow | no real settlement control | receipts/audit projection | reconciliation operator flow absent | PARTIAL/MOCK |
-| Tenant administration | List/detail/lifecycle/members/governance/audit | Yes at route/domain layer | several POST mutations | real in-process audit | no durable recovery | PARTIAL/MOCK identity |
-| Governance/entitlements/limits | Read | Client uses PUT/DELETE | blocked at real HTTP handler | decision/read models | no recovery needed | BLOCKED by ACS-ORG-008 |
-| Secrets | reference-only inspection | no supported secure UI/API lifecycle | runtime resolution only from bootstrap | redaction/readiness | rotate/revoke absent | MISSING operator journey |
-| System settings/admin | read-only legacy boundary | unavailable/future | unavailable | caveats | none | BACKEND_ONLY/FUTURE |
+| Capability | API | Main Control Plane | Tenant Administration | Manual workaround | Status |
+| --- | --- | --- | --- | --- | --- |
+| Agent create/edit | semantic definition/revision mutations | form uses Product API catalogs | N/A | none | SUPPORTED |
+| Role/profile/model | authoritative catalogs + Agent definition | selectable in create/edit | N/A | none | SUPPORTED |
+| Capabilities/skills/tools | authoritative catalogs + Agent definition | selectable in create/edit | N/A | none | SUPPORTED for Agent assignment |
+| Secret references | create/rotate/revoke/describe | write-only Credentials surface | N/A | none | SUPPORTED |
+| Agent readiness | Agent readiness + deployment plan | Agent operations panel | N/A | none | SUPPORTED |
+| Sandbox deploy | governed Agent deploy | Agent operations panel | N/A | none | SUPPORTED |
+| Runtime execution | durable start/cancel/read/diagnostics | Agent Execute + Executions | N/A | none | SUPPORTED |
+| Jobs/results | list/detail/events/diagnostics | Executions list/detail | N/A | none | SUPPORTED |
+| Workers | list/detail/capabilities/heartbeat | Workers list/detail | N/A | none | SUPPORTED read |
+| Recovery | automatic lease/orphan recovery + events | timeline/diagnostics; cancellation | N/A | infrastructure action external | PARTIAL |
+| Operations/readiness | dependency-aware operational status | System/Operations | N/A | none for diagnosis | SUPPORTED |
+| Tenant administration | real lifecycle/membership/governance/entitlement/limit/audit | federated navigation | full administration app | none | SUPPORTED |
+| Audit | scoped Product API | linked/federated | Audit tab | none | SUPPORTED |
+| Production deploy/rollback | sandbox gate only | correctly blocked | N/A | not supported | BLOCKED until G |
 
 ## Journey A — Agent lifecycle
 
-| Step | Surface | Status | Gap / workaround currently required | Target UX | Findings |
-| --- | --- | --- | --- | --- | --- |
-| Create Agent | `/agents/new` → Product API | SUPPORTED for bounded agent input | Active state is process-local | keep semantic form, persist durably | 001 |
-| Configure identity/revision | Agent manage | SUPPORTED/PARTIAL | revisions work, but durable concurrency is absent | durable revision and conflict feedback | 001 |
-| Assign Role/Profile | composition detail | BACKEND_ONLY | read projections; mutation unsupported | governed selection with compatibility receipt | 015 |
-| Assign capabilities | composition detail | PARTIAL | effective capability read exists; supported assignment path incomplete | semantic capability mutation | 015 |
-| Configure tools/plugins | catalogs | BACKEND_ONLY | install/assignment requires code/fixtures | governed install/assignment action | 015 |
-| Configure secrets | provider/credential views | MISSING | bootstrap, environment or direct backend knowledge | managed reference create/rotate/revoke | 002, 016 |
-| Validate readiness | Agent readiness | SUPPORTED/PARTIAL | signals include development hardcodes | live adapter-aware readiness | 012 |
-| Deploy | Agent action | SUPPORTED for sandbox | production target blocked by prerequisites | explicit target and gate evidence | 006 |
-| Inspect deployment | Operations/evidence | SUPPORTED/PARTIAL | process-local state and no rollback | durable status plus rollback/reconcile | 001, 018 |
+| Step | Surface | Result | Evidence |
+| --- | --- | --- | --- |
+| Create Agent | `/agents/new` | SUPPORTED | browser mutation |
+| Role/profile | Product API catalog selectors | SUPPORTED | Journey A selects `role.executor`/`profile.default` |
+| Model strategy | provider/model selectors | SUPPORTED | deployment eligibility assertion |
+| Capabilities/skills/tools | catalog checkboxes | SUPPORTED | Journey A performs real assignments |
+| Secret reference | `/credentials` + Agent form | SUPPORTED | write-only mutation and zero plaintext |
+| Readiness | Agent detail | SUPPORTED | missing strategy regression plus eligible composed Agent |
+| Deploy | Agent detail | SUPPORTED for sandbox | accepted deployment mutation |
+| Inspect | Agent detail/Executions | SUPPORTED | state and next action linked |
 
-**Journey result:** **PARTIAL**. An operator can exercise a useful development/sandbox lifecycle, but cannot fully compose, secret-provision or production-deploy an Agent using supported surfaces.
+**Journey result:** **SUPPORTED for the approved sandbox topology**. Production target enablement remains G.
 
 ## Journey B — Execution
 
-| Step | Surface | Status | Gap / workaround currently required | Target UX | Findings |
-| --- | --- | --- | --- | --- | --- |
-| Select deployed Agent | Agent/Operations | SUPPORTED for current process | deployments disappear on restart | durable selectable deployment | 001 |
-| Start execution/runtime | Product API/runtime action | BACKEND_ONLY/SUPPORTED | durable remote job exists, but current operator surface does not expose the full flow | execution action with assignment/recovery feedback | 017 |
-| Observe status | runtime/execution API | BACKEND_ONLY/SUPPORTED | durable job/worker/lease state exists; UI integration remains | surface canonical freshness/recovery state | 011, 017 |
-| Inspect result | runtime job/evidence API | BACKEND_ONLY/SUPPORTED | durable result exists; complete operator presentation remains | correlated result and artifacts | 017 |
-| Inspect failure | diagnostics/evidence | BACKEND_ONLY/SUPPORTED | Product API diagnostics and exported telemetry exist; complete Control Plane presentation remains | correlated failure/recovery UX | 017, 018 |
-| Retry/cancel | Product API cancel; retry via automatic policy | PARTIAL | no governed operator retry/drain surface | semantic idempotent actions | 017, 018 |
-| Remediate/recover | automatic recovery plus diagnostics | PARTIAL | lease/orphan recovery is automatic; operator commands/UI remain missing | governed runbook action and verification | 018 |
-
-**Journey result:** **PARTIAL for operational use**. AEES-D proves distributed backend execution/recovery and AEES-E proves external diagnostics; Milestone F must expose the supported operator journey and remediation actions.
-
-## Journey C — Tenant administration
-
-| Step | Surface | Status | Gap / workaround currently required | Target UX | Findings |
-| --- | --- | --- | --- | --- | --- |
-| Authenticate | Tenant Administration context selector | MOCK | browser localStorage selects actor/system role | real authenticated shared session | 003 |
-| List/detail tenant | `/admin/tenants` | SUPPORTED in one process | separate app; state not durable | canonical shell and durable read model | 001, 014 |
-| Lifecycle | detail actions | SUPPORTED at HTTP POST layer | forged authority remains possible | trusted actor plus durable receipt | 003 |
-| Membership/ownership | members tab | SUPPORTED at route layer | mock actor and ephemeral state | same semantics with trusted identity | 001, 003 |
-| Governance policy | governance tab | BLOCKED over real server | UI sends PUT; handler rejects it | aligned method/preflight contract | 008 |
-| Entitlements/limits | tabs | BLOCKED over real server | UI sends PUT/DELETE; handler rejects them | aligned method/preflight contract | 008 |
-| Audit/history | activity tab | SUPPORTED in process | lost on restart and not replica-shared | durable tenant-scoped history | 009 |
-
-**Journey result:** **PARTIAL/MOCK**. EPIC-15 contracts and browser UX are real, but trusted identity, durability, shell integration and several HTTP mutations are not operational.
-
-## Journey D — Operator failure handling
-
-| Step | Surface | Status | Gap / workaround currently required | Target UX | Findings |
-| --- | --- | --- | --- | --- | --- |
-| Detect issue | readiness/operations/evidence | BACKEND_ONLY/SUPPORTED | dependency-aware readiness exists; alert delivery/Control Plane UX remains | visible readiness and alert surface | 018, 021 |
-| Identify component | diagnostics/health | BACKEND_ONLY/SUPPORTED | authorized dependency registry exists; UI remains | dependency graph and affected capability | 018, 021 |
-| Inspect evidence | audit/evidence/economics | BACKEND_ONLY/SUPPORTED | exported telemetry and audit are separate; combined UX remains | correlated operator timeline | 009, 018 |
-| Understand cause | diagnostic summaries | BACKEND_ONLY/SUPPORTED | reason/action codes exist; presentation remains | causal context and affected resources | 018, 021 |
-| Remediate | mostly unsupported | MISSING | shell, file edits or restart | bounded runbook actions | 018, 021 |
-| Verify recovery | manual refresh | PARTIAL | no durable before/after proof | post-action readiness and audit receipt | 018 |
-
-**Journey result:** **BLOCKED**. Detection is useful, but a supported remediation loop is absent.
-
-## Journey E — Production deployment
-
-| Step | Surface | Status | Gap / workaround currently required | Target UX | Findings |
-| --- | --- | --- | --- | --- | --- |
-| Production readiness | readiness report | BLOCKED | known blockers and no traffic gate | signed level/gate with live dependencies | 012 |
-| Target selection | targets | BLOCKED | local sandbox target only | certified production target | 006 |
-| Deploy | agent deploy | BLOCKED | sandbox-only checks at multiple layers | gated rollout after prerequisites | 006 |
-| Health/observe | operations/evidence | BACKEND_ONLY/SUPPORTED | external telemetry/readiness exist; production target and Control Plane UX remain | target and platform telemetry UX | 006, 021 |
-| Rollback/recover | none | MISSING | manual engineering process | governed rollback/reconcile | 018 |
-
-**Journey result:** **BLOCKED by design**. The current gate correctly prevents unsafe production deployment.
-
-## Hidden operational steps
-
-| Hidden step | Current mechanism | Why it is an operational gap | Findings |
+| Step | Surface | Result | Evidence |
 | --- | --- | --- | --- |
-| Choose actor/platform authority | browser localStorage and headers | untrusted client controls security context | 003 |
-| Seed tenant, owner, policy and agent | `createControlPlaneContext` code | restart rebuilds fixtures, not operator data | 001 |
-| Provision secret | code/bootstrap/in-memory store | no secure Product API/UX lifecycle | 002, 016 |
-| Configure roots/endpoints | environment variables and local filesystem | requires shell and deployment knowledge | 021 |
-| Register remote worker | signed credential plus worker entrypoint/environment | backend path exists but onboarding still requires deployment engineering | 021 |
-| Repair orphan/stale runtime | automatic recovery coordinator | backend no longer needs manual DB repair; operator inspection/remediation UI remains | 018 |
-| Inspect runtime logs/traces | Product API diagnostics plus external OTLP evidence | backend path is supported; human-friendly Control Plane view remains | 021 |
-| Reconcile settlement | no supported provider/operator flow | memory provider only | 007 |
+| Select deployed Agent | Agent detail | SUPPORTED | Journey A/B continuity |
+| Start | Execute action | SUPPORTED | durable runtime job created |
+| Observe queue/running | Executions | SUPPORTED | remote queued/running state |
+| Inspect assignment/worker | Job detail/Workers | SUPPORTED | durable worker and assignment IDs |
+| Inspect result | Job detail | SUPPORTED | terminal `succeeded` after recovery |
+| Cancel | Job detail confirmation | SUPPORTED for non-terminal jobs | `s55` contract |
+| Retry/reassignment | backend policy + timeline | SUPPORTED automatic / PARTIAL manual | recovery attempt visible; no fake force-retry |
 
-## Error UX audit
+**Journey result:** **SUPPORTED**, with explicit automatic-recovery boundary.
 
-### Existing strengths
+## Journey C — Failure and recovery
 
-- Product API uses structured error envelopes, correlation IDs, semantic codes and denial layers.
-- Tenant administration renders loading, empty, forbidden, error and semantic mutation feedback.
-- Main Control Plane exposes blockers, caveats, evidence and unsupported-action explanations.
-- Secret redaction and cross-tenant domain errors are explicit.
+| Step | Surface | Result | Evidence |
+| --- | --- | --- | --- |
+| Detect | Operations/Executions | SUPPORTED | worker/no-capacity/failure states |
+| Identify cause | diagnostic reason code | SUPPORTED | `INJECTED_RETRYABLE_FAILURE` and dependency codes |
+| Inspect timeline | Job events | SUPPORTED | crash, lease recovery, reassignment, completion |
+| Recommended action | diagnostic projection | SUPPORTED | contextual action copy |
+| Remediate | cancel or backend-owned recovery | PARTIAL | safe supported actions only |
+| Verify | Job/Operations refresh | SUPPORTED | terminal state/attempt 2 |
 
-### Gaps
+**Journey result:** **SUPPORTED for automatic recovery and cancellation; PARTIAL for external infrastructure remediation**.
 
-- `405` from the outer HTTP method guard is not the domain/API error the Tenant UI expects.
-- No authenticated identity means a forbidden response does not prove a trusted actor decision.
-- Diagnostics often stop at “unsupported”, “deferred” or a finding without an executable remediation.
-- No external signal alerts an operator before opening the Control Plane.
-- Cached runtime fallback is not clearly distinguished from a successful live inspection at the domain boundary.
-- Provider, worker and settlement failures lack retry/reconcile actions and post-action verification.
+## Journey D — Tenant Administration
 
-## Ready-surface audit
+| Step | Surface | Result | Evidence |
+| --- | --- | --- | --- |
+| Trusted session | federated applications | SUPPORTED | actor/platform selectors removed |
+| Tenant list/detail/create | Tenant Administration | SUPPORTED | Journey F mutation |
+| Members/authority | members tab | SUPPORTED | route matrix |
+| Governance | governance tab | SUPPORTED | Journey F |
+| Entitlements/limits | corresponding tabs | SUPPORTED | route matrix and B01 method contract |
+| Audit | audit tab | SUPPORTED | real tenant-scoped history route |
+| Unauthorized user | protected app | SUPPORTED denial | Journey G |
 
-Current surfaces distinguish production readiness from development status in many places, but the vocabulary remains inconsistent:
+**Journey result:** **SUPPORTED**. State durability remains bounded by B01 topology caveats, not by UX fragmentation.
 
-- `/api/v1/health` and `/acs/health` are connectivity/inspection, not production readiness.
-- the readiness report correctly keeps production blocked;
-- the “Distributed Runtime readiness” flag can be ready based on a local worker/target;
-- stale legacy projections still call tenant administration future scope;
-- static/demo content can display live-looking data without runtime proof.
+## Journey E — Operator readiness
 
-Target presentation must always include the readiness level, evidence timestamp/source and whether the state is observed, derived, mocked or configured.
+| Step | Surface | Result | Evidence |
+| --- | --- | --- | --- |
+| Liveness vs readiness | `/readiness`, `/operations` | SUPPORTED | separate status presentation |
+| Dependency degradation | Operations | SUPPORTED | stable reason/action mapping |
+| Impacted capability | dependency card/job diagnostic | SUPPORTED | no eligible worker scenario |
+| Remediation path | recommended action/deep link | SUPPORTED guidance | Journey E |
+| Production gate | Agent deploy/System status | BLOCKED by design | sandbox policy retained |
 
-## UX acceptance target for Milestone F
+**Journey result:** **SUPPORTED for current operations; production deployment remains blocked until G**.
 
-Milestone F must prove at least one non-destructive flow across a single authenticated Control Plane:
+## Error and permission UX
+
+- `401` is authentication failure; `403` is authenticated but insufficient authority.
+- `429` shows rate-limited state and respects `Retry-After` instead of aggressive retry.
+- `503` identifies dependency unavailability and links the operator to Operations.
+- Failed jobs expose reason codes and recommended actions rather than raw JSON.
+- Foreign Tenant/job resources remain hidden by the Product API; protected content is not rendered before denial.
+
+Browser acceptance explicitly exercised `403`, `429` and `503`.
+
+## Hidden operational steps after AEES-F
+
+Normal supported journeys no longer require shell, curl, SQLite inspection, local actor injection or file editing. These deployment prerequisites remain external and explicit:
+
+- starting/configuring a remote worker process or infrastructure capacity;
+- configuring live OIDC, Vault, OTLP and shared storage endpoints;
+- production target provisioning and rollback controls;
+- multi-host/network topology acceptance.
+
+They are not represented as completed UI capabilities.
+
+## Final UX certification
 
 ```text
-tenant selection
-→ agent create/configure
-→ governed composition assignment
-→ managed secret reference
-→ readiness
-→ sandbox/approved target deploy
-→ execution
-→ failure diagnosis
-→ governed remediation
-→ audit verification
+Agent Lifecycle: SUPPORTED
+Execution: SUPPORTED
+Tenant Administration: SUPPORTED
+Failure Diagnostics: SUPPORTED
+Automatic Recovery Visibility: SUPPORTED
+Infrastructure Remediation: PARTIAL/EXTERNAL
+Production Deployment: BLOCKED
+Backend-only critical supported journeys: 0
 ```
 
-The flow may remain non-production until G/H, but it may not use forged identity, direct repository access, file edits or hidden curl commands.
+Operational Ready is **READY for the certified multi-process single-host sandbox topology** and **PARTIAL globally**. Production Ready remains **BLOCKED**.

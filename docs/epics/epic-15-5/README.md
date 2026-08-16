@@ -1,8 +1,8 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** AEES-E / Milestone E **PASS WITH TOPOLOGY CAVEATS** on 2026-08-16; Milestone B residual work remains open
+**Status:** AEES-F / Milestone F **PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS** on 2026-08-16; Milestone B residual work remains open
 
-**Readiness conclusion:** ACS is **Development Ready**, more completely **Integration Ready** for Tenant Administration, and **not Operational Ready or Production Ready**.
+**Readiness conclusion:** ACS is **Operational Ready for the certified multi-process single-host sandbox topology**, **PARTIAL globally**, and **not Production Ready**.
 
 ## Mission
 
@@ -85,6 +85,14 @@ AEES-E added structured HTTP/runtime/worker logs, low-cardinality metrics, distr
 
 `ACS-ORG-011` and `ACS-ORG-012` are **RESOLVED** for the active boundary. Observability is ready for the certified local multi-process topology; multi-host collector/storage, managed retention/alerts and complete operator UX remain caveats/deferred scope. Operational and Production Readiness remain blocked by B/F/G/H.
 
+## AEES-F outcome
+
+AEES-F connects the existing Product API, Tenant Administration, Agent composition, write-only secret references, readiness/deploy, durable runtime and E02 diagnostics into one supported operator journey. The main shell exposes Agents, Executions, Workers, System/Operations, secret references and Tenant Administration. The Tenant application remains a separate build but is securely federated through reciprocal navigation and one trusted bearer/session boundary; browser-controlled actor/platform selection was removed.
+
+The browser acceptance certified 14 real routes at four normative viewports: 56/56 route-viewports, 56 accessibility checks, zero horizontal overflow, zero page errors and zero console errors. Journeys A–G created/configured an Agent, wrote a secret reference without read-back, deployed to sandbox, executed through independent workers, observed crash/reassignment, diagnosed failure/capacity, administered a Tenant and proved coherent authorization denial. See [browser-acceptance.md](./browser-acceptance.md) and [milestones/AEES-F-end-to-end-operational-ux-certification.md](./milestones/AEES-F-end-to-end-operational-ux-certification.md).
+
+`ACS-ORG-014`, `015`, `016`, `017`, `022`, `023` and `024` are **RESOLVED** within the supported boundary. `ACS-ORG-018` and `021` are **PARTIALLY_RESOLVED** because infrastructure remediation/bootstrap remains external. Production deployment is still sandbox-gated; global Operational Readiness remains partial and Production Readiness remains blocked by G/H and residual shared-state/live-topology evidence.
+
 ## Principles
 
 - **Evidence before claims.** Contracts and unit tests do not prove operational readiness.
@@ -116,7 +124,10 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 11. [milestones/C02-distributed-rate-limiting-http-edge-hardening.md](./milestones/C02-distributed-rate-limiting-http-edge-hardening.md) — limiter, proxy, CORS, request-bound and edge-readiness evidence.
 12. [milestones/AEES-D-distributed-runtime-recovery-certification.md](./milestones/AEES-D-distributed-runtime-recovery-certification.md) — D01 durable ownership, D02 remote dispatch and D03 process/failure evidence.
 13. [milestones/AEES-E-observability-operational-diagnostics-certification.md](./milestones/AEES-E-observability-operational-diagnostics-certification.md) — E01 telemetry/export, E02 dependency diagnostics and E03 incident evidence.
-14. [AGENTS.md](./AGENTS.md) — local execution rules.
+14. [milestones/AEES-F-end-to-end-operational-ux-certification.md](./milestones/AEES-F-end-to-end-operational-ux-certification.md) — F01 navigation/composition, F02 remediation UX and F03 browser evidence.
+15. [browser-acceptance.md](./browser-acceptance.md) — route, viewport, journey and mutation certification.
+16. [regression-inventory.md](./regression-inventory.md) — current backend/frontend/browser coverage.
+17. [AGENTS.md](./AGENTS.md) — local execution rules.
 
 ## Milestone map
 
@@ -127,7 +138,7 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 | C | **PASS WITH CAVEATS:** trusted HTTP identity and hardened edge delivered; live IdP/proxy/multi-host limiter acceptance remains |
 | D | **PASS WITH TOPOLOGY CAVEATS:** durable jobs, authenticated remote dispatch and crash/restart recovery delivered; multi-host proof remains H |
 | E | **PASS WITH TOPOLOGY CAVEATS:** external-process telemetry, distributed correlation and dependency-aware diagnostics delivered; multi-host/managed backend proof remains H |
-| F | Complete supported operator journeys and remediation UX |
+| F | **PASS WITH TOPOLOGY/ENVIRONMENT CAVEATS:** supported sandbox operator journeys and remediation UX browser-certified |
 | G | Certified production deployment gate and target path |
 | H | Restart, multi-replica, security, browser and recovery certification |
 

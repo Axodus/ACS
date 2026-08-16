@@ -76,6 +76,10 @@ export class CredentialConnectionRegistry {
     return this.list().filter((connection) => connection.providerId === providerId);
   }
 
+  save(connection: CredentialConnection): CredentialConnection {
+    return this.#store.saveConnection(connection);
+  }
+
   updateStatus(id: string, status: CredentialConnectionStatus, extra: { lastVerifiedAt?: number; expiresAt?: number } = {}): CredentialConnection {
     const current = this.get(id);
     const updated: CredentialConnection = {

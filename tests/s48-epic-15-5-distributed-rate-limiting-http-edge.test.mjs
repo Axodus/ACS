@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import http, { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test from "node:test";
-import {
+import { pathToFileURL } from "node:url";
+
+const distRoot = resolve(process.env.ACS_TEST_DIST_ROOT ?? "dist");
+const {
   ClientAddressResolver,
   FixedWindowRateLimiter,
   HttpEdgePolicy,
@@ -14,8 +17,8 @@ import {
   SqliteRateLimitStore,
   createAcsHttpHandler,
   createAcsHttpServer,
-} from "../dist/index.js";
-import { createControlPlaneContext } from "../dist/http/control-plane-context.js";
+} = await import(new URL("index.js", pathToFileURL(`${distRoot}/`)).href);
+const { createControlPlaneContext } = await import(new URL("http/control-plane-context.js", pathToFileURL(`${distRoot}/`)).href);
 
 function createMockEngine() {
   return {
@@ -180,9 +183,11 @@ test("CORS uses an explicit origin policy and supports Authorization preflight f
     const denied = await request(runtime.port, { headers: { origin: "https://attacker.example" } });
     assert.equal(allowed.status, 200);
     assert.equal(allowed.headers["access-control-allow-origin"], "https://control.example");
+    assert.equal(allowed.headers["cross-origin-resource-policy"], "cross-origin");
     assert.equal(denied.status, 403);
     assert.equal(denied.body.error.code, "cors_origin_denied");
     assert.equal(denied.headers["access-control-allow-origin"], undefined);
+    assert.equal(denied.headers["cross-origin-resource-policy"], "same-origin");
 
     for (const method of ["PUT", "PATCH", "DELETE"]) {
       const preflight = await request(runtime.port, {

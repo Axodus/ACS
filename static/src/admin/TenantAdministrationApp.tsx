@@ -15,7 +15,6 @@ import {
   createAdminApi,
   formatAdminDate,
   readAdminAccessContext,
-  writeAdminAccessContext,
 } from './api'
 
 type AdminTab = 'overview' | 'members' | 'governance' | 'entitlements' | 'limits' | 'audit'
@@ -25,7 +24,6 @@ type Confirmation = { title: string; message: string; confirmLabel?: string; run
 const TABS: readonly AdminTab[] = ['overview', 'members', 'governance', 'entitlements', 'limits', 'audit']
 const GOVERNED_ACTIONS: readonly GovernedAction[] = ['agent.create', 'agent.configure', 'deployment.create', 'deployment.start', 'tool.install', 'plugin.install', 'execution.start']
 const ROLE_OPTIONS: readonly AdministrativeRole[] = ['tenant_owner', 'tenant_admin', 'operator', 'auditor']
-const ACTOR_OPTIONS = ['system', 'tenant-admin', 'tenant-member', 'auditor'] as const
 
 function normalizePath(pathname: string) {
   return pathname.length > 1 && pathname.endsWith('/') ? pathname.replace(/\/+$/, '') : pathname
@@ -78,11 +76,7 @@ function useApi(context: AdminAccessContext) {
 }
 
 function useAdminContext() {
-  const [context, setContext] = useState<AdminAccessContext>(() => readAdminAccessContext())
-  useEffect(() => {
-    writeAdminAccessContext(context)
-  }, [context])
-  return [context, setContext] as const
+  return useState<AdminAccessContext>(() => readAdminAccessContext())
 }
 
 function useResource<T>(loader: () => Promise<T>, deps: readonly unknown[]) {
@@ -151,21 +145,6 @@ function Link({ href, children, className }: { href: string; children: ReactNode
 
 function StatusBadge({ status }: { status: string }) {
   return <span className={pillClass(status)}>{status.replaceAll('_', ' ')}</span>
-}
-
-function ContextPanel({ context, setContext }: { context: AdminAccessContext; setContext: Dispatch<SetStateAction<AdminAccessContext>> }) {
-  return <section className='admin-context' aria-label='Administrative access context'>
-    <div>
-      <span className='eyebrow'>ACCESS CONTEXT</span>
-      <h2>Resolved actor for the Product API</h2>
-      <p>Mock Control Plane credentials used to exercise tenant scope and authority boundaries.</p>
-    </div>
-    <form className='admin-context__form' onSubmit={event => event.preventDefault()}>
-      <label><span>Actor type</span><select value={context.actorType} onChange={event => setContext(prev => ({ ...prev, actorType: event.target.value as AdminAccessContext['actorType'] }))}>{ACTOR_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}</select></label>
-      <label><span>Actor id</span><input value={context.actorId} onChange={event => setContext(prev => ({ ...prev, actorId: event.target.value }))} /></label>
-      <label><span>Tenant scope</span><input value={context.tenantId ?? ''} onChange={event => setContext(prev => ({ ...prev, tenantId: event.target.value || undefined }))} placeholder='Optional for system actor' /></label>
-    </form>
-  </section>
 }
 
 function TenantListPage({ api, context, onOpenTenant }: { api: ReturnType<typeof createAdminApi>; context: AdminAccessContext; onOpenTenant: (tenantId: string) => void }) {
@@ -650,7 +629,7 @@ function TenantDetailPage({ api, detail, tab, onReload, onNavigate }: { api: Ret
 export function TenantAdministrationApp() {
   const pathname = useSpaPathname()
   const route = useMemo(() => parseAdminRoute(pathname), [pathname])
-  const [context, setContext] = useAdminContext()
+  const [context] = useAdminContext()
   const api = useApi(context)
   const listPage = useResource(() => api.listTenants(), [api, context.actorId, context.actorType, context.authenticated, context.tenantId, context.wallet, route.kind === 'list'])
   const detailPage = useResource(() => route.kind === 'detail' ? api.getTenant(route.tenantId) : Promise.resolve(null as TenantAdminDetail | null), [api, context.actorId, context.actorType, context.authenticated, context.tenantId, context.wallet, route.kind, route.kind === 'detail' ? route.tenantId : ''])
@@ -667,12 +646,15 @@ export function TenantAdministrationApp() {
         <p>Administrative UX over the governed Product API.</p>
       </div>
       <div className='admin-shell__actions'>
-        <Link href='/'><span>Public site</span></Link>
+        <a href={import.meta.env.VITE_ACS_CONTROL_PLANE_URL ?? 'http://127.0.0.1:4173/agents'}><span>Operational Control Plane</span></a>
         <Link href='/admin/tenants'><span>Tenant list</span></Link>
       </div>
     </header>
 
-    <ContextPanel context={context} setContext={setContext} />
+    <section className='admin-context' aria-label='Authenticated administrative session'>
+      <div><span className='eyebrow'>TRUSTED SESSION</span><h2>Identity is resolved by the HTTP authentication boundary</h2><p>No actor, Tenant authority or platform role can be selected by this browser surface.</p></div>
+      <div className='admin-page__meta'><StatusBadge status='authenticated' /><span className='admin-mono'>server-owned context</span></div>
+    </section>
 
     {route.kind === 'list' ? (
       listPage.loading ? <div className='admin-grid'>{Array.from({ length: 4 }, (_, index) => <div key={index} className='admin-skeleton' />)}</div> : listPage.error ? <ErrorState error={listPage.error} /> : <TenantListPage api={api} context={context} onOpenTenant={tenantId => navigate(toTenantPath(tenantId))} />

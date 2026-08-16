@@ -80,6 +80,7 @@ import {
   type SettlementReconciliationBoundaryReport,
   type FinancialAuditBoundaryReport,
 } from "./api/product-api";
+import { AgentOperationsPanel, CredentialsPage, ExecutionDetailPage, ExecutionsPage, OperationsStatusPage, WorkerDetailPage, WorkersPage } from "./OperationalUx";
 import "./operational.css";
 
 type View =
@@ -109,13 +110,14 @@ type View =
   | "Governance & System"
   | "Settings";
 
-type Domain = "Overview" | "Agents" | "Operations" | "Capabilities" | "Evidence" | "Economics" | "Governance" | "System";
+type Domain = "Overview" | "Agents" | "Operations" | "Capabilities" | "Evidence" | "Economics" | "Governance" | "Administration" | "System";
 
 type DomainChild = {
   readonly label: string;
   readonly to: string;
   readonly kind?: "canonical" | "compatibility" | "legacy";
   readonly group?: string;
+  readonly external?: boolean;
 };
 
 type DomainDef = {
@@ -161,19 +163,20 @@ const viewPaths: Record<View, string> = {
 
 const domainDefs: readonly DomainDef[] = [
   { id: "Overview", icon: "⌂", to: "/", description: "Cross-domain attention and next safe steps.", children: [{ label: "Attention", to: "/" }] },
-  { id: "Agents", icon: "◫", to: "/agents", description: "Governed agent identity, lifecycle and agent context.", children: [{ label: "Inventory", to: "/agents" }, { label: "Create", to: "/agents/new" }] },
-  { id: "Operations", icon: "⟡", to: "/operational-execution", description: "Execution planning, runtime state and worker activity.", children: [{ label: "Summary", to: "/operational-execution" }, { label: "Runtime", to: "/runtime", kind: "compatibility" }] },
+  { id: "Agents", icon: "◫", to: "/agents", description: "Governed agent identity, lifecycle, composition and secret references.", children: [{ label: "Inventory", to: "/agents" }, { label: "Create", to: "/agents/new" }, { label: "Secret references", to: "/credentials" }] },
+  { id: "Operations", icon: "⟡", to: "/executions", description: "Execution, runtime ownership, workers and remediation.", children: [{ label: "Executions", to: "/executions" }, { label: "Workers", to: "/workers" }, { label: "System status", to: "/operations" }, { label: "Planning", to: "/operational-execution", kind: "compatibility" }, { label: "Runtime inventory", to: "/runtime", kind: "compatibility" }] },
   { id: "Capabilities", icon: "◈", to: "/composition", description: "Composition resources, catalogs and governed capability context.", children: [{ label: "Overview", to: "/composition" }, { label: "Roles", to: "/roles" }, { label: "Profiles", to: "/profiles" }, { label: "Capabilities", to: "/capabilities" }, { label: "Skills", to: "/skills" }, { label: "Tools & plugins", to: "/plugins" }, { label: "Engines", to: "/engines" }] },
   { id: "Evidence", icon: "◍", to: "/operational-evidence", description: "Canonical technical proof, logs, audit and diagnostics.", children: [{ label: "Timeline", to: "/operational-evidence" }, { label: "Logs", to: "/logs" }, { label: "Audit", to: "/audit" }] },
   { id: "Economics", icon: "$", to: "/economics", description: "Operational economics and financial-boundary evidence.", children: [{ label: "Operational economics", to: "/economics" }, { label: "Billing", to: "/system/billing-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Settlement & receipts", to: "/system/settlement-reconciliation", kind: "compatibility", group: "Financial boundaries" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility", group: "Financial boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Financial boundaries" }] },
   { id: "Governance", icon: "⚖", to: "/system", description: "Policies, guardrails and governed-action boundaries.", children: [{ label: "Overview", to: "/system" }] },
+  { id: "Administration", icon: "▦", to: productApiConfig.tenantAdministrationUrl, description: "Tenant lifecycle, members, authority, governance and audit.", children: [{ label: "Tenant Administration", to: productApiConfig.tenantAdministrationUrl, external: true }] },
   { id: "System", icon: "⚙", to: "/readiness", description: "Readiness, reliability, configuration and administration boundary.", children: [{ label: "Readiness", to: "/readiness" }, { label: "Reliability", to: "/system/operational-reliability" }, { label: "Settings", to: "/settings" }] },
 ];
 
 const domainByPath = (path: string): Domain => {
   if (path === "/") return "Overview";
-  if (path.startsWith("/agents")) return "Agents";
-  if (path.startsWith("/operational-execution") || path.startsWith("/runtime")) return "Operations";
+  if (path.startsWith("/agents") || path.startsWith("/credentials")) return "Agents";
+  if (path.startsWith("/operational-execution") || path.startsWith("/runtime") || path.startsWith("/executions") || path.startsWith("/workers") || path.startsWith("/operations")) return "Operations";
   if (path.startsWith("/composition") || path.startsWith("/roles") || path.startsWith("/profiles") || path.startsWith("/capabilities") || path.startsWith("/skills") || path.startsWith("/plugins") || path.startsWith("/tools") || path.startsWith("/engines") || path.startsWith("/providers") || path.startsWith("/memory")) return "Capabilities";
   if (path.startsWith("/operational-evidence") || path.startsWith("/logs") || path.startsWith("/audit")) return "Evidence";
   if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Economics";
@@ -501,13 +504,17 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate }: {
         return acc;
       }, {});
       return <section className={`sidebar-domain ${expanded ? "expanded" : ""}`} key={domain.id}>
-        <Link className={`domain-link ${expanded ? "active" : ""}`} to={domain.to} onClick={onNavigate} aria-current={expanded ? "page" : undefined}>
+        {domain.id === "Administration" ? <a className="domain-link" href={domain.to} onClick={onNavigate}>
+          <span>{domain.icon}</span>{domain.id}<i className="sidebar-chevron" aria-hidden="true">↗</i>
+        </a> : <Link className={`domain-link ${expanded ? "active" : ""}`} to={domain.to} onClick={onNavigate} aria-current={expanded ? "page" : undefined}>
           <span>{domain.icon}</span>{domain.id}<i className="sidebar-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</i>
-        </Link>
+        </Link>}
         {expanded && <div className="sidebar-children">
           {Object.entries(groups).map(([group, children]) => <div className="sidebar-child-group" key={group || "root"}>
             {group && <span className="sidebar-group-label">{group}</span>}
-            {children.map(child => <Link key={child.to} className={`sidebar-child-link ${childActive(pathname, child.to) ? "active" : ""}`} to={child.to} onClick={onNavigate} aria-current={childActive(pathname, child.to) ? "page" : undefined}>{child.label}</Link>)}
+            {children.map(child => child.external
+              ? <a key={child.to} className="sidebar-child-link" href={child.to} onClick={onNavigate}>{child.label} ↗</a>
+              : <Link key={child.to} className={`sidebar-child-link ${childActive(pathname, child.to) ? "active" : ""}`} to={child.to} onClick={onNavigate} aria-current={childActive(pathname, child.to) ? "page" : undefined}>{child.label}</Link>)}
           </div>)}
         </div>}
       </section>;
@@ -1401,7 +1408,7 @@ function AgentDetail() {
           <div><dt>State</dt><dd>{detail.deploymentSummary.state}</dd></div>
           <div><dt>Records</dt><dd>{detail.deploymentSummary.count}</dd></div>
         </dl>
-        <p className="panel-note">Display only — deployment operations belong to Operational Execution and are out of scope for this milestone.</p>
+        <p className="panel-note">Use the governed prepare/deploy controls below. Deployment truth remains owned by the Product API.</p>
       </section>
       <section className="panel">
         <div className="panel-head"><div><h2>Runtime summary</h2><p>Runtime instance states</p></div><Badge tone={detail.runtimeSummary.state === "running" ? "good" : detail.runtimeSummary.state === "none" ? "muted" : "warn"}>{detail.runtimeSummary.state}</Badge></div>
@@ -1409,8 +1416,9 @@ function AgentDetail() {
           <div><dt>State</dt><dd>{detail.runtimeSummary.state}</dd></div>
           <div><dt>Instances</dt><dd>{detail.runtimeSummary.count}</dd></div>
         </dl>
-        <p className="panel-note">Display only — runtime operations are out of scope for this milestone.</p>
+        <p className="panel-note">Use the governed execution controls below, then follow the durable job in Executions.</p>
       </section>
+      <AgentOperationsPanel agentId={detail.agentId} revision={detail.currentRevision.revision} composition={(composition ?? {}) as unknown as Record<string, unknown>} />
       <section className="panel">
         <div className="panel-head"><div><h2>Economic context</h2><p>Contextual only; canonical detail belongs to Economics</p></div><Badge tone="muted">{detail.economicSummary.state}</Badge></div>
         <div className="state-line empty">{detail.economicSummary.message} Missing economic data is unavailable, not zero.</div>
@@ -1503,8 +1511,8 @@ function AgentDetail() {
     </div>
     {confirming && (
       <div className="modal-wrap">
-        <div className="wizard confirm-dialog" role="dialog" aria-modal="true">
-          <div className="wizard-head"><h1>Confirm {confirming.label}</h1><button onClick={() => setConfirming(null)}>×</button></div>
+        <div className="wizard confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-agent-action-title">
+          <div className="wizard-head"><h1 id="confirm-agent-action-title">Confirm {confirming.label}</h1><button aria-label="Close confirmation" onClick={() => setConfirming(null)}>×</button></div>
           <div className="wizard-body">
             <p className="eyebrow">GOVERNED DESTRUCTIVE ACTION</p>
             <p>This operation is governed by the Product API and is recorded in the audit trail. It cannot be undone from this surface.</p>
@@ -1539,6 +1547,9 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
   const [skillIds, setSkillIds] = useState("");
   const [toolIds, setToolIds] = useState("");
   const [credentialConnectionIds, setCredentialConnectionIds] = useState("");
+  const [modelProviderId, setModelProviderId] = useState("");
+  const [modelId, setModelId] = useState("");
+  const [modelCredentialConnectionId, setModelCredentialConnectionId] = useState("");
   const [runnerPreferences, setRunnerPreferences] = useState("");
   const [loadingDetail, setLoadingDetail] = useState(mode !== "create");
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -1551,6 +1562,23 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
   const capabilities = useOperationalSummary<CapabilitySummary[]>(() => productApi.listCapabilities(), "Unable to load capabilities for Agent form", () => false);
   const skills = useOperationalSummary<SkillSummary[]>(() => productApi.listSkills(), "Unable to load skills for Agent form", () => false);
   const tools = useOperationalSummary<ToolSummary[]>(() => productApi.listTools(), "Unable to load tools for Agent form", () => false);
+  const providers = useOperationalSummary<ProviderSummary[]>(() => productApi.listProviders(), "Unable to load model providers for Agent form", () => false);
+  const models = useOperationalSummary<ModelSummary[]>(() => productApi.listModels(), "Unable to load models for Agent form", () => false);
+
+  useEffect(() => {
+    if (mode !== "create" || modelProviderId || !providers.data?.length) return;
+    const provider = providers.data.find(item => item.availability === "available" && item.compatibility === "compatible")
+      ?? providers.data.find(item => item.availability === "available")
+      ?? providers.data[0];
+    if (provider) setModelProviderId(provider.id);
+  }, [mode, modelProviderId, providers.data]);
+
+  useEffect(() => {
+    if (mode !== "create" || modelId || !modelProviderId || !models.data?.length) return;
+    const model = models.data.find(item => item.type === modelProviderId && item.availability === "available")
+      ?? models.data.find(item => item.type === modelProviderId);
+    if (model) setModelId(model.id.startsWith(`${modelProviderId}/`) ? model.id.slice(modelProviderId.length + 1) : model.id);
+  }, [mode, modelId, modelProviderId, models.data]);
 
   useEffect(() => {
     if (mode === "create" || !agentId || prefilled.current) return;
@@ -1567,6 +1595,9 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
         setSkillIds(next.agentDefinition.skillIds.join(", "));
         setToolIds(next.agentDefinition.toolIds.join(", "));
         setCredentialConnectionIds(next.agentDefinition.credentialConnectionIds.join(", "));
+        setModelProviderId(next.agentDefinition.modelStrategy?.primary.providerId ?? "");
+        setModelId(next.agentDefinition.modelStrategy?.primary.modelId ?? "");
+        setModelCredentialConnectionId(next.agentDefinition.modelStrategy?.primary.credentialConnectionId ?? "");
         setRunnerPreferences(next.agentDefinition.runnerPreferences.join(", "));
         setLoadingDetail(false);
       })
@@ -1595,6 +1626,16 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
       toolIds: parseList(toolIds),
       credentialConnectionIds: parseList(credentialConnectionIds),
       runnerPreferences: parseList(runnerPreferences),
+      ...(modelProviderId.trim() && modelId.trim() ? {
+        modelStrategy: {
+          primary: {
+            providerId: modelProviderId.trim(),
+            modelId: modelId.trim(),
+            ...(modelCredentialConnectionId.trim() ? { credentialConnectionId: modelCredentialConnectionId.trim() } : {}),
+          },
+          fallbacks: [],
+        },
+      } : {}),
       ...(roleId.trim() ? { roleId: roleId.trim() } : {}),
       ...(profileId.trim() ? { profileId: profileId.trim() } : {}),
     };
@@ -1663,6 +1704,18 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
         <fieldset className="catalog-selector"><legend>Capabilities</legend>{capabilities.data?.map(item => <label key={item.capabilityId}><input type="checkbox" checked={parseList(capabilityIds).includes(item.capabilityId)} onChange={() => setCapabilityIds(toggleCsv(capabilityIds, item.capabilityId))} /><span>{item.name}<small>{item.capabilityId}</small></span></label>)}{capabilities.loadError && <small>{capabilities.loadError}</small>}</fieldset>
         <fieldset className="catalog-selector"><legend>Skills</legend>{skills.data?.map(item => <label key={item.skillId}><input type="checkbox" checked={parseList(skillIds).includes(item.skillId)} onChange={() => setSkillIds(toggleCsv(skillIds, item.skillId))} /><span>{item.name}<small>{item.skillId}</small></span></label>)}{skills.loadError && <small>{skills.loadError}</small>}</fieldset>
         <fieldset className="catalog-selector"><legend>Tools</legend>{tools.data?.map(item => <label key={item.toolId}><input type="checkbox" checked={parseList(toolIds).includes(item.toolId)} onChange={() => setToolIds(toggleCsv(toolIds, item.toolId))} /><span>{item.name}<small>{item.toolId}</small></span></label>)}{tools.loadError && <small>{tools.loadError}</small>}</fieldset>
+        <label>Model provider<select value={modelProviderId} onChange={event => {
+          const nextProvider = event.target.value;
+          setModelProviderId(nextProvider);
+          const nextModel = models.data?.find(item => item.type === nextProvider && item.availability === "available")
+            ?? models.data?.find(item => item.type === nextProvider);
+          setModelId(nextModel ? nextModel.id.startsWith(`${nextProvider}/`) ? nextModel.id.slice(nextProvider.length + 1) : nextModel.id : "");
+        }}><option value="">No provider selected</option>{providers.data?.map(provider => <option value={provider.id} key={provider.id}>{provider.name} — {provider.id} ({provider.availability})</option>)}</select><small>{providers.loadError ?? "Provider catalog is authoritative; authentication material remains in Secret references."}</small></label>
+        <label>Model<select value={modelId} disabled={!modelProviderId} onChange={event => setModelId(event.target.value)}><option value="">No model selected</option>{models.data?.filter(model => model.type === modelProviderId).map(model => {
+          const value = model.id.startsWith(`${modelProviderId}/`) ? model.id.slice(modelProviderId.length + 1) : model.id;
+          return <option value={value} key={model.id}>{model.name} — {value} ({model.availability})</option>;
+        })}</select><small>{models.loadError ?? "Only models exposed by the selected Product API provider are listed."}</small></label>
+        <label>Model credential reference (optional)<input className="mono" value={modelCredentialConnectionId} onChange={event => setModelCredentialConnectionId(event.target.value)} placeholder="credential id already declared below" /><small>If set, the same id must also be present in Credential connections.</small></label>
         <label>Credential connections<input className="mono" value={credentialConnectionIds} onChange={e => setCredentialConnectionIds(e.target.value)} placeholder="comma-separated ids" /></label>
         <label>Runner preferences<input className="mono" value={runnerPreferences} onChange={e => setRunnerPreferences(e.target.value)} placeholder="comma-separated ids" /></label>
         {mode !== "create" && <div className="form-note">Saving applies to revision <b className="mono">r{expectedRevision}</b> (expectedRevision guard).</div>}
@@ -2517,7 +2570,7 @@ function EngineCatalog() {
 
   return <>
     <header className="page-head compact">
-      <div><p className="eyebrow">MODELS, ENGINES & PROVIDERS</p><h1>Engines, Providers & Models</h1><p>Composition registries from the Product API. Credential requirements are shown; credential management stays out of scope.</p></div>
+      <div><p className="eyebrow">MODELS, ENGINES & PROVIDERS</p><h1>Engines, Providers & Models</h1><p>Composition registries from the Product API. Credential requirements link to the governed write-only Secret references surface.</p></div>
       <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
     </header>
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
@@ -4351,7 +4404,7 @@ function GovernanceView() {
   };
 
   return <>
-    <DomainHeader domain="Governance" title="Control Plane Boundaries" description="Read-only guardrails, policy and configuration visibility. Administration and tenant management remain future scope." actions={<button className="secondary" onClick={refreshAll}>Refresh all</button>} />
+    <DomainHeader domain="Governance" title="Control Plane Boundaries" description="Guardrails, policy and configuration visibility. Current tenant administration is available from the Administration navigation surface." actions={<button className="secondary" onClick={refreshAll}>Refresh all</button>} />
     <CrossLinks links={[{ to: "/system/operational-reliability", label: "Open operational reliability" }]} />
     {staleBanner(guardrails, "system guardrails")}
     {staleBanner(governanceBoundary, "governance boundary")}
@@ -4567,7 +4620,7 @@ function GovernanceView() {
       </div>
       <div className="dashboard-grid evidence-grid">
         <section className="panel">
-          <div className="panel-head"><div><h2>Tenant boundary</h2><p>Tenant-aware visibility without tenant administration</p></div><Badge tone={governanceBoundary.data?.tenantBoundary.tenantAdminReady ? "warn" : "muted"}>{governanceBoundary.data?.tenantBoundary.state ?? "unavailable"}</Badge></div>
+          <div className="panel-head"><div><h2>Tenant boundary</h2><p>Historical boundary projection; use Administration for the delivered tenant control plane</p></div><Badge tone={governanceBoundary.data?.tenantBoundary.tenantAdminReady ? "warn" : "muted"}>{governanceBoundary.data?.tenantBoundary.state ?? "unavailable"}</Badge></div>
           <div className="panel-body">
             {governanceBoundary.data ? <>
               <div className="summary-list">
@@ -4575,7 +4628,7 @@ function GovernanceView() {
                 <SummaryRow label="Tenant admin ready" value="NO" tone="warn" />
                 <SummaryRow label="Isolation indicators" value={governanceBoundary.data.tenantBoundary.isolationIndicators.length} />
               </div>
-              <p className="panel-note">Tenant-aware visibility exists, but tenant administration is not available in EPIC-12.</p>
+              <p className="panel-note">This EPIC-12 projection is retained as historical boundary evidence. Tenant Administration was delivered by EPIC-15.</p>
               <IdList label="Declared isolation" ids={governanceBoundary.data.tenantBoundary.isolationIndicators} />
               <TimelineList items={governanceBoundary.data.tenantBoundary.caveats.map((caveat, index) => ({ id: `tenant-caveat-${index}`, title: "Tenant caveat", detail: caveat, tone: "warn" }))} />
             </> : <PanelStateLine state={governanceBoundary.loadState} error={governanceBoundary.loadError} emptyMessage="No tenant boundary reported by the Product API." />}
@@ -4583,7 +4636,7 @@ function GovernanceView() {
           </div>
         </section>
         <section className="panel">
-          <div className="panel-head"><div><h2>Administration boundary</h2><p>Read-only visibility; production administration remains future scope</p></div><Badge tone="warn">{governanceBoundary.data?.administrationBoundary.state ?? "unavailable"}</Badge></div>
+          <div className="panel-head"><div><h2>Administration boundary</h2><p>Historical EPIC-12 projection; operational tenant administration is now linked from the main shell</p></div><Badge tone="warn">{governanceBoundary.data?.administrationBoundary.state ?? "unavailable"}</Badge></div>
           <div className="panel-body">
             {governanceBoundary.data ? <>
               <div className="summary-list">
@@ -4652,7 +4705,7 @@ function GovernanceView() {
       </div>
     </div>
     <div className="flow-group">
-      <div className="flow-group-head"><h2>Administration boundary</h2><p>Production administration is explicitly out of scope for EPIC-11.</p></div>
+      <div className="flow-group-head"><h2>Administration boundary</h2><p>Historical EPIC-11 boundary; use Tenant Administration for the current governed surface.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
           <div className="panel-head"><div><h2>Administration</h2><p>Boundary visibility without mutations</p></div><Badge tone="muted">unavailable</Badge></div>
@@ -4664,11 +4717,11 @@ function GovernanceView() {
             {administration.loadState === "error" && <ErrorBanner error={administration.loadError} />}
           </div>
         </section>
-        <BlockedPanel title="Administration operations" note="RBAC, tenant and secrets administration" reason={administration.data?.reason ?? "Production administration is future scope; no mutations are exposed from this surface."} />
+        <BlockedPanel title="Legacy administration projection" note="Historical EPIC-11 read model" reason={administration.data?.reason ?? "This legacy projection does not expose mutations; current tenant and secret operations are available from dedicated governed surfaces."} />
       </div>
     </div>
     <div className="flow-group">
-      <div className="flow-group-head"><h2>Tenants & isolation</h2><p>Advanced tenant management is future scope; only Product API isolation visibility is exposed.</p></div>
+      <div className="flow-group-head"><h2>Tenants & isolation</h2><p>This historical view keeps isolation evidence; current tenant lifecycle and governance live in Tenant Administration.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel wide">
           <div className="panel-head"><div><h2>Isolation visibility</h2><p>Declared worker isolation modes, reported by the Product API</p></div><Badge tone="muted">future scope</Badge></div>
@@ -5052,7 +5105,7 @@ export default function App() {
     <div className={dark ? "app dark" : "app light"}>
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
         <div className="brand"><img src="/assets/Axodus_logo.svg" alt="ACS" /><div><b>ACS</b><small>CONTROL PLANE</small></div><button className="mobile-close" type="button" aria-label="Close navigation" onClick={() => setMobile(false)}>×</button></div>
-        <div className="workspace-switch" aria-live="polite"><span className="workspace-icon">⌘</span><div><b>{productApiConfig.environment} environment</b><small>Tenant context unavailable from Product API</small></div></div>
+        <div className="workspace-switch" aria-live="polite"><span className="workspace-icon">⌘</span><div><b>{productApiConfig.environment} environment</b><small>{productApiConfig.tenantId} · server-resolved session</small></div></div>
         <SidebarNavigation pathname={location.pathname} activeDomain={domain} onNavigate={() => setMobile(false)} />
         <div className="connection"><div><span className="openclaw-mark">A</span><div><b>Product API</b><small><i /> {connectivity.status === "ready" ? "Connected" : connectivity.status === "loading" ? "Checking" : "Unavailable"}</small></div></div><span className="mono">/api/v1</span></div>
       </aside>
@@ -5070,11 +5123,17 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/operational-execution" element={<OperationalExecution />} />
+            <Route path="/executions" element={<ExecutionsPage />} />
+            <Route path="/executions/:jobId" element={<ExecutionDetailPage />} />
+            <Route path="/workers" element={<WorkersPage />} />
+            <Route path="/workers/:workerId" element={<WorkerDetailPage />} />
+            <Route path="/operations" element={<OperationsStatusPage />} />
             <Route path="/readiness" element={<Readiness />} />
             <Route path="/agents" element={<AgentInventory />} />
             <Route path="/agents/new" element={<AgentCreate />} />
             <Route path="/agents/:agentId/edit" element={<AgentEdit />} />
             <Route path="/agents/:agentId" element={<AgentDetail />} />
+            <Route path="/credentials" element={<CredentialsPage />} />
             <Route path="/agents/:agentId/composition" element={<AgentCompositionView />} />
             <Route path="/composition" element={<CompositionOverview />} />
             <Route path="/roles" element={<RoleCatalog />} />

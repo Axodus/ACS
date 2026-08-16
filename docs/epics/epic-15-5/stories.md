@@ -222,6 +222,8 @@ Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the st
 - **Acceptance criteria:** operator moves from tenant to agent/operations/audit without changing identity context or using mock selectors.
 - **Required evidence:** browser route/session/navigation matrix.
 
+**Status:** COMPLETE — AEES-F. The main shell and Tenant Administration remain separate builds but are securely federated through one trusted bearer/session contract, reciprocal navigation, visible server-owned Tenant context and no browser actor/platform selector. Journeys F/G and the 56-route-viewports matrix prove navigation and denial behavior.
+
 ### ORG-F02 — Complete governed composition and secret-reference UX
 
 - **Findings:** ACS-ORG-015, 016.
@@ -231,6 +233,8 @@ Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the st
 - **Non-goals:** generic plugin marketplace, policy DSL or secret value display.
 - **Acceptance criteria:** create-to-ready Agent flow is governed, auditable and tenant-scoped.
 - **Required evidence:** API and browser positive/negative journey.
+
+**Status:** COMPLETE for the supported Agent composition boundary — AEES-F. Agent create/edit consumes Product API role/profile/provider/model/capability/skill/tool catalogs and write-only credential references. `s55` proves secret create/rotate/revoke/no-leak and missing-model readiness denial; Journey A proves create-to-ready-to-sandbox-deploy.
 
 ### ORG-F03 — Complete execution and remediation UX
 
@@ -242,6 +246,8 @@ Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the st
 - **Acceptance criteria:** an injected sandbox failure is detected, remediated and verified without shell access.
 - **Required evidence:** browser mutation/recovery proof and audit event correlation.
 
+**Status:** COMPLETE for supported runtime actions / PARTIAL for external infrastructure remediation — AEES-F. Agent Execute, Executions list/detail, Workers, Operations, job diagnostics, durable cancellation and automatic recovery visibility are active. Journeys B–E prove remote result, crash/reassignment, terminal failure and no-worker remediation. Force recovery, worker provisioning and autoscaling remain explicit non-goals.
+
 ### ORG-F04 — Reconcile readiness language and source hygiene
 
 - **Findings:** ACS-ORG-022, 023, 024.
@@ -251,6 +257,8 @@ Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the st
 - **Non-goals:** marketing redesign.
 - **Acceptance criteria:** no contradictory tenant/readiness status, unmanaged backups or unsupported production claim remains.
 - **Required evidence:** textual/route inventory and browser review.
+
+**Status:** COMPLETE — AEES-F. Active surfaces topology-qualify readiness, Tenant Administration is no longer future scope, and divergent tracked `.bak`/`.backup` sources were removed and ignored. Production Ready remains blocked.
 
 ## Milestone G — Production Deployment Readiness & Governance Gate
 

@@ -241,7 +241,12 @@ export class HttpEdgePolicy {
   }
 
   responseHeaders(corsHeaders: Readonly<Record<string, string>> = {}): Readonly<Record<string, string>> {
-    return { ...this.#securityHeaders, ...corsHeaders };
+    const corsApproved = typeof corsHeaders["access-control-allow-origin"] === "string";
+    return {
+      ...this.#securityHeaders,
+      ...(corsApproved ? { "cross-origin-resource-policy": "cross-origin" } : {}),
+      ...corsHeaders,
+    };
   }
 
   async readiness(): Promise<{

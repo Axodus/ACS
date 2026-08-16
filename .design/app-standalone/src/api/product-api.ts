@@ -1,5 +1,11 @@
 const API_BASE_URL = import.meta.env.VITE_ACS_API_BASE_URL ?? "http://127.0.0.1:8788/api/v1";
 
+declare global {
+  interface Window {
+    __ACS_AUTH__?: { readonly accessToken?: string };
+  }
+}
+
 export type ProductApiHealth = {
   service: string;
   status: "ok";
@@ -303,17 +309,17 @@ export type SystemGuardrailsView = {
   productionReady: false;
   sourceOfTruth: "product-api";
   futureScope: readonly string[];
-  administration: { status: "unavailable"; scope: "future"; reason: string };
-  tenants: { status: "future_scope"; reason: string };
+  administration: { status: "available"; scope: "tenant_administration"; reason: string; route: string };
+  tenants: { status: "available"; reason: string; route: string };
 };
 
 export type SystemConfigurationView = {
   mode: "inspection";
   automation: "disabled";
   readOnly: true;
-  persistenceBackend: "memory";
-  secretBackend: "memory";
-  settlementBackend: "memory";
+  persistenceBackend: "memory" | "filesystem" | "database";
+  secretBackend: "memory" | "filesystem" | "vault" | "kms";
+  settlementBackend: "memory" | "production";
   refreshWindowMs: number;
   notices: readonly string[];
 };
@@ -326,15 +332,17 @@ export type SystemPolicyVisibility = {
 };
 
 export type SystemAdministrationView = {
-  status: "unavailable";
-  scope: "future";
+  status: "available";
+  scope: "tenant_administration";
   reason: string;
+  route: string;
   notes: readonly string[];
 };
 
 export type SystemTenantsView = {
-  status: "future_scope";
+  status: "available";
   reason: string;
+  route: string;
   isolationVisibility: readonly {
     workerId: string;
     declaredIsolationModes: readonly string[];
@@ -2033,6 +2041,16 @@ export type CredentialSummary = {
   guardrails: ProductApiOperationalGuardrails;
 };
 
+export type CredentialSecretMutation = {
+  credentialId: string;
+  providerId: string;
+  type: string;
+  status: string;
+  scopes: string[];
+  secret?: { secretId: string; backend: string; version?: string; status: "active" | "revoked" };
+  updatedAt: number;
+};
+
 export type ProviderConnectionSummary = {
   connectionId: string;
   providerId: string;
@@ -2169,9 +2187,117 @@ export type WorkerSummary = {
   guardrails: ProductApiOperationalGuardrails;
 };
 
+export type RuntimeJobStatus = "queued" | "assigned" | "running" | "succeeded" | "failed" | "cancel_requested" | "cancelled";
+
+export type RuntimeStateEvent = {
+  eventId: string;
+  tenantId?: string;
+  jobId?: string;
+  assignmentId?: string;
+  workerId?: string;
+  category: string;
+  outcome: "allowed" | "succeeded" | "denied" | "failed";
+  reason?: string;
+  correlationId?: string;
+  timestamp: number;
+  revision?: number;
+  metadata: Record<string, unknown>;
+};
+
+export type RuntimeJobSummary = {
+  jobId: string;
+  tenantId: string;
+  runtimeInstanceId: string;
+  deploymentId: string;
+  agentId?: string;
+  workloadType: string;
+  status: RuntimeJobStatus;
+  attempt: number;
+  maxAttempts: number;
+  revision: number;
+  correlationId: string;
+  createdAt: number;
+  updatedAt: number;
+  cancellationRequestedAt?: number;
+  result?: {
+    status: "success";
+    output?: Record<string, unknown>;
+    evidenceRefs: string[];
+    usageRecords: unknown[];
+    completedAt: number;
+  };
+  error?: { code: string; message: string; retryable: boolean };
+};
+
+export type JobDiagnostic = {
+  jobId: string;
+  tenantId: string;
+  status: RuntimeJobStatus;
+  workloadType: string;
+  attempt: number;
+  maxAttempts: number;
+  correlationId: string;
+  createdAt: number;
+  updatedAt: number;
+  workerId?: string;
+  assignmentId?: string;
+  leaseId?: string;
+  leaseExpiresAt?: number;
+  fencingToken?: number;
+  failureCode?: string;
+  failureSummary?: string;
+  recoveryCount: number;
+  lastRecoveryReason?: string;
+  reasonCode?: string;
+  recommendedAction?: string;
+  history: RuntimeStateEvent[];
+};
+
+export type WorkerDiagnostic = {
+  workerId: string;
+  instanceId: string;
+  status: "registered" | "available" | "busy" | "draining" | "offline";
+  name: string;
+  version: string;
+  lastHeartbeatAt?: number;
+  heartbeatAgeMs?: number;
+  expiresAt?: number;
+  capabilities: Record<string, unknown>;
+  activeRuns: number;
+  currentAssignments: Array<{ assignmentId: string; jobId: string; leaseExpiresAt: number; fencingToken: number; attempt: number }>;
+};
+
+export type OperationalDependency = {
+  name: string;
+  category: "identity" | "secrets" | "edge" | "persistence" | "economics" | "runtime" | "telemetry";
+  required: boolean;
+  configured: boolean;
+  reachable: boolean;
+  status: "READY" | "DEGRADED" | "BLOCKED" | "UNKNOWN";
+  lastCheckedAt: number;
+  latencyMs: number;
+  reasonCode?: string;
+  summary: string;
+  recommendedAction?: string;
+};
+
+export type OperationalStatus = {
+  overall: "READY" | "DEGRADED" | "BLOCKED" | "UNKNOWN";
+  liveness: { status: "LIVE"; checkedAt: number };
+  readiness: { status: "READY" | "DEGRADED" | "BLOCKED" | "UNKNOWN"; reasonCodes: string[]; checkedAt: number };
+  dependencies: OperationalDependency[];
+  workers: { total: number; active: number; busy: number; draining: number; offline: number; entries: WorkerDiagnostic[] };
+  jobs: { total: number; queued: number; running: number; failed: number; entries: JobDiagnostic[] };
+  recovery: { healthy: boolean; lastScanAt?: number; lastErrorAt?: number };
+  telemetry: { configured: boolean; external: boolean; reachable: boolean; state: string; exporter: string; lastSuccessAt?: number; lastFailureAt?: number; queueDepth: number; droppedRecords: number };
+  updatedAt: number;
+};
+
 export const productApiConfig = {
   baseUrl: API_BASE_URL,
   environment: import.meta.env.VITE_ACS_ENVIRONMENT ?? "local",
+  tenantId: import.meta.env.VITE_ACS_TENANT_ID ?? "tenant-dev",
+  tenantAdministrationUrl: import.meta.env.VITE_ACS_TENANT_ADMIN_URL ?? "/admin/tenants",
 };
 
 export function normalizeApiError(payload: unknown, status: number): ProductApiError {
@@ -2195,10 +2321,12 @@ export function normalizeApiError(payload: unknown, status: number): ProductApiE
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const accessToken = typeof window !== "undefined" ? window.__ACS_AUTH__?.accessToken : undefined;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
   });
@@ -2230,6 +2358,15 @@ export const productApi = {
   },
   async getCredentialDetail(id: string) {
     return request<CredentialSummary>(`/credentials/${id}`);
+  },
+  async createCredential(input: { credentialId?: string; providerId: string; type: string; purpose: string; secretValue: string; scopes: string[] }) {
+    return request<CredentialSecretMutation>("/credentials", { method: "POST", body: JSON.stringify(input) });
+  },
+  async rotateCredential(id: string, secretValue: string) {
+    return request<CredentialSecretMutation>(`/credentials/${encodeURIComponent(id)}/rotate`, { method: "PUT", body: JSON.stringify({ secretValue }) });
+  },
+  async revokeCredential(id: string) {
+    return request<CredentialSecretMutation>(`/credentials/${encodeURIComponent(id)}/revoke`, { method: "POST" });
   },
   async listProviderConnections() {
     return request<ProviderConnectionSummary[]>("/provider-connections");
@@ -2320,6 +2457,26 @@ export const productApi = {
   },
   async listWorkerWorkloads(id: string) {
     return request<unknown[]>(`/workers/${id}/workloads`);
+  },
+
+  async listRuntimeJobs(status?: RuntimeJobStatus) {
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    return request<RuntimeJobSummary[]>(`/runtime/jobs${query}`);
+  },
+  async getRuntimeJob(jobId: string) {
+    return request<RuntimeJobSummary>(`/runtime/jobs/${encodeURIComponent(jobId)}`);
+  },
+  async getRuntimeJobEvents(jobId: string) {
+    return request<RuntimeStateEvent[]>(`/runtime/jobs/${encodeURIComponent(jobId)}/events`);
+  },
+  async getRuntimeJobDiagnostics(jobId: string) {
+    return request<JobDiagnostic>(`/runtime/jobs/${encodeURIComponent(jobId)}/diagnostics`);
+  },
+  async cancelRuntimeJob(jobId: string) {
+    return request<RuntimeJobSummary>(`/runtime/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST" });
+  },
+  async getOperationalStatus(force = false) {
+    return request<OperationalStatus>(`/system/operational-status${force ? "?force=true" : ""}`);
   },
 
   async listAgents() {
@@ -2506,9 +2663,10 @@ export const productApi = {
     });
   },
 
-  async startRuntime(runtimeInstanceId: string) {
+  async startRuntime(runtimeInstanceId: string, input: { deploymentId: string; agentId?: string; targetId?: string; maxAttempts?: number }) {
     return request<unknown>(`/runtimes/${runtimeInstanceId}/start`, {
       method: "POST",
+      body: JSON.stringify(input),
     });
   },
 

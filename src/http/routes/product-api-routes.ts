@@ -1,4 +1,5 @@
 import { fail, ok, type AcsHttpEnvelopeMeta } from "../responses.js";
+import { randomUUID } from "node:crypto";
 import type { EventSeverity } from "../../control-plane/operational-evidence-service.js";
 import {
   AcsHttpValidationError,
@@ -41,7 +42,7 @@ import type { IncomingMessage } from "node:http";
 import type { DeploymentMode } from "../../control-plane/unified-agent-model.js";
 import type { DeploymentRequest } from "../../control-plane/deployment-service.js";
 import { routeTenantAdministrationRequest } from "./admin-tenant-routes.js";
-import { HttpAuthenticationError } from "../auth.js";
+import { HttpAuthenticationError, type AcsAuthContext } from "../auth.js";
 import { TenantMembershipNotFoundError } from "../../control-plane/tenant-membership.js";
 import { PayloadTooLargeError, readBoundedJsonBody } from "../request-body.js";
 import {
@@ -50,6 +51,8 @@ import {
   type ExecutionJob,
   type ExecutionJobStatus,
 } from "../../workers/durable-runtime-state.js";
+import type { CredentialConnection, CredentialConnectionType } from "../../intelligence/credential-connection.js";
+import { SecretInputError, SecretNotFoundError, SecretProviderUnavailableError, SecretRevokedError, SecretTenantMismatchError } from "../../intelligence/secret-store.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -799,6 +802,54 @@ export async function routeProductApiRequest(
       const credentials = await api.listCredentials();
       return { status: 200, body: ok(credentials, [], options.correlationId, routeMeta) };
     }
+    if (segments[2] === "credentials" && segments.length === 3 && request.method === "POST") {
+      const authorityFailure = credentialAuthorityFailure(context, options.auth, options.correlationId, routeMeta);
+      if (authorityFailure) return authorityFailure;
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const credentialId = typeof body.credentialId === "string" && body.credentialId
+        ? assertSafeIdentifier(body.credentialId, "credentialId")
+        : `cred_${randomUUID()}`;
+      const providerId = typeof body.providerId === "string" ? assertSafeIdentifier(body.providerId, "providerId") : undefined;
+      const purpose = typeof body.purpose === "string" && body.purpose.trim() ? body.purpose.trim() : undefined;
+      const secretValue = typeof body.secretValue === "string" && body.secretValue ? body.secretValue : undefined;
+      if (!providerId || !purpose || !secretValue) throw new AcsHttpValidationError("providerId, purpose, and secretValue are required");
+      const allowedTypes: readonly CredentialConnectionType[] = ["managed", "api-key", "oauth", "subscription", "service-account", "local-runner"];
+      const type = typeof body.type === "string" && allowedTypes.includes(body.type as CredentialConnectionType)
+        ? body.type as CredentialConnectionType
+        : "api-key";
+      const scopes = Array.isArray(body.scopes) ? body.scopes.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).map(value => value.trim()) : [];
+      const at = Date.now();
+      if (context.credentials.list().some((connection) => connection.id === credentialId)) {
+        throw new DuplicateRegistrationError("credential-connection", credentialId);
+      }
+      const secretRef = await context.secretStore.put({ tenantId: context.isolation.scope.tenantId, providerId, purpose, value: secretValue, actor: options.auth?.actorId, correlationId: options.correlationId, at });
+      let connection: CredentialConnection;
+      try {
+        connection = context.credentials.register({
+          id: credentialId,
+          providerId,
+          type,
+          status: "configured",
+          owner: { tenantId: context.isolation.scope.tenantId },
+          scopes,
+          secretRef,
+          metadata: { source: "control-plane" },
+          createdAt: at,
+          updatedAt: at,
+        });
+      } catch (error) {
+        await context.secretStore.delete(secretRef, {
+          tenantId: context.isolation.scope.tenantId,
+          actor: options.auth?.actorId,
+          correlationId: options.correlationId,
+          reason: "credential metadata persistence failed",
+          at,
+        }).catch(() => false);
+        throw error;
+      }
+      recordSecretMutation(context, connection, "secret.created", options.auth?.actorId, options.correlationId, at);
+      return { status: 201, body: ok(credentialMutationReadModel(connection, "active"), [], options.correlationId, routeMeta) };
+    }
     if (segments[2] === "credentials" && segments.length === 4 && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       const credentialId = readPathSegment(segments, 3, "credentialId");
@@ -807,6 +858,33 @@ export async function routeProductApiRequest(
         return fail(`credential not found: ${credentialId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
       }
       return { status: 200, body: ok(credential, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "credentials" && segments[3] && segments[4] === "rotate" && segments.length === 5 && request.method === "PUT") {
+      const authorityFailure = credentialAuthorityFailure(context, options.auth, options.correlationId, routeMeta);
+      if (authorityFailure) return authorityFailure;
+      const credentialId = readPathSegment(segments, 3, "credentialId");
+      const connection = context.credentials.getForScope(credentialId, context.isolation.scope);
+      if (!connection.secretRef) throw new AcsHttpValidationError("credential has no managed secret reference");
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const secretValue = typeof body.secretValue === "string" && body.secretValue ? body.secretValue : undefined;
+      if (!secretValue) throw new AcsHttpValidationError("secretValue is required");
+      const at = Date.now();
+      const secretRef = await context.secretStore.rotate(connection.secretRef, { value: secretValue, tenantId: context.isolation.scope.tenantId, actor: options.auth?.actorId, correlationId: options.correlationId, at });
+      const updated = context.credentials.save({ ...connection, status: "configured", secretRef, updatedAt: at });
+      recordSecretMutation(context, updated, "secret.rotated", options.auth?.actorId, options.correlationId, at);
+      return { status: 200, body: ok(credentialMutationReadModel(updated, "active"), [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "credentials" && segments[3] && segments[4] === "revoke" && segments.length === 5 && request.method === "POST") {
+      const authorityFailure = credentialAuthorityFailure(context, options.auth, options.correlationId, routeMeta);
+      if (authorityFailure) return authorityFailure;
+      const credentialId = readPathSegment(segments, 3, "credentialId");
+      const connection = context.credentials.getForScope(credentialId, context.isolation.scope);
+      if (!connection.secretRef) throw new AcsHttpValidationError("credential has no managed secret reference");
+      const at = Date.now();
+      await context.secretStore.revoke(connection.secretRef, { tenantId: context.isolation.scope.tenantId, actor: options.auth?.actorId, correlationId: options.correlationId, at });
+      const updated = context.credentials.save({ ...connection, status: "revoked", updatedAt: at });
+      recordSecretMutation(context, updated, "secret.revoked", options.auth?.actorId, options.correlationId, at);
+      return { status: 200, body: ok(credentialMutationReadModel(updated, "revoked"), [], options.correlationId, routeMeta) };
     }
     if (segments[2] === "credentials") {
       return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
@@ -1003,8 +1081,17 @@ export async function routeProductApiRequest(
       }
       return { status: 200, body: ok(context.operationalDiagnostics.jobDiagnostic(job), [], options.correlationId, routeMeta) };
     }
+    if (segments[2] === "runtime" && segments[3] === "jobs" && segments[4] && segments[5] === "cancel" && segments.length === 6 && request.method === "POST") {
+      const jobId = readPathSegment(segments, 4, "jobId");
+      const job = context.runtimeCoordinator?.getJob(jobId);
+      if (!job || job.tenantId !== context.isolation.scope.tenantId) {
+        return fail(`runtime job not found: ${jobId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      const cancelled = context.runtimeCoordinator?.requestCancellation(jobId, context.isolation.scope.tenantId, Date.now());
+      return { status: 200, body: ok(runtimeJobReadModel(cancelled ?? job), [], options.correlationId, routeMeta) };
+    }
     if (segments[2] === "runtime" && segments[3] === "jobs") {
-      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+      return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
     }
 
     // GET /api/v1/execution-runs and GET /api/v1/execution-runs/:runId
@@ -2002,6 +2089,69 @@ function runtimeJobReadModel(job: ExecutionJob) {
   };
 }
 
+function credentialAuthorityFailure(
+  context: ControlPlaneContext,
+  auth: AcsAuthContext | undefined,
+  correlationId: string | undefined,
+  meta: AcsHttpEnvelopeMeta,
+) {
+  if (auth?.platformAdmin) return undefined;
+  if (!auth?.actorId) {
+    return fail("authenticated principal is required", 401, "authentication_failed", correlationId, undefined, meta, "missing_credentials", { retryable: false, severity: "warning" });
+  }
+  try {
+    const membership = context.tenantMembershipService.getMembership(context.isolation.scope.tenantId, auth.actorId);
+    if (membership.status === "active" && (membership.role === "tenant_owner" || membership.role === "tenant_admin")) return undefined;
+  } catch (error) {
+    if (!(error instanceof TenantMembershipNotFoundError)) throw error;
+  }
+  return fail("tenant owner or administrator authority is required", 403, "forbidden", correlationId, undefined, meta, "blocked_by_authority", { retryable: false, severity: "warning" });
+}
+
+function credentialMutationReadModel(connection: CredentialConnection, secretStatus: "active" | "revoked") {
+  return {
+    credentialId: connection.id,
+    providerId: connection.providerId,
+    type: connection.type,
+    status: connection.status,
+    scopes: connection.scopes,
+    secret: connection.secretRef ? {
+      secretId: connection.secretRef.id,
+      backend: connection.secretRef.backend,
+      version: connection.secretRef.keyVersion,
+      status: secretStatus,
+    } : undefined,
+    updatedAt: connection.updatedAt,
+  };
+}
+
+function recordSecretMutation(
+  context: ControlPlaneContext,
+  connection: CredentialConnection,
+  eventType: string,
+  actor: string | undefined,
+  correlationId: string | undefined,
+  at: number,
+) {
+  context.auditService.recordEvent({
+    eventType,
+    correlationId: correlationId ?? `${eventType}-${connection.id}-${at}`,
+    tenantId: context.isolation.scope.tenantId,
+    actor,
+    result: "success",
+    metadata: {
+      operation: eventType,
+      targetType: "credential",
+      targetId: connection.id,
+      providerId: connection.providerId,
+      secretBackend: connection.secretRef?.backend,
+      secretVersion: connection.secretRef?.keyVersion,
+      secretValueRecorded: false,
+    },
+    timestamp: at,
+  });
+}
+
 function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined, meta: AcsHttpEnvelopeMeta) {
   if (error instanceof PayloadTooLargeError) {
     return fail(error.message, 413, "payload_too_large", correlationId, { maxBodyBytes: error.limit }, meta, "edge_payload_limit", {
@@ -2070,6 +2220,18 @@ function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined,
       retryable: status >= 500,
       severity: status >= 500 ? "error" : "warning",
     });
+  }
+  if (error instanceof SecretTenantMismatchError || error instanceof SecretNotFoundError) {
+    return fail("secret reference not found", 404, "not_found", correlationId, undefined, meta, "secret_not_found", { retryable: false, severity: "warning" });
+  }
+  if (error instanceof SecretInputError) {
+    return fail(error.message, 400, "secret_invalid_input", correlationId, undefined, meta, "validation_error", { retryable: false, severity: "warning" });
+  }
+  if (error instanceof SecretRevokedError) {
+    return fail(error.message, 409, "secret_revoked", correlationId, undefined, meta, "secret_revoked", { retryable: false, severity: "warning" });
+  }
+  if (error instanceof SecretProviderUnavailableError) {
+    return fail(error.message, 503, "secret_provider_unavailable", correlationId, undefined, meta, "SECRET_PROVIDER_UNREACHABLE", { retryable: true, severity: "error" });
   }
   if (error instanceof AcsHttpValidationError) {
     return fail(error.message, 400, error.code, correlationId, error.details, meta, "validation_error", {

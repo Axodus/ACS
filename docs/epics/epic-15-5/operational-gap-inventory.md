@@ -35,17 +35,17 @@ Findings use a primary area plus affected areas from this controlled set:
 | ACS-ORG-011 | OBSERVABILITY | External telemetry, HTTP telemetry, raw logs and traces are unavailable | CRITICAL | E | RESOLVED — AEES-E active boundary |
 | ACS-ORG-012 | OPERATIONS | No dependency-aware production traffic readiness gate exists | HIGH | E | RESOLVED — AEES-E active boundary |
 | ACS-ORG-013 | EDGE | HTTP edge controls are incomplete for an exposed service | HIGH | C | RESOLVED — C02 |
-| ACS-ORG-014 | CONTROL_PLANE | Tenant administration and the main Control Plane are separate applications | HIGH | F | OPEN — VERIFIED |
-| ACS-ORG-015 | CONTROL_PLANE | Agent composition changes remain read-only or unsupported | HIGH | F | OPEN — VERIFIED |
-| ACS-ORG-016 | SECURITY | Secret configuration, rotation and revocation lack a supported operator journey | HIGH | F | OPEN — VERIFIED |
-| ACS-ORG-017 | RUNTIME | Execution routes and the dispatch/result/recovery journey are incomplete | HIGH | D/F | PARTIALLY_RESOLVED — AEES-D backend |
-| ACS-ORG-018 | RECOVERY | Failure surfaces diagnose but do not provide governed remediation | HIGH | F | OPEN — VERIFIED |
+| ACS-ORG-014 | CONTROL_PLANE | Tenant administration and the main Control Plane are separate applications | HIGH | F | RESOLVED — secure federation/browser navigation certified |
+| ACS-ORG-015 | CONTROL_PLANE | Agent composition changes remain read-only or unsupported | HIGH | F | RESOLVED — supported Agent composition journey certified |
+| ACS-ORG-016 | SECURITY | Secret configuration, rotation and revocation lack a supported operator journey | HIGH | F | RESOLVED — write-only lifecycle certified |
+| ACS-ORG-017 | RUNTIME | Execution routes and the dispatch/result/recovery journey are incomplete | HIGH | D/F | RESOLVED — supported sandbox execution UX certified |
+| ACS-ORG-018 | RECOVERY | Failure surfaces diagnose but do not provide governed remediation | HIGH | F | PARTIALLY_RESOLVED — recovery/cancel UX active; infrastructure remediation external |
 | ACS-ORG-019 | INFRASTRUCTURE | Multi-replica correctness is structurally unproven | CRITICAL | B/D | PARTIALLY_RESOLVED — local multi-process proven |
 | ACS-ORG-020 | TESTING | Acceptance does not cover restart, multi-process, remote or provider failures | HIGH | H | PARTIALLY_RESOLVED — runtime topology covered |
-| ACS-ORG-021 | OPERATIONS | Local filesystem, local engine and environment editing are hidden prerequisites | HIGH | B/D/F | OPEN — VERIFIED |
-| ACS-ORG-022 | DOCUMENTATION | Public/demo readiness language can exceed the active operational evidence | MEDIUM | F | OPEN — VERIFIED |
-| ACS-ORG-023 | PRODUCT_API | Legacy projections still describe tenant administration as future scope | MEDIUM | F | OPEN — VERIFIED |
-| ACS-ORG-024 | DOCUMENTATION | Tracked backup source files create divergent implementation references | LOW | A/F | OPEN — VERIFIED |
+| ACS-ORG-021 | OPERATIONS | Local filesystem, local engine and environment editing are hidden prerequisites | HIGH | B/D/F | PARTIALLY_RESOLVED — certified journey shell-free; provider/worker deployment remains engineering scope |
+| ACS-ORG-022 | DOCUMENTATION | Public/demo readiness language can exceed the active operational evidence | MEDIUM | F | RESOLVED — active surfaces topology-qualify readiness |
+| ACS-ORG-023 | PRODUCT_API | Legacy projections still describe tenant administration as future scope | MEDIUM | F | RESOLVED — active navigation and projections reconciled |
+| ACS-ORG-024 | DOCUMENTATION | Tracked backup source files create divergent implementation references | LOW | A/F | RESOLVED — tracked backups removed and ignored |
 
 ## Findings
 
@@ -217,6 +217,8 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Root cause:** EPIC-15 shipped into the available static surface without consolidating the EPIC-14 shell.
 - **Required target state:** one supported Control Plane shell and Product API client/auth context, or an explicit secure federation with consistent navigation and error semantics.
 - **Dependencies / milestone:** trusted identity and API method fix; Milestone F.
+- **AEES-F result:** **RESOLVED.** The builds remain intentionally federated, but main navigation, reciprocal links, bearer/session semantics, server-owned Tenant context and structured error behavior are coherent. The Tenant application no longer offers browser actor/platform selection.
+- **Acceptance evidence:** 56/56 route-viewports and Journey F/G in `/tmp/acs-epic15-5-aees-f-evidence/manifest.json`.
 - **Acceptance evidence:** direct/deep navigation, shared actor context, route regression and browser journey from tenant to agent/audit without changing applications manually.
 
 ### ACS-ORG-015 — Agent composition changes remain read-only or unsupported
@@ -229,6 +231,8 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Root cause:** EPIC-11 intentionally bounded composition mutation while stabilizing read models.
 - **Required target state:** small semantic mutation set through Product API, authority/governance checks, compatibility/readiness refresh and audit receipts.
 - **Dependencies / milestone:** secrets and identity; Milestone F.
+- **AEES-F result:** **RESOLVED for the supported Agent definition boundary.** The create/edit form consumes Product API role, profile, provider/model, capability, skill and tool catalogs and persists one governed Agent definition/revision. Missing model strategy is a deterministic readiness/deployment blocker.
+- **Residual boundary:** plugin installation and arbitrary catalog administration remain outside the supported Agent-composition flow; no second frontend domain model was added.
 - **Acceptance evidence:** create-to-ready browser journey assigns real governed resources without file/code edits; invalid combinations fail semantically.
 
 ### ACS-ORG-016 — Secret configuration, rotation and revocation lack a supported operator journey
@@ -241,6 +245,8 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Root cause:** safe storage was deferred, so mutation UX correctly remained absent.
 - **Required target state:** after ACS-ORG-002, semantic secret-reference operations with minimal metadata, rotation/revoke, readiness feedback and no value echo.
 - **Dependencies / milestone:** managed secret adapter and trusted identity; Milestone F.
+- **AEES-F result:** **RESOLVED for the supported secret-reference lifecycle.** Product API and Control Plane create, rotate and revoke tenant-scoped references; reads expose metadata/version/status only; audit and browser evidence contain no material.
+- **Evidence:** `tests/s55-epic-15-5-operational-ux-contract.test.mjs` and Journey A.
 - **Acceptance evidence:** browser/API rotation journey, runtime resolution, restart preservation, audit record and exposure scan.
 
 ### ACS-ORG-017 — Execution routes and the dispatch/result/recovery journey are incomplete
@@ -253,6 +259,8 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Root cause:** the route-order contradiction is resolved; the remaining gap is the absent durable distributed dispatch and recovery subsystem.
 - **Required target state:** integrate run intent with the D milestone dispatcher, durable outcome and semantic retry/cancel operations, then expose them through the Product API and UI.
 - **Dependencies / milestone:** backend D scope is complete; Milestone F owns the remaining operator journey.
+- **AEES-F result:** **RESOLVED for the supported sandbox runtime journey.** Agent detail starts execution; Executions/Workers expose durable state, assignment, events, diagnostics and terminal result; cancellation is available for valid non-terminal states; crash recovery/reassignment is visible.
+- **Evidence:** Journeys B/C/D and runtime IDs in the AEES-F manifest.
 - **Acceptance evidence:** UI-to-remote-worker run with result, failure, retry, cancellation and audit correlation.
 
 ### ACS-ORG-018 — Failure surfaces diagnose but do not provide governed remediation
@@ -265,6 +273,7 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Root cause:** observability and contract visibility were accepted before the recovery command surface.
 - **Required target state:** bounded runbooks and semantic remediation commands tied to authority, preconditions, receipts and post-action verification.
 - **Dependencies / milestone:** D and E supply reliable state/signals; Milestone F.
+- **AEES-F result:** **PARTIALLY_RESOLVED.** Automatic recovery and durable cancellation are visible and actionable, reason codes have recommended actions, and failure/recovery can be diagnosed without shell. Starting infrastructure, scaling workers, repairing Vault/IdP or forcing ownership remain external operational actions and are not faked in the Control Plane.
 - **Acceptance evidence:** injected failures can be detected, remediated and verified through supported UI/API paths.
 
 ### ACS-ORG-019 — Multi-replica correctness is structurally unproven
@@ -301,6 +310,7 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Required target state:** explicit environment profiles, validated configuration source, externalized durable stores, target/worker onboarding and diagnostics that identify missing dependencies without shell access.
 - **Dependencies / milestone:** B/D/F.
 - **Acceptance evidence:** clean environment bootstrap from documented supported inputs, no manual file edits, and actionable dependency failures in the Control Plane.
+- **AEES-F result:** **PARTIALLY_RESOLVED.** Journeys A–G require no shell, curl, SQLite inspection or file editing after the harness topology is bootstrapped. Deploying/configuring the worker, IdP/Vault and multi-host infrastructure remains an engineering/deployment prerequisite for G/H.
 
 ### ACS-ORG-022 — Public/demo readiness language can exceed active operational evidence
 
@@ -312,31 +322,34 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Root cause:** marketing and product evidence evolved on different timelines.
 - **Required target state:** evidence-linked labels for demo, development, operational and production states; no synthetic live status presented as runtime truth.
 - **Dependencies / milestone:** align during UX operationalization; Milestone F.
+- **AEES-F result:** **RESOLVED for active Control Plane surfaces.** Operations distinguishes liveness/readiness and Ready/Degraded/Blocked/Unknown; documentation qualifies the single-host topology and keeps Production Ready blocked.
 - **Acceptance evidence:** claim audit against the readiness API and closure report; no unsupported production wording.
 
 ### ACS-ORG-023 — Legacy projections still describe tenant administration as future scope
 
 - **Area:** PRODUCT_API; affects CONTROL_PLANE, DOCUMENTATION.
 - **Severity / status:** **MEDIUM**, OPEN — VERIFIED.
-- **Evidence:** `src/control-plane/product-api-client.ts:736-770,3540-3560,3621-3640` still returns production administration unavailable and tenants future scope, while EPIC-15 added `/api/v1/admin/tenants` and a Tenant Administration UI.
+- **A01 evidence:** the pre-AEES-F `SystemGuardrails`, `SystemAdministration` and `SystemTenants` projections returned production administration unavailable and tenants future scope, while EPIC-15 had already delivered `/api/v1/admin/tenants` and its UI.
 - **Current behavior:** old system/governance views and the new administrative API give contradictory capability status.
 - **Operational impact:** the main Control Plane can route an operator to stale guidance and readiness conclusions.
 - **Root cause:** EPIC-15 added a new bounded API without reconciling legacy EPIC-11 projections.
 - **Required target state:** one canonical capability inventory or explicit distinction between tenant administration delivered and broader platform administration deferred.
 - **Dependencies / milestone:** consolidate with the Control Plane shell; Milestone F.
+- **AEES-F result:** **RESOLVED.** Active navigation and session copy point to the real Tenant Administration surface; stale future-scope guidance was removed from the operator path.
 - **Acceptance evidence:** route/read-model inventory contains no contradictory tenant capability status.
 
 ### ACS-ORG-024 — Tracked backup source files create divergent implementation references
 
 - **Area:** DOCUMENTATION; affects TESTING, MAINTAINABILITY.
 - **Severity / status:** **LOW**, OPEN — VERIFIED.
-- **Evidence:** tracked files `.design/app-standalone/src/api/product-api.ts.backup` and `src/http/control-plane-context.ts.bak`.
+- **A01 evidence:** the repository tracked `.design/app-standalone/src/api/product-api.ts.backup` and `src/http/control-plane-context.ts.bak` as divergent source copies.
 - **Current behavior:** obsolete copies sit beside active source and contain stale composition/client behavior.
 - **Operational impact:** searches, reviews and automated analysis can select the wrong implementation; future fixes may be applied inconsistently.
 - **Root cause:** temporary backups were committed.
 - **Required target state:** remove or move historical material to governed documentation/history when ownership is confirmed.
 - **Dependencies / milestone:** safe hygiene in A follow-up or F; no runtime redesign.
 - **Acceptance evidence:** tracked-source scan has no unmanaged backups and build/tests remain unchanged.
+- **AEES-F result:** **RESOLVED.** `.design/app-standalone/src/api/product-api.ts.backup` and `src/http/control-plane-context.ts.bak` were verified as divergent obsolete copies, removed, and `*.bak`/`*.backup` are ignored.
 
 ## Disposition of high-signal textual matches
 

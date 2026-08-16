@@ -19,8 +19,8 @@ contract exists
 | Membership/authority | Yes | Yes | Single-node durable adapter fed by trusted HTTP principal | Negative API/auth tests plus restart/atomic owner transfer proof | PARTIAL pending shared state/live IdP |
 | Governance/limits/entitlements | Yes | Yes | Single-node durable adapter; no shared production database | Evaluator/enforcement, real HTTP method and restart proof | PARTIAL |
 | Agent domain/lifecycle | Yes | Yes | No durable repository | Domain/Product API/browser evidence | PARTIAL |
-| Composition resources | Yes | Read projections and compatibility | No mutable production catalog | Mutation journey absent | PARTIAL |
-| Secret references | Yes | Tenant-scoped lifecycle plus durable metadata | Vault KV v2 provider; local catalog is single-node | Redaction, isolation, rotation/revoke and restart tests; live HA unproven | PARTIAL |
+| Composition resources | Yes | Product API catalogs plus governed Agent definition/revision mutation | No mutable production catalog administration | Browser create/edit selects role/profile/model/capability/skill/tool | READY for supported Agent composition / PARTIAL catalog administration |
+| Secret references | Yes | Tenant-scoped lifecycle plus durable metadata and write-only Product API UX | Vault KV v2 provider; local catalog is single-node | Redaction, isolation, rotation/revoke, restart and browser tests; live HA unproven | READY for supported UX / PARTIAL globally |
 | Deployment lifecycle | Yes | Sandbox implementation | No production target | Sandbox tests | PARTIAL |
 | Runtime lifecycle | Yes | Product API creates durable remote runtime jobs; read/cancel/event models exist | SQLite durable runtime store | restart/crash/fencing/process acceptance; multi-host unproven | READY for certified topology / PARTIAL globally |
 | Worker registration/assignment | Yes | authenticated HTTP pull, durable registry/assignment/lease/fencing | SQLite shared-database adapter; signed service identity | two Control Planes/two workers, crash/reassignment/stale result proof | PARTIAL pending multi-host/workload identity |
@@ -30,11 +30,11 @@ contract exists
 | HTTP authentication | `HttpIdentityValidator` | OIDC JWT/JWKS validator plus explicit DEV adapter | Production-oriented adapter selected fail-closed | cryptographic/claims/key-rotation and real HTTP forged-header tests; live IdP unproven | PARTIAL |
 | HTTP authorization | Yes | Yes after actor resolution | Depends on trusted identity | Domain/API negative tests | PARTIAL |
 | Rate limiting | `RateLimiter` / `RateLimitStore` | fixed-window server boundary; SQLite active HTTP adapter, memory explicit DEV/test | Single-node shared-database adapter | atomic two-instance and real HTTP spoof/429/outage proof | PARTIAL |
-| Telemetry | Event/sink contracts | Memory/JSONL | No external exporter | Local tests | PARTIAL |
-| Readiness | Reports/read models | Computed inspection | No traffic gate | Report tests | PARTIAL |
-| Main Control Plane | Yes | `.design/app-standalone` | N/A | EPIC-14 browser evidence | READY for accepted UX scope |
-| Tenant Administration UI | Yes | `static` app | N/A | EPIC-15 browser evidence | READY for accepted UX scope; operational auth blocked |
-| Recovery/remediation | Durable runtime cancel/recovery/event contracts | automatic lease/worker/orphan recovery; operator UX remains read-limited | SQLite recovery coordinator | worker/Control Plane crash and cancellation acceptance | PARTIAL |
+| Telemetry | Structured log/metric/trace contracts | bounded OTLP provider and worker propagation | External-process receiver path | AEES-E incident/process evidence | READY for certified topology / PARTIAL globally |
+| Readiness | Liveness/readiness/dependency contracts | dependency registry, stable reason codes and Operations projection | traffic-ready HTTP boundary | E02 tests plus browser no-capacity/dependency UX | READY for certified topology |
+| Main Control Plane | Yes | `.design/app-standalone` with Agent, secret, execution, worker and Operations journeys | N/A | AEES-F 56/56 route-viewports and journeys A–E | READY for certified UX scope |
+| Tenant Administration UI | Yes | `static` app securely federated with trusted session/navigation | N/A | AEES-F routes plus Journeys F/G | READY for certified UX scope |
+| Recovery/remediation | Durable runtime cancel/recovery/event contracts | automatic lease/worker/orphan recovery plus job/worker/Operations UX | SQLite recovery coordinator | crash/reassignment/cancel browser and process acceptance | PARTIAL: supported recovery ready; infrastructure actions external |
 
 ## Existing architecture to preserve
 
@@ -213,21 +213,21 @@ The diagram is normative only at the boundary level. It does not prescribe a dat
 
 `createAcsHttpServer` now selects durable administrative, secret-catalog, economic, rate-limit and remote-runtime state explicitly; direct contexts use memory/local behavior unless durability/remote mode is requested. The production profile validates secrets, economics, OIDC, rate limiting, CORS, durable runtime and signed worker identity rather than accepting insecure fallbacks. Agents, deployments and shared multi-host state remain open under ACS-ORG-001/019.
 
-### Trust starts too late
+### Trust boundary is established
 
-Tenant-scoped authorization and governance are correctly modeled, but the incoming actor is not authenticated. The target is not a new RBAC model; it is a trusted principal boundary feeding the existing authority model.
+Tenant-scoped authorization and governance receive a C01-authenticated principal. AEES-F clients use that trusted request/session context and no longer reconstruct actor or platform authority from local storage or arbitrary headers.
 
 ### Runtime contracts are connected to durable scheduling
 
 AEES-D connects the normal Product API runtime path to durable jobs and worker claims. The worker transport cannot grant ownership; it can only request an atomic claim and present the resulting lease/fencing identity. Runtime result and recovery state are inspectable through Product API read models. The residual gap is operational UX and multi-host infrastructure, not a missing scheduling boundary.
 
-### Evidence is derived from ephemeral truth
+### Evidence and diagnostics remain separate from authoritative truth
 
-Administrative audit, secret metadata/references, economics and runtime ownership survive single-node restart. AEES-E now exports operational signals and computes dependency-aware diagnostics from those boundaries. Exporters do not make Agent/deployment projections durable; residual Milestone B work must still establish their authoritative truth, and Milestone F must expose supported operator remediation.
+Administrative audit, secret metadata/references, economics and runtime ownership survive single-node restart. AEES-E exports operational signals and computes dependency-aware diagnostics from those boundaries. AEES-F consumes those read models without making browser state authoritative. Exporters and UX do not make Agent/deployment projections durable; residual Milestone B/H work must still establish shared truth.
 
-### Surfaces are accepted independently, not as one journey
+### Surfaces are securely federated as one journey
 
-EPIC-14 and EPIC-15 browser evidence remains valid for their routes. Operational readiness requires a single authenticated journey across tenant administration, agent configuration, execution, diagnostics and recovery. This is integration work, not a redesign.
+The two frontend builds remain separate deployment units, but AEES-F closes the architecture decision with secure federation: reciprocal navigation, one Product API/session contract, server-owned Tenant context and consistent errors. Browser acceptance now crosses tenant administration, Agent configuration, execution, diagnostics and recovery as one journey.
 
 ## Sandbox deployment gate prerequisites
 
@@ -254,7 +254,7 @@ The implementation task is therefore “add a certified production target behind
 - **Rate limiter:** implementation decision CLOSED for the active single-node HTTP composition: fixed-window `RateLimiter`, hashed server-derived keys and atomic SQLite shared-database store. A live multi-host/global provider and deployment topology remain H/ACS-ORG-019 acceptance decisions.
 - **Dispatcher/broker:** implementation decision CLOSED for the certified topology: authenticated HTTP worker pull over SQLite durable ownership. A broker is not required for correctness. Multi-host storage/transport and whether a later deployment adopts a managed queue remain H/environment decisions; ownership continues to live in the runtime store.
 - **Telemetry protocol:** decision CLOSED for the active boundary: bounded OTLP HTTP/JSON through a vendor-neutral provider. Collector/backend vendor, multi-host deployment, retention and alert routing remain environment/H decisions; a generic observability platform is not part of AEES-E.
-- **Control Plane consolidation:** OPEN DECISION at Milestone F gate between one build and secure federated surfaces. One actor/session/navigation contract is mandatory.
+- **Control Plane consolidation:** decision CLOSED for the current boundary: secure federation of the main Control Plane and Tenant Administration. One bearer/session, server-owned actor/Tenant context, reciprocal navigation and Product API semantics are mandatory; physical build unification is not required.
 
 ## Architecture acceptance rule
 

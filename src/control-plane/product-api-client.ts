@@ -746,17 +746,17 @@ export interface SystemGuardrailsView {
   readonly productionReady: false;
   readonly sourceOfTruth: "product-api";
   readonly futureScope: readonly string[];
-  readonly administration: { readonly status: "unavailable"; readonly scope: "future"; readonly reason: string };
-  readonly tenants: { readonly status: "future_scope"; readonly reason: string };
+  readonly administration: { readonly status: "available"; readonly scope: "tenant_administration"; readonly reason: string; readonly route: string };
+  readonly tenants: { readonly status: "available"; readonly reason: string; readonly route: string };
 }
 
 export interface SystemConfigurationView {
   readonly mode: "inspection";
   readonly automation: "disabled";
   readonly readOnly: true;
-  readonly persistenceBackend: "memory";
-  readonly secretBackend: "memory";
-  readonly settlementBackend: "memory";
+  readonly persistenceBackend: Epic10ReadinessSignals["persistenceBackend"];
+  readonly secretBackend: Epic10ReadinessSignals["secretBackend"];
+  readonly settlementBackend: Epic10ReadinessSignals["settlementBackend"];
   readonly refreshWindowMs: number;
   readonly notices: readonly string[];
 }
@@ -769,15 +769,17 @@ export interface SystemPolicyVisibility {
 }
 
 export interface SystemAdministrationView {
-  readonly status: "unavailable";
-  readonly scope: "future";
+  readonly status: "available";
+  readonly scope: "tenant_administration";
   readonly reason: string;
+  readonly route: string;
   readonly notes: readonly string[];
 }
 
 export interface SystemTenantsView {
-  readonly status: "future_scope";
+  readonly status: "available";
   readonly reason: string;
+  readonly route: string;
   readonly isolationVisibility: readonly {
     readonly workerId: string;
     readonly declaredIsolationModes: readonly string[];
@@ -1985,18 +1987,48 @@ export class ProductApiClient {
   async getAgentReadiness(agentId: string): Promise<AgentReadinessDetail | undefined> {
     const detail = await this.getAgent(agentId);
     if (!detail) return undefined;
+    const compositionFindings = detail.composition?.findings ?? [];
+    const blockers: OperationalFinding[] = compositionFindings
+      .filter((finding) => finding.severity === "error")
+      .map((finding) => ({
+        code: finding.code,
+        severity: "error" as const,
+        domain: "agent",
+        component: "composition",
+        message: finding.message,
+        recommendedRemediation: "Update the Agent composition using authoritative Product API catalog references.",
+      }));
+    if (!detail.agentDefinition.modelStrategy) {
+      blockers.push({
+        code: "AGENT_MODEL_STRATEGY_REQUIRED",
+        severity: "error",
+        domain: "agent",
+        component: "composition",
+        message: "Agent composition requires a model strategy before deployment.",
+        recommendedRemediation: "Select an authoritative Product API provider and model in the Agent configuration.",
+      });
+    }
+    const warnings = compositionFindings
+      .filter((finding) => finding.severity === "warning")
+      .map((finding) => ({
+        code: finding.code,
+        severity: "warning" as const,
+        domain: "agent",
+        component: "composition",
+        message: finding.message,
+      }));
     return {
       agentId,
       agentName: detail.agentDefinition.name,
       currentRevisionId: detail.currentRevision.revision,
-      ready: detail.readinessSummary.state === "ready",
-      status: detail.readinessSummary.state,
+      ready: detail.readinessSummary.state === "ready" && blockers.length === 0,
+      status: blockers.length > 0 ? "blocked" : detail.readinessSummary.state,
       categories: [
-        { id: "composition", label: "Composition", status: detail.composition ? "ready" : "unavailable", blockerCount: detail.composition?.findings.length ?? 0, warningCount: 0, findings: [] },
+        { id: "composition", label: "Composition", status: detail.composition ? blockers.length ? "blocked" : detail.composition.ready ? "ready" : "partial" : "unavailable", blockerCount: blockers.length, warningCount: warnings.length, findings: [...blockers, ...warnings] },
         { id: "policy", label: "Policy", status: "unavailable", blockerCount: 0, warningCount: 0, findings: [] },
       ],
-      blockers: [],
-      warnings: [],
+      blockers,
+      warnings,
       evidence: [],
       economicReadinessSummary: detail.economicSummary,
       availableActions: [{ action: "recheck", label: "Recheck readiness", available: false, reason: "Governed by Product API", requiresConfirmation: false }],
@@ -2009,11 +2041,35 @@ export class ProductApiClient {
   async getAgentDeploymentPlan(agentId: string): Promise<DeploymentPlan | undefined> {
     const detail = await this.getAgent(agentId);
     if (!detail) return undefined;
+    let target = "local-wsl";
+    let targetAvailable = true;
+    if (this.#targetService) {
+      await this.#targetService.refresh();
+      const eligibleTargets = this.#targetService.findEligible({ engineId: "openclaw", deploymentMode: "sandbox" });
+      targetAvailable = eligibleTargets.length > 0;
+      if (eligibleTargets[0]) target = eligibleTargets[0].id;
+    }
+    const targetBlockers: OperationalFinding[] = targetAvailable ? [] : [{
+      code: "NO_ELIGIBLE_DEPLOYMENT_TARGET",
+      severity: "error",
+      domain: "deployment",
+      component: "execution-target",
+      message: "No sandbox execution target is currently eligible for deployment.",
+      recommendedRemediation: "Inspect System / Operations and restore an eligible sandbox target.",
+    }];
+    const modelStrategyBlockers: OperationalFinding[] = detail.agentDefinition.modelStrategy ? [] : [{
+      code: "AGENT_MODEL_STRATEGY_REQUIRED",
+      severity: "error",
+      domain: "agent",
+      component: "composition",
+      message: "Agent composition requires a model strategy before deployment.",
+      recommendedRemediation: "Select an authoritative Product API provider and model in the Agent configuration.",
+    }];
     return {
       planId: `plan-${agentId}`,
       agentId,
       revisionId: detail.currentRevision.revision,
-      target: "sandbox-target",
+      target,
       engine: "openclaw",
       provider: detail.agentDefinition.modelStrategy?.primary.providerId ?? "unknown",
       workerRequirements: ["sandbox worker"],
@@ -2021,8 +2077,8 @@ export class ProductApiClient {
       policyEvaluation: ["governed by Product API"],
       sandboxConstraints: ["sandbox-only"],
       economicReadinessSummary: detail.economicSummary,
-      eligible: detail.readinessSummary.state === "ready",
-      blockers: [],
+      eligible: detail.readinessSummary.state === "ready" && targetAvailable && modelStrategyBlockers.length === 0,
+      blockers: [...targetBlockers, ...modelStrategyBlockers],
       warnings: [],
       evidence: [],
       availableActions: [],
@@ -3605,21 +3661,22 @@ export class ProductApiClient {
       productionReady: false,
       sourceOfTruth: "product-api",
       futureScope: [
-        "Production administration",
-        "Advanced tenant management",
         "RBAC / advanced authentication",
-        "Secrets vault management",
+        "Secrets provider administration console",
         "Billing and payment rails",
         "Advanced policy mutation",
+        "Production deployment and rollback",
       ],
       administration: {
-        status: "unavailable",
-        scope: "future",
-        reason: "Production administration is not part of EPIC-11; this surface shows the boundary without exposing mutations.",
+        status: "available",
+        scope: "tenant_administration",
+        reason: "Tenant Administration is delivered through the authenticated Product API and federated Control Plane surface; production infrastructure administration remains outside this boundary.",
+        route: "/admin/tenants",
       },
       tenants: {
-        status: "future_scope",
-        reason: "Advanced tenant management is future scope; only isolation visibility is exposed.",
+        status: "available",
+        reason: "Tenant lifecycle, membership, governance, entitlements, limits and audit are available through the governed Tenant Administration surface.",
+        route: "/admin/tenants",
       },
     };
   }
@@ -3629,9 +3686,9 @@ export class ProductApiClient {
       mode: "inspection",
       automation: "disabled",
       readOnly: true,
-      persistenceBackend: "memory",
-      secretBackend: "memory",
-      settlementBackend: "memory",
+      persistenceBackend: this.#readinessSignals.persistenceBackend ?? "memory",
+      secretBackend: this.#readinessSignals.secretBackend ?? "memory",
+      settlementBackend: this.#readinessSignals.settlementBackend ?? "memory",
       refreshWindowMs: OPERATIONAL_REFRESH_WINDOW_MS,
       notices: [
         "No secrets are stored or displayed by this surface.",
@@ -3684,13 +3741,14 @@ export class ProductApiClient {
 
   async getSystemAdministration(): Promise<SystemAdministrationView> {
     return {
-      status: "unavailable",
-      scope: "future",
-      reason: "Production administration is not part of EPIC-11; the boundary is visible without exposing mutations.",
+      status: "available",
+      scope: "tenant_administration",
+      reason: "Tenant Administration is an authenticated, authority-aware Product API surface federated with the main Control Plane.",
+      route: "/admin/tenants",
       notes: [
-        "No RBAC administration",
-        "No tenant administration",
-        "No secrets vault administration",
+        "Tenant lifecycle, membership, governance, entitlements, limits and audit are available",
+        "Platform and Tenant authority remain server-owned",
+        "No generic IAM or infrastructure administration",
         "No production readiness claim",
       ],
     };
@@ -3699,8 +3757,9 @@ export class ProductApiClient {
   async getSystemTenants(): Promise<SystemTenantsView> {
     const workers = this.#workerRegistry?.list() ?? [];
     return {
-      status: "future_scope",
-      reason: "Advanced tenant management is future scope; only isolation visibility is exposed.",
+      status: "available",
+      reason: "Governed Tenant Administration is available; this read model additionally preserves worker isolation visibility.",
+      route: "/admin/tenants",
       isolationVisibility: workers.map((worker) => {
         const modes = worker.capabilities.supportedIsolationModes;
         return {

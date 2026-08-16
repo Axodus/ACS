@@ -2,9 +2,9 @@
 
 **Assessment date:** 2026-08-16
 
-**Source revision:** `ed46412` plus B01/B02/C01/C02/AEES-D/AEES-E implementation evidence
+**Source revision:** `ed46412` plus B01/B02/C01/C02/AEES-D/AEES-E and AEES-F working-tree evidence
 
-**Overall classification:** **Development Ready / Integration Ready PARTIAL / Operational Ready BLOCKED / Production Ready BLOCKED**
+**Overall classification:** **Development Ready / Integration Ready / Operational Ready PARTIAL (READY FOR CERTIFIED TOPOLOGY) / Production Ready BLOCKED**
 
 This baseline evaluates the active composition, not only interfaces or milestone acceptance. `NOT PROVEN` is used when architecture or tests exist but no operational evidence demonstrates the required topology.
 
@@ -15,19 +15,19 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Identity | PARTIAL | Production OIDC/JWT validation and trusted principal/platform mapping pass deterministic and real-HTTP tests; live IdP/JWKS deployment evidence remains. | live-provider acceptance |
 | Security | PARTIAL | Tenant rules, redaction, Vault, trusted HTTP identity and bounded edge controls exist; live managed-service identity and deployed multi-host edge topology are not production-certified. | ACS-ORG-002, 010, 019 |
 | HTTP edge | PARTIAL | Server-owned network/principal/Tenant buckets, explicit production CORS, proxy trust, request bounds, timeouts and security headers pass deterministic and real-HTTP tests. SQLite proves shared counters on one database; multi-host topology remains unproven. | ACS-ORG-010, 019 |
-| Secrets | PARTIAL | Vault KV v2 plus durable metadata/reference catalog is selectable and production fallback fails closed; live provider/HA/service-identity and shared catalog proof remain. | ACS-ORG-002, 016, 019 |
+| Secrets | PARTIAL | Vault KV v2 plus durable metadata/reference catalog is selectable and production fallback fails closed; write-only create/rotate/revoke is now browser-certified. Live provider/HA/service-identity and shared catalog proof remain. | ACS-ORG-002, 019 |
 | Persistence | PARTIAL | Tenant Administration, audit, secret metadata/references, economics and runtime ownership survive restart. Runtime is shared by local processes; Agents/deployments and global multi-host state remain unproven. | ACS-ORG-001, 009, 019 |
-| Runtime | READY FOR CERTIFIED TOPOLOGY | Durable jobs, workers, assignments, leases, fencing, results, cancellation and automatic recovery pass restart/crash acceptance. Operator remediation and multi-host infrastructure remain outside this bounded status. | ACS-ORG-017, 019 |
+| Runtime | READY FOR CERTIFIED TOPOLOGY | Durable jobs, workers, assignments, leases, fencing, results, cancellation and automatic recovery pass restart/crash acceptance and are now operable/observable through the Control Plane. Multi-host infrastructure remains outside this bounded status. | ACS-ORG-019 |
 | Distributed execution | PARTIAL | Two independent Control Planes and two worker processes execute through authenticated HTTP pull and one durable authority. Multi-host/network-partition and workload-identity deployment are not proven. | ACS-ORG-019, 020 |
 | Deployment | BLOCKED | Sandbox deployment works; staged/live are intentionally rejected. | ACS-ORG-006 |
 | Observability | READY FOR CERTIFIED TOPOLOGY / PARTIAL GLOBALLY | Structured HTTP/runtime/worker logs, low-cardinality metrics, distributed spans, bounded OTLP export and operator diagnostics pass external-process acceptance. Multi-host collector/retention/alert topology remains unproven. | ACS-ORG-009, 019, 020 |
 | Economics | PARTIAL | Durable SQLite economic/settlement adapters, idempotency and reconciliation pass; shared/external provider and production financial policy remain unproven. | ACS-ORG-007, 019 |
 | Audit | PARTIAL | Canonical events and Tenant history now survive restart on the selected single-node store; replica sharing, retention/tamper controls and transactional outbox semantics remain unproven. | ACS-ORG-009 |
-| Product API | PARTIAL | HTTP method compatibility, trusted identity, edge guards and durable runtime start/read/cancel are active; composition and complete execution/remediation journeys remain. | ACS-ORG-015, 017, 023 |
-| Control Plane | PARTIAL | Main operational UX and Tenant Administration are browser-certified separately. | ACS-ORG-014–018 |
-| UX journeys | BLOCKED | No complete authenticate-to-recover operator journey exists. | ACS-ORG-014–018, 021 |
-| Recovery | PARTIAL | Automatic lease/worker/orphan recovery and durable cancellation pass process acceptance; AEES-E makes crash/recovery/stale ownership externally diagnosable, while operator remediation UX and multi-host/provider failure coverage remain. | ACS-ORG-018, 019 |
-| Testing | PARTIAL | Unit/route/browser coverage now includes external-process OTLP, dependency outages, runtime restart, worker crash, stale/duplicate result and cancellation tests. Full-system/live-provider/multi-host acceptance remains. | ACS-ORG-020 |
+| Product API | READY FOR SUPPORTED FLOW | Trusted identity/edge, Tenant Administration, governed Agent composition, write-only secrets, readiness/deploy, durable runtime jobs/diagnostics and cancel are connected. Production deployment remains gated. | ACS-ORG-006, 018 |
+| Control Plane | READY FOR CERTIFIED TOPOLOGY | Main operational shell and Tenant Administration are securely federated and browser-certified through one session/navigation contract. | ACS-ORG-018, 021 |
+| UX journeys | READY FOR CERTIFIED TOPOLOGY | Browser journeys A–G prove create/configure/secret/readiness/deploy/execute/diagnose/recover/admin without manual API or shell after topology bootstrap. | ACS-ORG-018, 021 |
+| Recovery | PARTIAL | Automatic recovery, diagnostics and durable cancellation are browser-visible/actionable. Infrastructure remediation and multi-host/provider failure operations remain external. | ACS-ORG-018, 019 |
+| Testing | PARTIAL | Unit/route/process/browser coverage includes four viewports, 56 route checks, real mutations, remote execution/recovery and error/accessibility evidence. Full-system/live-provider/multi-host acceptance remains. | ACS-ORG-020 |
 
 ## Production-state inventory
 
@@ -201,7 +201,7 @@ Criteria:
 - failures are semantic and correlated;
 - adapters may be non-production but are explicit.
 
-**Current status: PARTIAL.** HTTP methods, durable adapter patterns, trusted identity/edge, remote runtime execution and external diagnostics exist, but split Control Plane, unsupported composition and incomplete operator recovery journeys remain.
+**Current status: READY for the certified integration topology.** HTTP methods, durable adapter patterns, trusted identity/edge, remote runtime execution, external diagnostics and the federated operator journey are integrated. Live external providers and multi-host topology remain unproven.
 
 ### Level 3 — Operational Ready
 
@@ -214,7 +214,7 @@ Criteria:
 - operator-visible diagnostics and remediation;
 - restart and multi-instance proof.
 
-**Current status: BLOCKED.** Milestone D's backend runtime prerequisite is met, but B residuals and E/F operator/diagnostic gates remain.
+**Current status: PARTIAL / READY FOR CERTIFIED TOPOLOGY.** AEES-F proves a supported authenticated sandbox journey through administration, composition, secrets, deploy, remote execution, diagnosis and recovery without shell/manual API. Global Operational Ready remains partial because shared Agent/deployment state, live provider topology and infrastructure remediation are not fully certified.
 
 ### Level 4 — Production Ready
 
@@ -243,9 +243,22 @@ Criteria:
 | Sensitive evidence | PASS | zero token/secret/private-key matches |
 | Multi-host collector/topology | NOT PROVEN | local multi-process acceptance only |
 
+## AEES-F acceptance evidence
+
+| Scope | Result | Evidence |
+| --- | --- | --- |
+| Agent lifecycle/composition | PASS | Journey A uses Product API catalogs and real mutations |
+| Write-only secret lifecycle | PASS | `s55` and Journey A; zero plaintext evidence matches |
+| Remote execution/recovery UX | PASS | Journeys B/C; durable job/assignment/worker IDs linked |
+| Failure/dependency diagnostics | PASS | Journeys D/E and structured 403/429/503 states |
+| Tenant Administration/session | PASS | Journeys F/G; actor selector removed |
+| Route/viewports | 56/56 PASS | 14 routes x 4 normative viewports |
+| Accessibility/overflow/errors | PASS | 56 checks, overflow 0, page errors 0, console errors 0 |
+| Multi-host browser topology | NOT PROVEN | multi-process single-host only |
+
 ## Why global readiness remains blocked
 
-Liveness and traffic readiness now have executable, dependency-aware semantics, and external diagnostics are proven for the certified topology. `productionReady` remains false because component readiness does not certify the complete operator journey, Agent/deployment durability, a production deployment target, live multi-host infrastructure or Milestone H acceptance.
+Liveness and traffic readiness have executable, dependency-aware semantics; external diagnostics and the complete supported sandbox operator journey are proven for the certified topology. `productionReady` remains false because Agent/deployment shared durability, a production deployment target, live multi-host infrastructure and Milestone H acceptance are still missing.
 
 ## Baseline decision
 

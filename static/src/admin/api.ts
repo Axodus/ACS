@@ -298,35 +298,18 @@ export interface EvaluationInput {
 
 const DEFAULT_CONTEXT: AdminAccessContext = {
   actorType: "system",
-  actorId: "acs-control-plane-ui",
+  actorId: "server-resolved-session",
   authenticated: true,
 };
 
-const STORAGE_KEY = "acs.epic15.admin.context";
-
-export function readAdminAccessContext(): AdminAccessContext {
-  if (typeof window === "undefined") return DEFAULT_CONTEXT;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CONTEXT;
-    const parsed = JSON.parse(raw) as Partial<AdminAccessContext>;
-    if (typeof parsed.actorId !== "string" || !parsed.actorId.trim()) return DEFAULT_CONTEXT;
-    if (parsed.actorType !== "system" && parsed.actorType !== "tenant-admin" && parsed.actorType !== "tenant-member" && parsed.actorType !== "auditor") return DEFAULT_CONTEXT;
-    return {
-      actorType: parsed.actorType,
-      actorId: parsed.actorId.trim(),
-      tenantId: typeof parsed.tenantId === "string" && parsed.tenantId.trim() ? parsed.tenantId.trim() : undefined,
-      authenticated: parsed.authenticated !== false,
-      wallet: typeof parsed.wallet === "string" && parsed.wallet.trim() ? parsed.wallet.trim() : undefined,
-    };
-  } catch {
-    return DEFAULT_CONTEXT;
+declare global {
+  interface Window {
+    __ACS_AUTH__?: { readonly accessToken?: string };
   }
 }
 
-export function writeAdminAccessContext(context: AdminAccessContext): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(context));
+export function readAdminAccessContext(): AdminAccessContext {
+  return DEFAULT_CONTEXT;
 }
 
 function normalizeBaseUrl(value: string): string {
@@ -353,14 +336,10 @@ function correlationId(): string {
 
 function createHeaders(context: AdminAccessContext, body?: BodyInit): HeadersInit {
   const headers: Record<string, string> = {
-    "x-acs-auth-mode": "development",
-    "x-acs-authenticated": String(context.authenticated),
-    "x-acs-actor-type": context.actorType,
-    "x-acs-actor-id": context.actorId,
     "x-correlation-id": correlationId(),
   };
-  if (context.tenantId) headers["x-acs-tenant-id"] = context.tenantId;
-  if (context.wallet) headers["x-acs-wallet"] = context.wallet;
+  const accessToken = typeof window !== "undefined" ? window.__ACS_AUTH__?.accessToken : undefined;
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
   if (body && !(body instanceof FormData)) headers["content-type"] = "application/json";
   return headers;
 }
