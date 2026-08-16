@@ -1,10 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { createAnonymousAuthContext, HttpAuthenticationError } from "./auth.js";
+import { createAcsAuthContext, createAnonymousAuthContext, HttpAuthenticationError } from "./auth.js";
 import { createAcsRateLimitContext, rateLimitDecisionContext, type RateLimitDecision } from "./rate-limit.js";
 import { declaredBodyExceedsLimit, PayloadTooLargeError } from "./request-body.js";
 import { fail } from "./responses.js";
 import { routeAcsRequest } from "./routes/acs-routes.js";
 import { routeProductApiRequest } from "./routes/product-api-routes.js";
+import { routeWorkerRuntimeRequest } from "./routes/worker-runtime-routes.js";
+import { WorkerAuthenticationError } from "../workers/worker-service-auth.js";
 import {
   createControlPlaneContext,
   type ControlPlaneContext,
@@ -73,6 +75,48 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
 
     const headers = readHeaders(request);
     try {
+      if (isWorkerServiceRoute(requestUrl)) {
+        const principal = await context.workerIdentityValidator.authenticate(headers);
+        const workerAuth = createAcsAuthContext({
+          mode: "required",
+          actorType: "agent",
+          actorId: principal.workerId,
+          authenticated: true,
+          trusted: true,
+          platformAdmin: false,
+          scopes: ["runtime.worker"],
+          principal: {
+            principalId: principal.workerId,
+            issuer: principal.issuer,
+            subject: principal.subject,
+            authenticationMethod: principal.authenticationMethod === "signed_worker_jwt" ? "oidc_bearer" : "development_headers",
+          },
+        });
+        let workerDecision: RateLimitDecision | undefined;
+        try {
+          workerDecision = await context.edgePolicy.consumeAuthenticated(
+            requestUrl,
+            request.method,
+            workerAuth,
+            context.isolation.scope.tenantId,
+          );
+        } catch {
+          writeRateLimitBackendUnavailable(response, correlationId, edgeHeaders);
+          return;
+        }
+        if (workerDecision && !workerDecision.allowed) {
+          writeRateLimitDenied(response, correlationId, workerDecision, edgeHeaders);
+          return;
+        }
+        const result = await routeWorkerRuntimeRequest(request, requestUrl, context, principal, correlationId);
+        if (result.status === 204) {
+          response.writeHead(204, { ...edgeHeaders, ...rateLimitHeaders(workerDecision) });
+          response.end();
+        } else {
+          writeJson(response, result.status, result.body, { ...edgeHeaders, ...rateLimitHeaders(workerDecision) });
+        }
+        return;
+      }
       const publicRoute = isPublicRoute(requestUrl);
       const hasCredential = Boolean(headers.authorization)
         || (context.identityValidator.descriptor.mode === "development" && Boolean(headers["x-acs-actor-id"]));
@@ -141,6 +185,24 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
         });
         return;
       }
+      if (error instanceof WorkerAuthenticationError) {
+        const result = fail(
+          error.message,
+          401,
+          "worker_authentication_failed",
+          correlationId,
+          { category: error.code },
+          networkDecision ? { rateLimit: rateLimitDecisionContext(networkDecision) } : undefined,
+          error.code,
+          { retryable: false, severity: "warning" },
+        );
+        writeJson(response, result.status, result.body, {
+          ...edgeHeaders,
+          ...rateLimitHeaders(networkDecision),
+          "www-authenticate": "Bearer",
+        });
+        return;
+      }
       writeJson(response, 500, fail(
         "unexpected server error",
         500,
@@ -155,6 +217,11 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
 function isPublicRoute(requestUrl: string): boolean {
   const path = new URL(requestUrl, "http://localhost").pathname.replace(/\/+$/, "") || "/";
   return path === "/api/v1/health" || path === "/acs/health" || path === "/acs/version";
+}
+
+function isWorkerServiceRoute(requestUrl: string): boolean {
+  const path = new URL(requestUrl, "http://localhost").pathname.replace(/\/+$/, "") || "/";
+  return path.startsWith("/api/v1/internal/runtime/");
 }
 
 function readHeaders(request: IncomingMessage): Readonly<Record<string, string | undefined>> {

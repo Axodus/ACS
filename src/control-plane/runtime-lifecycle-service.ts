@@ -2,6 +2,7 @@ import type { AgentEngine, RuntimeInstanceResult } from "../engines/agent-engine
 import { EngineSandboxOnlyError, EngineRuntimeNotFoundError } from "../engines/engine-errors.js";
 import type { AuditService } from "./audit-service.js";
 import { assertSameIsolationScope, type IsolationScope } from "./isolation.js";
+import type { DurableRuntimeCoordinator, ExecutionJob } from "../workers/durable-runtime-state.js";
 
 export type RuntimeState =
   | "pending"
@@ -20,9 +21,12 @@ export interface StartRuntimeServiceRequest {
   readonly correlationId?: string;
   readonly actor?: string;
   readonly scope?: IsolationScope;
+  readonly runtimeInstanceId?: string;
+  readonly idempotencyKey?: string;
 }
 
 export interface RuntimeInstanceRecord {
+  readonly jobId?: string;
   readonly runtimeInstanceId: string;
   readonly deploymentId: string;
   readonly agentId?: string;
@@ -33,6 +37,7 @@ export interface RuntimeInstanceRecord {
   readonly stoppedAt?: number;
   readonly terminatedAt?: number;
   readonly updatedAt: number;
+  readonly revision?: number;
   readonly scope?: IsolationScope;
 }
 
@@ -76,6 +81,8 @@ export class RuntimeLifecycleService {
   readonly #deploymentLookup: ((deploymentId: string) => DeploymentLookupRecord | undefined) | undefined;
   readonly #auditService: AuditService | undefined;
   readonly #defaultScope: IsolationScope | undefined;
+  readonly #runtimeCoordinator: DurableRuntimeCoordinator | null;
+  readonly #runtimeMode: "local" | "remote";
   readonly #runtimes = new Map<string, RuntimeInstanceRecord>();
   readonly #executionRuns = new Map<string, ExecutionRunRecord>();
 
@@ -84,11 +91,15 @@ export class RuntimeLifecycleService {
     deploymentLookup?: (deploymentId: string) => DeploymentLookupRecord | undefined;
     auditService?: AuditService;
     scope?: IsolationScope;
+    runtimeCoordinator?: DurableRuntimeCoordinator | null;
+    runtimeMode?: "local" | "remote";
   }) {
     this.#engine = options.engine;
     this.#deploymentLookup = options.deploymentLookup;
     this.#auditService = options.auditService;
     this.#defaultScope = options.scope;
+    this.#runtimeCoordinator = options.runtimeCoordinator ?? null;
+    this.#runtimeMode = options.runtimeMode ?? "local";
   }
 
   validateStateTransition(current: RuntimeState, next: RuntimeState): boolean {
@@ -113,15 +124,32 @@ export class RuntimeLifecycleService {
         });
       }
 
-      if (!this.#engine.startRuntime) {
-        throw new Error("Engine does not support startRuntime");
-      }
-
       const targetId = request.targetId ?? deployment?.targetId;
       if (!targetId) {
         throw new Error(
           "targetId is required for runtime start; provide it explicitly or record it on the deployment",
         );
+      }
+
+      if (this.#runtimeMode === "remote") {
+        if (!this.#runtimeCoordinator) throw new Error("durable remote runtime coordinator is not configured");
+        const runtimeInstanceId = request.runtimeInstanceId ?? `runtime_${request.deploymentId}_${Date.now()}`;
+        const job = this.#runtimeCoordinator.createRuntimeStartJob({
+          tenantId: scope?.tenantId ?? "",
+          runtimeInstanceId,
+          deploymentId: request.deploymentId,
+          ...(agentId ? { agentId } : {}),
+          targetId,
+          correlationId,
+          idempotencyKey: request.idempotencyKey ?? `runtime.start:${runtimeInstanceId}`,
+        });
+        const record = this.#jobRuntimeRecord(job, scope);
+        this.#runtimes.set(record.runtimeInstanceId, record);
+        return record;
+      }
+
+      if (!this.#engine.startRuntime) {
+        throw new Error("Engine does not support startRuntime");
       }
 
       const result: RuntimeInstanceResult = await this.#engine.startRuntime({
@@ -179,6 +207,17 @@ export class RuntimeLifecycleService {
   }
 
   async inspectWithScope(runtimeInstanceId: string, scope?: IsolationScope): Promise<RuntimeInstanceRecord> {
+    if (this.#runtimeMode === "remote" && this.#runtimeCoordinator) {
+      const job = this.#runtimeCoordinator.listJobs({ tenantId: (scope ?? this.#defaultScope)?.tenantId })
+        .find((entry) => entry.runtimeInstanceId === runtimeInstanceId);
+      if (!job) {
+        throw new EngineRuntimeNotFoundError(`Runtime instance ${runtimeInstanceId} not found`, {
+          code: "ACS_ENGINE_RUNTIME_NOT_FOUND",
+          details: { runtimeInstanceId },
+        });
+      }
+      return this.#jobRuntimeRecord(job, scope ?? this.#defaultScope);
+    }
     const local = this.#runtimes.get(runtimeInstanceId);
     assertSameIsolationScope(scope ?? this.#defaultScope, local?.scope);
     if (this.#engine.inspectRuntime) {
@@ -226,6 +265,14 @@ export class RuntimeLifecycleService {
   }
 
   async stop(runtimeInstanceId: string, scope?: IsolationScope): Promise<RuntimeInstanceRecord> {
+    if (this.#runtimeMode === "remote" && this.#runtimeCoordinator) {
+      const current = await this.inspectWithScope(runtimeInstanceId, scope ?? this.#defaultScope);
+      const job = this.#runtimeCoordinator.listJobs({ tenantId: (scope ?? this.#defaultScope)?.tenantId })
+        .find((entry) => entry.runtimeInstanceId === runtimeInstanceId);
+      if (!job) throw new EngineRuntimeNotFoundError(`Runtime instance ${runtimeInstanceId} not found`);
+      const cancelled = this.#runtimeCoordinator.requestCancellation(job.jobId, job.tenantId);
+      return this.#jobRuntimeRecord(cancelled, current.scope);
+    }
     const current = await this.inspectWithScope(runtimeInstanceId, scope ?? this.#defaultScope);
     if (!this.validateStateTransition(current.status, "stopping")) {
       throw new Error(`Invalid runtime state transition from ${current.status} to stopping`);
@@ -356,6 +403,11 @@ export class RuntimeLifecycleService {
   }
 
   listRuntimes(scope?: IsolationScope): readonly RuntimeInstanceRecord[] {
+    if (this.#runtimeMode === "remote" && this.#runtimeCoordinator) {
+      const effectiveScope = scope ?? this.#defaultScope;
+      return this.#runtimeCoordinator.listJobs({ tenantId: effectiveScope?.tenantId })
+        .map((job) => this.#jobRuntimeRecord(job, effectiveScope));
+    }
     const effectiveScope = scope ?? this.#defaultScope;
     return Array.from(this.#runtimes.values()).filter((record) => {
       try {
@@ -377,5 +429,28 @@ export class RuntimeLifecycleService {
         return false;
       }
     });
+  }
+
+  #jobRuntimeRecord(job: ExecutionJob, scope?: IsolationScope): RuntimeInstanceRecord {
+    const status: RuntimeState = job.status === "queued" ? "pending"
+      : job.status === "assigned" || job.status === "running" ? "starting"
+        : job.status === "succeeded" ? "running"
+          : job.status === "cancel_requested" ? "stopping"
+            : job.status === "cancelled" ? "stopped"
+              : "failed";
+    return {
+      jobId: job.jobId,
+      runtimeInstanceId: job.runtimeInstanceId,
+      deploymentId: job.deploymentId,
+      ...(job.agentId ? { agentId: job.agentId } : {}),
+      targetId: job.workload.targetId,
+      deploymentMode: job.workload.deploymentMode,
+      status,
+      startedAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      revision: job.revision,
+      ...(status === "stopped" ? { stoppedAt: job.updatedAt } : {}),
+      ...(scope ? { scope } : {}),
+    };
   }
 }

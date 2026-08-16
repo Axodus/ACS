@@ -225,7 +225,7 @@ test("declared and chunked oversized bodies fail with 413 before an Agent side e
     const optionalDeleteBody = await request(runtime.port, {
       method: "DELETE",
       path: "/api/v1/admin/tenants/tenant-dev/entitlements/agent_execution",
-      headers,
+      headers: { ...headers, "transfer-encoding": "chunked" },
       body: JSON.stringify({ reason: "x".repeat(128) }),
       contentLength: false,
     });

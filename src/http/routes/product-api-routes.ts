@@ -44,6 +44,12 @@ import { routeTenantAdministrationRequest } from "./admin-tenant-routes.js";
 import { HttpAuthenticationError } from "../auth.js";
 import { TenantMembershipNotFoundError } from "../../control-plane/tenant-membership.js";
 import { PayloadTooLargeError, readBoundedJsonBody } from "../request-body.js";
+import {
+  RuntimeStateConflictError,
+  RuntimeStateError,
+  type ExecutionJob,
+  type ExecutionJobStatus,
+} from "../../workers/durable-runtime-state.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -93,6 +99,8 @@ export async function routeProductApiRequest(
     runnerService: context.runnerService,
     workerRegistry: context.workerRegistry,
     workerAssignmentService: context.workerAssignmentService,
+    ...(context.runtimeCoordinator ? { runtimeCoordinator: context.runtimeCoordinator } : {}),
+    ...(context.runtimeRecoveryCoordinator ? { runtimeRecoveryCoordinator: context.runtimeRecoveryCoordinator } : {}),
     engineService: context.engineService,
     compositionResources: context.compositionResources,
     credentialRegistry: context.credentials,
@@ -897,10 +905,26 @@ export async function routeProductApiRequest(
       }
       const runtimeInstanceId = readPathSegment(segments, 3, "runtimeInstanceId");
       const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "execution.start",
+        requirement: { governedAction: "execution.start" },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
       const requestData = {
         deploymentId: typeof body.deploymentId === "string" ? body.deploymentId : "",
         runtimeInstanceId,
         deploymentMode: "sandbox",
+        correlationId: options.correlationId,
+        actor: options.auth?.actorId,
+        scope: context.isolation.scope,
+        idempotencyKey: typeof body.idempotencyKey === "string" && body.idempotencyKey
+          ? body.idempotencyKey
+          : `runtime.start:${runtimeInstanceId}`,
         ...(typeof body.agentId === "string" && body.agentId ? { agentId: body.agentId } : {}),
         ...(typeof body.targetId === "string" && body.targetId ? { targetId: body.targetId } : {}),
       };
@@ -923,6 +947,45 @@ export async function routeProductApiRequest(
     }
     if (segments[2] === "runtimes" && segments[3] && ["start", "stop", "restart"].includes(segments[4] ?? "") && segments.length === 5) {
       return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
+    }
+
+    // Durable distributed runtime inspection. Tenant scope comes from the trusted context.
+    if (apiPath === "runtime/jobs" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["status"]);
+      const status = url.searchParams.get("status") ?? undefined;
+      const allowedStatuses: readonly ExecutionJobStatus[] = [
+        "queued", "assigned", "running", "succeeded", "failed", "cancel_requested", "cancelled",
+      ];
+      if (status && !allowedStatuses.includes(status as ExecutionJobStatus)) {
+        throw new AcsHttpValidationError("invalid runtime job status filter", { status });
+      }
+      const jobs = context.runtimeCoordinator?.listJobs({
+        tenantId: context.isolation.scope.tenantId,
+        ...(status ? { status: status as ExecutionJobStatus } : {}),
+      }) ?? [];
+      return { status: 200, body: ok(jobs.map(runtimeJobReadModel), [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtime" && segments[3] === "jobs" && segments[4] && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const jobId = readPathSegment(segments, 4, "jobId");
+      const job = context.runtimeCoordinator?.getJob(jobId);
+      if (!job || job.tenantId !== context.isolation.scope.tenantId) {
+        return fail(`runtime job not found: ${jobId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(runtimeJobReadModel(job), [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtime" && segments[3] === "jobs" && segments[4] && segments[5] === "events" && segments.length === 6 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const jobId = readPathSegment(segments, 4, "jobId");
+      const job = context.runtimeCoordinator?.getJob(jobId);
+      if (!job || job.tenantId !== context.isolation.scope.tenantId) {
+        return fail(`runtime job not found: ${jobId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      const events = context.runtimeCoordinator?.listEvents({ tenantId: job.tenantId, jobId }) ?? [];
+      return { status: 200, body: ok(events, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtime" && segments[3] === "jobs") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
     // GET /api/v1/execution-runs and GET /api/v1/execution-runs/:runId
@@ -1877,6 +1940,38 @@ function mapGovernanceEnforcementFailure(
   }
 }
 
+function runtimeJobReadModel(job: ExecutionJob) {
+  const output = job.result?.output
+    ? Object.fromEntries(Object.entries(job.result.output).filter(([key]) => key !== "__resultIdempotencyKey"))
+    : undefined;
+  return {
+    jobId: job.jobId,
+    tenantId: job.tenantId,
+    runtimeInstanceId: job.runtimeInstanceId,
+    deploymentId: job.deploymentId,
+    ...(job.agentId ? { agentId: job.agentId } : {}),
+    workloadType: job.workloadType,
+    status: job.status,
+    attempt: job.attempt,
+    maxAttempts: job.maxAttempts,
+    revision: job.revision,
+    correlationId: job.correlationId,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    ...(job.cancellationRequestedAt ? { cancellationRequestedAt: job.cancellationRequestedAt } : {}),
+    ...(job.result ? {
+      result: {
+        status: job.result.status,
+        output,
+        evidenceRefs: job.result.evidenceRefs,
+        usageRecords: job.result.usageRecords,
+        completedAt: job.result.completedAt,
+      },
+    } : {}),
+    ...(job.error ? { error: job.error } : {}),
+  };
+}
+
 function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined, meta: AcsHttpEnvelopeMeta) {
   if (error instanceof PayloadTooLargeError) {
     return fail(error.message, 413, "payload_too_large", correlationId, { maxBodyBytes: error.limit }, meta, "edge_payload_limit", {
@@ -1928,6 +2023,22 @@ function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined,
     return fail(error.message, 404, "not_found", correlationId, error.details, meta, "not_found", {
       retryable: false,
       severity: "error",
+    });
+  }
+  if (error instanceof RuntimeStateConflictError) {
+    return fail(error.message, 409, "runtime_state_conflict", correlationId, error.details, meta, error.code, {
+      retryable: false,
+      severity: "warning",
+    });
+  }
+  if (error instanceof RuntimeStateError) {
+    const status = error.code === "ACS_RUNTIME_JOB_NOT_FOUND" ? 404
+      : error.code === "ACS_RUNTIME_TENANT_MISMATCH" ? 404
+        : error.code === "ACS_RUNTIME_INVALID_INPUT" ? 400
+          : 500;
+    return fail(error.message, status, error.code.toLowerCase(), correlationId, error.details, meta, error.code, {
+      retryable: status >= 500,
+      severity: status >= 500 ? "error" : "warning",
     });
   }
   if (error instanceof AcsHttpValidationError) {

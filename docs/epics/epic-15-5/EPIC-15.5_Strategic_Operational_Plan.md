@@ -27,17 +27,17 @@ The repository is strong in domain modeling and bounded acceptance:
 - Main Control Plane and Tenant Administration browser routes have acceptance evidence.
 - Readiness, evidence, diagnostics, audit and economics have useful projections.
 
-After C01, the active HTTP composition has single-node durable Tenant Administration, audit, secret metadata/references and economics, aligned HTTP methods and a production-oriented OIDC validator, but the overall topology remains non-production:
+After AEES-D, the active composition has single-node durable Tenant Administration, audit, secret metadata/references, economics and runtime ownership, aligned HTTP methods, a production-oriented OIDC validator and a hardened edge, but the overall topology remains non-production:
 
 - production HTTP identity is OIDC/JWT validated; server-owned rate limiting and bounded HTTP edge controls are implemented, with live multi-host edge acceptance still pending;
-- Agent, deployment, runtime and worker authoritative state is local to a process; durable adapters are still single-node and unshared;
+- Agent and deployment authoritative state remains local to a process; runtime jobs, workers, assignments, leases and results are now durable/shared across local processes through SQLite, but multi-host state is unproven;
 - Vault and SQLite secret/economic adapters exist, but live managed-service identity/HA and shared settlement/database proof remain absent;
-- worker execution is same-process/local;
+- production runtime execution uses independently authenticated worker processes; local fallback is development-only and rejected by production composition;
 - audit and telemetry are not durable/shared/exported;
 - production deployment is correctly sandbox-gated;
 - important composition, execution and recovery journeys are incomplete.
 
-`ACS-ORG-003` and `ACS-ORG-008` are resolved. `ACS-ORG-002` and `ACS-ORG-007` are partially resolved. Runtime start/stop route reachability is corrected, but this does not prove durable or remote execution.
+`ACS-ORG-003`, `ACS-ORG-004`, `ACS-ORG-005` and `ACS-ORG-008` are resolved. `ACS-ORG-001`, `ACS-ORG-002`, `ACS-ORG-007`, `ACS-ORG-010` and `ACS-ORG-019` remain partially resolved within explicitly bounded topology evidence.
 
 See the 24 findings in `operational-gap-inventory.md`.
 
@@ -59,7 +59,7 @@ B01 partially resolved ACS-ORG-001/009 for single-node Tenant Administration. B0
 
 ### W3 — Distributed runtime and recovery
 
-Resolve ACS-ORG-004, 005 and runtime portions of 017/019/021. Connect Product API execution intent to a durable dispatcher, authenticated remote workers and recoverable jobs. Preserve tenant/workload isolation and C02 governance enforcement before dispatch.
+AEES-D resolved ACS-ORG-004/005 and the runtime subset of ACS-ORG-001. Product API execution intent now creates durable jobs consumed by authenticated independent workers under lease/fencing authority. Crash/restart, stale-result, duplicate-result, cancellation, backpressure and local multi-process contention evidence passes. Multi-host topology, complete operator remediation and external diagnostics remain 017/019/021 work for E/F/H rather than reasons to reopen the runtime ownership contract.
 
 ### W4 — Observability and readiness
 
@@ -138,6 +138,8 @@ B and C may run in parallel after their decision gates, but no public mutation s
 - real cross-process proof.
 
 **Exit:** an operation executes remotely without local fallback and recovers from worker/process loss.
+
+**Current status:** PASS WITH TOPOLOGY CAVEATS on 2026-08-16. D01 durable ownership, D02 signed remote worker pull and D03 failure acceptance pass. Two Control Plane and two worker processes shared one SQLite authority. `ACS-ORG-004`/`005` are resolved; multi-host database/network topology and workload-identity deployment remain H caveats. Operational/Production Readiness remains blocked by E/F/G/H.
 
 ### Milestone E — Observability & Operational Diagnostics
 

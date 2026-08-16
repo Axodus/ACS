@@ -20,9 +20,9 @@ Browser acceptance from EPIC-14 and EPIC-15 proves route rendering, responsivene
 | Capabilities/skills/tools/plugins | Catalog reads | Assignment/install mutations unsupported | N/A | read projection | N/A | PARTIAL |
 | Providers/credentials | Reads and connection metadata | Secret provisioning not supported | Connection state only | readiness summaries | rotate/revoke/reconnect absent | PARTIAL |
 | Deployments | List/detail | Agent sandbox deploy | No staged/live, rollback or reconcile | status/evidence | no rollback/retry | PARTIAL/BLOCKED |
-| Runtimes | List/detail | Start/stop client/service methods exist but route guard returns `405` | local sandbox service only | status/evidence | restart/reconcile incomplete | BACKEND_ONLY/BLOCKED |
-| Execution runs | List/detail | Complete run-dispatch path not found | no retry/cancel | result/evidence projection | none | PARTIAL/MISSING |
-| Workers/targets | List/detail/readiness | registration and scheduling UI absent | local worker only | heartbeat/stale projection | drain/reassign absent | BACKEND_ONLY |
+| Runtimes | List/detail/jobs/events | Product API start/stop creates/cancels durable jobs | authenticated independent sandbox worker | durable status/result/recovery events | automatic lease/orphan recovery; operator retry UI absent | BACKEND_ONLY/PARTIAL |
+| Execution runs | List/detail | durable remote dispatch path exists | cancellation API; retry UI absent | durable result/evidence projection | automatic recovery, no operator remediation surface | PARTIAL |
+| Workers/targets | List/detail/readiness | remote registration/heartbeat exists; scheduling UI absent | authenticated worker pull | durable heartbeat/lease/recovery projection | automatic reassign; drain UI absent | BACKEND_ONLY/PARTIAL |
 | Readiness/diagnostics | Yes | No configuration | inspection only | blockers/evidence | recommended action text only | SUPPORTED read / PARTIAL operation |
 | Economics | quotes/reservations/usage/settlement reads | in-memory DEV flow | no real settlement control | receipts/audit projection | reconciliation operator flow absent | PARTIAL/MOCK |
 | Tenant administration | List/detail/lifecycle/members/governance/audit | Yes at route/domain layer | several POST mutations | real in-process audit | no durable recovery | PARTIAL/MOCK identity |
@@ -51,14 +51,14 @@ Browser acceptance from EPIC-14 and EPIC-15 proves route rendering, responsivene
 | Step | Surface | Status | Gap / workaround currently required | Target UX | Findings |
 | --- | --- | --- | --- | --- | --- |
 | Select deployed Agent | Agent/Operations | SUPPORTED for current process | deployments disappear on restart | durable selectable deployment | 001 |
-| Start execution/runtime | Product API/runtime action | BLOCKED | public route is shadowed by an earlier unsupported guard; service is local and has no remote job | reachable semantic route plus durable dispatch intent and assignment receipt | 004, 005, 017 |
-| Observe status | runtime/execution views | PARTIAL | cached local status can outlive failed inspection | freshness and reconciliation state | 005, 011 |
-| Inspect result | evidence/execution runs | PARTIAL | no complete durable result path | correlated result and artifacts | 017 |
+| Start execution/runtime | Product API/runtime action | BACKEND_ONLY/SUPPORTED | durable remote job exists, but current operator surface does not expose the full flow | execution action with assignment/recovery feedback | 017 |
+| Observe status | runtime/execution API | BACKEND_ONLY/SUPPORTED | durable job/worker/lease state exists; UI integration remains | surface canonical freshness/recovery state | 011, 017 |
+| Inspect result | runtime job/evidence API | BACKEND_ONLY/SUPPORTED | durable result exists; complete operator presentation remains | correlated result and artifacts | 017 |
 | Inspect failure | diagnostics/evidence | PARTIAL | raw logs/traces unavailable | correlated logs/traces and cause | 011 |
-| Retry/cancel | none/unsupported | MISSING | engineering intervention or restart | semantic idempotent actions | 005, 017 |
-| Remediate/recover | diagnostics only | MISSING | shell/source knowledge | governed runbook action and verification | 018 |
+| Retry/cancel | Product API cancel; retry via automatic policy | PARTIAL | no governed operator retry/drain surface | semantic idempotent actions | 017, 018 |
+| Remediate/recover | automatic recovery plus diagnostics | PARTIAL | lease/orphan recovery is automatic; operator commands/UI remain missing | governed runbook action and verification | 018 |
 
-**Journey result:** **BLOCKED for operational use**. Local sandbox lifecycle does not prove distributed execution or recovery.
+**Journey result:** **PARTIAL for operational use**. AEES-D proves distributed backend execution/recovery; Milestone F must expose the supported operator journey and Milestone E must add diagnostics.
 
 ## Journey C — Tenant administration
 
@@ -107,8 +107,8 @@ Browser acceptance from EPIC-14 and EPIC-15 proves route rendering, responsivene
 | Seed tenant, owner, policy and agent | `createControlPlaneContext` code | restart rebuilds fixtures, not operator data | 001 |
 | Provision secret | code/bootstrap/in-memory store | no secure Product API/UX lifecycle | 002, 016 |
 | Configure roots/endpoints | environment variables and local filesystem | requires shell and deployment knowledge | 021 |
-| Register remote worker | no supported path | only local worker is constructed | 004 |
-| Repair orphan/stale runtime | restart/manual inspection | no durable reconciliation command | 005, 018 |
+| Register remote worker | signed credential plus worker entrypoint/environment | backend path exists but onboarding still requires deployment engineering | 021 |
+| Repair orphan/stale runtime | automatic recovery coordinator | backend no longer needs manual DB repair; operator inspection/remediation UI remains | 018 |
 | Obtain raw runtime logs/traces | direct process/filesystem access | not exposed or exported | 011 |
 | Reconcile settlement | no supported provider/operator flow | memory provider only | 007 |
 

@@ -1,6 +1,6 @@
 # Operational Gap Inventory
 
-This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01, B02, C01 and C02 status/evidence were updated on 2026-08-15 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
+This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01, B02, C01, C02 and AEES-D status/evidence were updated through 2026-08-16 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
 
 ## Severity model
 
@@ -22,11 +22,11 @@ Findings use a primary area plus affected areas from this controlled set:
 
 | ID | Primary area | Finding | Severity | Milestone | Status |
 | --- | --- | --- | --- | --- | --- |
-| ACS-ORG-001 | PERSISTENCE | Active authoritative Control Plane state is process-local | BLOCKER | B | PARTIALLY_RESOLVED — B01 |
+| ACS-ORG-001 | PERSISTENCE | Active authoritative Control Plane state is process-local | BLOCKER | B/D | PARTIALLY_RESOLVED — runtime subset resolved by AEES-D |
 | ACS-ORG-002 | SECURITY | No production-grade secret adapter is available or active | BLOCKER | B | PARTIALLY_RESOLVED — B02 |
 | ACS-ORG-003 | IDENTITY | HTTP actor and platform authority are forgeable by the caller | BLOCKER | C | RESOLVED — C01 |
-| ACS-ORG-004 | DISTRIBUTED_EXECUTION | Operational execution uses a same-process local worker, not remote dispatch | BLOCKER | D | OPEN — VERIFIED |
-| ACS-ORG-005 | RECOVERY | Runtime jobs, assignments and leases lack durable recovery semantics | BLOCKER | D | OPEN — VERIFIED |
+| ACS-ORG-004 | DISTRIBUTED_EXECUTION | Operational execution uses a same-process local worker, not remote dispatch | BLOCKER | D | RESOLVED — AEES-D |
+| ACS-ORG-005 | RECOVERY | Runtime jobs, assignments and leases lack durable recovery semantics | BLOCKER | D | RESOLVED — AEES-D |
 | ACS-ORG-006 | DEPLOYMENT | Production deployment is blocked by a deliberate sandbox-only gate | BLOCKER | G | OPEN — VERIFIED |
 | ACS-ORG-007 | ECONOMICS | Economic settlement and records use an in-memory provider and maps | BLOCKER | B | PARTIALLY_RESOLVED — B02 |
 | ACS-ORG-008 | PRODUCT_API | Real HTTP rejects Product API `PUT` and `DELETE` administration routes | BLOCKER | B | RESOLVED — B01 |
@@ -38,10 +38,10 @@ Findings use a primary area plus affected areas from this controlled set:
 | ACS-ORG-014 | CONTROL_PLANE | Tenant administration and the main Control Plane are separate applications | HIGH | F | OPEN — VERIFIED |
 | ACS-ORG-015 | CONTROL_PLANE | Agent composition changes remain read-only or unsupported | HIGH | F | OPEN — VERIFIED |
 | ACS-ORG-016 | SECURITY | Secret configuration, rotation and revocation lack a supported operator journey | HIGH | F | OPEN — VERIFIED |
-| ACS-ORG-017 | RUNTIME | Execution routes and the dispatch/result/recovery journey are incomplete | HIGH | D/F | OPEN — VERIFIED |
+| ACS-ORG-017 | RUNTIME | Execution routes and the dispatch/result/recovery journey are incomplete | HIGH | D/F | PARTIALLY_RESOLVED — AEES-D backend |
 | ACS-ORG-018 | RECOVERY | Failure surfaces diagnose but do not provide governed remediation | HIGH | F | OPEN — VERIFIED |
-| ACS-ORG-019 | INFRASTRUCTURE | Multi-replica correctness is structurally unproven | CRITICAL | B/D | OPEN — VERIFIED |
-| ACS-ORG-020 | TESTING | Acceptance does not cover restart, multi-process, remote or provider failures | HIGH | H | OPEN — VERIFIED |
+| ACS-ORG-019 | INFRASTRUCTURE | Multi-replica correctness is structurally unproven | CRITICAL | B/D | PARTIALLY_RESOLVED — local multi-process proven |
+| ACS-ORG-020 | TESTING | Acceptance does not cover restart, multi-process, remote or provider failures | HIGH | H | PARTIALLY_RESOLVED — runtime topology covered |
 | ACS-ORG-021 | OPERATIONS | Local filesystem, local engine and environment editing are hidden prerequisites | HIGH | B/D/F | OPEN — VERIFIED |
 | ACS-ORG-022 | DOCUMENTATION | Public/demo readiness language can exceed the active operational evidence | MEDIUM | F | OPEN — VERIFIED |
 | ACS-ORG-023 | PRODUCT_API | Legacy projections still describe tenant administration as future scope | MEDIUM | F | OPEN — VERIFIED |
@@ -52,12 +52,13 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-001 — Active authoritative Control Plane state is process-local
 
 - **Area:** PERSISTENCE; affects TENANT, GOVERNANCE, RUNTIME, DEPLOYMENT, PRODUCT_API.
-- **Severity / status:** **BLOCKER**, PARTIALLY_RESOLVED — B01.
+- **Severity / status:** **BLOCKER**, PARTIALLY_RESOLVED — B01/B02/AEES-D; runtime subset resolved.
 - **Evidence:** `src/http/control-plane-context.ts:277-391`; `src/control-plane/agent-service.ts:56-57,160-161`; `src/control-plane/tenant-domain.ts:108-109`; `src/control-plane/tenant-membership.ts:166-167`; `src/control-plane/tenant-governance.ts:392-393`; `src/control-plane/deployment-service.ts:52`; `src/control-plane/runtime-lifecycle-service.ts:79-80`.
-- **Current behavior after B02:** `createAcsHttpServer` explicitly selects durable Tenant Administration/audit plus SQLite secret metadata/credential and economic/settlement adapters. These states survive a new context/process instance. Direct test contexts remain memory-backed unless persistence is requested. Agent, composition, deployment, runtime and worker truth remains process-local.
+- **Current behavior after AEES-D:** `createAcsHttpServer` explicitly selects durable Tenant Administration/audit plus SQLite secret metadata/credential, economic/settlement and runtime adapters. Runtime jobs, workers, assignments, leases, results and recovery events survive context/process restart and are shared by multiple local Control Plane processes. Agent, composition and deployment authority remains process-local.
 - **Operational impact:** restart loses authoritative administration and operational state; two replicas can return divergent answers and accept conflicting mutations.
 - **B01 evidence:** `src/control-plane/durable-administrative-state.ts`; repository wiring in `src/http/control-plane-context.ts`; restart, ownership-batch, serialization, corruption and write-failure coverage in `tests/s45-epic-15-5-durable-http-contract.test.mjs`.
-- **Residual risk:** the local snapshot is `SINGLE_NODE_DURABLE`, has no cross-process locking/refresh, migration framework or shared transaction service, and does not make the remaining operational aggregates durable.
+- **AEES-D evidence:** `src/workers/durable-runtime-state.ts`, runtime composition in `src/http/control-plane-context.ts` and `tests/s49`–`s51`; two Control Planes and two workers shared atomic SQLite ownership and recovered after process loss.
+- **Residual risk:** administrative snapshots and several aggregates remain single-node/unshared; the runtime database is multi-process capable on one host but multi-host access, migrations and managed database topology are not proven.
 - **Required target state:** transactional, tenant-scoped repositories for authoritative resources, explicit migrations, optimistic concurrency/idempotency and a composition profile that refuses production startup when durable adapters are absent.
 - **Dependencies / milestone:** B03 must address remaining Agent/deployment/runtime/job authority; shared multi-instance certification remains H scope. B02 adapters remain single-node or externally managed with local metadata.
 - **Acceptance evidence:** restart survival, two-instance consistency, conflict tests, migration/rollback evidence and no production composition using memory authority.
@@ -90,26 +91,20 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-004 — Operational execution uses a same-process local worker, not remote dispatch
 
 - **Area:** DISTRIBUTED_EXECUTION; affects RUNTIME, INFRASTRUCTURE.
-- **Severity / status:** **BLOCKER**, OPEN — VERIFIED.
-- **Evidence:** `src/http/control-plane-context.ts:393-415`; `src/workers/local-worker.ts`; `src/workers/worker-registry.ts`; `src/workers/worker-assignment-service.ts`; normal runtime routes in `src/http/routes/product-api-routes.ts:909-931` call `RuntimeLifecycleService` directly.
-- **Current behavior:** `LocalExecutionWorker` calls the engine inside the ACS process. Worker registration, assignment and lease contracts are exercised mainly by tests and are not connected to a broker, RPC service or the normal runtime start path.
-- **Operational impact:** there is no remote worker discovery, network identity, delivery, redelivery or independently scalable execution plane. “Distributed” cannot be claimed.
-- **Root cause:** EPIC-10 established contracts and local proof without a production transport.
-- **Required target state:** authenticated remote worker protocol, durable queue/dispatch record, registration/heartbeat, lease fencing, result correlation and explicit dispatch integration at the Product API application boundary.
-- **Dependencies / milestone:** durable job state and identity first; Milestone D.
-- **Acceptance evidence:** real second process or host receives and executes work; no direct local fallback in production; network failure/redelivery and duplicate protection tests.
+- **Severity / status:** **BLOCKER**, RESOLVED — AEES-D.
+- **Previous behavior:** `LocalExecutionWorker` called the engine inside the ACS process and the normal Product API runtime path did not connect to a remote dispatcher.
+- **Current behavior:** production runtime start persists a job and returns pending. An independently authenticated worker process registers, heartbeats, atomically claims compatible work, executes through its own OpenClaw engine and submits a fenced/idempotent result over internal HTTP routes. Production rejects local runtime mode and development worker identity.
+- **Evidence:** `src/workers/remote-worker.ts`, `src/workers/remote-worker-entrypoint.ts`, `src/http/routes/worker-runtime-routes.ts`, signed identity in `src/workers/worker-service-auth.ts`, and `tests/s50`/`s51`. The final run used distinct Control Plane PIDs 655813/655853 and worker PIDs 655867/655904; both initial jobs completed on worker processes.
+- **Residual caveat:** service identity is an ACS signed credential and the shared runtime store is local SQLite. Workload OIDC/mTLS, multi-host network/storage and capacity acceptance remain H topology work. These do not reintroduce a same-process production fallback.
 
 ### ACS-ORG-005 — Runtime jobs, assignments and leases lack durable recovery semantics
 
 - **Area:** RECOVERY; affects RUNTIME, DISTRIBUTED_EXECUTION.
-- **Severity / status:** **BLOCKER**, OPEN — VERIFIED.
-- **Evidence:** `src/workers/worker-assignment-service.ts:33-36`; `src/workers/worker-registry.ts:23-24`; `src/control-plane/runtime-lifecycle-service.ts:79-80,181-225`; repository search found no restart/redelivery/dead-worker tests.
-- **Current behavior:** jobs, worker records, leases and runtime records live in maps. Runtime inspection can return a cached local record after engine inspection fails. No durable state machine reconciles orphaned work, expired leases, duplicate delivery or worker loss.
-- **Operational impact:** restart or worker loss can orphan executions, show stale status, duplicate side effects or require manual repair.
-- **Root cause:** lifecycle state machines exist without durable scheduling/reconciliation infrastructure.
-- **Required target state:** persisted jobs and transitions, lease fencing, heartbeat expiry, idempotency keys, retry policy, dead-letter/reconciliation flow and governed cancel/retry operations.
-- **Dependencies / milestone:** ACS-ORG-001, ACS-ORG-003 and ACS-ORG-004; Milestone D.
-- **Acceptance evidence:** crash/restart, lost-worker, duplicate-delivery, retry exhaustion, cancellation and recovery tests with final state reconciliation.
+- **Severity / status:** **BLOCKER**, RESOLVED — AEES-D.
+- **Previous behavior:** jobs, worker records, leases and runtime records lived in maps with no restart-safe orphan recovery.
+- **Current behavior:** SQLite persists canonical jobs, registrations, assignments, leases, fencing epochs, results, cancellation and runtime events. Claims and recovery use transactions plus status/revision CAS. Heartbeat/lease expiry marks workers offline, requeues eligible jobs, advances fencing on reassignment and terminates exhausted work.
+- **Evidence:** `tests/s49-epic-15-5-durable-runtime-state.test.mjs` proves restart, atomic claim, fencing, cancellation, retry exhaustion and backpressure. `tests/s51-epic-15-5-distributed-runtime-acceptance.test.mjs` kills worker and Control Plane processes, recovers/reassigns the durable job, rejects token 1 after token 2 and preserves one terminal result.
+- **Residual caveat:** physical workload effects are at-least-once across a crash after external execution but before durable result commit; fencing protects ACS authority, while external workload effects still require their existing idempotency contract. Multi-host recovery is not certified.
 
 ### ACS-ORG-006 — Production deployment is blocked by a deliberate sandbox-only gate
 
@@ -191,7 +186,7 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-012 — No dependency-aware production traffic readiness gate exists
 
 - **Area:** OPERATIONS; affects DEPLOYMENT, OBSERVABILITY.
-- **Severity / status:** **HIGH**, OPEN — VERIFIED.
+- **Severity / status:** **HIGH**, PARTIALLY_RESOLVED — AEES-D backend.
 - **Evidence:** `/api/v1/health` and `/acs/health` are liveness/inspection responses; `src/control-plane/product-api-client.ts:3062-3235` hardcodes auth, limiter, persistence, secret, settlement and remote-worker signals. “Distributed Runtime readiness” can be `ready` from a local worker and target while `remoteWorkerSupported` is false.
 - **Current behavior:** useful production blocker reports exist, but no executable readiness probe determines whether a process should receive production traffic based on current dependencies.
 - **Operational impact:** liveness can be mistaken for readiness and local connectivity can be mistaken for distributed readiness.
@@ -253,11 +248,11 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Area:** RUNTIME; affects UX, PRODUCT_API, RECOVERY.
 - **Severity / status:** **HIGH**, OPEN — VERIFIED.
 - **Evidence after B01:** `src/http/routes/product-api-routes.ts` now resolves the typed `POST .../start` and `POST .../stop` handlers before unsupported-operation guards; `tests/s45-epic-15-5-durable-http-contract.test.mjs` proves real handler invocation and wrong-method `405`. Execution runs remain read projections and no supported retry/cancel/remediate flow exists.
-- **Current behavior:** local runtime lifecycle start/stop is reachable through the Product API. It still does not provide durable dispatch intent, remote worker execution, restart recovery, retry/cancel/remediation or production execution proof.
+- **Current behavior after AEES-D:** Product API start creates durable remote dispatch intent; job/detail/event reads and durable cancellation are exposed; remote workers complete results and recovery handles worker/Control Plane loss. A complete retry/drain/remediation operator surface and Control Plane execution UX remain absent.
 - **Operational impact:** an operator cannot reliably execute, observe terminal result, retry safely, cancel or reconcile stuck work.
 - **Root cause:** the route-order contradiction is resolved; the remaining gap is the absent durable distributed dispatch and recovery subsystem.
 - **Required target state:** integrate run intent with the D milestone dispatcher, durable outcome and semantic retry/cancel operations, then expose them through the Product API and UI.
-- **Dependencies / milestone:** ACS-ORG-004/005; Milestones D and F.
+- **Dependencies / milestone:** backend D scope is complete; Milestone F owns the remaining operator journey.
 - **Acceptance evidence:** UI-to-remote-worker run with result, failure, retry, cancellation and audit correlation.
 
 ### ACS-ORG-018 — Failure surfaces diagnose but do not provide governed remediation
@@ -275,21 +270,20 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-019 — Multi-replica correctness is structurally unproven
 
 - **Area:** INFRASTRUCTURE; affects PERSISTENCE, EDGE, RUNTIME.
-- **Severity / status:** **CRITICAL**, OPEN — VERIFIED.
-- **Evidence:** mutable maps in services/registries, local filesystem receipts/telemetry/secrets, local rate-limit context and same-process worker registry; repository tests contain no multi-process/replica suite.
-- **Current behavior:** each process owns its own truth and counters. Local JSONL files provide limited restart evidence for the legacy runtime, not shared transactional state.
-- **Operational impact:** horizontal scaling can cause lost updates, inconsistent lists, duplicate execution, conflicting ownership and incomplete audit.
-- **Root cause:** single-process development composition is the only active topology.
+- **Severity / status:** **CRITICAL**, PARTIALLY_RESOLVED — local multi-process runtime/edge proof.
+- **Current behavior after AEES-D:** two Control Plane processes and two worker processes share atomic SQLite runtime ownership; C02 previously proved shared SQLite rate counters. Claims, lease recovery and result commits do not depend on one process. Other authoritative aggregates and local filesystem adapters remain unshared.
+- **Operational impact:** runtime duplicate ownership is prevented in the certified one-host/shared-database topology. Horizontal scaling across hosts can still produce inconsistent non-runtime resources and has no partition/failover proof.
+- **Root cause:** bounded shared SQLite adapters now exist, but a complete shared multi-host composition does not.
 - **Required target state:** shared authoritative adapters, idempotent mutations, distributed coordination only where necessary and explicit cache-versus-authority boundaries.
 - **Dependencies / milestone:** B for state; D for jobs/workers.
-- **Acceptance evidence:** two ACS instances serve the same dataset, enforce concurrency and continue after one instance dies.
+- **AEES-D evidence:** `tests/s51` starts two independent ACS servers and two workers, proves shared claims/recovery, then replaces a killed Control Plane process. Multi-host/network-partition evidence remains H.
 
 ### ACS-ORG-020 — Acceptance does not cover restart, multi-process, remote or provider failures
 
 - **Area:** TESTING; affects all operational areas.
-- **Severity / status:** **HIGH**, OPEN — VERIFIED.
+- **Severity / status:** **HIGH**, PARTIALLY_RESOLVED — runtime topology covered by AEES-D.
 - **Evidence:** the test inventory has broad unit/integration/browser suites, but searches found no restart-survivability, multi-process, broker/redelivery, real remote dispatch, JWT/OIDC validation, external exporter or durable provider failure-injection tests.
-- **Current behavior:** contract, domain, route and static/browser behavior is well tested. Operational topology and failure semantics remain unproven.
+- **Current behavior after AEES-D:** contract/domain/route/browser coverage is supplemented by real multi-process runtime crash/restart, fencing, duplicate-result, cancellation and backpressure acceptance. External providers, multi-host partitions, observability and the full operator journey remain unproven.
 - **Operational impact:** passing regressions can coexist with restart data loss, forgeable identity and nonfunctional remote execution.
 - **Root cause:** earlier acceptance scopes explicitly certified bounded milestones rather than production operation.
 - **Required target state:** milestone-specific operational harnesses and a final H matrix covering restart, replica loss, provider outage, network partition, forged identity and browser recovery.

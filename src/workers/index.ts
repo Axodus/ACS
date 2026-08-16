@@ -2,3 +2,8 @@ export * from "./worker-types.js";
 export * from "./worker-registry.js";
 export * from "./worker-assignment-service.js";
 export * from "./local-worker.js";
+export * from "./durable-runtime-state.js";
+export * from "./worker-service-auth.js";
+export * from "./remote-worker.js";
+export * from "./remote-worker-entrypoint.js";
+export * from "./runtime-control-plane-entrypoint.js";

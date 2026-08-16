@@ -15,6 +15,7 @@ import {
   SecretProviderUnavailableError,
   SecretRevokedError,
   SecretTenantMismatchError,
+  SignedWorkerIdentityValidator,
   SettlementProviderUnavailableError,
   SqliteEconomicStateStore,
   SqliteSecretCatalog,
@@ -68,6 +69,12 @@ const productionTestRateLimiter = {
   async consume() { throw new Error("not exercised by B02"); },
   async health() { return { configured: true, reachable: true, productionGrade: true, adapter: "test-shared-rate-limit" }; },
 };
+
+const productionTestWorkerIdentityValidator = new SignedWorkerIdentityValidator({
+  issuer: "https://worker-issuer.test",
+  audience: "acs-runtime-worker",
+  signingKey: "b02-production-worker-signing-key-with-at-least-thirty-two-bytes",
+});
 
 class FakeVaultTransport {
   records = new Map();
@@ -325,7 +332,9 @@ test("production profile rejects insecure secret and economic fallback", async (
       secretCatalogPath: join(root, "catalog.sqlite"),
       economicStatePath: join(root, "economic.sqlite"),
       rateLimitDatabasePath: join(root, "rate-limit.sqlite"),
+      runtimeDatabasePath: join(root, "runtime.sqlite"),
       identityValidator: productionTestIdentityValidator,
+      workerIdentityValidator: productionTestWorkerIdentityValidator,
     });
     assert.equal(context.productionAdapters.profile, "production");
     assert.equal(context.productionAdapters.secretProvider.productionOriented, true);

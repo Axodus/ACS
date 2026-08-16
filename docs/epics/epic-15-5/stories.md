@@ -56,15 +56,15 @@ Stories are ordered by dependency. A story is complete only when its required op
 - **Acceptance criteria:** Tenant, Membership and Governance now pass single-node restart evidence. Agent persistence and two-instance lost-update proof remain open.
 - **Required evidence:** migration, restart, concurrency and tenant isolation tests.
 
-### ORG-B03 — Persist deployment, runtime and execution records
+### ORG-B03 — Persist deployment, runtime and execution records — PARTIAL
 
 - **Findings:** ACS-ORG-001, 005, 019.
 - **Objective:** establish durable operational truth before remote scheduling.
 - **Scope:** deployment/runtime/run repositories, idempotency keys, revisions and reconciliation status.
 - **Dependencies:** ORG-B01/B02 and gate B1.
 - **Non-goals:** remote transport or production target.
-- **Acceptance criteria:** state survives ACS restart and one replica can continue reads/mutations after another dies.
-- **Required evidence:** restart/multi-instance tests and stale-state recovery contract.
+- **Acceptance criteria:** AEES-D completes runtime/job/worker/assignment/result durability and proves a second local Control Plane can continue recovery after another dies. Deployment and Agent records remain open.
+- **Required evidence:** AEES-D `s49`–`s51` plus future deployment/Agent restart and shared-state tests.
 
 ### ORG-B04 — Integrate a managed secret provider — PARTIAL
 
@@ -120,7 +120,7 @@ Implemented by `tests/s47-epic-15-5-trusted-http-identity.test.mjs` and `milesto
 - **Acceptance criteria:** platform authority is explicit; path/body/header/context conflicts fail; cross-tenant E01 matrix passes.
 - **Required evidence:** forged tenant, self-escalation, removed/suspended member and platform-only negative tests.
 
-C01 completed principal propagation, signed Tenant-claim conflict rejection, explicit platform claim mapping and removed/suspended member HTTP negatives. C02 completed the edge/proxy source matrix. Remote service identity remains Milestone D scope.
+C01 completed principal propagation, signed Tenant-claim conflict rejection, explicit platform claim mapping and removed/suspended member HTTP negatives. C02 completed the edge/proxy source matrix. AEES-D added a separate signed worker service identity without turning worker credentials into user/platform authority.
 
 ### ORG-C03 — Align HTTP method, CORS and request safety contracts — COMPLETE
 
@@ -148,7 +148,7 @@ C02 completed both application boundaries. Two independent SQLite-backed instanc
 
 ## Milestone D — Distributed Runtime & Execution Readiness
 
-### ORG-D01 — Define durable job, attempt and lease state
+### ORG-D01 — Define durable job, attempt and lease state — COMPLETE
 
 - **Findings:** ACS-ORG-005, 017, 019.
 - **Objective:** make dispatch intent and outcomes durable, idempotent and recoverable.
@@ -158,9 +158,9 @@ C02 completed both application boundaries. Two independent SQLite-backed instanc
 - **Acceptance criteria:** no partial side effect before durable intent; duplicate delivery resolves deterministically.
 - **Required evidence:** transition, timeout, duplicate, cancellation and crash tests.
 
-The implementation must also remove the current route-order contradiction by making the approved runtime command reachable through the real HTTP handler; it must not merely expose the existing local service without durable dispatch.
+Implemented by `SqliteDurableRuntimeState`, `DurableRuntimeCoordinator` and `RuntimeRecoveryCoordinator`. `tests/s49-epic-15-5-durable-runtime-state.test.mjs` proves restart, atomic claims, revision safety, lease expiry, monotonic fencing, stale-result rejection, retry exhaustion, backpressure and deterministic cancellation.
 
-### ORG-D02 — Connect authenticated remote workers to Product API execution
+### ORG-D02 — Connect authenticated remote workers to Product API execution — COMPLETE WITH TOPOLOGY CAVEAT
 
 - **Findings:** ACS-ORG-004, 021.
 - **Objective:** execute an ACS operation across a real process/network boundary.
@@ -170,7 +170,9 @@ The implementation must also remove the current route-order contradiction by mak
 - **Acceptance criteria:** the normal Product API path dispatches remotely and preserves tenant/workload/governance receipts.
 - **Required evidence:** second-process/host execution, network loss, wrong-tenant, wrong-worker and no-local-fallback tests.
 
-### ORG-D03 — Implement worker/runtime recovery and reconciliation
+Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the standalone worker entrypoint and signed worker JWT validation. Product API runtime start now persists dispatch intent; production rejects local runtime mode. `tests/s50` and `s51` prove real HTTP and independent worker PIDs. Multi-host workload identity remains H acceptance.
+
+### ORG-D03 — Implement worker/runtime recovery and reconciliation — COMPLETE WITH MULTI-HOST CAVEAT
 
 - **Findings:** ACS-ORG-005, 017, 018.
 - **Objective:** recover safely from worker loss, ACS restart and stale runtime state.
@@ -179,6 +181,8 @@ The implementation must also remove the current route-order contradiction by mak
 - **Non-goals:** production deploy rollback, handled in G.
 - **Acceptance criteria:** terminal outcome is reconstructable and operator commands cannot duplicate side effects.
 - **Required evidence:** failure-injection and restart/recovery matrix.
+
+`tests/s51-epic-15-5-distributed-runtime-acceptance.test.mjs` starts two Control Planes/two workers over shared durable state, kills workers and a Control Plane, verifies automatic orphan recovery/reassignment, rejects the stale epoch, preserves duplicate-result idempotency and proves cancellation/no-capacity semantics. Backend recovery is complete for the certified local multi-process topology; governed operator remediation UI remains ORG-F03.
 
 ## Milestone E — Observability & Operational Diagnostics
 

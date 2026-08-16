@@ -72,6 +72,7 @@ import type {
 } from "./composition-resources.js";
 import type { ExecutionWorkerRegistry } from "../workers/worker-registry.js";
 import type { WorkerAssignmentService } from "../workers/worker-assignment-service.js";
+import type { DurableRuntimeCoordinator, RuntimeRecoveryCoordinator } from "../workers/durable-runtime-state.js";
 import type { CredentialConnection, CredentialConnectionStatus, CredentialConnectionType } from "../intelligence/credential-connection.js";
 import {
   createEpic10ReadinessReport,
@@ -96,6 +97,8 @@ export interface ProductApiClientOptions {
   readonly runnerService?: AgentRunnerService;
   readonly workerRegistry?: ExecutionWorkerRegistry;
   readonly workerAssignmentService?: WorkerAssignmentService;
+  readonly runtimeCoordinator?: DurableRuntimeCoordinator;
+  readonly runtimeRecoveryCoordinator?: RuntimeRecoveryCoordinator;
   readonly engineService?: EngineService;
   readonly compositionResources?: CompositionResourceService;
   readonly credentialRegistry?: CredentialConnectionRegistry;
@@ -1470,6 +1473,8 @@ export class ProductApiClient {
   readonly #runnerService: AgentRunnerService | undefined;
   readonly #workerRegistry: ExecutionWorkerRegistry | undefined;
   readonly #workerAssignmentService: WorkerAssignmentService | undefined;
+  readonly #runtimeCoordinator: DurableRuntimeCoordinator | undefined;
+  readonly #runtimeRecoveryCoordinator: RuntimeRecoveryCoordinator | undefined;
   readonly #engineService: EngineService | undefined;
   readonly #compositionResources: CompositionResourceService | undefined;
   readonly #credentialRegistry: CredentialConnectionRegistry | undefined;
@@ -1490,6 +1495,8 @@ export class ProductApiClient {
     this.#runnerService = options.runnerService;
     this.#workerRegistry = options.workerRegistry;
     this.#workerAssignmentService = options.workerAssignmentService;
+    this.#runtimeCoordinator = options.runtimeCoordinator;
+    this.#runtimeRecoveryCoordinator = options.runtimeRecoveryCoordinator;
     this.#engineService = options.engineService;
     this.#compositionResources = options.compositionResources;
     this.#credentialRegistry = options.credentialRegistry;
@@ -3076,10 +3083,20 @@ export class ProductApiClient {
 
   async getGlobalReadinessSummary(): Promise<GlobalReadinessSummary> {
     const generatedAt = Date.now();
-    const workers = this.#workerRegistry?.list() ?? [];
-    const workerStatus: Epic10ReadinessSignals["workerStatus"] = workers.some((worker) => worker.status === "available")
+    const localWorkers = this.#workerRegistry?.list() ?? [];
+    const durableWorkers = this.#runtimeCoordinator?.listWorkers() ?? [];
+    const workerStatus: Epic10ReadinessSignals["workerStatus"] = durableWorkers.length > 0
+      ? durableWorkers.some((worker) => worker.status === "available")
+        ? "available"
+        : durableWorkers.some((worker) => worker.status === "busy" || worker.status === "draining")
+          ? "degraded"
+          : "unavailable"
+      : localWorkers.some((worker) => worker.status === "available")
       ? "available"
-      : workers[0]?.status ?? "unavailable";
+      : localWorkers[0]?.status ?? "unavailable";
+    const runtimeStoreHealth = this.#runtimeCoordinator?.health();
+    const recoveryHealth = this.#runtimeRecoveryCoordinator?.health();
+    const remoteWorkerSupported = Boolean(this.#runtimeCoordinator?.descriptor.productionOriented);
 
     const targetRefresh = this.#targetService ? await this.#targetService.refresh() : undefined;
     const targets = this.#targetService?.list() ?? [];
@@ -3102,9 +3119,9 @@ export class ProductApiClient {
       persistenceBackend: "memory",
       secretBackend: "memory",
       settlementBackend: "memory",
-      remoteWorkerSupported: false,
       liveDeploymentEnabled: false,
       ...this.#readinessSignals,
+      remoteWorkerSupported,
       workerStatus,
       targetStatus,
       runtimeStatus: runtime.connectivity === "connected" || runtime.connectivity === "degraded" ? "running" : "failed",
@@ -3112,13 +3129,22 @@ export class ProductApiClient {
 
     const blockers = [...report.blockers];
     const warnings = report.findings.filter((finding) => !finding.blocksProduction);
-    const distributedRuntimeReady = runtime.connectivity === "connected"
+    const distributedRuntimeReady = remoteWorkerSupported
+      && runtimeStoreHealth?.reachable === true
+      && recoveryHealth?.healthy !== false
+      && runtime.connectivity === "connected"
       && workerStatus === "available"
       && targetStatus === "ready";
 
-    const distributedRuntimeDetail = runtime.connectivity === "connected"
+    const distributedRuntimeDetail = !remoteWorkerSupported
+      ? "Only the local development runtime is configured."
+      : runtimeStoreHealth?.reachable !== true
+        ? "The durable runtime store is unavailable."
+        : recoveryHealth?.healthy === false
+          ? "The runtime recovery coordinator is unhealthy."
+          : runtime.connectivity === "connected"
       ? workerStatus === "available" && targetStatus === "ready"
-        ? "Engine connectivity, worker and target checks passed."
+        ? "Durable runtime store, recovery coordinator, remote worker and target checks passed."
         : `Engine connected, but worker is ${workerStatus} and target state is ${targetStatus}.`
       : `Engine connectivity is ${runtime.connectivity}; distributed execution is not proven.`;
 
@@ -3132,9 +3158,9 @@ export class ProductApiClient {
       {
         id: "distributed-runtime",
         label: "Distributed Runtime readiness",
-        status: runtime.connectivity === "connected"
-          ? workerStatus === "available" && targetStatus === "ready" ? "ready" : "partial"
-          : runtime.connectivity === "degraded" ? "partial" : "blocked",
+        status: distributedRuntimeReady
+          ? "ready"
+          : remoteWorkerSupported && runtimeStoreHealth?.reachable === true ? "partial" : "blocked",
         detail: distributedRuntimeDetail,
       },
       {
@@ -3186,7 +3212,7 @@ export class ProductApiClient {
       },
       {
         id: "worker",
-        label: "Execution worker",
+        label: remoteWorkerSupported ? "Remote execution workers" : "Execution worker",
         status: workerStatus === "available"
           ? "ok"
           : workerStatus === "degraded"
@@ -3194,7 +3220,7 @@ export class ProductApiClient {
             : workerStatus === "registered"
               ? "unverified"
               : "unavailable",
-        detail: `${workers.length} worker(s) registered`,
+        detail: `${durableWorkers.length || localWorkers.length} worker(s) registered`,
       },
       {
         id: "target",
@@ -3206,10 +3232,23 @@ export class ProductApiClient {
             : "unavailable",
         detail: `${targets.length} target(s) discovered`,
       },
+      ...(this.#runtimeCoordinator ? [{
+        id: "runtime-store",
+        label: "Durable runtime state",
+        status: runtimeStoreHealth?.reachable ? "ok" as const : "unavailable" as const,
+        detail: `${this.#runtimeCoordinator.descriptor.adapter}; multi-instance=${this.#runtimeCoordinator.descriptor.multiInstance}`,
+      }, {
+        id: "runtime-recovery",
+        label: "Runtime recovery coordinator",
+        status: recoveryHealth?.healthy === false ? "degraded" as const : "ok" as const,
+        detail: recoveryHealth?.lastScanAt ? `last scan ${recoveryHealth.lastScanAt}` : "configured; first scan pending",
+      }] : []),
     ];
 
     const stateAgeMs = Math.max(0, Date.now() - generatedAt);
-    const stale = workers.some((worker) => worker.stale) || targets.some((target) => target.stale);
+    const stale = localWorkers.some((worker) => worker.stale)
+      || durableWorkers.some((worker) => worker.expiresAt !== undefined && worker.expiresAt < generatedAt)
+      || targets.some((target) => target.stale);
 
     return {
       generatedAt,

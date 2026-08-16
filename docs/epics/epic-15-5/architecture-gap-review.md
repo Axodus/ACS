@@ -22,8 +22,8 @@ contract exists
 | Composition resources | Yes | Read projections and compatibility | No mutable production catalog | Mutation journey absent | PARTIAL |
 | Secret references | Yes | Tenant-scoped lifecycle plus durable metadata | Vault KV v2 provider; local catalog is single-node | Redaction, isolation, rotation/revoke and restart tests; live HA unproven | PARTIAL |
 | Deployment lifecycle | Yes | Sandbox implementation | No production target | Sandbox tests | PARTIAL |
-| Runtime lifecycle | Yes | Local engine lifecycle with reachable HTTP start/stop | No durable job store | Handler reachability only; no restart/recovery | PARTIAL |
-| Worker registration/assignment | Yes | In-process registry/lease/local worker | No remote dispatcher/broker | Unit/local tests | NOT PROVEN as distributed |
+| Runtime lifecycle | Yes | Product API creates durable remote runtime jobs; read/cancel/event models exist | SQLite durable runtime store | restart/crash/fencing/process acceptance; multi-host unproven | READY for certified topology / PARTIAL globally |
+| Worker registration/assignment | Yes | authenticated HTTP pull, durable registry/assignment/lease/fencing | SQLite shared-database adapter; signed service identity | two Control Planes/two workers, crash/reassignment/stale result proof | PARTIAL pending multi-host/workload identity |
 | Audit events/read model | Yes | Durable single-node event store selected by HTTP server | No shared append/retention production service | Restart/correlation proof; replica/outbox unproven | PARTIAL |
 | HTTP method contract | Yes | Server, CORS and route layer aligned for GET/POST/PUT/PATCH/DELETE | N/A | Real entry-handler integration tests | READY for method compatibility scope |
 | Economics | Yes | Store-backed quotes/reservations/usage/settlement | SQLite economic/settlement adapters; no shared/external provider proof | Restart, idempotency, failure and reconciliation tests | PARTIAL |
@@ -34,7 +34,7 @@ contract exists
 | Readiness | Reports/read models | Computed inspection | No traffic gate | Report tests | PARTIAL |
 | Main Control Plane | Yes | `.design/app-standalone` | N/A | EPIC-14 browser evidence | READY for accepted UX scope |
 | Tenant Administration UI | Yes | `static` app | N/A | EPIC-15 browser evidence | READY for accepted UX scope; operational auth blocked |
-| Recovery/remediation | Partial status/error contracts | Mostly read-only | No command/reconcile plane | No end-to-end recovery evidence | BLOCKED |
+| Recovery/remediation | Durable runtime cancel/recovery/event contracts | automatic lease/worker/orphan recovery; operator UX remains read-limited | SQLite recovery coordinator | worker/Control Plane crash and cancellation acceptance | PARTIAL |
 
 ## Existing architecture to preserve
 
@@ -60,17 +60,37 @@ flowchart TD
   HTTP --> Context[createControlPlaneContext]
   Context --> Tenant[Single-node durable tenant, membership and governance repositories]
   Context --> Agent[Map-backed agent and composition services]
-  Context --> Deploy[Map-backed deployment and runtime services]
+  Context --> Deploy[Map-backed deployment service]
   Context --> Audit[Single-node durable AuditEventStore]
   Context --> Econ[SQLite economic state and settlement]
   Context --> SecretCatalog[SQLite non-secret catalog]
   SecretCatalog --> Secret[Vault KV v2 when selected; explicit DEV memory otherwise]
-  Context --> Worker[LocalExecutionWorker]
-  Worker --> Engine[Local OpenClaw engine/target]
+  Context --> Runtime[SQLite durable jobs, workers, assignments, leases and events]
+  Runtime --> WorkerApi[Authenticated internal worker HTTP]
+  WorkerApi --> RemoteWorker[Independent remote worker process]
+  RemoteWorker --> Engine[Worker-owned OpenClaw engine/target]
   Context --> Evidence[Read-only readiness/evidence projections]
 ```
 
-This is a more restart-safe development/single-node composition after C02. Production HTTP identity and the application edge are validated, but the whole system is not a production topology because several authoritative aggregates remain process-local, local SQLite/snapshot adapters are not multi-host certified, execution is local and external diagnostics are absent.
+This is a restart-safe, local multi-process runtime composition after AEES-D. Production HTTP identity and edge controls are validated, and runtime execution no longer requires a same-process worker. The whole system is not a production topology because Agent/deployment and other aggregates remain process-local, local SQLite/snapshot adapters are not multi-host certified, service identity is not deployed workload OIDC/mTLS and external diagnostics are absent.
+
+## AEES-D applied runtime boundary
+
+```mermaid
+flowchart LR
+  Product[Product API runtime intent] --> Job[Durable ExecutionJob]
+  Job --> Store[(SQLite runtime authority)]
+  Worker[Independent authenticated worker] -->|register / heartbeat / claim| Internal[Internal worker HTTP]
+  Internal --> Store
+  Store -->|assignment + lease + fencing token| Worker
+  Worker --> Engine[Worker-owned OpenClaw engine]
+  Worker -->|idempotent fenced result| Internal
+  Recovery[Recovery coordinator in competing Control Planes] --> Store
+```
+
+Delivery and ownership are separate. HTTP only carries claims and results. `runtime_assignments` plus a current lease and fencing token define ownership. A partial unique index and revision/status CAS prevent two active assignments; reassignment advances the job fencing epoch. Result writes validate the full worker/instance/assignment/lease/token tuple before committing.
+
+The production profile rejects local runtime mode and non-production worker identity. Development retains the local engine path explicitly. SQLite is classified `SINGLE_NODE_DURABLE / SHARED_DATABASE_MULTI_INSTANCE / MULTI_HOST_NOT_PROVEN`.
 
 ## B01 applied boundaries
 
@@ -171,19 +191,19 @@ The diagram is normative only at the boundary level. It does not prescribe a dat
 
 ### Development composition is the only composition
 
-`createAcsHttpServer` now selects durable administrative, secret-catalog, economic and rate-limit state explicitly; direct contexts use memory unless durability is requested. The production profile validates secrets, economics, OIDC, rate limiting and CORS rather than accepting insecure fallbacks. Agents, deployments, runtime, jobs, shared multi-host state and remote workers remain open under ACS-ORG-001/004/005/019.
+`createAcsHttpServer` now selects durable administrative, secret-catalog, economic, rate-limit and remote-runtime state explicitly; direct contexts use memory/local behavior unless durability/remote mode is requested. The production profile validates secrets, economics, OIDC, rate limiting, CORS, durable runtime and signed worker identity rather than accepting insecure fallbacks. Agents, deployments and shared multi-host state remain open under ACS-ORG-001/019.
 
 ### Trust starts too late
 
 Tenant-scoped authorization and governance are correctly modeled, but the incoming actor is not authenticated. The target is not a new RBAC model; it is a trusted principal boundary feeding the existing authority model.
 
-### Runtime contracts are disconnected from scheduling
+### Runtime contracts are connected to durable scheduling
 
-Engine and worker contracts exist separately. The normal Product API runtime path calls the engine lifecycle service while assignment/lease logic remains an isolated local subsystem. Milestone D must connect them through one durable application flow rather than adding checks to controllers or workers independently.
+AEES-D connects the normal Product API runtime path to durable jobs and worker claims. The worker transport cannot grant ownership; it can only request an atomic claim and present the resulting lease/fencing identity. Runtime result and recovery state are inspectable through Product API read models. The residual gap is operational UX and multi-host infrastructure, not a missing scheduling boundary.
 
 ### Evidence is derived from ephemeral truth
 
-Administrative audit, secret metadata/references and economics now survive single-node restart. Readiness consumes selected adapter signals and secret health, but diagnostics and operational runtime projections still depend on process-local structures. Exporters cannot make those remaining ephemeral sources durable; later Milestone B/D work must establish truth before Milestone E exports it.
+Administrative audit, secret metadata/references, economics and runtime ownership now survive single-node restart. Readiness consumes selected adapter/runtime/recovery signals, but diagnostics, Agent/deployment projections and external telemetry remain incomplete. Exporters cannot make those remaining ephemeral sources durable; residual Milestone B work must establish their truth while Milestone E exports real operational signals.
 
 ### Surfaces are accepted independently, not as one journey
 
@@ -212,7 +232,7 @@ The implementation task is therefore “add a certified production target behind
 - **Secret provider:** Vault KV v2 is the implemented production-oriented provider boundary. Live deployment/HA/service identity and whether metadata moves to a shared database remain OPEN DECISIONS; local filesystem is development-only.
 - **Identity provider deployment:** protocol decision is CLOSED for the active HTTP boundary: interoperable OIDC/JWT with RS256/JWKS and server-owned verification. Vendor/live issuer selection and deployment acceptance remain environment decisions.
 - **Rate limiter:** implementation decision CLOSED for the active single-node HTTP composition: fixed-window `RateLimiter`, hashed server-derived keys and atomic SQLite shared-database store. A live multi-host/global provider and deployment topology remain H/ACS-ORG-019 acceptance decisions.
-- **Dispatcher/broker:** OPEN DECISION at Milestone D gate. Transport is not prescribed; delivery, fencing, idempotency and recovery semantics are.
+- **Dispatcher/broker:** implementation decision CLOSED for the certified topology: authenticated HTTP worker pull over SQLite durable ownership. A broker is not required for correctness. Multi-host storage/transport and whether a later deployment adopts a managed queue remain H/environment decisions; ownership continues to live in the runtime store.
 - **Telemetry backend:** OPEN DECISION at Milestone E gate. Standard structured export and operator diagnostics are required; a generic observability platform is not.
 - **Control Plane consolidation:** OPEN DECISION at Milestone F gate between one build and secure federated surfaces. One actor/session/navigation contract is mandatory.
 

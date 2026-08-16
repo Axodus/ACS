@@ -7,7 +7,7 @@ This index is the normative consumption order for implementation. A milestone ma
 | A — System-Wide Gap Discovery & Readiness Baseline | **PASS** | all discovery | EPIC-15 closure | verified inventory, baseline, journeys, stories and plan |
 | B — Durable Platform State & Production Adapters | **IN PROGRESS — B01/B02 PASS** | 001, 002, 007, 009, 019 plus resolved 008 | A baseline; B1–B3 for remaining production adapters | admin/audit plus secret/economic restart complete; shared state and operational aggregates remain |
 | C — Production Identity, Security & Edge Controls | **PASS WITH CAVEATS — C01/C02 PASS** | resolved 003/013; partial 010 | C1/C2 application decisions closed | trusted identity and hardened edge complete; live topology acceptance remains |
-| D — Distributed Runtime & Execution Readiness | PLANNED | 004, 005, 017 | B state + C identity + D1 | remote dispatch, durable jobs, crash/retry/cancel recovery |
+| D — Distributed Runtime & Execution Readiness | **PASS WITH TOPOLOGY CAVEATS — AEES-D PASS** | resolved 004/005; partial 001/017/019/020 | B state + C identity + D1 | durable ownership, authenticated remote dispatch and crash/restart recovery proven across processes |
 | E — Observability & Operational Diagnostics | PLANNED | 011, 012 | durable correlation + D runtime + E1 | external telemetry, actionable diagnostics, readiness probe |
 | F — End-to-End Product UX Operationalization | PLANNED | 014–018, 021–024 | B–E supported contracts | authenticated operator journey and browser evidence |
 | G — Production Deployment Readiness & Governance Gate | BLOCKED BY B–F | 006 | all B–F exits + G1 | production target, rollout/rollback and fail-closed gate |
@@ -23,7 +23,7 @@ Recommended sprint order:
 
 1. **B01 — Durable Control Plane State & HTTP Contract Compatibility — PASS**
 2. **B02 — Production Secrets & Economic State Adapters — PASS**
-3. **B03 — Durable Agent, Deployment, Runtime and Job Records — PLANNED**
+3. **B03 — Durable Agent, Deployment, Runtime and Job Records — PARTIAL: runtime/job subset delivered by AEES-D**
 4. **B04 — Shared-State/Multi-Instance Hardening — PLANNED**
 
 B01 delivered single-node restart durability for Tenant, Membership/Ownership, Governance/Entitlements/Limits and administrative audit. It resolved `ACS-ORG-008` and made existing runtime start/stop handlers reachable. `ACS-ORG-001` and `ACS-ORG-009` remain partial because the adapter is a local atomic snapshot, not shared multi-instance production storage. See [B01-durable-control-plane-state-http-contract.md](./B01-durable-control-plane-state-http-contract.md).
@@ -47,11 +47,13 @@ C02 delivered fixed-window server-owned rate limiting, an atomic SQLite shared-d
 
 Recommended sprint order:
 
-1. **D01 — Durable Job, Attempt and Lease State**
-2. **D02 — Authenticated Remote Worker Dispatch**
-3. **D03 — Runtime Recovery and Reconciliation**
+1. **D01 — Durable Job, Attempt and Lease State — PASS**
+2. **D02 — Authenticated Remote Worker Dispatch — PASS WITH SERVICE-IDENTITY TOPOLOGY CAVEAT**
+3. **D03 — Runtime Recovery and Reconciliation — PASS WITH MULTI-HOST CAVEAT**
 
-Remote proof requires a second process or network boundary. A local worker implementing the same interface is insufficient.
+AEES-D delivered one SQLite-backed durable job/worker/assignment/event authority, atomic claims, lease renewal/expiry, monotonic fencing, retry/cancel recovery and authenticated worker-pull HTTP. Its acceptance launched two Control Plane processes and two independent OpenClaw worker processes over the shared store, then injected worker loss, Control Plane restart, stale result, duplicate result, cancellation and no-capacity conditions.
+
+`ACS-ORG-004` and `ACS-ORG-005` are resolved. `ACS-ORG-001` is resolved only for the runtime subset; `ACS-ORG-019` is partial because local multi-process correctness is proven but multi-host/shared managed database behavior is not. See [AEES-D-distributed-runtime-recovery-certification.md](./AEES-D-distributed-runtime-recovery-certification.md). The next milestone is E; no production deployment gate is removed.
 
 ## Milestone E — Observability & Operational Diagnostics
 

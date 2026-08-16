@@ -32,6 +32,7 @@ export interface WorkerCapability {
   readonly supportedProviders: readonly string[];
   readonly supportedIsolationModes: readonly string[];
   readonly supportedDeploymentModes: readonly string[];
+  readonly supportedTargetIds?: readonly string[];
   readonly maxConcurrentRuns: number;
 }
 

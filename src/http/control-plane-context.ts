@@ -68,6 +68,17 @@ import { FetchOpenCodeTransport } from "../intelligence/opencode-transport.js";
 import { ExecutionWorkerRegistry } from "../workers/worker-registry.js";
 import { WorkerAssignmentService } from "../workers/worker-assignment-service.js";
 import { LocalExecutionWorker } from "../workers/local-worker.js";
+import {
+  DurableRuntimeCoordinator,
+  RuntimeRecoveryCoordinator,
+  SqliteDurableRuntimeState,
+} from "../workers/durable-runtime-state.js";
+import {
+  DevelopmentWorkerIdentityValidator,
+  SignedWorkerIdentityValidator,
+  WorkerIdentityConfigurationError,
+  type WorkerServiceIdentityValidator,
+} from "../workers/worker-service-auth.js";
 import type { BillingPolicy } from "../control-plane/neurons-economic-contract.js";
 import type { AgentDefinition } from "../control-plane/unified-agent-model.js";
 import {
@@ -116,6 +127,10 @@ export interface ControlPlaneContext {
   readonly workerRegistry: ExecutionWorkerRegistry;
   readonly workerAssignmentService: WorkerAssignmentService;
   readonly localWorker: LocalExecutionWorker | null;
+  readonly runtimeCoordinator: DurableRuntimeCoordinator | null;
+  readonly runtimeRecoveryCoordinator: RuntimeRecoveryCoordinator | null;
+  readonly workerIdentityValidator: WorkerServiceIdentityValidator;
+  readonly runtimeMode: "local" | "remote";
   readonly identityValidator: HttpIdentityValidator;
   readonly rateLimiter: RateLimiter;
   readonly edgePolicy: HttpEdgePolicy;
@@ -133,6 +148,14 @@ export interface ControlPlaneContext {
     readonly settlementProvider: SettlementProvider["descriptor"];
     readonly identityValidator: HttpIdentityValidator["descriptor"];
     readonly rateLimiter: RateLimiter["descriptor"];
+    readonly runtime: {
+      readonly mode: "local" | "remote";
+      readonly adapter: string;
+      readonly productionOriented: boolean;
+      readonly multiInstance: "not_applicable" | "shared_database";
+      readonly multiHost: "not_applicable" | "not_proven";
+    };
+    readonly workerIdentity: WorkerServiceIdentityValidator["descriptor"];
   };
   close(): Promise<void>;
 }
@@ -173,6 +196,18 @@ export interface ControlPlaneContextOptions {
   readonly pythonCommand?: string;
   readonly timeoutMs?: number;
   readonly startLocalWorker?: boolean;
+  readonly runtimeMode?: "local" | "remote";
+  readonly useDurableRuntimeState?: boolean;
+  readonly runtimeStatePath?: string;
+  readonly runtimeCoordinator?: DurableRuntimeCoordinator;
+  readonly runtimeLeaseTtlMs?: number;
+  readonly runtimeWorkerStaleAfterMs?: number;
+  readonly runtimeRecoveryScanIntervalMs?: number;
+  readonly workerIdentityValidator?: WorkerServiceIdentityValidator;
+  readonly workerAuthMode?: "development" | "signed_jwt";
+  readonly workerTokenIssuer?: string;
+  readonly workerTokenAudience?: string;
+  readonly workerTokenSigningKey?: string;
   readonly useDurableAdministrativeState?: boolean;
   readonly administrativeStatePath?: string;
   readonly adapterProfile?: "development" | "production";
@@ -210,6 +245,7 @@ export interface ControlPlaneContextOptions {
   readonly administrativeMutationsPerWindow?: number;
   readonly executionStartsPerWindow?: number;
   readonly systemAdminRequestsPerWindow?: number;
+  readonly runtimeWorkerRequestsPerWindow?: number;
   readonly allowedOrigins?: readonly string[];
   readonly trustedProxyCidrs?: readonly string[];
   readonly maxBodyBytes?: number;
@@ -303,6 +339,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     administrativeMutationsPerWindow: options.administrativeMutationsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_ADMIN_MUTATION_PER_WINDOW"),
     executionStartsPerWindow: options.executionStartsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_EXECUTION_START_PER_WINDOW"),
     systemAdminRequestsPerWindow: options.systemAdminRequestsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_SYSTEM_ADMIN_PER_WINDOW"),
+    runtimeWorkerRequestsPerWindow: options.runtimeWorkerRequestsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_RUNTIME_WORKER_PER_WINDOW"),
     maxBodyBytes: options.maxBodyBytes ?? readPositiveEnvironmentInteger("ACS_HTTP_MAX_BODY_BYTES"),
     maxHeaderBytes: options.maxHeaderBytes ?? readPositiveEnvironmentInteger("ACS_HTTP_MAX_HEADER_BYTES"),
     maxHeadersCount: options.maxHeadersCount ?? readPositiveEnvironmentInteger("ACS_HTTP_MAX_HEADERS_COUNT"),
@@ -533,6 +570,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
         { ruleId: "allow_agent_create", action: "agent.create", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
         { ruleId: "allow_agent_configure", action: "agent.configure", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
         { ruleId: "allow_deployment_create", action: "deployment.create", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
+        { ruleId: "allow_execution_start", action: "execution.start", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
       ],
       actor: "system",
       reason: "dev bootstrap policy",
@@ -636,11 +674,68 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     auditService,
     scope: isolation.scope,
   });
+  const configuredRuntimeMode = options.runtimeMode ?? process.env.ACS_DISPATCH_MODE;
+  if (configuredRuntimeMode !== undefined && configuredRuntimeMode !== "local" && configuredRuntimeMode !== "remote") {
+    throw new WorkerIdentityConfigurationError("ACS_DISPATCH_MODE must be local or remote");
+  }
+  const runtimeMode = configuredRuntimeMode ?? (adapterProfile === "production" ? "remote" : "local");
+  const runtimeStatePath = options.runtimeStatePath
+    ?? process.env.ACS_RUNTIME_DATABASE_PATH
+    ?? join(roots.stateRoot, "control-plane", "runtime.sqlite");
+  const sqliteRuntimeState = !options.runtimeCoordinator
+    && (options.useDurableRuntimeState === true || runtimeMode === "remote")
+    ? new SqliteDurableRuntimeState({ filePath: runtimeStatePath })
+    : undefined;
+  const runtimeCoordinator = options.runtimeCoordinator
+    ?? (sqliteRuntimeState
+      ? new DurableRuntimeCoordinator({
+          store: sqliteRuntimeState,
+          auditService,
+          leaseTtlMs: options.runtimeLeaseTtlMs ?? readPositiveEnvironmentInteger("ACS_WORKER_LEASE_TTL_MS"),
+          workerStaleAfterMs: options.runtimeWorkerStaleAfterMs ?? readPositiveEnvironmentInteger("ACS_WORKER_STALE_AFTER_MS"),
+        })
+      : null);
+  const configuredWorkerAuthMode = options.workerAuthMode ?? process.env.ACS_WORKER_IDENTITY_MODE;
+  if (configuredWorkerAuthMode !== undefined
+    && configuredWorkerAuthMode !== "development"
+    && configuredWorkerAuthMode !== "signed_jwt") {
+    throw new WorkerIdentityConfigurationError("ACS_WORKER_IDENTITY_MODE must be development or signed_jwt");
+  }
+  const workerAuthMode = configuredWorkerAuthMode ?? (adapterProfile === "production" ? "signed_jwt" : "development");
+  const workerIdentityValidator = options.workerIdentityValidator ?? (workerAuthMode === "signed_jwt"
+    ? new SignedWorkerIdentityValidator({
+        issuer: options.workerTokenIssuer ?? process.env.ACS_WORKER_TOKEN_ISSUER ?? "",
+        audience: options.workerTokenAudience ?? process.env.ACS_WORKER_TOKEN_AUDIENCE ?? "",
+        signingKey: options.workerTokenSigningKey ?? process.env.ACS_WORKER_TOKEN_SIGNING_KEY ?? "",
+      })
+    : new DevelopmentWorkerIdentityValidator());
+  if (adapterProfile === "production") {
+    if (runtimeMode !== "remote" || !runtimeCoordinator?.descriptor.productionOriented) {
+      throw new WorkerIdentityConfigurationError(
+        "production mode requires durable remote runtime; local/process-memory fallback is prohibited",
+      );
+    }
+    if (!workerIdentityValidator.descriptor.productionOriented) {
+      throw new WorkerIdentityConfigurationError(
+        "production mode requires production-oriented worker service identity",
+      );
+    }
+  }
+  const runtimeRecoveryCoordinator = runtimeCoordinator
+    ? new RuntimeRecoveryCoordinator({
+        runtime: runtimeCoordinator,
+        scanIntervalMs: options.runtimeRecoveryScanIntervalMs
+          ?? readPositiveEnvironmentInteger("ACS_RUNTIME_RECOVERY_SCAN_INTERVAL_MS"),
+      })
+    : null;
+  runtimeRecoveryCoordinator?.start();
   const runtimeService = new RuntimeLifecycleService({
     engine,
     deploymentLookup: (deploymentId) => deploymentService.getDeployment(deploymentId),
     auditService,
     scope: isolation.scope,
+    runtimeCoordinator,
+    runtimeMode,
   });
 
   // Worker infrastructure
@@ -652,7 +747,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   });
 
   let localWorker: LocalExecutionWorker | null = null;
-  if (options.startLocalWorker !== false) {
+  if (runtimeMode === "local" && options.startLocalWorker !== false) {
     localWorker = new LocalExecutionWorker({
       workerRegistry,
       assignmentService: workerAssignmentService,
@@ -690,6 +785,10 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     workerRegistry,
     workerAssignmentService,
     localWorker,
+    runtimeCoordinator,
+    runtimeRecoveryCoordinator,
+    workerIdentityValidator,
+    runtimeMode,
     identityValidator,
     rateLimiter,
     edgePolicy,
@@ -713,8 +812,25 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       settlementProvider: settlementProvider.descriptor,
       identityValidator: identityValidator.descriptor,
       rateLimiter: rateLimiter.descriptor,
+      runtime: runtimeCoordinator
+        ? {
+            mode: runtimeMode,
+            adapter: runtimeCoordinator.descriptor.adapter,
+            productionOriented: runtimeCoordinator.descriptor.productionOriented,
+            multiInstance: runtimeCoordinator.descriptor.multiInstance,
+            multiHost: runtimeCoordinator.descriptor.multiHost,
+          }
+        : {
+            mode: runtimeMode,
+            adapter: "local-process-runtime",
+            productionOriented: false,
+            multiInstance: "not_applicable",
+            multiHost: "not_applicable",
+          },
+      workerIdentity: workerIdentityValidator.descriptor,
     },
     async close(): Promise<void> {
+      runtimeRecoveryCoordinator?.stop();
       if (localWorker) {
         await localWorker.stop();
       }
@@ -723,6 +839,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       sqliteSettlementProvider?.close();
       sqliteSecretCatalog?.close();
       rateLimiter.close?.();
+      runtimeCoordinator?.close();
     },
   };
 }

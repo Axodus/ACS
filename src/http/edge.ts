@@ -14,7 +14,8 @@ export type HttpRouteClass =
   | "authenticated_read"
   | "administrative_mutation"
   | "execution_start"
-  | "system_admin";
+  | "system_admin"
+  | "runtime_worker";
 
 export interface HttpEdgeLimits {
   readonly maxBodyBytes: number;
@@ -43,6 +44,7 @@ export interface HttpEdgePolicyOptions {
   readonly administrativeMutationsPerWindow?: number;
   readonly executionStartsPerWindow?: number;
   readonly systemAdminRequestsPerWindow?: number;
+  readonly runtimeWorkerRequestsPerWindow?: number;
   readonly maxBodyBytes?: number;
   readonly maxHeaderBytes?: number;
   readonly maxHeadersCount?: number;
@@ -136,6 +138,7 @@ export class HttpEdgePolicy {
       administrative_mutation: policy("http.administrative_mutation", options.administrativeMutationsPerWindow ?? 120, windowMs, "tenant_principal", true),
       execution_start: policy("http.execution_start", options.executionStartsPerWindow ?? 60, windowMs, "tenant_principal", true),
       system_admin: policy("http.system_admin", options.systemAdminRequestsPerWindow ?? 120, windowMs, "principal", true),
+      runtime_worker: policy("http.runtime_worker", options.runtimeWorkerRequestsPerWindow ?? 6_000, windowMs, "principal", true),
     };
     this.limits = {
       maxBodyBytes: positiveInteger(options.maxBodyBytes ?? 1_048_576, "maximum request body bytes"),
@@ -165,6 +168,7 @@ export class HttpEdgePolicy {
   routeClass(requestUrl: string, method = "GET"): HttpRouteClass {
     const path = new URL(requestUrl, "http://localhost").pathname.replace(/\/+$/, "") || "/";
     if (path === "/api/v1/health" || path === "/acs/health" || path === "/acs/version") return "public_health";
+    if (path.startsWith("/api/v1/internal/runtime/")) return "runtime_worker";
     if (path.startsWith("/api/v1/system/")) return "system_admin";
     if ((path.endsWith("/runtime/start") || path.endsWith("/runtime/stop") || path.endsWith("/execute")) && method !== "GET") {
       return "execution_start";
@@ -175,7 +179,7 @@ export class HttpEdgePolicy {
 
   async consumeNetwork(request: IncomingMessage, requestUrl: string, timestamp = Date.now()): Promise<RateLimitDecision> {
     const routeClass = this.routeClass(requestUrl, request.method);
-    const base = this.#policies.public_health;
+    const base = routeClass === "runtime_worker" ? this.#policies.runtime_worker : this.#policies.public_health;
     const networkPolicy: RateLimitPolicy = {
       ...base,
       policyId: "http.network." + routeClass,

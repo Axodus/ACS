@@ -1,6 +1,6 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** Milestone C PASS WITH CAVEATS on 2026-08-15; Milestone B residual work remains open
+**Status:** AEES-D / Milestone D **PASS WITH TOPOLOGY CAVEATS** on 2026-08-16; Milestone B residual work remains open
 
 **Readiness conclusion:** ACS is **Development Ready**, more completely **Integration Ready** for Tenant Administration, and **not Operational Ready or Production Ready**.
 
@@ -69,6 +69,14 @@ The HTTP edge now has explicit trusted-proxy resolution, production CORS allowli
 
 `ACS-ORG-013` is **RESOLVED** for the active server boundary. `ACS-ORG-010` is **PARTIALLY_RESOLVED** because shared SQLite connections/instances are proven on one database, while a live multi-host/global rate-limit service and reverse-proxy topology remain unproven. Security/Edge is **PARTIAL** and Operational/Production Readiness remain blocked.
 
+## AEES-D outcome
+
+AEES-D connected Product API runtime intent to `SqliteDurableRuntimeState`, an authenticated HTTP worker-pull protocol and independent OpenClaw worker processes. Jobs, assignments, registrations, heartbeats, leases, fencing tokens, results, cancellation and recovery events are durable. Atomic claims and revision checks prevent simultaneous valid owners; a reassigned job advances its fencing token and rejects the stale worker.
+
+The process acceptance started two Control Planes and two workers over one shared SQLite database. It proved independent execution, worker crash/requeue/reassignment, stale-result rejection, duplicate-result idempotency, cancellation ordering, Control Plane restart, no-worker backpressure and competing recovery coordinators.
+
+`ACS-ORG-004` and `ACS-ORG-005` are **RESOLVED** for the active production runtime boundary. The runtime subset of `ACS-ORG-001` is resolved. `ACS-ORG-019` is **PARTIALLY_RESOLVED** because local multi-process/shared-database correctness is proven while multi-host topology remains unproven. Runtime is ready for the certified single-host remote topology; global Operational and Production Readiness remain blocked by E/F/G/H.
+
 ## Principles
 
 - **Evidence before claims.** Contracts and unit tests do not prove operational readiness.
@@ -98,7 +106,8 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 9. [milestones/B02-production-secrets-economic-adapters.md](./milestones/B02-production-secrets-economic-adapters.md) — secrets/economics adapters, restart and reconciliation evidence.
 10. [milestones/C01-trusted-http-identity-authorization-boundary.md](./milestones/C01-trusted-http-identity-authorization-boundary.md) — OIDC validation, trusted principal propagation and forged-header evidence.
 11. [milestones/C02-distributed-rate-limiting-http-edge-hardening.md](./milestones/C02-distributed-rate-limiting-http-edge-hardening.md) — limiter, proxy, CORS, request-bound and edge-readiness evidence.
-12. [AGENTS.md](./AGENTS.md) — local execution rules.
+12. [milestones/AEES-D-distributed-runtime-recovery-certification.md](./milestones/AEES-D-distributed-runtime-recovery-certification.md) — D01 durable ownership, D02 remote dispatch and D03 process/failure evidence.
+13. [AGENTS.md](./AGENTS.md) — local execution rules.
 
 ## Milestone map
 
@@ -107,7 +116,7 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 | A | Verified system-wide baseline and executable backlog |
 | B | **IN PROGRESS:** single-node durable administration, Vault boundary and durable economics delivered; remaining operational state/shared topology open |
 | C | **PASS WITH CAVEATS:** trusted HTTP identity and hardened edge delivered; live IdP/proxy/multi-host limiter acceptance remains |
-| D | Remote dispatch, durable jobs and recovery semantics |
+| D | **PASS WITH TOPOLOGY CAVEATS:** durable jobs, authenticated remote dispatch and crash/restart recovery delivered; multi-host proof remains H |
 | E | External observability and dependency-aware readiness |
 | F | Complete supported operator journeys and remediation UX |
 | G | Certified production deployment gate and target path |
