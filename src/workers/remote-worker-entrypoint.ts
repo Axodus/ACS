@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createOpenClawEngineFromManifest } from "../engines/openclaw-bootstrap.js";
 import { FetchRemoteWorkerTransport, RemoteExecutionWorker } from "./remote-worker.js";
+import { createOperationalTelemetryFromEnvironment } from "../control-plane/operational-telemetry.js";
 
 export async function runRemoteWorkerFromEnvironment(environment: NodeJS.ProcessEnv = process.env): Promise<RemoteExecutionWorker> {
   const baseUrl = required(environment, "ACS_CONTROL_PLANE_URL");
@@ -37,6 +38,11 @@ export async function runRemoteWorkerFromEnvironment(environment: NodeJS.Process
     workerName: environment.ACS_WORKER_NAME ?? workerId,
     workerVersion: environment.ACS_WORKER_VERSION ?? "0.1.0",
     targetId: environment.ACS_WORKER_TARGET_ID ?? "local-wsl",
+    telemetry: createOperationalTelemetryFromEnvironment({
+      environment,
+      serviceName: environment.ACS_OTEL_SERVICE_NAME ?? "acs-remote-worker",
+      instanceId,
+    }),
     heartbeatIntervalMs: optionalPositiveInteger(environment.ACS_WORKER_HEARTBEAT_INTERVAL_MS),
     pollIntervalMs: optionalPositiveInteger(environment.ACS_WORKER_POLL_INTERVAL_MS),
     leaseRenewIntervalMs: optionalPositiveInteger(environment.ACS_WORKER_LEASE_RENEW_INTERVAL_MS),

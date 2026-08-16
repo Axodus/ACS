@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { AuditService } from "../control-plane/audit-service.js";
 import type { WorkerCapability, WorkerEligibilityRequirements } from "./worker-types.js";
+import type { OperationalTelemetryProvider, TraceContext } from "../control-plane/operational-telemetry.js";
 
 export type ExecutionJobStatus =
   | "queued"
@@ -66,6 +67,7 @@ export interface ExecutionJob {
   readonly attempt: number;
   readonly maxAttempts: number;
   readonly correlationId: string;
+  readonly traceContext?: TraceContext;
   readonly idempotencyKey?: string;
   readonly result?: DurableExecutionResult;
   readonly error?: DurableExecutionError;
@@ -211,7 +213,10 @@ function terminal(status: ExecutionJobStatus): boolean {
   return status === "succeeded" || status === "failed" || status === "cancelled";
 }
 
-function eligible(capabilities: WorkerCapability, requirements: WorkerEligibilityRequirements): boolean {
+export function isWorkerEligibleForRequirements(
+  capabilities: WorkerCapability,
+  requirements: WorkerEligibilityRequirements,
+): boolean {
   if (requirements.engineId && capabilities.engineId !== requirements.engineId) return false;
   if (requirements.engineRevision && capabilities.engineRevision !== requirements.engineRevision) return false;
   if (requirements.requiredRunners?.some((item) => !capabilities.supportedRunners.includes(item))) return false;
@@ -317,6 +322,7 @@ export class SqliteDurableRuntimeState {
     readonly idempotencyKey?: string;
     readonly maxAttempts?: number;
     readonly createdAt?: number;
+    readonly traceContext?: TraceContext;
   }): ExecutionJob {
     assertIdentifier(input.tenantId, "tenantId");
     assertIdentifier(input.runtimeInstanceId, "runtimeInstanceId");
@@ -358,6 +364,7 @@ export class SqliteDurableRuntimeState {
       attempt: 0,
       maxAttempts,
       correlationId: input.correlationId,
+      ...(input.traceContext ? { traceContext: input.traceContext } : {}),
       ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
     };
     this.#transaction("create job", () => {
@@ -515,7 +522,7 @@ export class SqliteDurableRuntimeState {
       || observedWorker.expiresAt === undefined
       || observedWorker.expiresAt < at
       || observedWorker.activeRuns >= observedWorker.capabilities.maxConcurrentRuns
-      || !this.listJobs({ status: "queued" }).some((candidate) => eligible(observedWorker.capabilities, candidate.requirements))) {
+      || !this.listJobs({ status: "queued" }).some((candidate) => isWorkerEligibleForRequirements(observedWorker.capabilities, candidate.requirements))) {
       return undefined;
     }
     return this.#transaction("claim job", () => {
@@ -525,7 +532,7 @@ export class SqliteDurableRuntimeState {
       if (worker.activeRuns >= worker.capabilities.maxConcurrentRuns) return undefined;
 
       const candidates = this.listJobs({ status: "queued" });
-      const job = candidates.find((candidate) => eligible(worker.capabilities, candidate.requirements));
+      const job = candidates.find((candidate) => isWorkerEligibleForRequirements(worker.capabilities, candidate.requirements));
       if (!job) return undefined;
 
       const tokenRow = this.#database.prepare(
@@ -1084,6 +1091,7 @@ export interface RuntimeOwnershipInput {
 export class DurableRuntimeCoordinator {
   readonly #store: SqliteDurableRuntimeState;
   readonly #auditService: AuditService | undefined;
+  readonly #telemetry: OperationalTelemetryProvider | undefined;
   readonly leaseTtlMs: number;
   readonly workerStaleAfterMs: number;
 
@@ -1092,9 +1100,11 @@ export class DurableRuntimeCoordinator {
     readonly auditService?: AuditService;
     readonly leaseTtlMs?: number;
     readonly workerStaleAfterMs?: number;
+    readonly telemetry?: OperationalTelemetryProvider;
   }) {
     this.#store = options.store;
     this.#auditService = options.auditService;
+    this.#telemetry = options.telemetry;
     this.leaseTtlMs = options.leaseTtlMs ?? 15_000;
     this.workerStaleAfterMs = options.workerStaleAfterMs ?? 30_000;
   }
@@ -1111,6 +1121,7 @@ export class DurableRuntimeCoordinator {
     readonly correlationId: string;
     readonly idempotencyKey?: string;
     readonly maxAttempts?: number;
+    readonly traceContext?: TraceContext;
   }): ExecutionJob {
     const job = this.#store.createJob({
       tenantId: input.tenantId,
@@ -1131,7 +1142,16 @@ export class DurableRuntimeCoordinator {
       correlationId: input.correlationId,
       ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       ...(input.maxAttempts ? { maxAttempts: input.maxAttempts } : {}),
+      ...(input.traceContext ? { traceContext: input.traceContext } : {}),
     });
+    this.#telemetry?.log({
+      component: "runtime",
+      event: "runtime.job.created",
+      message: "Durable runtime job created",
+      context: { correlationId: job.correlationId, traceId: job.traceContext?.traceId, spanId: job.traceContext?.spanId, tenantId: job.tenantId, jobId: job.jobId },
+      attributes: { workloadType: job.workloadType, attempt: job.attempt, maxAttempts: job.maxAttempts },
+    });
+    this.#telemetry?.metric({ name: "acs.runtime.jobs.created", kind: "counter", value: 1, attributes: { workloadType: job.workloadType } });
     this.#auditService?.recordEvent({
       eventType: "runtime.job_queued",
       correlationId: job.correlationId,
@@ -1148,7 +1168,9 @@ export class DurableRuntimeCoordinator {
   }
 
   registerWorker(input: Parameters<SqliteDurableRuntimeState["registerWorker"]>[0]): DurableWorkerRegistration {
-    return this.#store.registerWorker(input);
+    const worker = this.#store.registerWorker(input);
+    this.#telemetry?.log({ component: "runtime", event: "runtime.worker.registered", message: "Remote worker registered", context: { workerId: worker.workerId }, attributes: { instanceId: worker.instanceId, status: worker.status } });
+    return worker;
   }
 
   heartbeat(input: Omit<Parameters<SqliteDurableRuntimeState["heartbeat"]>[0], "staleAfterMs">): DurableWorkerRegistration {
@@ -1156,20 +1178,55 @@ export class DurableRuntimeCoordinator {
   }
 
   claimNext(input: Omit<Parameters<SqliteDurableRuntimeState["claimNext"]>[0], "leaseTtlMs">): RuntimeClaim | undefined {
-    return this.#store.claimNext({ ...input, leaseTtlMs: this.leaseTtlMs });
+    const claim = this.#store.claimNext({ ...input, leaseTtlMs: this.leaseTtlMs });
+    if (claim) {
+      this.#telemetry?.log({ component: "runtime", event: "runtime.job.assigned", message: "Runtime job assigned", context: { correlationId: claim.job.correlationId, traceId: claim.job.traceContext?.traceId, spanId: claim.job.traceContext?.spanId, tenantId: claim.job.tenantId, jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId, workerId: claim.assignment.workerId }, attributes: { attempt: claim.assignment.attempt, fencingToken: claim.assignment.fencingToken, leaseExpiresAt: claim.assignment.leaseExpiresAt } });
+      this.#telemetry?.metric({ name: "acs.runtime.assignments", kind: "counter", value: 1 });
+    }
+    return claim;
   }
 
   renewLease(input: RuntimeOwnershipInput): DurableJobAssignment {
     return this.#store.renewLease({ ...input, leaseTtlMs: this.leaseTtlMs });
   }
 
-  markRunning(input: RuntimeOwnershipInput): ExecutionJob { return this.#store.markRunning(input); }
-  completeJob(input: Parameters<SqliteDurableRuntimeState["completeJob"]>[0]): ExecutionJob { return this.#store.completeJob(input); }
-  failJob(input: Parameters<SqliteDurableRuntimeState["failJob"]>[0]): ExecutionJob { return this.#store.failJob(input); }
+  markRunning(input: RuntimeOwnershipInput): ExecutionJob {
+    const job = this.#store.markRunning(input);
+    this.#telemetry?.log({ component: "runtime", event: "runtime.job.started", message: "Remote execution started", context: { correlationId: job.correlationId, traceId: job.traceContext?.traceId, spanId: job.traceContext?.spanId, tenantId: job.tenantId, jobId: job.jobId, assignmentId: input.assignmentId, workerId: input.workerId } });
+    return job;
+  }
+  completeJob(input: Parameters<SqliteDurableRuntimeState["completeJob"]>[0]): ExecutionJob {
+    try {
+      const job = this.#store.completeJob(input);
+      this.#telemetry?.log({ component: "runtime", event: "runtime.job.completed", message: "Remote execution completed", context: { correlationId: job.correlationId, traceId: job.traceContext?.traceId, spanId: job.traceContext?.spanId, tenantId: job.tenantId, jobId: job.jobId, assignmentId: input.assignmentId, workerId: input.workerId }, attributes: { status: job.status, attempt: job.attempt } });
+      this.#telemetry?.metric({ name: "acs.runtime.jobs.completed", kind: "counter", value: 1, attributes: { status: job.status } });
+      return job;
+    } catch (error) {
+      if (error instanceof RuntimeStaleOwnerError) {
+        this.#telemetry?.log({ level: "warn", component: "runtime", event: "runtime.stale_result.rejected", message: "Stale worker result rejected", context: { jobId: input.jobId, assignmentId: input.assignmentId, workerId: input.workerId }, attributes: { fencingToken: input.fencingToken, reasonCode: "STALE_WORKER_OWNERSHIP" } });
+        this.#telemetry?.metric({ name: "acs.runtime.stale_results", kind: "counter", value: 1 });
+      }
+      throw error;
+    }
+  }
+  failJob(input: Parameters<SqliteDurableRuntimeState["failJob"]>[0]): ExecutionJob {
+    const job = this.#store.failJob(input);
+    this.#telemetry?.log({ level: "error", component: "runtime", event: "runtime.job.failed", message: "Remote execution attempt failed", context: { correlationId: job.correlationId, traceId: job.traceContext?.traceId, spanId: job.traceContext?.spanId, tenantId: job.tenantId, jobId: job.jobId, assignmentId: input.assignmentId, workerId: input.workerId }, attributes: { failureCode: input.error.code, retryable: input.error.retryable, status: job.status, attempt: job.attempt } });
+    this.#telemetry?.metric({ name: "acs.runtime.jobs.failed", kind: "counter", value: 1, attributes: { retryable: input.error.retryable, terminal: job.status === "failed" } });
+    return job;
+  }
   requestCancellation(jobId: string, tenantId: string, at?: number): ExecutionJob {
     return this.#store.requestCancellation(jobId, tenantId, at);
   }
-  recoverExpired(at?: number): RuntimeRecoveryResult { return this.#store.recoverExpired({ ...(at !== undefined ? { at } : {}) }); }
+  recoverExpired(at?: number): RuntimeRecoveryResult {
+    const result = this.#store.recoverExpired({ ...(at !== undefined ? { at } : {}) });
+    if (result.assignmentsExpired || result.jobsRequeued || result.jobsFailed || result.workersMarkedOffline) {
+      this.#telemetry?.log({ level: result.jobsFailed ? "error" : "warn", component: "runtime-recovery", event: "runtime.job.recovered", message: "Runtime recovery scan changed durable ownership state", attributes: { ...result } });
+      if (result.assignmentsExpired) this.#telemetry?.metric({ name: "acs.runtime.lease_expirations", kind: "counter", value: result.assignmentsExpired });
+      if (result.jobsRequeued) this.#telemetry?.metric({ name: "acs.runtime.recoveries", kind: "counter", value: result.jobsRequeued });
+    }
+    return result;
+  }
   getJob(jobId: string): ExecutionJob | undefined { return this.#store.getJob(jobId); }
   listJobs(filter: Parameters<SqliteDurableRuntimeState["listJobs"]>[0] = {}): readonly ExecutionJob[] { return this.#store.listJobs(filter); }
   getWorker(workerId: string): DurableWorkerRegistration | undefined { return this.#store.getWorker(workerId); }

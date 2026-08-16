@@ -132,6 +132,8 @@ export * from "./control-plane/runtime-lifecycle-service.js";
 
 export * from "./control-plane/audit-service.js";
 export * from "./control-plane/durable-administrative-state.js";
+export * from "./control-plane/operational-telemetry.js";
+export * from "./control-plane/operational-diagnostics.js";
 
 export * from "./control-plane/epic-11-acceptance.js";
 

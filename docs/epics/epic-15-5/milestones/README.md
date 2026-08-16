@@ -8,7 +8,7 @@ This index is the normative consumption order for implementation. A milestone ma
 | B — Durable Platform State & Production Adapters | **IN PROGRESS — B01/B02 PASS** | 001, 002, 007, 009, 019 plus resolved 008 | A baseline; B1–B3 for remaining production adapters | admin/audit plus secret/economic restart complete; shared state and operational aggregates remain |
 | C — Production Identity, Security & Edge Controls | **PASS WITH CAVEATS — C01/C02 PASS** | resolved 003/013; partial 010 | C1/C2 application decisions closed | trusted identity and hardened edge complete; live topology acceptance remains |
 | D — Distributed Runtime & Execution Readiness | **PASS WITH TOPOLOGY CAVEATS — AEES-D PASS** | resolved 004/005; partial 001/017/019/020 | B state + C identity + D1 | durable ownership, authenticated remote dispatch and crash/restart recovery proven across processes |
-| E — Observability & Operational Diagnostics | PLANNED | 011, 012 | durable correlation + D runtime + E1 | external telemetry, actionable diagnostics, readiness probe |
+| E — Observability & Operational Diagnostics | **PASS WITH TOPOLOGY CAVEATS — AEES-E PASS** | resolved 011/012; partial 019/020 | durable correlation + D runtime + E1 | external-process OTLP telemetry, actionable diagnostics and dependency-aware readiness proven |
 | F — End-to-End Product UX Operationalization | PLANNED | 014–018, 021–024 | B–E supported contracts | authenticated operator journey and browser evidence |
 | G — Production Deployment Readiness & Governance Gate | BLOCKED BY B–F | 006 | all B–F exits + G1 | production target, rollout/rollback and fail-closed gate |
 | H — Full-System Acceptance & Gap Closure | BLOCKED BY G | 020 and residuals | G exit | full regression, security, restart, replica, browser and closure report |
@@ -59,10 +59,13 @@ AEES-D delivered one SQLite-backed durable job/worker/assignment/event authority
 
 Recommended sprint order:
 
-1. **E01 — External Structured Telemetry**
-2. **E02 — Dependency-Aware Liveness and Readiness**
+1. **E01 — External Structured Telemetry — PASS**
+2. **E02 — Dependency-Aware Liveness and Readiness — PASS**
+3. **E03 — Operational Incident Evidence — PASS WITH MULTI-HOST CAVEAT**
 
-Exporter configuration is not enough: an operator must diagnose an injected failure without shell access.
+AEES-E delivered bounded structured logs, low-cardinality metrics, distributed Control Plane/worker spans, OTLP HTTP/JSON export, stable dependency reason codes and authorized job/worker/recovery diagnostics. The process acceptance used an independent receiver, Control Plane and workers, and diagnosed crash, stale ownership, dependency/no-capacity, retry exhaustion, restart and exporter outage without direct SQLite/filesystem-log inspection.
+
+`ACS-ORG-011` and `ACS-ORG-012` are resolved for the active boundary. Multi-host collector/storage, managed retention/alert routing and a complete remediation UX remain H/F caveats. See [AEES-E-observability-operational-diagnostics-certification.md](./AEES-E-observability-operational-diagnostics-certification.md).
 
 ## Milestone F — End-to-End Product UX Operationalization
 

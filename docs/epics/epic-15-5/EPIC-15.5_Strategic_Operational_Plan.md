@@ -59,11 +59,11 @@ B01 partially resolved ACS-ORG-001/009 for single-node Tenant Administration. B0
 
 ### W3 — Distributed runtime and recovery
 
-AEES-D resolved ACS-ORG-004/005 and the runtime subset of ACS-ORG-001. Product API execution intent now creates durable jobs consumed by authenticated independent workers under lease/fencing authority. Crash/restart, stale-result, duplicate-result, cancellation, backpressure and local multi-process contention evidence passes. Multi-host topology, complete operator remediation and external diagnostics remain 017/019/021 work for E/F/H rather than reasons to reopen the runtime ownership contract.
+AEES-D resolved ACS-ORG-004/005 and the runtime subset of ACS-ORG-001. Product API execution intent now creates durable jobs consumed by authenticated independent workers under lease/fencing authority. Crash/restart, stale-result, duplicate-result, cancellation, backpressure and local multi-process contention evidence passes. AEES-E subsequently added external diagnostics; multi-host topology and complete operator remediation remain 017/019/021 work for F/H rather than reasons to reopen the runtime ownership contract.
 
 ### W4 — Observability and readiness
 
-Resolve ACS-ORG-011 and 012 and support 018. Export structured telemetry, define actionable dependency diagnostics and implement distinct liveness/readiness endpoints using live adapter health.
+AEES-E resolved ACS-ORG-011 and 012 for the active boundary and supports 018 through external telemetry, actionable dependency/runtime diagnostics and distinct liveness/readiness endpoints using live adapter health. Multi-host collector/retention/alert infrastructure remains H/environment scope.
 
 ### W5 — Operational product journeys
 
@@ -149,6 +149,8 @@ B and C may run in parallel after their decision gates, but no public mutation s
 - operator diagnostics with actionable cause.
 
 **Exit:** an injected degradation is detected and diagnosed without shell access.
+
+**Current status:** PASS WITH TOPOLOGY CAVEATS on 2026-08-16. E01 added bounded structured telemetry and OTLP HTTP/JSON export; E02 added dependency-aware liveness/readiness and authorized runtime diagnostics; E03 diagnosed worker/dependency/exporter incidents with independent processes and external evidence. `ACS-ORG-011`/`012` are resolved for the active boundary. Multi-host collector/retention/alert topology remains H/environment scope, and Operational Ready remains blocked by F.
 
 ### Milestone F — End-to-End Product UX Operationalization
 

@@ -3,6 +3,7 @@ import { EngineSandboxOnlyError, EngineRuntimeNotFoundError } from "../engines/e
 import type { AuditService } from "./audit-service.js";
 import { assertSameIsolationScope, type IsolationScope } from "./isolation.js";
 import type { DurableRuntimeCoordinator, ExecutionJob } from "../workers/durable-runtime-state.js";
+import type { TraceContext } from "./operational-telemetry.js";
 
 export type RuntimeState =
   | "pending"
@@ -23,6 +24,8 @@ export interface StartRuntimeServiceRequest {
   readonly scope?: IsolationScope;
   readonly runtimeInstanceId?: string;
   readonly idempotencyKey?: string;
+  readonly traceContext?: TraceContext;
+  readonly maxAttempts?: number;
 }
 
 export interface RuntimeInstanceRecord {
@@ -142,6 +145,8 @@ export class RuntimeLifecycleService {
           targetId,
           correlationId,
           idempotencyKey: request.idempotencyKey ?? `runtime.start:${runtimeInstanceId}`,
+          traceContext: request.traceContext,
+          maxAttempts: request.maxAttempts,
         });
         const record = this.#jobRuntimeRecord(job, scope);
         this.#runtimes.set(record.runtimeInstanceId, record);

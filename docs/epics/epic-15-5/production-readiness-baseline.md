@@ -2,7 +2,7 @@
 
 **Assessment date:** 2026-08-16
 
-**Source revision:** `ed46412` plus B01/B02/C01/C02/AEES-D implementation evidence
+**Source revision:** `ed46412` plus B01/B02/C01/C02/AEES-D/AEES-E implementation evidence
 
 **Overall classification:** **Development Ready / Integration Ready PARTIAL / Operational Ready BLOCKED / Production Ready BLOCKED**
 
@@ -20,14 +20,14 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Runtime | READY FOR CERTIFIED TOPOLOGY | Durable jobs, workers, assignments, leases, fencing, results, cancellation and automatic recovery pass restart/crash acceptance. Operator remediation and multi-host infrastructure remain outside this bounded status. | ACS-ORG-017, 019 |
 | Distributed execution | PARTIAL | Two independent Control Planes and two worker processes execute through authenticated HTTP pull and one durable authority. Multi-host/network-partition and workload-identity deployment are not proven. | ACS-ORG-019, 020 |
 | Deployment | BLOCKED | Sandbox deployment works; staged/live are intentionally rejected. | ACS-ORG-006 |
-| Observability | BLOCKED | Evidence projections exist; no external exporter, HTTP telemetry, raw logs or traces. | ACS-ORG-009, 011, 012 |
+| Observability | READY FOR CERTIFIED TOPOLOGY / PARTIAL GLOBALLY | Structured HTTP/runtime/worker logs, low-cardinality metrics, distributed spans, bounded OTLP export and operator diagnostics pass external-process acceptance. Multi-host collector/retention/alert topology remains unproven. | ACS-ORG-009, 019, 020 |
 | Economics | PARTIAL | Durable SQLite economic/settlement adapters, idempotency and reconciliation pass; shared/external provider and production financial policy remain unproven. | ACS-ORG-007, 019 |
 | Audit | PARTIAL | Canonical events and Tenant history now survive restart on the selected single-node store; replica sharing, retention/tamper controls and transactional outbox semantics remain unproven. | ACS-ORG-009 |
 | Product API | PARTIAL | HTTP method compatibility, trusted identity, edge guards and durable runtime start/read/cancel are active; composition and complete execution/remediation journeys remain. | ACS-ORG-015, 017, 023 |
 | Control Plane | PARTIAL | Main operational UX and Tenant Administration are browser-certified separately. | ACS-ORG-014–018 |
 | UX journeys | BLOCKED | No complete authenticate-to-recover operator journey exists. | ACS-ORG-014–018, 021 |
-| Recovery | PARTIAL | Automatic lease/worker/orphan recovery and durable cancellation pass process acceptance; operator remediation UX and multi-host/provider failure coverage remain. | ACS-ORG-018, 019 |
-| Testing | PARTIAL | Unit/route/browser coverage now includes real runtime restart, worker crash, two-process ownership, stale/duplicate result and cancellation tests. Full-system/live-provider/multi-host acceptance remains. | ACS-ORG-020 |
+| Recovery | PARTIAL | Automatic lease/worker/orphan recovery and durable cancellation pass process acceptance; AEES-E makes crash/recovery/stale ownership externally diagnosable, while operator remediation UX and multi-host/provider failure coverage remain. | ACS-ORG-018, 019 |
+| Testing | PARTIAL | Unit/route/browser coverage now includes external-process OTLP, dependency outages, runtime restart, worker crash, stale/duplicate result and cancellation tests. Full-system/live-provider/multi-host acceptance remains. | ACS-ORG-020 |
 
 ## Production-state inventory
 
@@ -47,11 +47,12 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Assignments/leases | dispatch intent, ownership epoch and lease | SQLite assignment table plus CAS/fencing | Single-node durable | shared database/local processes | Yes | Durable remote dispatcher authority | READY for certified topology |
 | Administrative audit | correlated events | `AuditService` over durable `AuditEventStore` in the HTTP server | Single-node | No | Yes | No shared append service | Durable functional projection / CRITICAL residuals |
 | Legacy workflow receipts | execution receipts | local JSONL | Local-durable | No | Yes on same volume | No shared store | Acceptable DEV evidence, not production source |
-| Legacy telemetry | events | memory or local JSONL | Local-durable when JSONL | No | Same volume only | No exporter | Acceptable DEV evidence, not operations |
+| Legacy telemetry | historical events | memory or local JSONL | Local-durable when JSONL | No | Same volume only | No | Explicit DEV/legacy evidence; not the AEES-E operational path |
+| Operational telemetry | structured logs, metrics, spans, exporter health | `OperationalTelemetryProvider` + OTLP HTTP/JSON | External receiver managed | receiver/process shared | external once exported | Production-oriented exporter boundary | READY for certified topology / multi-host NOT PROVEN |
 | Economics | quotes, reservations, usage, settlements, receipts | `EconomicStateStore`; SQLite in HTTP composition | Single-node | No | Yes | Production-oriented single-node adapter | PARTIAL / multi-instance NOT PROVEN |
 | Settlement | provider-confirmed settlement records | `SettlementProvider`; SQLite in HTTP composition | Single-node | No | Yes | Production-oriented single-node adapter | PARTIAL / external provider not certified |
 | Rate limiting | fixed-window network/principal/Tenant counters | `SqliteRateLimitStore` in HTTP composition; memory only explicit DEV/test | Single-node | Shared database connections | Yes | Production-oriented bounded adapter | PARTIAL / multi-host NOT PROVEN |
-| Readiness | computed report | on-demand projection with context adapter signals and secret health | Computed | Per process | Recomputed | No full live composite gate | PARTIAL / HIGH |
+| Readiness | liveness, aggregate readiness and detailed operational status | bounded dependency probes with reason/action codes | Computed | Per process over shared dependencies | Recomputed/cached briefly | Active HTTP traffic-readiness boundary | READY semantics / deployment topology NOT PROVEN |
 | Tool/plugin installation | catalog/projections | seeded registries; mutation unsupported | No operational install state | No | Re-seeded | No | BACKEND_ONLY/PARTIAL / HIGH |
 
 ### State classifications
@@ -61,7 +62,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 - **Development implementation:** local JSONL, local filesystem and local workers selected only in a named development profile.
 - **Authoritative production state:** tenant, agent, deployment, runtime, job, audit and economic records. These require durable shared adapters before production.
 
-`createAcsHttpServer` now selects durable administrative, secret-catalog, economic, HTTP rate-limit and remote-runtime adapters explicitly. Direct `createControlPlaneContext` callers remain development/local unless the corresponding durable options/paths are supplied. `adapterProfile: "production"` rejects insecure secret/economic/rate-limit/runtime adapters, non-production user/worker identity and wildcard/missing CORS configuration instead of silently selecting development fallbacks.
+`createAcsHttpServer` now selects durable administrative, secret-catalog, economic, HTTP rate-limit and remote-runtime adapters explicitly. Direct `createControlPlaneContext` callers remain development/local unless the corresponding durable options/paths are supplied. `adapterProfile: "production"` rejects insecure secret/economic/rate-limit/runtime/telemetry adapters, non-production user/worker identity and wildcard/missing CORS configuration instead of silently selecting development fallbacks.
 
 ## Production-adapter inventory
 
@@ -79,12 +80,12 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Economic state | `EconomicStateStore` | `SqliteEconomicStateStore` in HTTP composition | Single-node adapter | HTTP: yes | Restart/failure/tenant tests | ACS-ORG-007 PARTIAL |
 | Settlement provider | `SettlementProvider` | `SqliteSettlementProvider` in HTTP composition; memory only explicit DEV | Single-node adapter | HTTP: yes | idempotency/restart/reconciliation tests | ACS-ORG-007 PARTIAL |
 | Audit store | `AuditEventStore` consumed by `AuditService` | atomic filesystem adapter in HTTP composition; memory in explicit tests | Single-node adapter only | HTTP: yes | Restart/correlation tests | ACS-ORG-009 PARTIAL |
-| Telemetry sink | `TelemetrySink` | memory/JSONL | No external adapter | Local runtime defaults JSONL | Local tests | ACS-ORG-011 |
+| Operational telemetry | `OperationalTelemetryProvider` / `TelemetryExporter` | bounded OTLP HTTP/JSON; memory/disabled explicit DEV only | Yes | Production: external required | contract, outage and independent receiver/process acceptance | ACS-ORG-011 RESOLVED |
 | Identity validator | `HttpIdentityValidator` | `OidcJwtIdentityValidator` + `RemoteJwksProvider`; explicit DEV header adapter | Yes | Production: explicit OIDC required | signature/claims/rotation/real HTTP forged-header tests; live IdP unproven | ACS-ORG-003 RESOLVED |
 | Rate limiter | `RateLimiter` / `RateLimitStore` | `SqliteRateLimitStore` in HTTP composition; memory explicit DEV/test | Single-node shared-database adapter | HTTP: yes | atomic two-instance, spoof, 429/outage and real-server tests | ACS-ORG-010 PARTIAL / 019 |
 | Worker dispatcher | internal worker HTTP + durable claim | `RemoteExecutionWorker` pull protocol; local worker explicit DEV only | Production-oriented bounded adapter | Production remote: yes | signed identity, real HTTP and independent-process tests | ACS-ORG-004 RESOLVED |
 | Queue/broker | durable job table/claim protocol | SQLite-backed worker pull; no external broker | Broker not required for current ownership model | Production remote: yes | queued backpressure, no-worker and recovery tests | ACS-ORG-019 PARTIAL |
-| Observability exporter | inspection contract | disabled | No active implementation | Disabled | No | ACS-ORG-011 |
+| Observability exporter | `TelemetryExporter` | `OtlpHttpTelemetryExporter` | Yes | Production: explicit endpoint required | external-process export/recovery/redaction proven | ACS-ORG-011 RESOLVED / 019 topology caveat |
 | Production target | engine/target contracts | local WSL sandbox target | No certified live target | Yes for DEV | Sandbox tests | ACS-ORG-006 |
 
 ## Identity and authorization trust chain
@@ -200,7 +201,7 @@ Criteria:
 - failures are semantic and correlated;
 - adapters may be non-production but are explicit.
 
-**Current status: PARTIAL.** HTTP methods, durable adapter patterns, trusted identity/edge and remote runtime execution exist, but split Control Plane, unsupported composition, external diagnostics and incomplete operator recovery journeys remain.
+**Current status: PARTIAL.** HTTP methods, durable adapter patterns, trusted identity/edge, remote runtime execution and external diagnostics exist, but split Control Plane, unsupported composition and incomplete operator recovery journeys remain.
 
 ### Level 3 — Operational Ready
 
@@ -227,9 +228,24 @@ Criteria:
 
 **Current status: BLOCKED.** Milestones G and H may certify it only after all prerequisites pass.
 
-## Why current `ready` labels are insufficient
+## AEES-E acceptance evidence
 
-The readiness report still keeps `productionReady` false. AEES-D now derives runtime-store, remote-dispatch, durable-worker and recovery-coordinator signals from the active context rather than treating a local worker as distributed proof. Milestone E must still turn these bounded signals into dependency-aware traffic readiness and external operator diagnostics; component reachability does not imply global Operational or Production Readiness.
+| Scope | Result | Evidence |
+| --- | --- | --- |
+| Structured logs/metrics/traces | PASS | `s52`; bounded queues, redaction and OTLP HTTP/JSON payloads |
+| Production insecure telemetry fallback | PASS | disabled/memory exporter rejected in production profile |
+| Dependency-aware liveness/readiness | PASS | `s53`; critical/optional dependency policy and stable reason codes |
+| Diagnostic authorization/isolation | PASS | platform detail protected; foreign Tenant job returns safe `404` |
+| Independent external receiver | PASS | `s54`; receiver PID separate from Control Plane/workers |
+| Worker crash/stale result/retry/no-worker | PASS | supported diagnostics plus exported telemetry |
+| Control Plane restart | PASS | replacement PID observes/completes the durable job |
+| Exporter outage/recovery | PASS | domain continues; telemetry state degrades and recovers |
+| Sensitive evidence | PASS | zero token/secret/private-key matches |
+| Multi-host collector/topology | NOT PROVEN | local multi-process acceptance only |
+
+## Why global readiness remains blocked
+
+Liveness and traffic readiness now have executable, dependency-aware semantics, and external diagnostics are proven for the certified topology. `productionReady` remains false because component readiness does not certify the complete operator journey, Agent/deployment durability, a production deployment target, live multi-host infrastructure or Milestone H acceptance.
 
 ## Baseline decision
 

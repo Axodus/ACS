@@ -197,6 +197,15 @@ class AdministrativeStateFile {
     return this.#snapshot;
   }
 
+  health(): { readonly reachable: boolean; readonly adapter: string } {
+    try {
+      if (existsSync(this.#filePath)) parseSnapshot(readFileSync(this.#filePath, "utf8"));
+      return { reachable: true, adapter: "filesystem-administrative-state" };
+    } catch {
+      return { reachable: false, adapter: "filesystem-administrative-state" };
+    }
+  }
+
   commit(next: AdministrativeStateSnapshot): void {
     const directory = dirname(this.#filePath);
     const temporaryPath = this.#filePath + "." + process.pid + "." + Math.random().toString(36).slice(2) + ".tmp";
@@ -419,12 +428,19 @@ export class DurableAdministrativeState {
   readonly membershipRepository: TenantMembershipRepository;
   readonly governanceRepository: TenantGovernanceRepository;
   readonly auditStore: AuditEventStore;
+  readonly #file: AdministrativeStateFile;
 
   constructor(options: { readonly filePath: string }) {
     const file = new AdministrativeStateFile(options.filePath);
+    this.#file = file;
     this.tenantRepository = new FileTenantRepository(file);
     this.membershipRepository = new FileTenantMembershipRepository(file);
     this.governanceRepository = new FileTenantGovernanceRepository(file);
     this.auditStore = new FileAdministrativeAuditStore(file);
+  }
+
+  health(): { readonly configured: true; readonly reachable: boolean; readonly productionGrade: false; readonly adapter: string } {
+    const health = this.#file.health();
+    return { configured: true, reachable: health.reachable, productionGrade: false, adapter: health.adapter };
   }
 }

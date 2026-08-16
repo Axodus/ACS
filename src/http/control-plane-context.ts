@@ -103,6 +103,12 @@ import {
   type RateLimiter,
 } from "./rate-limit.js";
 import { HttpEdgePolicy } from "./edge.js";
+import {
+  assertProductionTelemetryConfiguration,
+  createOperationalTelemetryFromEnvironment,
+  type OperationalTelemetryProvider,
+} from "../control-plane/operational-telemetry.js";
+import { OperationalDiagnosticsService } from "../control-plane/operational-diagnostics.js";
 
 export interface ControlPlaneContext {
   readonly engineRegistry: EngineRegistry;
@@ -134,6 +140,8 @@ export interface ControlPlaneContext {
   readonly identityValidator: HttpIdentityValidator;
   readonly rateLimiter: RateLimiter;
   readonly edgePolicy: HttpEdgePolicy;
+  readonly telemetry: OperationalTelemetryProvider;
+  readonly operationalDiagnostics: OperationalDiagnosticsService;
   readonly isolation: ControlPlaneIsolation;
   readonly administrativeState: {
     readonly mode: "memory" | "filesystem";
@@ -156,6 +164,11 @@ export interface ControlPlaneContext {
       readonly multiHost: "not_applicable" | "not_proven";
     };
     readonly workerIdentity: WorkerServiceIdentityValidator["descriptor"];
+    readonly telemetry: {
+      readonly adapter: string;
+      readonly external: boolean;
+      readonly productionOriented: boolean;
+    };
   };
   close(): Promise<void>;
 }
@@ -256,6 +269,11 @@ export interface ControlPlaneContextOptions {
   readonly keepAliveTimeoutMs?: number;
   readonly maxRequestsPerSocket?: number;
   readonly enableHsts?: boolean;
+  readonly telemetry?: OperationalTelemetryProvider;
+  readonly telemetryEnvironment?: NodeJS.ProcessEnv;
+  readonly telemetryServiceName?: string;
+  readonly dependencyCheckTimeoutMs?: number;
+  readonly dependencyCacheTtlMs?: number;
 }
 
 function resolveDefaultOperationalRoots(options: ControlPlaneContextOptions): {
@@ -311,6 +329,10 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   const targetService = new ExecutionTargetService(engineRegistry);
   const adapterProfile = options.adapterProfile
     ?? (process.env.ACS_ENVIRONMENT === "production" ? "production" : "development");
+  const telemetry = options.telemetry ?? createOperationalTelemetryFromEnvironment({
+    environment: options.telemetryEnvironment ?? process.env,
+    serviceName: options.telemetryServiceName ?? "acs-control-plane",
+  });
   const configuredRateLimitProvider = options.rateLimitProvider ?? process.env.ACS_RATE_LIMIT_PROVIDER;
   if (configuredRateLimitProvider !== undefined
     && configuredRateLimitProvider !== "memory"
@@ -691,6 +713,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       ? new DurableRuntimeCoordinator({
           store: sqliteRuntimeState,
           auditService,
+          telemetry,
           leaseTtlMs: options.runtimeLeaseTtlMs ?? readPositiveEnvironmentInteger("ACS_WORKER_LEASE_TTL_MS"),
           workerStaleAfterMs: options.runtimeWorkerStaleAfterMs ?? readPositiveEnvironmentInteger("ACS_WORKER_STALE_AFTER_MS"),
         })
@@ -721,6 +744,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       );
     }
   }
+  assertProductionTelemetryConfiguration(adapterProfile, telemetry);
   const runtimeRecoveryCoordinator = runtimeCoordinator
     ? new RuntimeRecoveryCoordinator({
         runtime: runtimeCoordinator,
@@ -762,6 +786,27 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     });
   }
 
+  const operationalDiagnostics = new OperationalDiagnosticsService({
+    profile: adapterProfile,
+    identityValidator,
+    edgePolicy,
+    secretStore,
+    economicStore: economicStateStore,
+    settlementProvider,
+    administrativeState: durableAdministrativeState
+      ? { mode: "filesystem", durability: "single_node_durable" }
+      : { mode: "memory", durability: "process_local" },
+    administrativeStateHealth: durableAdministrativeState
+      ? () => durableAdministrativeState.health()
+      : () => ({ configured: false, reachable: false }),
+    runtimeMode,
+    runtimeCoordinator,
+    recoveryCoordinator: runtimeRecoveryCoordinator,
+    telemetry,
+    checkTimeoutMs: options.dependencyCheckTimeoutMs,
+    cacheTtlMs: options.dependencyCacheTtlMs,
+  });
+
   return {
     engineRegistry,
     engineService: new EngineService(engineRegistry),
@@ -792,6 +837,8 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     identityValidator,
     rateLimiter,
     edgePolicy,
+    telemetry,
+    operationalDiagnostics,
     isolation,
     administrativeState: durableAdministrativeState
       ? {
@@ -828,6 +875,11 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
             multiHost: "not_applicable",
           },
       workerIdentity: workerIdentityValidator.descriptor,
+      telemetry: {
+        adapter: telemetry.descriptor.adapter,
+        external: telemetry.descriptor.external,
+        productionOriented: telemetry.descriptor.productionGrade,
+      },
     },
     async close(): Promise<void> {
       runtimeRecoveryCoordinator?.stop();
@@ -840,6 +892,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       sqliteSecretCatalog?.close();
       rateLimiter.close?.();
       runtimeCoordinator?.close();
+      await telemetry.close();
     },
   };
 }

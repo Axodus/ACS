@@ -5,9 +5,14 @@ import type {
   RuntimeClaim,
 } from "./durable-runtime-state.js";
 import type { WorkerCapability } from "./worker-types.js";
+import {
+  formatTraceparent,
+  type OperationalTelemetryProvider,
+  type TraceContext,
+} from "../control-plane/operational-telemetry.js";
 
 export interface RemoteWorkerTransport {
-  post(path: string, body: Readonly<Record<string, unknown>>): Promise<{ readonly status: number; readonly data?: unknown; readonly error?: unknown }>;
+  post(path: string, body: Readonly<Record<string, unknown>>, traceContext?: TraceContext): Promise<{ readonly status: number; readonly data?: unknown; readonly error?: unknown }>;
 }
 
 export class FetchRemoteWorkerTransport implements RemoteWorkerTransport {
@@ -23,13 +28,13 @@ export class FetchRemoteWorkerTransport implements RemoteWorkerTransport {
     this.#requestTimeoutMs = options.requestTimeoutMs ?? 30_000;
   }
 
-  async post(path: string, body: Readonly<Record<string, unknown>>): Promise<{ readonly status: number; readonly data?: unknown; readonly error?: unknown }> {
+  async post(path: string, body: Readonly<Record<string, unknown>>, traceContext?: TraceContext): Promise<{ readonly status: number; readonly data?: unknown; readonly error?: unknown }> {
     const response = await this.#fetch(this.#baseUrl + path, {
       method: "POST",
       headers: {
         authorization: `Bearer ${this.#token}`,
         "content-type": "application/json",
-        "x-correlation-id": `worker_${Date.now()}`,
+        ...(traceContext ? { traceparent: formatTraceparent(traceContext) } : {}),
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(this.#requestTimeoutMs),
@@ -65,6 +70,7 @@ export interface RemoteExecutionWorkerOptions {
   readonly supportedIsolationModes?: readonly string[];
   readonly onError?: (error: unknown) => void;
   readonly onEvent?: (event: { readonly category: string; readonly jobId?: string; readonly assignmentId?: string }) => void;
+  readonly telemetry?: OperationalTelemetryProvider;
 }
 
 export class RemoteExecutionWorker {
@@ -85,6 +91,7 @@ export class RemoteExecutionWorker {
   readonly #supportedIsolationModes: readonly string[];
   readonly #onError: ((error: unknown) => void) | undefined;
   readonly #onEvent: RemoteExecutionWorkerOptions["onEvent"];
+  readonly #telemetry: OperationalTelemetryProvider | undefined;
   #running = false;
   #draining = false;
   #loopPromise: Promise<void> | undefined;
@@ -110,6 +117,7 @@ export class RemoteExecutionWorker {
     this.#supportedIsolationModes = options.supportedIsolationModes ?? ["sandbox"];
     this.#onError = options.onError;
     this.#onEvent = options.onEvent;
+    this.#telemetry = options.telemetry;
   }
 
   async start(): Promise<void> {
@@ -140,6 +148,7 @@ export class RemoteExecutionWorker {
     if (this.#draining) await this.heartbeat().catch(() => undefined);
     await this.#loopPromise;
     await this.#engine.close();
+    await this.#telemetry?.close();
   }
 
   async heartbeat(): Promise<void> {
@@ -156,6 +165,7 @@ export class RemoteExecutionWorker {
       throw new RemoteWorkerProtocolError("worker claim failed", response.status, response.error);
     }
     const claim = response.data as RuntimeClaim;
+    this.#telemetry?.log({ component: "remote-worker", event: "runtime.worker.claimed", message: "Worker claimed a durable runtime job", context: { correlationId: claim.job.correlationId, traceId: claim.job.traceContext?.traceId, spanId: claim.job.traceContext?.spanId, tenantId: claim.job.tenantId, jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId, workerId: this.#workerId }, attributes: { fencingToken: claim.assignment.fencingToken, attempt: claim.assignment.attempt } });
     this.#onEvent?.({ category: "runtime.worker.claimed", jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId });
     this.#activeRuns += 1;
     try {
@@ -185,16 +195,22 @@ export class RemoteExecutionWorker {
   }
 
   async #executeClaim(claim: RuntimeClaim): Promise<void> {
+    const executionSpan = this.#telemetry?.startSpan("job.execute", {
+      parent: claim.job.traceContext,
+      context: { correlationId: claim.job.correlationId, tenantId: claim.job.tenantId, jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId, workerId: this.#workerId },
+      attributes: { workloadType: claim.job.workloadType, attempt: claim.assignment.attempt, fencingToken: claim.assignment.fencingToken },
+    });
+    const workerTrace = executionSpan?.context ?? claim.job.traceContext;
     const ownership = {
       assignmentId: claim.assignment.assignmentId,
       leaseId: claim.assignment.leaseId,
       fencingToken: claim.assignment.fencingToken,
     };
-    await this.#postRequired(`/api/v1/internal/runtime/jobs/${encodeURIComponent(claim.job.jobId)}/running`, ownership);
+    await this.#postRequired(`/api/v1/internal/runtime/jobs/${encodeURIComponent(claim.job.jobId)}/running`, ownership, workerTrace);
     this.#onEvent?.({ category: "runtime.worker.running", jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId });
     const startedAt = Date.now();
     const renewTimer = setInterval(() => {
-      void this.#postRequired(`/api/v1/internal/runtime/jobs/${encodeURIComponent(claim.job.jobId)}/renew`, ownership).catch(() => undefined);
+      void this.#postRequired(`/api/v1/internal/runtime/jobs/${encodeURIComponent(claim.job.jobId)}/renew`, ownership, workerTrace).catch(() => undefined);
     }, this.#leaseRenewIntervalMs);
     let executionCompleted = false;
     try {
@@ -211,6 +227,8 @@ export class RemoteExecutionWorker {
       const completedAt = Date.now();
       executionCompleted = true;
       this.#onEvent?.({ category: "runtime.worker.execution_completed", jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId });
+      this.#telemetry?.log({ component: "remote-worker", event: "runtime.worker.execution_completed", message: "Worker execution completed", context: { correlationId: claim.job.correlationId, traceId: workerTrace?.traceId, spanId: workerTrace?.spanId, tenantId: claim.job.tenantId, jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId, workerId: this.#workerId }, attributes: { durationMs: completedAt - startedAt } });
+      this.#telemetry?.metric({ name: "acs.worker.job.duration", kind: "histogram", value: completedAt - startedAt, unit: "ms", attributes: { workloadType: claim.job.workloadType } });
       const result: DurableExecutionResult = {
         status: "success",
         output: {
@@ -241,17 +259,21 @@ export class RemoteExecutionWorker {
         ...ownership,
         result,
         resultIdempotencyKey: `${claim.assignment.assignmentId}:${claim.assignment.fencingToken}`,
-      });
+      }, 3, workerTrace);
       if (response.status !== 200 && response.status !== 409) {
         throw new RemoteWorkerProtocolError("worker result submission failed", response.status, response.error);
       }
       this.#onEvent?.({ category: response.status === 200 ? "runtime.worker.result_committed" : "runtime.worker.result_rejected", jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId });
+      executionSpan?.end(response.status === 200 || response.status === 409 ? "ok" : "error", { resultStatus: response.status });
     } catch (error) {
       // Once physical execution has completed, a lost HTTP response leaves the
       // commit outcome uncertain. Never reinterpret that as an execution
       // failure: the idempotent result submission is retried, and durable lease
       // recovery remains the final authority if the transport stays down.
-      if (executionCompleted) throw error;
+      if (executionCompleted) {
+        executionSpan?.end("error", { failureCode: error instanceof Error ? error.name : "RESULT_SUBMISSION_FAILED" });
+        throw error;
+      }
       const executionError: DurableExecutionError = {
         code: error instanceof Error ? error.name : "RemoteWorkerExecutionError",
         message: error instanceof Error ? error.message : String(error),
@@ -265,11 +287,13 @@ export class RemoteExecutionWorker {
       const response = await this.#transport.post(`/api/v1/internal/runtime/jobs/${encodeURIComponent(claim.job.jobId)}/failure`, {
         ...ownership,
         error: executionError,
-      });
+      }, workerTrace);
       if (response.status < 200 || response.status >= 300) {
         throw new RemoteWorkerProtocolError("worker failure submission failed", response.status, response.error);
       }
       this.#onEvent?.({ category: "runtime.worker.failure_committed", jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId });
+      this.#telemetry?.log({ level: "error", component: "remote-worker", event: "runtime.worker.execution_failed", message: "Worker execution failed", context: { correlationId: claim.job.correlationId, traceId: workerTrace?.traceId, spanId: workerTrace?.spanId, tenantId: claim.job.tenantId, jobId: claim.job.jobId, assignmentId: claim.assignment.assignmentId, workerId: this.#workerId }, attributes: { failureCode: executionError.code, retryable: executionError.retryable } });
+      executionSpan?.end("error", { failureCode: executionError.code });
     } finally {
       clearInterval(renewTimer);
     }
@@ -296,8 +320,8 @@ export class RemoteExecutionWorker {
     };
   }
 
-  async #postRequired(path: string, body: Readonly<Record<string, unknown>>): Promise<unknown> {
-    const response = await this.#transport.post(path, body);
+  async #postRequired(path: string, body: Readonly<Record<string, unknown>>, traceContext?: TraceContext): Promise<unknown> {
+    const response = await this.#transport.post(path, body, traceContext);
     if (response.status < 200 || response.status >= 300) {
       const errorCode = response.error && typeof response.error === "object" && "code" in response.error
         ? String((response.error as { readonly code?: unknown }).code ?? "unknown")
@@ -315,11 +339,12 @@ export class RemoteExecutionWorker {
     path: string,
     body: Readonly<Record<string, unknown>>,
     attempts = 3,
+    traceContext?: TraceContext,
   ): Promise<{ readonly status: number; readonly data?: unknown; readonly error?: unknown }> {
     let lastError: unknown;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
-        const response = await this.#transport.post(path, body);
+        const response = await this.#transport.post(path, body, traceContext);
         if (response.status === 200 || response.status === 409) return response;
         if (response.status < 500 && response.status !== 429) return response;
         lastError = new RemoteWorkerProtocolError("worker result submission temporarily unavailable", response.status, response.error);

@@ -196,6 +196,8 @@ Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the st
 - **Acceptance criteria:** operator can diagnose an injected failure without shell access and exporter failure is itself visible.
 - **Required evidence:** external sink artifacts, redaction scan, correlation trace and alert test.
 
+**Status:** COMPLETE — AEES-E. `s52` proves structured logs/metrics/traces, OTLP HTTP/JSON, bounded exporter failure, W3C propagation, high-cardinality label filtering, redaction and production fail-closed selection. `s54` proves the sink in an independent process and diagnoses runtime incidents without local logs.
+
 ### ORG-E02 — Implement dependency-aware liveness and readiness
 
 - **Findings:** ACS-ORG-012.
@@ -205,6 +207,8 @@ Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the st
 - **Non-goals:** automatically enabling production deployment.
 - **Acceptance criteria:** dependency failure removes readiness while liveness stays up; local worker cannot satisfy distributed readiness.
 - **Required evidence:** dependency matrix and load-balancer-style probe tests.
+
+**Status:** COMPLETE — AEES-E. `s53` proves liveness/readiness separation, stable Vault/rate-limiter/worker/telemetry reason codes, bounded probes and Tenant/platform diagnostic authorization. `s54` proves state transitions during worker, Control Plane and exporter failure/recovery.
 
 ## Milestone F — End-to-End Product UX Operationalization
 

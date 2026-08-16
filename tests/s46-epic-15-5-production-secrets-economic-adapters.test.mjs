@@ -11,6 +11,7 @@ import {
   InMemoryEconomicStateStore,
   InMemorySecretStore,
   InMemorySettlementProvider,
+  OperationalTelemetryProvider,
   SecretProviderConfigurationError,
   SecretProviderUnavailableError,
   SecretRevokedError,
@@ -69,6 +70,19 @@ const productionTestRateLimiter = {
   async consume() { throw new Error("not exercised by B02"); },
   async health() { return { configured: true, reachable: true, productionGrade: true, adapter: "test-shared-rate-limit" }; },
 };
+
+function productionTestTelemetry() {
+  return new OperationalTelemetryProvider({
+    serviceName: "acs-b02-production-test",
+    exporter: {
+      descriptor: { adapter: "test-external-telemetry", external: true, productionGrade: true },
+      async export() {},
+      async health() {
+        return { configured: true, reachable: true, productionGrade: true, state: "ready", adapter: "test-external-telemetry", external: true };
+      },
+    },
+  });
+}
 
 const productionTestWorkerIdentityValidator = new SignedWorkerIdentityValidator({
   issuer: "https://worker-issuer.test",
@@ -335,6 +349,7 @@ test("production profile rejects insecure secret and economic fallback", async (
       runtimeDatabasePath: join(root, "runtime.sqlite"),
       identityValidator: productionTestIdentityValidator,
       workerIdentityValidator: productionTestWorkerIdentityValidator,
+      telemetry: productionTestTelemetry(),
     });
     assert.equal(context.productionAdapters.profile, "production");
     assert.equal(context.productionAdapters.secretProvider.productionOriented, true);

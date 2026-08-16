@@ -8,6 +8,10 @@ import { routeProductApiRequest } from "./routes/product-api-routes.js";
 import { routeWorkerRuntimeRequest } from "./routes/worker-runtime-routes.js";
 import { WorkerAuthenticationError } from "../workers/worker-service-auth.js";
 import {
+  createServerRequestIdentity,
+  formatTraceparent,
+} from "../control-plane/operational-telemetry.js";
+import {
   createControlPlaneContext,
   type ControlPlaneContext,
   type ControlPlaneContextOptions,
@@ -17,10 +21,45 @@ const SUPPORTED_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as cons
 
 export function createAcsHttpHandler(context: ControlPlaneContext) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
-    const correlationId = readCorrelationId(request);
+    const identity = createServerRequestIdentity({
+      clientCorrelationId: firstHeader(request.headers["x-correlation-id"] ?? request.headers["x-request-id"]),
+      traceparent: firstHeader(request.headers.traceparent),
+    });
+    const correlationId = identity.correlationId;
+    const requestId = identity.requestId;
     const requestUrl = request.url ?? "/";
+    const startedAt = Date.now();
+    const httpSpan = context.telemetry.startSpan("http.request", {
+      parent: identity.parentTrace,
+      context: { requestId, correlationId },
+      attributes: { method: request.method ?? "UNKNOWN", route: safeRequestPath(requestUrl) },
+    });
+    let actorId: string | undefined;
+    context.telemetry.log({ component: "http", event: "http.request.received", message: "HTTP request received", context: { requestId, correlationId, traceId: httpSpan.context.traceId, spanId: httpSpan.context.spanId }, attributes: { method: request.method ?? "UNKNOWN", route: safeRequestPath(requestUrl) } });
+    const recordCompletion = () => {
+      const durationMs = Date.now() - startedAt;
+      const status = response.statusCode;
+      context.telemetry.log({
+        level: status >= 500 ? "error" : status >= 400 ? "warn" : "info",
+        component: "http",
+        event: "http.request.completed",
+        message: "HTTP request completed",
+        context: { requestId, correlationId, traceId: httpSpan.context.traceId, spanId: httpSpan.context.spanId, ...(actorId ? { principalId: actorId } : {}) },
+        attributes: { method: request.method ?? "UNKNOWN", route: safeRequestPath(requestUrl), status, durationMs },
+      });
+      context.telemetry.metric({ name: "acs.http.requests", kind: "counter", value: 1, attributes: { method: request.method ?? "UNKNOWN", routeClass: routeClass(requestUrl), statusClass: `${Math.floor(status / 100)}xx` } });
+      context.telemetry.metric({ name: "acs.http.request.duration", kind: "histogram", value: durationMs, unit: "ms", attributes: { method: request.method ?? "UNKNOWN", routeClass: routeClass(requestUrl) } });
+      if (status === 429) context.telemetry.metric({ name: "acs.http.rate_limited", kind: "counter", value: 1, attributes: { routeClass: routeClass(requestUrl) } });
+      if (status >= 500) context.telemetry.metric({ name: "acs.http.server_errors", kind: "counter", value: 1, attributes: { routeClass: routeClass(requestUrl) } });
+      httpSpan.end(status >= 500 ? "error" : "ok", { "http.status_code": status, "http.duration_ms": durationMs });
+    };
+    if (typeof response.once === "function") response.once("finish", recordCompletion);
     const cors = context.edgePolicy.cors(request);
-    const edgeHeaders = context.edgePolicy.responseHeaders(cors.headers);
+    const edgeHeaders = {
+      ...context.edgePolicy.responseHeaders(cors.headers),
+      "x-request-id": requestId,
+      traceparent: formatTraceparent(httpSpan.context),
+    };
 
     if (!request.method || (request.method !== "OPTIONS" && !SUPPORTED_HTTP_METHODS.includes(request.method as typeof SUPPORTED_HTTP_METHODS[number]))) {
       writeJson(response, 405, fail(
@@ -92,6 +131,7 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
             authenticationMethod: principal.authenticationMethod === "signed_worker_jwt" ? "oidc_bearer" : "development_headers",
           },
         });
+        actorId = principal.workerId;
         let workerDecision: RateLimitDecision | undefined;
         try {
           workerDecision = await context.edgePolicy.consumeAuthenticated(
@@ -123,6 +163,7 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
       const auth = publicRoute && !hasCredential
         ? createAnonymousAuthContext(context.identityValidator.descriptor.mode)
         : await context.identityValidator.authenticate(headers);
+      actorId = auth.actorId;
       let authenticatedDecision: RateLimitDecision | undefined;
       try {
         authenticatedDecision = await context.edgePolicy.consumeAuthenticated(
@@ -148,6 +189,8 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
       if (requestUrl.startsWith("/api/v1")) {
         const result = await routeProductApiRequest(request, requestUrl, context, {
           ...(correlationId ? { correlationId } : {}),
+          requestId,
+          traceContext: httpSpan.context,
           auth,
           rateLimit,
           method: request.method,
@@ -156,6 +199,8 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
       } else {
         const result = routeAcsRequest(requestUrl, {
           ...(correlationId ? { correlationId } : {}),
+          requestId,
+          traceContext: httpSpan.context,
           auth,
           rateLimit,
           method: request.method,
@@ -216,7 +261,7 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
 
 function isPublicRoute(requestUrl: string): boolean {
   const path = new URL(requestUrl, "http://localhost").pathname.replace(/\/+$/, "") || "/";
-  return path === "/api/v1/health" || path === "/acs/health" || path === "/acs/version";
+  return path === "/api/v1/health" || path === "/api/v1/ready" || path === "/acs/health" || path === "/acs/version";
 }
 
 function isWorkerServiceRoute(requestUrl: string): boolean {
@@ -348,7 +393,20 @@ function writeJson(
   response.end(JSON.stringify(body));
 }
 
-function readCorrelationId(request: IncomingMessage): string | undefined {
-  const value = request.headers["x-correlation-id"] ?? request.headers["x-request-id"];
-  return Array.isArray(value) ? value[0] : value;
+function firstHeader(value: string | readonly string[] | undefined): string | undefined {
+  return typeof value === "string" ? value : value?.[0];
+}
+
+function safeRequestPath(requestUrl: string): string {
+  try { return new URL(requestUrl, "http://localhost").pathname; } catch { return "/invalid-url"; }
+}
+
+function routeClass(requestUrl: string): string {
+  const path = safeRequestPath(requestUrl);
+  if (path.startsWith("/api/v1/internal/runtime/")) return "runtime_worker";
+  if (path.startsWith("/api/v1/admin/")) return "administrative";
+  if (path.startsWith("/api/v1/system/")) return "system";
+  if (path.startsWith("/api/v1/runtime/") || path.startsWith("/api/v1/runtimes/")) return "runtime";
+  if (path === "/api/v1/health" || path === "/api/v1/ready") return "health";
+  return path.startsWith("/api/v1/") ? "product_api" : "acs";
 }

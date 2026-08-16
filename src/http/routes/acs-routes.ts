@@ -47,12 +47,15 @@ import type {
 import type { ExecutionTargetRequirements } from "../../targets/execution-target-registry.js";
 import type { AuditQueryFilter } from "../../control-plane/audit-service.js";
 import type { AcsHttpEnvelope, AcsHttpEnvelopeMeta } from "../responses.js";
+import type { TraceContext } from "../../control-plane/operational-telemetry.js";
 
 export interface AcsRouteOptions {
   readonly correlationId?: string;
   readonly auth?: AcsAuthContext;
   readonly rateLimit?: AcsRateLimitContext;
   readonly method?: string;
+  readonly requestId?: string;
+  readonly traceContext?: TraceContext;
 }
 
 export function routeAcsRequest(requestUrl: string, options: AcsRouteOptions = {}) {

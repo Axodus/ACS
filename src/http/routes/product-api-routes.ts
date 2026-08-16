@@ -63,7 +63,7 @@ export async function routeProductApiRequest(
 ) {
   const url = new URL(requestUrl, "http://localhost");
   const path = url.pathname.replace(/\/+$/, "") || "/";
-  const publicRoute = path === "/api/v1/health";
+  const publicRoute = path === "/api/v1/health" || path === "/api/v1/ready";
   if (!options.auth && context.identityValidator.descriptor.mode === "development") {
     options = { ...options, auth: await context.identityValidator.authenticate({}) };
   } else if (!options.auth && !publicRoute) {
@@ -123,7 +123,7 @@ export async function routeProductApiRequest(
 
   const apiPath = segments.slice(2).join("/");
 
-  if (apiPath !== "health" && !apiPath.startsWith("admin/tenants")) {
+  if (apiPath !== "health" && apiPath !== "ready" && !apiPath.startsWith("admin/tenants")) {
     const auth = options.auth;
     if (!auth?.authenticated || !auth.trusted || !auth.actorId) {
       return fail("authenticated principal is required", 401, "authentication_failed", options.correlationId, undefined, routeMeta, "missing_credentials", {
@@ -164,20 +164,28 @@ export async function routeProductApiRequest(
   }
 
   try {
-    // A01 exposes only boundary connectivity; it does not assert runtime readiness.
+    // Liveness is intentionally dependency-independent and reveals no topology.
     if (apiPath === "health" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       return {
         status: 200,
         body: ok({
           service: "acs-product-api",
-          status: "ok",
-          mode: "inspection",
-          automation: "disabled",
+          ...context.operationalDiagnostics.liveness(),
         }, [], options.correlationId, routeMeta),
       };
     }
     if (apiPath === "health") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // Public readiness exposes only the aggregate state and stable reason codes.
+    if (apiPath === "ready" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const readiness = await context.operationalDiagnostics.publicReadiness();
+      return { status: readiness.status === "BLOCKED" ? 503 : 200, body: ok(readiness, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "ready") {
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
@@ -925,6 +933,8 @@ export async function routeProductApiRequest(
         idempotencyKey: typeof body.idempotencyKey === "string" && body.idempotencyKey
           ? body.idempotencyKey
           : `runtime.start:${runtimeInstanceId}`,
+        traceContext: options.traceContext,
+        ...(Number.isSafeInteger(body.maxAttempts) && Number(body.maxAttempts) > 0 ? { maxAttempts: Number(body.maxAttempts) } : {}),
         ...(typeof body.agentId === "string" && body.agentId ? { agentId: body.agentId } : {}),
         ...(typeof body.targetId === "string" && body.targetId ? { targetId: body.targetId } : {}),
       };
@@ -983,6 +993,15 @@ export async function routeProductApiRequest(
       }
       const events = context.runtimeCoordinator?.listEvents({ tenantId: job.tenantId, jobId }) ?? [];
       return { status: 200, body: ok(events, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "runtime" && segments[3] === "jobs" && segments[4] && segments[5] === "diagnostics" && segments.length === 6 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const jobId = readPathSegment(segments, 4, "jobId");
+      const job = context.runtimeCoordinator?.getJob(jobId);
+      if (!job || job.tenantId !== context.isolation.scope.tenantId) {
+        return fail(`runtime job not found: ${jobId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(context.operationalDiagnostics.jobDiagnostic(job), [], options.correlationId, routeMeta) };
     }
     if (segments[2] === "runtime" && segments[3] === "jobs") {
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
@@ -1601,6 +1620,17 @@ export async function routeProductApiRequest(
       assertAllowedQueryParams(url, []);
       const report = await api.getObservabilityReport();
       return { status: 200, body: ok(report, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/operational-status" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["force"]);
+      const force = url.searchParams.get("force") === "true";
+      const status = await context.operationalDiagnostics.status({ force });
+      return { status: 200, body: ok(status, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "system/telemetry" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const snapshot = await context.telemetry.snapshot();
+      return { status: 200, body: ok(snapshot, [], options.correlationId, routeMeta) };
     }
     if (segments[2] === "system" && segments[3]) {
       return methodNotAllowed(options.correlationId, routeMeta, "GET");

@@ -1,6 +1,6 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** AEES-D / Milestone D **PASS WITH TOPOLOGY CAVEATS** on 2026-08-16; Milestone B residual work remains open
+**Status:** AEES-E / Milestone E **PASS WITH TOPOLOGY CAVEATS** on 2026-08-16; Milestone B residual work remains open
 
 **Readiness conclusion:** ACS is **Development Ready**, more completely **Integration Ready** for Tenant Administration, and **not Operational Ready or Production Ready**.
 
@@ -77,6 +77,14 @@ The process acceptance started two Control Planes and two workers over one share
 
 `ACS-ORG-004` and `ACS-ORG-005` are **RESOLVED** for the active production runtime boundary. The runtime subset of `ACS-ORG-001` is resolved. `ACS-ORG-019` is **PARTIALLY_RESOLVED** because local multi-process/shared-database correctness is proven while multi-host topology remains unproven. Runtime is ready for the certified single-host remote topology; global Operational and Production Readiness remain blocked by E/F/G/H.
 
+## AEES-E outcome
+
+AEES-E added structured HTTP/runtime/worker logs, low-cardinality metrics, distributed trace propagation and a bounded OTLP HTTP/JSON exporter. Production composition rejects disabled/memory telemetry. An independent receiver process proved evidence survives outside the diagnosed Control Plane/worker processes, while exporter outage degrades diagnostics without corrupting authoritative state.
+
+`GET /api/v1/health` is now liveness, `GET /api/v1/ready` is aggregate dependency-aware readiness, and authorized operational/telemetry/job diagnostic routes expose stable reason codes and recommended actions without Tenant leakage. Worker crash, stale result, Vault/rate-limiter outages, no eligible worker, retry exhaustion, Control Plane restart and exporter outage/recovery were diagnosed without direct SQLite or filesystem-log inspection.
+
+`ACS-ORG-011` and `ACS-ORG-012` are **RESOLVED** for the active boundary. Observability is ready for the certified local multi-process topology; multi-host collector/storage, managed retention/alerts and complete operator UX remain caveats/deferred scope. Operational and Production Readiness remain blocked by B/F/G/H.
+
 ## Principles
 
 - **Evidence before claims.** Contracts and unit tests do not prove operational readiness.
@@ -107,7 +115,8 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 10. [milestones/C01-trusted-http-identity-authorization-boundary.md](./milestones/C01-trusted-http-identity-authorization-boundary.md) — OIDC validation, trusted principal propagation and forged-header evidence.
 11. [milestones/C02-distributed-rate-limiting-http-edge-hardening.md](./milestones/C02-distributed-rate-limiting-http-edge-hardening.md) — limiter, proxy, CORS, request-bound and edge-readiness evidence.
 12. [milestones/AEES-D-distributed-runtime-recovery-certification.md](./milestones/AEES-D-distributed-runtime-recovery-certification.md) — D01 durable ownership, D02 remote dispatch and D03 process/failure evidence.
-13. [AGENTS.md](./AGENTS.md) — local execution rules.
+13. [milestones/AEES-E-observability-operational-diagnostics-certification.md](./milestones/AEES-E-observability-operational-diagnostics-certification.md) — E01 telemetry/export, E02 dependency diagnostics and E03 incident evidence.
+14. [AGENTS.md](./AGENTS.md) — local execution rules.
 
 ## Milestone map
 
@@ -117,7 +126,7 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 | B | **IN PROGRESS:** single-node durable administration, Vault boundary and durable economics delivered; remaining operational state/shared topology open |
 | C | **PASS WITH CAVEATS:** trusted HTTP identity and hardened edge delivered; live IdP/proxy/multi-host limiter acceptance remains |
 | D | **PASS WITH TOPOLOGY CAVEATS:** durable jobs, authenticated remote dispatch and crash/restart recovery delivered; multi-host proof remains H |
-| E | External observability and dependency-aware readiness |
+| E | **PASS WITH TOPOLOGY CAVEATS:** external-process telemetry, distributed correlation and dependency-aware diagnostics delivered; multi-host/managed backend proof remains H |
 | F | Complete supported operator journeys and remediation UX |
 | G | Certified production deployment gate and target path |
 | H | Restart, multi-replica, security, browser and recovery certification |

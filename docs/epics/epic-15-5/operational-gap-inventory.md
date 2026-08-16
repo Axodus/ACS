@@ -1,6 +1,6 @@
 # Operational Gap Inventory
 
-This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01, B02, C01, C02 and AEES-D status/evidence were updated through 2026-08-16 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
+This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01, B02, C01, C02, AEES-D and AEES-E status/evidence were updated through 2026-08-16 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
 
 ## Severity model
 
@@ -32,8 +32,8 @@ Findings use a primary area plus affected areas from this controlled set:
 | ACS-ORG-008 | PRODUCT_API | Real HTTP rejects Product API `PUT` and `DELETE` administration routes | BLOCKER | B | RESOLVED — B01 |
 | ACS-ORG-009 | OBSERVABILITY | Administrative and operational audit history is process-local | CRITICAL | B | PARTIALLY_RESOLVED — B01 |
 | ACS-ORG-010 | EDGE | Rate limiting is disabled or caller-selected mock state | CRITICAL | C | PARTIALLY_RESOLVED — C02 |
-| ACS-ORG-011 | OBSERVABILITY | External telemetry, HTTP telemetry, raw logs and traces are unavailable | CRITICAL | E | OPEN — VERIFIED |
-| ACS-ORG-012 | OPERATIONS | No dependency-aware production traffic readiness gate exists | HIGH | E | OPEN — VERIFIED |
+| ACS-ORG-011 | OBSERVABILITY | External telemetry, HTTP telemetry, raw logs and traces are unavailable | CRITICAL | E | RESOLVED — AEES-E active boundary |
+| ACS-ORG-012 | OPERATIONS | No dependency-aware production traffic readiness gate exists | HIGH | E | RESOLVED — AEES-E active boundary |
 | ACS-ORG-013 | EDGE | HTTP edge controls are incomplete for an exposed service | HIGH | C | RESOLVED — C02 |
 | ACS-ORG-014 | CONTROL_PLANE | Tenant administration and the main Control Plane are separate applications | HIGH | F | OPEN — VERIFIED |
 | ACS-ORG-015 | CONTROL_PLANE | Agent composition changes remain read-only or unsupported | HIGH | F | OPEN — VERIFIED |
@@ -174,26 +174,26 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-011 — External telemetry, HTTP telemetry, raw logs and traces are unavailable
 
 - **Area:** OBSERVABILITY; affects OPERATIONS, RECOVERY.
-- **Severity / status:** **CRITICAL**, OPEN — VERIFIED.
-- **Evidence:** `src/inspection.ts:590-616`; `src/control-plane/observability.ts:225-292,405-440,640-713`; `src/telemetry.ts` offers memory or local JSONL only.
-- **Current behavior:** external exporter is disabled, HTTP telemetry is contract-only, raw logs are not in the Product API, traces and retention are deferred, and operational evidence is session/local scoped.
-- **Operational impact:** an operator cannot reliably detect platform degradation, correlate distributed work or diagnose failures without direct process/filesystem access.
+- **Severity / status:** **CRITICAL**, RESOLVED — AEES-E for the active HTTP/runtime boundary.
+- **Previous evidence:** `src/inspection.ts:590-616`; `src/control-plane/observability.ts:225-292,405-440,640-713`; legacy `src/telemetry.ts` offered memory or local JSONL only.
+- **Current behavior after AEES-E:** `OperationalTelemetryProvider` emits structured logs, low-cardinality metrics and correlated spans through a bounded OTLP HTTP/JSON exporter. HTTP request context persists into durable jobs and independent workers. Platform telemetry/operational-status routes expose bounded current evidence, while audit remains authoritative history.
+- **Operational impact after AEES-E:** worker/runtime/dependency incidents are diagnosable through supported HTTP surfaces and evidence exported to an independent process; telemetry outage is itself degraded without corrupting domain state.
 - **Root cause:** evidence models and UI were completed before production telemetry transport and retention.
 - **Required target state:** structured logs, metrics and traces with external sink/export, tenant-safe correlation, alerting/SLO signals, retention and health of the exporter path.
-- **Dependencies / milestone:** durable correlation IDs and remote runtime; Milestone E.
-- **Acceptance evidence:** external sink receives HTTP/domain/worker signals, outage is visible, dashboards/alerts diagnose an injected failure, and secrets remain redacted.
+- **AEES-E evidence:** `src/control-plane/operational-telemetry.ts`, `src/control-plane/operational-diagnostics.ts`, `tests/s52`–`s54` and `/tmp/acs-epic15-5-aees-e-evidence/manifest.json`; independent receiver/Control Plane/workers and dependency-outage process exported 105 log, 94 metric and 91 trace batches with zero sensitive matches, including `SECRET_PROVIDER_UNREACHABLE` and `RATE_LIMITER_UNAVAILABLE` externally.
+- **Residual caveat:** external-process local topology is proven; multi-host collectors, managed retention, dashboards/alerts and network partitions remain H/environment scope and do not reopen the exporter/diagnostic boundary.
 
 ### ACS-ORG-012 — No dependency-aware production traffic readiness gate exists
 
 - **Area:** OPERATIONS; affects DEPLOYMENT, OBSERVABILITY.
-- **Severity / status:** **HIGH**, PARTIALLY_RESOLVED — AEES-D backend.
+- **Severity / status:** **HIGH**, RESOLVED — AEES-E active HTTP boundary.
 - **Evidence:** `/api/v1/health` and `/acs/health` are liveness/inspection responses; `src/control-plane/product-api-client.ts:3062-3235` hardcodes auth, limiter, persistence, secret, settlement and remote-worker signals. “Distributed Runtime readiness” can be `ready` from a local worker and target while `remoteWorkerSupported` is false.
-- **Current behavior:** useful production blocker reports exist, but no executable readiness probe determines whether a process should receive production traffic based on current dependencies.
-- **Operational impact:** liveness can be mistaken for readiness and local connectivity can be mistaken for distributed readiness.
+- **Current behavior after AEES-E:** `/api/v1/health` is minimal liveness; `/api/v1/ready` computes aggregate dependency-aware readiness with stable reason codes; platform operational status includes bounded identity, edge, secrets, administrative state, economics, settlement, runtime, recovery, worker and telemetry probes.
+- **Operational impact after AEES-E:** required dependency failures block readiness while liveness stays up; optional telemetry outage is an explicit degradation; incompatible/no-worker capacity is diagnosable without treating the process as dead.
 - **Root cause:** multiple historical readiness vocabularies were projected without a single runtime gate.
 - **Required target state:** distinct liveness and dependency-aware readiness endpoints plus Development/Integration/Operational/Production levels, with live adapter health and reason codes.
-- **Dependencies / milestone:** production adapters and observability; Milestone E.
-- **Acceptance evidence:** dependency failure flips readiness without killing liveness; load-balancer semantics and stale-signal behavior are tested.
+- **AEES-E evidence:** `tests/s53` validates liveness/readiness separation, Vault/rate-limiter reason codes, authorization and Tenant isolation; `tests/s54` validates worker/exporter incident transitions across processes.
+- **Residual caveat:** deployed load-balancer behavior, multi-host dependency infrastructure and production deployment target checks remain G/H acceptance, not missing readiness semantics.
 
 ### ACS-ORG-013 — HTTP edge controls are incomplete for an exposed service
 

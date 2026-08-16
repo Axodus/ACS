@@ -69,10 +69,30 @@ flowchart TD
   Runtime --> WorkerApi[Authenticated internal worker HTTP]
   WorkerApi --> RemoteWorker[Independent remote worker process]
   RemoteWorker --> Engine[Worker-owned OpenClaw engine/target]
-  Context --> Evidence[Read-only readiness/evidence projections]
+  Context --> Diagnostics[Dependency-aware readiness and diagnostics]
+  Context --> Telemetry[Structured logs, metrics and spans]
+  RemoteWorker --> Telemetry
+  Telemetry --> OTLP[External OTLP receiver]
 ```
 
-This is a restart-safe, local multi-process runtime composition after AEES-D. Production HTTP identity and edge controls are validated, and runtime execution no longer requires a same-process worker. The whole system is not a production topology because Agent/deployment and other aggregates remain process-local, local SQLite/snapshot adapters are not multi-host certified, service identity is not deployed workload OIDC/mTLS and external diagnostics are absent.
+This is a restart-safe, externally observable local multi-process runtime composition after AEES-E. Production HTTP identity and edge controls are validated, runtime execution no longer requires a same-process worker, and operational evidence leaves the diagnosed processes. The whole system is not a production topology because Agent/deployment and other aggregates remain process-local, local SQLite/snapshot adapters and the telemetry receiver are not multi-host certified, and service identity is not deployed workload OIDC/mTLS.
+
+## AEES-E applied observability boundary
+
+```mermaid
+flowchart LR
+  Request[HTTP request] --> Context[Server request and trace context]
+  Context --> Job[Durable runtime job]
+  Job --> Worker[Independent worker child span]
+  Context --> Provider[OperationalTelemetryProvider]
+  Worker --> Provider
+  Provider --> Exporter[Bounded OTLP HTTP/JSON exporter]
+  Exporter --> Receiver[External receiver process]
+  Dependencies[Identity, edge, secrets, state, economics, runtime, workers] --> Readiness[READY / DEGRADED / BLOCKED]
+  Readiness --> Product[Public summary + authorized diagnostics]
+```
+
+The provider is a side channel, never domain authority. Production rejects disabled/memory exporters; a configured receiver outage degrades observability without rolling back durable state. Audit and telemetry retain separate semantics.
 
 ## AEES-D applied runtime boundary
 
@@ -203,7 +223,7 @@ AEES-D connects the normal Product API runtime path to durable jobs and worker c
 
 ### Evidence is derived from ephemeral truth
 
-Administrative audit, secret metadata/references, economics and runtime ownership now survive single-node restart. Readiness consumes selected adapter/runtime/recovery signals, but diagnostics, Agent/deployment projections and external telemetry remain incomplete. Exporters cannot make those remaining ephemeral sources durable; residual Milestone B work must establish their truth while Milestone E exports real operational signals.
+Administrative audit, secret metadata/references, economics and runtime ownership survive single-node restart. AEES-E now exports operational signals and computes dependency-aware diagnostics from those boundaries. Exporters do not make Agent/deployment projections durable; residual Milestone B work must still establish their authoritative truth, and Milestone F must expose supported operator remediation.
 
 ### Surfaces are accepted independently, not as one journey
 
@@ -233,7 +253,7 @@ The implementation task is therefore “add a certified production target behind
 - **Identity provider deployment:** protocol decision is CLOSED for the active HTTP boundary: interoperable OIDC/JWT with RS256/JWKS and server-owned verification. Vendor/live issuer selection and deployment acceptance remain environment decisions.
 - **Rate limiter:** implementation decision CLOSED for the active single-node HTTP composition: fixed-window `RateLimiter`, hashed server-derived keys and atomic SQLite shared-database store. A live multi-host/global provider and deployment topology remain H/ACS-ORG-019 acceptance decisions.
 - **Dispatcher/broker:** implementation decision CLOSED for the certified topology: authenticated HTTP worker pull over SQLite durable ownership. A broker is not required for correctness. Multi-host storage/transport and whether a later deployment adopts a managed queue remain H/environment decisions; ownership continues to live in the runtime store.
-- **Telemetry backend:** OPEN DECISION at Milestone E gate. Standard structured export and operator diagnostics are required; a generic observability platform is not.
+- **Telemetry protocol:** decision CLOSED for the active boundary: bounded OTLP HTTP/JSON through a vendor-neutral provider. Collector/backend vendor, multi-host deployment, retention and alert routing remain environment/H decisions; a generic observability platform is not part of AEES-E.
 - **Control Plane consolidation:** OPEN DECISION at Milestone F gate between one build and secure federated surfaces. One actor/session/navigation contract is mandatory.
 
 ## Architecture acceptance rule

@@ -22,6 +22,9 @@ Any change to tenant scope resolution, administrative authority, secret redactio
 - Scope expansion requires an explicit architectural decision in the milestone documentation.
 - No new billing, generic IAM/RBAC/ABAC, policy DSL, SIEM, generic observability platform or production target is implied by this EPIC.
 - No hardcoded credentials, synthetic production evidence or permissive fallback is acceptable.
+- Keep audit and telemetry distinct: audit is authoritative governance/security history; telemetry is a bounded operational side channel.
+- Never place credentials, secret material or arbitrary IDs in metric labels. Preserve request/job correlation in redacted logs and traces.
+- Telemetry/exporter failure must not alter authoritative mutation, ownership, fencing or settlement semantics.
 
 ## Validation expectations
 

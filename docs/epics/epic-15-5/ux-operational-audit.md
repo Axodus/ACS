@@ -54,11 +54,11 @@ Browser acceptance from EPIC-14 and EPIC-15 proves route rendering, responsivene
 | Start execution/runtime | Product API/runtime action | BACKEND_ONLY/SUPPORTED | durable remote job exists, but current operator surface does not expose the full flow | execution action with assignment/recovery feedback | 017 |
 | Observe status | runtime/execution API | BACKEND_ONLY/SUPPORTED | durable job/worker/lease state exists; UI integration remains | surface canonical freshness/recovery state | 011, 017 |
 | Inspect result | runtime job/evidence API | BACKEND_ONLY/SUPPORTED | durable result exists; complete operator presentation remains | correlated result and artifacts | 017 |
-| Inspect failure | diagnostics/evidence | PARTIAL | raw logs/traces unavailable | correlated logs/traces and cause | 011 |
+| Inspect failure | diagnostics/evidence | BACKEND_ONLY/SUPPORTED | Product API diagnostics and exported telemetry exist; complete Control Plane presentation remains | correlated failure/recovery UX | 017, 018 |
 | Retry/cancel | Product API cancel; retry via automatic policy | PARTIAL | no governed operator retry/drain surface | semantic idempotent actions | 017, 018 |
 | Remediate/recover | automatic recovery plus diagnostics | PARTIAL | lease/orphan recovery is automatic; operator commands/UI remain missing | governed runbook action and verification | 018 |
 
-**Journey result:** **PARTIAL for operational use**. AEES-D proves distributed backend execution/recovery; Milestone F must expose the supported operator journey and Milestone E must add diagnostics.
+**Journey result:** **PARTIAL for operational use**. AEES-D proves distributed backend execution/recovery and AEES-E proves external diagnostics; Milestone F must expose the supported operator journey and remediation actions.
 
 ## Journey C — Tenant administration
 
@@ -78,10 +78,10 @@ Browser acceptance from EPIC-14 and EPIC-15 proves route rendering, responsivene
 
 | Step | Surface | Status | Gap / workaround currently required | Target UX | Findings |
 | --- | --- | --- | --- | --- | --- |
-| Detect issue | readiness/operations/evidence | PARTIAL | no external alerts; operator must open ACS | alert and readiness signal | 011, 012 |
-| Identify component | diagnostics/health | SUPPORTED/PARTIAL | local projections and hardcoded adapter facts | live dependency graph | 012 |
-| Inspect evidence | audit/evidence/economics | PARTIAL | process-local, no raw logs/traces | durable correlated timeline | 009, 011 |
-| Understand cause | diagnostic summaries | PARTIAL | actionability varies; no deep runtime logs | causal context and affected resources | 011, 018 |
+| Detect issue | readiness/operations/evidence | BACKEND_ONLY/SUPPORTED | dependency-aware readiness exists; alert delivery/Control Plane UX remains | visible readiness and alert surface | 018, 021 |
+| Identify component | diagnostics/health | BACKEND_ONLY/SUPPORTED | authorized dependency registry exists; UI remains | dependency graph and affected capability | 018, 021 |
+| Inspect evidence | audit/evidence/economics | BACKEND_ONLY/SUPPORTED | exported telemetry and audit are separate; combined UX remains | correlated operator timeline | 009, 018 |
+| Understand cause | diagnostic summaries | BACKEND_ONLY/SUPPORTED | reason/action codes exist; presentation remains | causal context and affected resources | 018, 021 |
 | Remediate | mostly unsupported | MISSING | shell, file edits or restart | bounded runbook actions | 018, 021 |
 | Verify recovery | manual refresh | PARTIAL | no durable before/after proof | post-action readiness and audit receipt | 018 |
 
@@ -94,7 +94,7 @@ Browser acceptance from EPIC-14 and EPIC-15 proves route rendering, responsivene
 | Production readiness | readiness report | BLOCKED | known blockers and no traffic gate | signed level/gate with live dependencies | 012 |
 | Target selection | targets | BLOCKED | local sandbox target only | certified production target | 006 |
 | Deploy | agent deploy | BLOCKED | sandbox-only checks at multiple layers | gated rollout after prerequisites | 006 |
-| Health/observe | operations/evidence | PARTIAL | no external exporter | target and platform telemetry | 011 |
+| Health/observe | operations/evidence | BACKEND_ONLY/SUPPORTED | external telemetry/readiness exist; production target and Control Plane UX remain | target and platform telemetry UX | 006, 021 |
 | Rollback/recover | none | MISSING | manual engineering process | governed rollback/reconcile | 018 |
 
 **Journey result:** **BLOCKED by design**. The current gate correctly prevents unsafe production deployment.
@@ -109,7 +109,7 @@ Browser acceptance from EPIC-14 and EPIC-15 proves route rendering, responsivene
 | Configure roots/endpoints | environment variables and local filesystem | requires shell and deployment knowledge | 021 |
 | Register remote worker | signed credential plus worker entrypoint/environment | backend path exists but onboarding still requires deployment engineering | 021 |
 | Repair orphan/stale runtime | automatic recovery coordinator | backend no longer needs manual DB repair; operator inspection/remediation UI remains | 018 |
-| Obtain raw runtime logs/traces | direct process/filesystem access | not exposed or exported | 011 |
+| Inspect runtime logs/traces | Product API diagnostics plus external OTLP evidence | backend path is supported; human-friendly Control Plane view remains | 021 |
 | Reconcile settlement | no supported provider/operator flow | memory provider only | 007 |
 
 ## Error UX audit

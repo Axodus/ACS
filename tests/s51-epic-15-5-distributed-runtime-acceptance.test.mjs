@@ -245,14 +245,10 @@ test("D03 certifies two control planes and independent workers with crash, fenci
     processes.push(controlPlaneA, controlPlaneD);
     store = new SqliteDurableRuntimeState({ filePath: runtimeDatabasePath });
 
-    const batch = [];
-    for (let index = 0; index < 2; index += 1) {
-      batch.push(await createRuntime(baseUrlA, `batch-${index + 1}`));
-    }
-    progress("batch-created", { jobIds: batch.map((entry) => entry.jobId) });
-
-    const workerB = await startWorker({ root, label: "worker-b", baseUrl: baseUrlA, workerId: "worker-b", instanceId: "instance-b", executionDelayMs: 250 });
-    const workerC = await startWorker({ root, label: "worker-c", baseUrl: baseUrlD, workerId: "worker-c", instanceId: "instance-c", executionDelayMs: 250 });
+    const [workerB, workerC] = await Promise.all([
+      startWorker({ root, label: "worker-b", baseUrl: baseUrlA, workerId: "worker-b", instanceId: "instance-b", executionDelayMs: 2_000 }),
+      startWorker({ root, label: "worker-c", baseUrl: baseUrlD, workerId: "worker-c", instanceId: "instance-c", executionDelayMs: 2_000 }),
+    ]);
     progress("initial-workers-ready", { pids: [workerB.ready.processId, workerC.ready.processId] });
     processes.push(workerB, workerC);
     evidence.topology = {
@@ -261,6 +257,12 @@ test("D03 certifies two control planes and independent workers with crash, fenci
       runtimeStore: runtimeDatabasePath,
     };
     assert.equal(new Set([controlPlaneA.ready.processId, controlPlaneD.ready.processId, workerB.ready.processId, workerC.ready.processId]).size, 4);
+
+    const batch = [];
+    for (let index = 0; index < 2; index += 1) {
+      batch.push(await createRuntime(baseUrlA, `batch-${index + 1}`));
+    }
+    progress("batch-created", { jobIds: batch.map((entry) => entry.jobId) });
 
     let lastBatchState = [];
     try {
