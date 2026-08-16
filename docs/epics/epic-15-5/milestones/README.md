@@ -6,7 +6,7 @@ This index is the normative consumption order for implementation. A milestone ma
 | --- | --- | --- | --- | --- |
 | A — System-Wide Gap Discovery & Readiness Baseline | **PASS** | all discovery | EPIC-15 closure | verified inventory, baseline, journeys, stories and plan |
 | B — Durable Platform State & Production Adapters | **IN PROGRESS — B01/B02 PASS** | 001, 002, 007, 009, 019 plus resolved 008 | A baseline; B1–B3 for remaining production adapters | admin/audit plus secret/economic restart complete; shared state and operational aggregates remain |
-| C — Production Identity, Security & Edge Controls | **IN PROGRESS — C01 PASS** | resolved 003; open 010, 013 | C1 decision closed; C2 edge dependencies | trusted HTTP identity complete; broader edge/rate limiting remain |
+| C — Production Identity, Security & Edge Controls | **PASS WITH CAVEATS — C01/C02 PASS** | resolved 003/013; partial 010 | C1/C2 application decisions closed | trusted identity and hardened edge complete; live topology acceptance remains |
 | D — Distributed Runtime & Execution Readiness | PLANNED | 004, 005, 017 | B state + C identity + D1 | remote dispatch, durable jobs, crash/retry/cancel recovery |
 | E — Observability & Operational Diagnostics | PLANNED | 011, 012 | durable correlation + D runtime + E1 | external telemetry, actionable diagnostics, readiness probe |
 | F — End-to-End Product UX Operationalization | PLANNED | 014–018, 021–024 | B–E supported contracts | authenticated operator journey and browser evidence |
@@ -37,11 +37,11 @@ Do not create one generic repository for every domain. Preserve aggregate-specif
 Recommended sprint order:
 
 1. **C01 — Trusted HTTP Identity & Authorization Boundary — PASS**
-2. **C02 — Distributed Rate Limiting & HTTP Edge Hardening**
+2. **C02 — Distributed Rate Limiting & HTTP Edge Hardening — PASS WITH CAVEATS**
 
 The HTTP method mismatch was resolved in B01. C01 delivered OIDC/JWT signature and claim validation, trusted principal propagation, Tenant binding, explicit signed platform authority, production fail-closed composition and real-server forged-header negatives. `ACS-ORG-003` is resolved for the active production HTTP boundary. See [C01-trusted-http-identity-authorization-boundary.md](./C01-trusted-http-identity-authorization-boundary.md).
 
-C02 retains distributed rate limiting plus trusted origin/header policy, body/timeout bounds, proxy semantics and the remaining ACS-ORG-010/013 work. The ACS remains non-production while those and the other readiness findings are open.
+C02 delivered fixed-window server-owned rate limiting, an atomic SQLite shared-database store, network/principal/Tenant buckets, trusted proxy resolution, explicit production CORS, body/header/timeout bounds, security headers and edge readiness. `ACS-ORG-013` is resolved. `ACS-ORG-010` remains partial only for live multi-host/global-provider proof under H/`ACS-ORG-019`. See [C02-distributed-rate-limiting-http-edge-hardening.md](./C02-distributed-rate-limiting-http-edge-hardening.md). The ACS remains non-production because runtime, observability, shared authoritative state and deployment gates remain open.
 
 ## Milestone D — Distributed Runtime & Execution Readiness
 

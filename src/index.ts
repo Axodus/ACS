@@ -17,6 +17,8 @@ export * from "./http/routes/product-api-routes.js";
 export * from "./http/validation.js";
 export * from "./http/auth.js";
 export * from "./http/rate-limit.js";
+export * from "./http/edge.js";
+export * from "./http/request-body.js";
 export * from "./gates.js";
 export * from "./engines/protocol/types.js";
 export * from "./engines/protocol/errors.js";

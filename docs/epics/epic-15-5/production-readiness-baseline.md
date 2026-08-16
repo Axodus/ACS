@@ -2,7 +2,7 @@
 
 **Assessment date:** 2026-08-15
 
-**Source revision:** `ed46412` plus B01/B02/C01 implementation evidence
+**Source revision:** `ed46412` plus B01/B02/C01/C02 implementation evidence
 
 **Overall classification:** **Development Ready / Integration Ready PARTIAL / Operational Ready BLOCKED / Production Ready BLOCKED**
 
@@ -13,7 +13,8 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Dimension | Status | Evidence-based conclusion | Blocking findings |
 | --- | --- | --- | --- |
 | Identity | PARTIAL | Production OIDC/JWT validation and trusted principal/platform mapping pass deterministic and real-HTTP tests; live IdP/JWKS deployment evidence remains. | live-provider acceptance |
-| Security | PARTIAL | Tenant rules, redaction, Vault and trusted HTTP identity exist; live managed-service identity, distributed rate limiting and edge trust are not production-certified. | ACS-ORG-002, 010, 013 |
+| Security | PARTIAL | Tenant rules, redaction, Vault, trusted HTTP identity and bounded edge controls exist; live managed-service identity and deployed multi-host edge topology are not production-certified. | ACS-ORG-002, 010, 019 |
+| HTTP edge | PARTIAL | Server-owned network/principal/Tenant buckets, explicit production CORS, proxy trust, request bounds, timeouts and security headers pass deterministic and real-HTTP tests. SQLite proves shared counters on one database; multi-host topology remains unproven. | ACS-ORG-010, 019 |
 | Secrets | PARTIAL | Vault KV v2 plus durable metadata/reference catalog is selectable and production fallback fails closed; live provider/HA/service-identity and shared catalog proof remain. | ACS-ORG-002, 016, 019 |
 | Persistence | PARTIAL | Tenant Administration, audit, secret metadata/references and economics survive a single-node restart; Agents, deployments, runtime and jobs remain process-local and no shared multi-instance store is proven. | ACS-ORG-001, 009, 019 |
 | Runtime | PARTIAL | Sandbox lifecycle and engine adapters work; durable run state and recovery do not. | ACS-ORG-005, 017 |
@@ -22,7 +23,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Observability | BLOCKED | Evidence projections exist; no external exporter, HTTP telemetry, raw logs or traces. | ACS-ORG-009, 011, 012 |
 | Economics | PARTIAL | Durable SQLite economic/settlement adapters, idempotency and reconciliation pass; shared/external provider and production financial policy remain unproven. | ACS-ORG-007, 019 |
 | Audit | PARTIAL | Canonical events and Tenant history now survive restart on the selected single-node store; replica sharing, retention/tamper controls and transactional outbox semantics remain unproven. | ACS-ORG-009 |
-| Product API | PARTIAL | HTTP method compatibility is restored and runtime start/stop routes are reachable; unsupported composition/execution journeys and production identity still block an operational claim. | ACS-ORG-015, 017, 023 |
+| Product API | PARTIAL | HTTP method compatibility, trusted identity and edge guards are active; unsupported composition/execution journeys and runtime durability still block an operational claim. | ACS-ORG-015, 017, 023 |
 | Control Plane | PARTIAL | Main operational UX and Tenant Administration are browser-certified separately. | ACS-ORG-014–018 |
 | UX journeys | BLOCKED | No complete authenticate-to-recover operator journey exists. | ACS-ORG-014–018, 021 |
 | Recovery | BLOCKED | Diagnostics exist; durable reconcile/retry/cancel/operator remediation does not. | ACS-ORG-005, 018 |
@@ -49,7 +50,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Legacy telemetry | events | memory or local JSONL | Local-durable when JSONL | No | Same volume only | No exporter | Acceptable DEV evidence, not operations |
 | Economics | quotes, reservations, usage, settlements, receipts | `EconomicStateStore`; SQLite in HTTP composition | Single-node | No | Yes | Production-oriented single-node adapter | PARTIAL / multi-instance NOT PROVEN |
 | Settlement | provider-confirmed settlement records | `SettlementProvider`; SQLite in HTTP composition | Single-node | No | Yes | Production-oriented single-node adapter | PARTIAL / external provider not certified |
-| Rate limiting | request context only | caller-selected mock headers | No state | No | N/A | No | Contract/mock only / CRITICAL |
+| Rate limiting | fixed-window network/principal/Tenant counters | `SqliteRateLimitStore` in HTTP composition; memory only explicit DEV/test | Single-node | Shared database connections | Yes | Production-oriented bounded adapter | PARTIAL / multi-host NOT PROVEN |
 | Readiness | computed report | on-demand projection with context adapter signals and secret health | Computed | Per process | Recomputed | No full live composite gate | PARTIAL / HIGH |
 | Tool/plugin installation | catalog/projections | seeded registries; mutation unsupported | No operational install state | No | Re-seeded | No | BACKEND_ONLY/PARTIAL / HIGH |
 
@@ -60,7 +61,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 - **Development implementation:** local JSONL, local filesystem and local workers selected only in a named development profile.
 - **Authoritative production state:** tenant, agent, deployment, runtime, job, audit and economic records. These require durable shared adapters before production.
 
-`createAcsHttpServer` now selects durable administrative, secret-catalog and economic adapters explicitly. Direct `createControlPlaneContext` callers remain memory-backed unless the corresponding durable options/paths are supplied. `adapterProfile: "production"` rejects insecure secret/economic adapters and non-production HTTP identity instead of silently selecting development fallbacks.
+`createAcsHttpServer` now selects durable administrative, secret-catalog, economic and HTTP rate-limit adapters explicitly. Direct `createControlPlaneContext` callers remain memory-backed unless the corresponding durable options/paths are supplied. `adapterProfile: "production"` rejects insecure secret/economic/rate-limit adapters, non-production HTTP identity and wildcard/missing CORS configuration instead of silently selecting development fallbacks.
 
 ## Production-adapter inventory
 
@@ -80,7 +81,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Audit store | `AuditEventStore` consumed by `AuditService` | atomic filesystem adapter in HTTP composition; memory in explicit tests | Single-node adapter only | HTTP: yes | Restart/correlation tests | ACS-ORG-009 PARTIAL |
 | Telemetry sink | `TelemetrySink` | memory/JSONL | No external adapter | Local runtime defaults JSONL | Local tests | ACS-ORG-011 |
 | Identity validator | `HttpIdentityValidator` | `OidcJwtIdentityValidator` + `RemoteJwksProvider`; explicit DEV header adapter | Yes | Production: explicit OIDC required | signature/claims/rotation/real HTTP forged-header tests; live IdP unproven | ACS-ORG-003 RESOLVED |
-| Rate limiter | context contract only | mock header parser | No | Disabled | Mock tests | ACS-ORG-010 |
+| Rate limiter | `RateLimiter` / `RateLimitStore` | `SqliteRateLimitStore` in HTTP composition; memory explicit DEV/test | Single-node shared-database adapter | HTTP: yes | atomic two-instance, spoof, 429/outage and real-server tests | ACS-ORG-010 PARTIAL / 019 |
 | Worker dispatcher | registry/assignment contracts | direct `LocalExecutionWorker` | No remote adapter | Yes | Same-process tests | ACS-ORG-004 |
 | Queue/broker | none | none | No | N/A | No | ACS-ORG-004/005 |
 | Observability exporter | inspection contract | disabled | No active implementation | Disabled | No | ACS-ORG-011 |

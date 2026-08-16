@@ -29,7 +29,7 @@ The repository is strong in domain modeling and bounded acceptance:
 
 After C01, the active HTTP composition has single-node durable Tenant Administration, audit, secret metadata/references and economics, aligned HTTP methods and a production-oriented OIDC validator, but the overall topology remains non-production:
 
-- production HTTP identity is OIDC/JWT validated; rate limiting and remaining edge controls are still mock/incomplete;
+- production HTTP identity is OIDC/JWT validated; server-owned rate limiting and bounded HTTP edge controls are implemented, with live multi-host edge acceptance still pending;
 - Agent, deployment, runtime and worker authoritative state is local to a process; durable adapters are still single-node and unshared;
 - Vault and SQLite secret/economic adapters exist, but live managed-service identity/HA and shared settlement/database proof remain absent;
 - worker execution is same-process/local;
@@ -55,7 +55,7 @@ B01 partially resolved ACS-ORG-001/009 for single-node Tenant Administration. B0
 
 ### W2 — Trusted identity and edge
 
-`ACS-ORG-003` was resolved by C01 using OIDC/JWT validation and explicit signed platform mapping. Continue with ACS-ORG-010 and 013: harden trusted CORS/request/proxy handling and implement distributed rate limiting. Reuse the C01 principal context and B01/E01 authority/forged-context protections.
+`ACS-ORG-003` was resolved by C01 using OIDC/JWT validation and explicit signed platform mapping. C02 resolved the application edge gap and removed caller-selected/process-local production limiting; shared SQLite counters are proven on one database. Live reverse-proxy, multi-host limiter and IdP topology remain H acceptance work rather than a reason to reopen C01/C02 contracts.
 
 ### W3 — Distributed runtime and recovery
 
@@ -127,7 +127,7 @@ B and C may run in parallel after their decision gates, but no public mutation s
 
 **Exit:** an untrusted client cannot forge actor, tenant or platform authority.
 
-**Current status:** IN PROGRESS. C01 passes for HTTP identity, trusted Tenant/platform authority binding and actor/platform forgery. C02 edge controls/rate limiting plus live-provider acceptance remain open, so the milestone exit is not yet claimed globally.
+**Current status:** PASS WITH CAVEATS. C01 passes for trusted HTTP identity and authority binding. C02 passes for server-owned limiting, proxy trust, CORS, request bounds, timeouts, security headers and edge readiness. Live IdP/reverse-proxy/multi-host limiter evidence remains H acceptance; global Operational/Production Readiness is still blocked.
 
 ### Milestone D — Distributed Runtime & Execution Readiness
 

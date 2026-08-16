@@ -332,10 +332,12 @@ test("production profile rejects development/disabled identity and incomplete OI
     engine: createMockEngine(),
     startLocalWorker: false,
     adapterProfile: "production",
+    allowedOrigins: ["https://control.example"],
     secretProvider: "vault",
     vaultTransport,
     secretCatalogPath: join(root, "catalog.sqlite"),
     economicStatePath: join(root, "economic.sqlite"),
+    rateLimitDatabasePath: join(root, "rate-limit.sqlite"),
   };
   try {
     assert.throws(

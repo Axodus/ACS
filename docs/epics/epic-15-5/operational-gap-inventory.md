@@ -1,6 +1,6 @@
 # Operational Gap Inventory
 
-This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01, B02 and C01 status/evidence were updated on 2026-08-15 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
+This is the canonical finding register. The original A01 inventory reflects commit `b104895`; B01, B02, C01 and C02 status/evidence were updated on 2026-08-15 against the implementation based on `ed46412`. `OPEN — VERIFIED` means the behavior remains confirmed; `PARTIALLY_RESOLVED` records bounded evidence without overstating the residual topology.
 
 ## Severity model
 
@@ -31,10 +31,10 @@ Findings use a primary area plus affected areas from this controlled set:
 | ACS-ORG-007 | ECONOMICS | Economic settlement and records use an in-memory provider and maps | BLOCKER | B | PARTIALLY_RESOLVED — B02 |
 | ACS-ORG-008 | PRODUCT_API | Real HTTP rejects Product API `PUT` and `DELETE` administration routes | BLOCKER | B | RESOLVED — B01 |
 | ACS-ORG-009 | OBSERVABILITY | Administrative and operational audit history is process-local | CRITICAL | B | PARTIALLY_RESOLVED — B01 |
-| ACS-ORG-010 | EDGE | Rate limiting is disabled or caller-selected mock state | CRITICAL | C | OPEN — VERIFIED |
+| ACS-ORG-010 | EDGE | Rate limiting is disabled or caller-selected mock state | CRITICAL | C | PARTIALLY_RESOLVED — C02 |
 | ACS-ORG-011 | OBSERVABILITY | External telemetry, HTTP telemetry, raw logs and traces are unavailable | CRITICAL | E | OPEN — VERIFIED |
 | ACS-ORG-012 | OPERATIONS | No dependency-aware production traffic readiness gate exists | HIGH | E | OPEN — VERIFIED |
-| ACS-ORG-013 | EDGE | HTTP edge controls are incomplete for an exposed service | HIGH | C | OPEN — VERIFIED |
+| ACS-ORG-013 | EDGE | HTTP edge controls are incomplete for an exposed service | HIGH | C | RESOLVED — C02 |
 | ACS-ORG-014 | CONTROL_PLANE | Tenant administration and the main Control Plane are separate applications | HIGH | F | OPEN — VERIFIED |
 | ACS-ORG-015 | CONTROL_PLANE | Agent composition changes remain read-only or unsupported | HIGH | F | OPEN — VERIFIED |
 | ACS-ORG-016 | SECURITY | Secret configuration, rotation and revocation lack a supported operator journey | HIGH | F | OPEN — VERIFIED |
@@ -84,8 +84,8 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Current behavior after C01:** `createAcsHttpHandler` authenticates protected requests through `HttpIdentityValidator`. `OidcJwtIdentityValidator` verifies RS256 signature/JWKS key, issuer, audience, expiration/not-before and subject. It ignores legacy identity/Tenant/platform headers. Platform authority requires one configured signed claim/value; normal tokens still require existing Tenant membership. Production rejects development identity or incomplete OIDC configuration.
 - **Operational impact:** untrusted callers can no longer construct actor identity or `platform_admin` through request headers in the production OIDC composition. Authentication failure occurs before authority/governance evaluation.
 - **C01 evidence:** `tests/s47-epic-15-5-trusted-http-identity.test.mjs` covers invalid-token categories, JWKS rotation, forged headers through the real HTTP server, platform mapping, cross-Tenant scope, suspended/removed membership, audit actor attribution and production fail-closed configuration.
-- **Residual risk:** a live IdP/JWKS deployment, TLS/DNS availability and service identities are not certified by the deterministic adapter tests. C02 edge controls/rate limiting and Milestone H live-topology acceptance remain open; they do not reopen caller-header forgery.
-- **Follow-up:** C02 distributed rate limiting and trusted edge/proxy policy, F authenticated UX and H live identity-provider acceptance.
+- **Residual risk:** a live IdP/JWKS deployment, TLS/DNS availability and service identities are not certified by the deterministic adapter tests. C02 edge controls/rate limiting now pass; Milestone H live-topology acceptance remains open and does not reopen caller-header forgery.
+- **Follow-up:** F authenticated UX and H live identity-provider/reverse-proxy acceptance.
 
 ### ACS-ORG-004 — Operational execution uses a same-process local worker, not remote dispatch
 
@@ -146,7 +146,7 @@ Findings use a primary area plus affected areas from this controlled set:
 - **Operational impact:** governance, entitlement and limit mutations certified at route level cannot complete through the shipped HTTP server/UI path.
 - **Resolution evidence:** `src/http/server.ts`; route-level read safety in `src/http/routes/acs-routes.ts`; real handler coverage in `tests/s45-epic-15-5-durable-http-contract.test.mjs` for all five application methods, CORS preflight and unsupported method behavior.
 - **Required target state:** one method contract across server, CORS, route layer and client, with end-to-end tests through `createAcsHttpHandler`.
-- **Residual scope:** production authentication, trusted origins/headers, request bounds and distributed rate limiting remain ACS-ORG-003/010/013. They do not reopen method compatibility.
+- **Residual scope after C02:** production authentication and application edge contracts are implemented; live IdP/proxy/multi-host limiter proof remains under ACS-ORG-010/019 and H. None of this reopens method compatibility.
 - **Acceptance evidence:** HTTP-level `PUT`/`DELETE` success and denial tests, browser mutation proof and no permissive method fallback.
 
 ### ACS-ORG-009 — Administrative and operational audit history is process-local
@@ -165,14 +165,16 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-010 — Rate limiting is disabled or caller-selected mock state
 
 - **Area:** EDGE; affects SECURITY, OPERATIONS.
-- **Severity / status:** **CRITICAL**, OPEN — VERIFIED.
-- **Evidence:** `src/http/rate-limit.ts:1-64`; `src/http/server.ts:33-45`; `tests/http-auth-rate-limit.test.mjs` validates the mock contract.
-- **Current behavior:** headers choose `mock` or `mock-exceeded`; no counter or store is consulted. Default is disabled. No trusted IP/principal/tenant key, distributed window or proxy policy exists.
-- **Operational impact:** clients can bypass or fabricate limits; replicas cannot coordinate abuse controls; sensitive administrative and execution routes are unprotected.
+- **Severity / status:** **CRITICAL**, PARTIALLY_RESOLVED — C02.
+- **Previous behavior:** headers chose `mock` or `mock-exceeded`; no counter/store was consulted and default enforcement was disabled.
+- **Current behavior after C02:** `createAcsHttpHandler` consumes a server-owned fixed-window limiter before auth and again after authenticated principal resolution. Network, principal and Tenant+principal keys are derived from trusted context and hashed before persistence. `createAcsHttpServer` selects `SqliteRateLimitStore`; production rejects memory/mock fallback.
+- **Operational impact after C02:** callers cannot select keys, fabricate exceeded/allowed state or bypass a bucket through untrusted forwarding headers. Sensitive operations fail closed with 503 when the store is unavailable; liveness remains observable and readiness reports the outage.
 - **Root cause:** response/error semantics were implemented before an edge adapter.
 - **Required target state:** server-owned distributed limiter with endpoint classes, tenant/principal/IP keys, trusted proxy resolution, retry-after and fail-safe behavior.
-- **Dependencies / milestone:** trusted identity and edge profile; Milestone C.
-- **Acceptance evidence:** concurrent and multi-instance limit tests, spoofed-header rejection, retry-after/status semantics and store outage behavior.
+- **C02 evidence:** `src/http/rate-limit.ts`, `src/http/edge.ts`, `src/http/server.ts` and `tests/s48-epic-15-5-distributed-rate-limiting-http-edge.test.mjs`; two independent SQLite connections share an atomic bucket, real HTTP returns consistent 429/Retry-After, spoofed keys/addresses fail, and backend-outage semantics pass.
+- **Residual risk:** SQLite is single-node durable/shared-database capable, not a certified multi-host global limiter. Network partitions, live load-balancer topology and high-contention capacity remain unproven under `ACS-ORG-019`/H.
+- **Dependencies / milestone:** live multi-host/provider acceptance remains H; the C02 implementation boundary is complete.
+- **Acceptance evidence required to close:** two-host/shared-service load test, partition/outage behavior, trusted reverse-proxy deployment proof and operational capacity evidence.
 
 ### ACS-ORG-011 — External telemetry, HTTP telemetry, raw logs and traces are unavailable
 
@@ -201,14 +203,14 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-013 — HTTP edge controls are incomplete for an exposed service
 
 - **Area:** EDGE; affects SECURITY, PRODUCT_API.
-- **Severity / status:** **HIGH**, OPEN — VERIFIED.
-- **Evidence:** `src/http/server.ts:11-31,94-100`; JSON body readers concatenate request chunks without a declared limit; repository search found no trusted-proxy, origin allowlist, security-header or server-timeout policy.
-- **Current behavior:** wildcard CORS is returned, allowed headers omit the mock auth headers used by the browser, no body-size guard or endpoint timeout is defined, and production proxy/origin behavior is unspecified.
-- **Operational impact:** legitimate browser preflights can fail while abusive or oversized requests lack bounded handling; deployment behavior varies behind proxies.
+- **Severity / status:** **HIGH**, RESOLVED — C02 for the active HTTP server boundary.
+- **Previous behavior:** wildcard CORS, unbounded JSON accumulation, runtime-default timeouts and undefined forwarded-address trust.
+- **Current behavior after C02:** production requires an exact origin allowlist; preflight covers real methods and Authorization; body, header, request, keep-alive and per-socket limits are explicit; applicable security headers are returned; trusted proxy CIDRs are configured centrally and malformed/untrusted forwarding headers fall back to the socket peer.
+- **Operational impact after C02:** browser origin trust and request resource consumption are bounded before domain handlers, with 413/403 semantics and no raw edge/internal data leakage.
 - **Root cause:** the HTTP server is an inspection MVP rather than an edge-hardened service.
 - **Required target state:** environment-specific origin policy, complete method/header contract, body limits, request/operation timeouts, security headers and trusted proxy configuration.
-- **Dependencies / milestone:** identity and rate limiter; Milestone C.
-- **Acceptance evidence:** preflight matrix, oversize/timeouts, proxy spoofing, header policy and security-header tests.
+- **C02 evidence:** real TCP/HTTP CORS allow/deny and preflight tests, declared/chunked oversize requests with zero Agent side effect, proxy spoof tests, security-header assertions and server timeout/connection configuration in `tests/s48-epic-15-5-distributed-rate-limiting-http-edge.test.mjs`.
+- **Residual risk:** live TLS/reverse-proxy/load-balancer configuration is environment acceptance, not an application-contract gap. H must prove the deployed topology.
 
 ### ACS-ORG-014 — Tenant administration and the main Control Plane are separate applications
 

@@ -1,6 +1,6 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** Milestone C in progress — C01 complete on 2026-08-15; Milestone B residual work remains open
+**Status:** Milestone C PASS WITH CAVEATS on 2026-08-15; Milestone B residual work remains open
 
 **Readiness conclusion:** ACS is **Development Ready**, more completely **Integration Ready** for Tenant Administration, and **not Operational Ready or Production Ready**.
 
@@ -43,7 +43,7 @@ B01 added an aggregate-specific durable administrative adapter for Tenant, Membe
 
 The adapter is a single-node atomic filesystem snapshot. It is **not** a shared production database and has no cross-process locking, migrations, retention or multi-writer proof. Therefore `ACS-ORG-001` and `ACS-ORG-009` are only **PARTIALLY_RESOLVED**.
 
-B01 also resolved `ACS-ORG-008`: the real HTTP entry handler and CORS preflight accept `GET`, `POST`, `PUT`, `PATCH` and `DELETE`; Tenant Administration `PUT`/`DELETE` operations execute through the real server; and runtime `start`/`stop` handlers are reachable before unsupported-operation guards. Production identity and broader edge hardening remain Milestone C work.
+B01 also resolved `ACS-ORG-008`: the real HTTP entry handler and CORS preflight accept `GET`, `POST`, `PUT`, `PATCH` and `DELETE`; Tenant Administration `PUT`/`DELETE` operations execute through the real server; and runtime `start`/`stop` handlers are reachable before unsupported-operation guards. Production identity and broader edge hardening were subsequently completed as bounded application contracts in C01/C02.
 
 ## B02 outcome
 
@@ -60,6 +60,14 @@ C01 replaced the active production header-trust path with an explicit `HttpIdent
 `platform_admin` now comes only from one explicitly configured signed claim/value. Actor, platform and Tenant headers are ignored by the OIDC adapter; Tenant membership and governance remain separate downstream decisions. Production composition rejects the development adapter and incomplete OIDC configuration. Real HTTP tests prove forged actor/platform headers, invalid tokens, cross-Tenant access and suspended/removed membership cannot bypass the boundary.
 
 `ACS-ORG-003` is **RESOLVED** for the active HTTP production composition. Identity is **PARTIAL**, not globally production-certified, because live IdP/JWKS deployment evidence and broader edge/service identity work remain open. Operational and Production Readiness remain blocked.
+
+## C02 outcome
+
+C02 replaced the server's caller-selected mock rate-limit path with a canonical fixed-window `RateLimiter`. `createAcsHttpServer` selects an atomic SQLite store; independent instances using the same database share counters, while the memory adapter remains DEV/test-only and is rejected by production composition. Network, principal and Tenant+principal buckets are derived server-side and persisted only as hashes.
+
+The HTTP edge now has explicit trusted-proxy resolution, production CORS allowlists, bounded JSON bodies, header/request/keep-alive controls, API security headers and consistent `413`, `429`, `Retry-After` and backend-outage semantics. C01 identity remains downstream of network protection and upstream of tenant authority/governance.
+
+`ACS-ORG-013` is **RESOLVED** for the active server boundary. `ACS-ORG-010` is **PARTIALLY_RESOLVED** because shared SQLite connections/instances are proven on one database, while a live multi-host/global rate-limit service and reverse-proxy topology remain unproven. Security/Edge is **PARTIAL** and Operational/Production Readiness remain blocked.
 
 ## Principles
 
@@ -89,7 +97,8 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 8. [milestones/B01-durable-control-plane-state-http-contract.md](./milestones/B01-durable-control-plane-state-http-contract.md) — implemented persistence and HTTP compatibility evidence.
 9. [milestones/B02-production-secrets-economic-adapters.md](./milestones/B02-production-secrets-economic-adapters.md) — secrets/economics adapters, restart and reconciliation evidence.
 10. [milestones/C01-trusted-http-identity-authorization-boundary.md](./milestones/C01-trusted-http-identity-authorization-boundary.md) — OIDC validation, trusted principal propagation and forged-header evidence.
-11. [AGENTS.md](./AGENTS.md) — local execution rules.
+11. [milestones/C02-distributed-rate-limiting-http-edge-hardening.md](./milestones/C02-distributed-rate-limiting-http-edge-hardening.md) — limiter, proxy, CORS, request-bound and edge-readiness evidence.
+12. [AGENTS.md](./AGENTS.md) — local execution rules.
 
 ## Milestone map
 
@@ -97,7 +106,7 @@ A01 does not implement OIDC, a durable database, managed secrets, a broker, remo
 | --- | --- |
 | A | Verified system-wide baseline and executable backlog |
 | B | **IN PROGRESS:** single-node durable administration, Vault boundary and durable economics delivered; remaining operational state/shared topology open |
-| C | **IN PROGRESS:** trusted HTTP identity delivered; edge controls/rate limiting remain |
+| C | **PASS WITH CAVEATS:** trusted HTTP identity and hardened edge delivered; live IdP/proxy/multi-host limiter acceptance remains |
 | D | Remote dispatch, durable jobs and recovery semantics |
 | E | External observability and dependency-aware readiness |
 | F | Complete supported operator journeys and remediation UX |

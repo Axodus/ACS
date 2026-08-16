@@ -104,7 +104,7 @@ export function routeAcsRequest(requestUrl: string, options: AcsRouteOptions = {
             responseEnvelope: "enabled",
             requestCorrelation: "enabled",
             schemaValidation: "placeholder",
-            rateLimit: routeMeta.rateLimit.enabled ? "mock" : "disabled",
+            rateLimit: routeMeta.rateLimit.enabled ? "enforced" : "disabled",
             tenantAuth: routeMeta.auth.mode,
             observability: "contract-only",
           },

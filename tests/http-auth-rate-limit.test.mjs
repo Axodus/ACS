@@ -155,7 +155,7 @@ test("mock exceeded rate-limit returns structured error and preserves correlatio
   assert.equal(result.body.meta.rateLimit.exceeded, true);
 });
 
-test("HTTP handler parses mock auth and rate-limit headers", async () => {
+test("HTTP handler keeps development auth but ignores client-controlled rate-limit headers", async () => {
   const result = await invokeHttpHandler({
     url: "/acs/health",
     headers: {
@@ -176,4 +176,6 @@ test("HTTP handler parses mock auth and rate-limit headers", async () => {
   assert.equal(result.body.meta.auth.actorType, "user");
   assert.equal(result.body.meta.auth.wallet, "0xlicensed");
   assert.equal(result.body.meta.rateLimit.enabled, true);
+  assert.equal(result.body.meta.rateLimit.key, undefined);
+  assert.equal(result.body.meta.rateLimit.exceeded, false);
 });

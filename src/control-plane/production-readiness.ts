@@ -71,6 +71,12 @@ export interface ProductionReadinessReport {
   readonly deferredItems: readonly ReadinessFinding[];
   readonly persistenceInventory: readonly PersistenceReadinessItem[];
   readonly secretsBoundary: SecretsBoundarySummary;
+  readonly edge: {
+    readonly rateLimiterConfigured: boolean;
+    readonly rateLimiterReachable: boolean;
+    readonly rateLimiterProductionGrade: boolean;
+    readonly corsConfigured: boolean;
+  };
   readonly claimDiscipline: {
     readonly productionReadyClaimAllowed: false;
     readonly billingReadyClaimAllowed: false;
@@ -94,6 +100,10 @@ export interface ProductionReadinessSignals {
   readonly secretProviderReachable?: boolean;
   readonly settlementBackend?: "memory" | "production";
   readonly browserAcceptance?: "not_started" | "partial" | "deferred";
+  readonly rateLimiterConfigured?: boolean;
+  readonly rateLimiterReachable?: boolean;
+  readonly rateLimiterProductionGrade?: boolean;
+  readonly corsConfigured?: boolean;
 }
 
 const DEFAULT_SIGNALS: Required<ProductionReadinessSignals> = {
@@ -108,6 +118,10 @@ const DEFAULT_SIGNALS: Required<ProductionReadinessSignals> = {
   secretProviderReachable: true,
   settlementBackend: "memory",
   browserAcceptance: "not_started",
+  rateLimiterConfigured: false,
+  rateLimiterReachable: false,
+  rateLimiterProductionGrade: false,
+  corsConfigured: false,
 };
 
 function blocker(
@@ -245,6 +259,12 @@ export function createProductionReadinessReport(
     deferredItems,
     persistenceInventory: PERSISTENCE_READINESS_INVENTORY,
     secretsBoundary,
+    edge: {
+      rateLimiterConfigured: signals.rateLimiterConfigured,
+      rateLimiterReachable: signals.rateLimiterReachable,
+      rateLimiterProductionGrade: signals.rateLimiterProductionGrade,
+      corsConfigured: signals.corsConfigured,
+    },
     claimDiscipline: {
       productionReadyClaimAllowed: false,
       billingReadyClaimAllowed: false,
@@ -322,6 +342,10 @@ function buildGates(
       ),
     ];
   const trustedIdentityReady = signals.authMode === "oidc" && signals.authProviderReachable;
+  const edgeReady = signals.rateLimiterConfigured
+    && signals.rateLimiterReachable
+    && signals.rateLimiterProductionGrade
+    && signals.corsConfigured;
 
   return [
     gate(
@@ -452,12 +476,44 @@ function buildGates(
     ),
     gate(
       "G06",
-      "Product API Readiness",
-      "partial",
+      "Product API / HTTP Edge Readiness",
+      edgeReady ? "partial" : "blocked",
       "high",
       "product-api",
       ["M02", "M05", "M07"],
       {
+        blockers: edgeReady ? [] : [
+          ...(!signals.rateLimiterConfigured || !signals.rateLimiterProductionGrade
+            ? [blocker(
+                "HTTP_RATE_LIMITER_NOT_PRODUCTION",
+                "G06",
+                "critical",
+                "The active HTTP rate limiter is absent or is not production-oriented.",
+                "http-edge",
+                "EPIC-15.5 C02 — Distributed Rate Limiting & HTTP Edge Hardening",
+              )]
+            : []),
+          ...(signals.rateLimiterConfigured && !signals.rateLimiterReachable
+            ? [blocker(
+                "HTTP_RATE_LIMITER_UNREACHABLE",
+                "G06",
+                "critical",
+                "The configured HTTP rate-limit backend is unreachable.",
+                "http-edge",
+                "EPIC-15.5 C02 — Distributed Rate Limiting & HTTP Edge Hardening",
+              )]
+            : []),
+          ...(!signals.corsConfigured
+            ? [blocker(
+                "HTTP_CORS_POLICY_NOT_CONFIGURED",
+                "G06",
+                "high",
+                "The production HTTP origin policy is not explicitly configured.",
+                "http-edge",
+                "EPIC-15.5 C02 — Distributed Rate Limiting & HTTP Edge Hardening",
+              )]
+            : []),
+        ],
         warnings: [
           warning(
             "PRODUCT_API_PROJECTION_PRESENT",

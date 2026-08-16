@@ -43,6 +43,7 @@ import type { DeploymentRequest } from "../../control-plane/deployment-service.j
 import { routeTenantAdministrationRequest } from "./admin-tenant-routes.js";
 import { HttpAuthenticationError } from "../auth.js";
 import { TenantMembershipNotFoundError } from "../../control-plane/tenant-membership.js";
+import { PayloadTooLargeError, readBoundedJsonBody } from "../request-body.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -97,6 +98,7 @@ export async function routeProductApiRequest(
     credentialRegistry: context.credentials,
     secretStore: context.secretStore,
     identityValidator: context.identityValidator,
+    edgePolicy: context.edgePolicy,
     readinessSignals: {
       authMode: context.identityValidator.descriptor.mode,
       persistenceBackend: context.administrativeState.durability === "single_node_durable" ? "filesystem" : "memory",
@@ -446,7 +448,7 @@ export async function routeProductApiRequest(
       if (!enforcement.allowed) {
         return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
       }
-      const body = await readJsonBody(request);
+      const body = await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes);
       const input: AgentCreateInput = parseAgentCreateInput(body);
       const result = await api.createAgent(input);
       return { status: 201, body: ok(result, [], options.correlationId, routeMeta) };
@@ -502,7 +504,7 @@ export async function routeProductApiRequest(
     // POST /api/v1/agents/:agentId/deploy
     if (segments[2] === "agents" && segments[3] && segments[4] === "deploy" && request.method === "POST") {
       const agentId = readPathSegment(segments, 3, "agentId");
-      const body = readBodyRecord(await readJsonBody(request));
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
       const mode = typeof body.mode === "string" ? body.mode : "";
 
       if (!isDeploymentMode(mode)) {
@@ -558,7 +560,7 @@ export async function routeProductApiRequest(
       if (!enforcement.allowed) {
         return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
       }
-      const body = await readJsonBody(request);
+      const body = await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes);
       const input: AgentCreateRevisionInput = parseAgentCreateRevisionInput(body, agentId);
       const result = await api.createAgentRevision(agentId, input);
       return { status: 200, body: ok(result, [], options.correlationId, routeMeta) };
@@ -633,7 +635,7 @@ export async function routeProductApiRequest(
       if (!enforcement.allowed) {
         return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
       }
-      const body = await readJsonBody(request);
+      const body = await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes);
       const input: AgentDuplicateInput = parseAgentDuplicateInput(body);
       const result = await api.duplicateAgent(agentId, input);
       return { status: 200, body: ok(result, [], options.correlationId, routeMeta) };
@@ -707,7 +709,7 @@ export async function routeProductApiRequest(
       if (!enforcement.allowed) {
         return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
       }
-      const body = await readJsonBody(request);
+      const body = await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes);
       const input: UpdateAgentInput = parseAgentUpdateInput(body, agentId);
       const result = await api.updateAgent(agentId, input);
       return { status: 200, body: ok(result, [], options.correlationId, routeMeta) };
@@ -894,7 +896,7 @@ export async function routeProductApiRequest(
         return methodNotAllowed(options.correlationId, routeMeta, "POST");
       }
       const runtimeInstanceId = readPathSegment(segments, 3, "runtimeInstanceId");
-      const body = readBodyRecord(await readJsonBody(request));
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
       const requestData = {
         deploymentId: typeof body.deploymentId === "string" ? body.deploymentId : "",
         runtimeInstanceId,
@@ -1547,21 +1549,6 @@ export async function routeProductApiRequest(
   }
 }
 
-async function readJsonBody(request: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    request.on("data", (chunk) => { data += chunk; });
-    request.on("end", () => {
-      try {
-        resolve(JSON.parse(data));
-      } catch {
-        reject(new AcsHttpValidationError("invalid JSON body"));
-      }
-    });
-    request.on("error", reject);
-  });
-}
-
 function methodNotAllowed(correlationId: string | undefined, meta: AcsHttpEnvelopeMeta, allowed: string) {
   return fail(
     `method not allowed; allowed methods: ${allowed}`,
@@ -1891,6 +1878,12 @@ function mapGovernanceEnforcementFailure(
 }
 
 function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined, meta: AcsHttpEnvelopeMeta) {
+  if (error instanceof PayloadTooLargeError) {
+    return fail(error.message, 413, "payload_too_large", correlationId, { maxBodyBytes: error.limit }, meta, "edge_payload_limit", {
+      retryable: false,
+      severity: "warning",
+    });
+  }
   if (error instanceof NotFoundError) {
     return fail(
       error.message,

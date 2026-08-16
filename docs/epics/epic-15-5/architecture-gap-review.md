@@ -29,7 +29,7 @@ contract exists
 | Economics | Yes | Store-backed quotes/reservations/usage/settlement | SQLite economic/settlement adapters; no shared/external provider proof | Restart, idempotency, failure and reconciliation tests | PARTIAL |
 | HTTP authentication | `HttpIdentityValidator` | OIDC JWT/JWKS validator plus explicit DEV adapter | Production-oriented adapter selected fail-closed | cryptographic/claims/key-rotation and real HTTP forged-header tests; live IdP unproven | PARTIAL |
 | HTTP authorization | Yes | Yes after actor resolution | Depends on trusted identity | Domain/API negative tests | PARTIAL |
-| Rate limiting | Error/context contract | Header-driven mock | No | Mock tests | BLOCKED |
+| Rate limiting | `RateLimiter` / `RateLimitStore` | fixed-window server boundary; SQLite active HTTP adapter, memory explicit DEV/test | Single-node shared-database adapter | atomic two-instance and real HTTP spoof/429/outage proof | PARTIAL |
 | Telemetry | Event/sink contracts | Memory/JSONL | No external exporter | Local tests | PARTIAL |
 | Readiness | Reports/read models | Computed inspection | No traffic gate | Report tests | PARTIAL |
 | Main Control Plane | Yes | `.design/app-standalone` | N/A | EPIC-14 browser evidence | READY for accepted UX scope |
@@ -70,7 +70,7 @@ flowchart TD
   Context --> Evidence[Read-only readiness/evidence projections]
 ```
 
-This is a more restart-safe development/single-node composition after C01. Production HTTP identity is now validated, but the whole system is not a production topology because several authoritative aggregates remain process-local, local SQLite/snapshot adapters are not replica-certified, execution is local, edge controls are incomplete and external diagnostics are absent.
+This is a more restart-safe development/single-node composition after C02. Production HTTP identity and the application edge are validated, but the whole system is not a production topology because several authoritative aggregates remain process-local, local SQLite/snapshot adapters are not multi-host certified, execution is local and external diagnostics are absent.
 
 ## B01 applied boundaries
 
@@ -171,7 +171,7 @@ The diagram is normative only at the boundary level. It does not prescribe a dat
 
 ### Development composition is the only composition
 
-`createAcsHttpServer` now selects durable administrative state explicitly; direct contexts use memory unless persistence is requested. There is still no operational profile that validates and selects production adapters for Agents, secrets, deployments, runtime, economics, rate limiting or remote workers. The root cause is reduced for ACS-ORG-001/009 but remains for 002, 007, 010, 019 and the residual state scope.
+`createAcsHttpServer` now selects durable administrative, secret-catalog, economic and rate-limit state explicitly; direct contexts use memory unless durability is requested. The production profile validates secrets, economics, OIDC, rate limiting and CORS rather than accepting insecure fallbacks. Agents, deployments, runtime, jobs, shared multi-host state and remote workers remain open under ACS-ORG-001/004/005/019.
 
 ### Trust starts too late
 
@@ -211,7 +211,7 @@ The implementation task is therefore “add a certified production target behind
 - **Database/vendor choice:** SQLite is adopted for bounded single-node B02 durability; a shared production database remains an OPEN DECISION at the B03/B04 gate. Required characteristics are transactional revisions, tenant partitioning, append support and multi-instance access.
 - **Secret provider:** Vault KV v2 is the implemented production-oriented provider boundary. Live deployment/HA/service identity and whether metadata moves to a shared database remain OPEN DECISIONS; local filesystem is development-only.
 - **Identity provider deployment:** protocol decision is CLOSED for the active HTTP boundary: interoperable OIDC/JWT with RS256/JWKS and server-owned verification. Vendor/live issuer selection and deployment acceptance remain environment decisions.
-- **Rate limiter:** OPEN DECISION at Milestone C gate. Must be distributed and keyed from trusted request context.
+- **Rate limiter:** implementation decision CLOSED for the active single-node HTTP composition: fixed-window `RateLimiter`, hashed server-derived keys and atomic SQLite shared-database store. A live multi-host/global provider and deployment topology remain H/ACS-ORG-019 acceptance decisions.
 - **Dispatcher/broker:** OPEN DECISION at Milestone D gate. Transport is not prescribed; delivery, fencing, idempotency and recovery semantics are.
 - **Telemetry backend:** OPEN DECISION at Milestone E gate. Standard structured export and operator diagnostics are required; a generic observability platform is not.
 - **Control Plane consolidation:** OPEN DECISION at Milestone F gate between one build and secure federated surfaces. One actor/session/navigation contract is mandatory.

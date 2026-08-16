@@ -63,6 +63,12 @@ const productionTestIdentityValidator = {
   async health() { return { configured: true, reachable: true, detail: "B02 production identity test fixture" }; },
 };
 
+const productionTestRateLimiter = {
+  descriptor: { adapter: "test-shared-rate-limit", productionOriented: true, durability: "single_node_durable", multiInstance: "not_proven" },
+  async consume() { throw new Error("not exercised by B02"); },
+  async health() { return { configured: true, reachable: true, productionGrade: true, adapter: "test-shared-rate-limit" }; },
+};
+
 class FakeVaultTransport {
   records = new Map();
   requests = [];
@@ -296,6 +302,8 @@ test("production profile rejects insecure secret and economic fallback", async (
       engine: createMockEngine(),
       startLocalWorker: false,
       adapterProfile: "production",
+      allowedOrigins: ["https://control.example"],
+      rateLimiter: productionTestRateLimiter,
       secretStore: new InMemorySecretStore(),
       economicStateStore: new InMemoryEconomicStateStore(),
       settlementProvider: new InMemorySettlementProvider(),
@@ -311,10 +319,12 @@ test("production profile rejects insecure secret and economic fallback", async (
       engine: createMockEngine(),
       startLocalWorker: false,
       adapterProfile: "production",
+      allowedOrigins: ["https://control.example"],
       secretProvider: "vault",
       vaultTransport: transport,
       secretCatalogPath: join(root, "catalog.sqlite"),
       economicStatePath: join(root, "economic.sqlite"),
+      rateLimitDatabasePath: join(root, "rate-limit.sqlite"),
       identityValidator: productionTestIdentityValidator,
     });
     assert.equal(context.productionAdapters.profile, "production");

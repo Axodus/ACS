@@ -6,27 +6,11 @@ import { fail, ok, type AcsHttpEnvelopeMeta } from "../responses.js";
 import { AcsHttpValidationError, assertAllowedQueryParams, assertSafeIdentifier, readPathSegment } from "../validation.js";
 import type { AcsRouteOptions } from "./acs-routes.js";
 import type { ControlPlaneContext } from "../control-plane-context.js";
+import { PayloadTooLargeError, readBoundedJsonBody } from "../request-body.js";
 
 type Authority =
   | { readonly kind: "platform_admin"; readonly principalId: string }
   | { readonly kind: "tenant_member"; readonly principalId: string; readonly tenantId: string };
-
-async function readJsonBody(request: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    request.on("data", (chunk) => {
-      data += chunk;
-    });
-    request.on("end", () => {
-      try {
-        resolve(JSON.parse(data));
-      } catch {
-        reject(new AcsHttpValidationError("invalid JSON body"));
-      }
-    });
-    request.on("error", reject);
-  });
-}
 
 export async function routeTenantAdministrationRequest(
   request: IncomingMessage,
@@ -57,11 +41,19 @@ export async function routeTenantAdministrationRequest(
   };
 
   const readBody = async (): Promise<Record<string, unknown>> => {
-    const body = await readJsonBody(request);
+    const body = await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes);
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       throw new AcsHttpValidationError("JSON body must be an object");
     }
     return body as Record<string, unknown>;
+  };
+  const readOptionalBody = async (): Promise<Record<string, unknown>> => {
+    try {
+      return await readBody();
+    } catch (error) {
+      if (error instanceof AcsHttpValidationError) return {};
+      throw error;
+    }
   };
 
   const tenantSummary = (tenantId: string, authority: Authority) => {
@@ -462,7 +454,7 @@ export async function routeTenantAdministrationRequest(
           return { status: 200, body: ok({ value: receipt.nextValue, receipt, tenant: tenantDetail(tenantId, authority) }, [], options.correlationId, meta) };
         }
         if (request.method === "DELETE") {
-          const body = await readBody().catch(() => ({} as Record<string, unknown>));
+          const body = await readOptionalBody();
           assertRequestTenantScope(body, tenantId);
           const receipt = context.tenantGovernanceService.revokeEntitlement({ tenantId, authority, entitlementKey, enabled: false, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(typeof body.reason === "string" ? { reason: body.reason } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}) });
           return { status: 200, body: ok({ value: receipt.nextValue, receipt, tenant: tenantDetail(tenantId, authority) }, [], options.correlationId, meta) };
@@ -502,7 +494,7 @@ export async function routeTenantAdministrationRequest(
           return { status: 200, body: ok({ value: receipt.nextValue, receipt, tenant: tenantDetail(tenantId, authority) }, [], options.correlationId, meta) };
         }
         if (request.method === "DELETE") {
-          const body = await readBody().catch(() => ({} as Record<string, unknown>));
+          const body = await readOptionalBody();
           assertRequestTenantScope(body, tenantId);
           const receipt = context.tenantGovernanceService.clearLimit({ tenantId, authority, limitKey, value: 0, at: Date.now(), ...(auth?.actorId ? { actor: auth.actorId } : {}), ...(typeof body.reason === "string" ? { reason: body.reason } : {}), ...(options.correlationId ? { correlationId: options.correlationId } : {}) });
           return { status: 200, body: ok({ value: receipt.nextValue, receipt, tenant: tenantDetail(tenantId, authority) }, [], options.correlationId, meta) };
@@ -519,6 +511,9 @@ export async function routeTenantAdministrationRequest(
       severity: "warning",
     });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return fail(error.message, 413, "payload_too_large", options.correlationId, { maxBodyBytes: error.limit }, meta, "edge_payload_limit", { retryable: false, severity: "warning" });
+    }
     if (error instanceof AcsHttpValidationError) {
       return fail(error.message, 400, error.code, options.correlationId, error.details, meta, "validation_error", { retryable: false, severity: "error" });
     }

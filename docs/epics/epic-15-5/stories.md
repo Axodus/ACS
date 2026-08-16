@@ -120,19 +120,19 @@ Implemented by `tests/s47-epic-15-5-trusted-http-identity.test.mjs` and `milesto
 - **Acceptance criteria:** platform authority is explicit; path/body/header/context conflicts fail; cross-tenant E01 matrix passes.
 - **Required evidence:** forged tenant, self-escalation, removed/suspended member and platform-only negative tests.
 
-C01 completed principal propagation, signed Tenant-claim conflict rejection, explicit platform claim mapping and removed/suspended member HTTP negatives. Remote service identity remains Milestone D scope; the edge/proxy source matrix remains C02 scope.
+C01 completed principal propagation, signed Tenant-claim conflict rejection, explicit platform claim mapping and removed/suspended member HTTP negatives. C02 completed the edge/proxy source matrix. Remote service identity remains Milestone D scope.
 
-### ORG-C03 — Align HTTP method, CORS and request safety contracts — PARTIAL
+### ORG-C03 — Align HTTP method, CORS and request safety contracts — COMPLETE
 
 - **Findings:** ACS-ORG-008, 013.
 - **Objective:** make supported Product API routes executable through the real HTTP server and bounded at the edge.
 - **Scope:** method/preflight allowlists, allowed headers/origins, body size, timeouts, security headers and trusted proxy policy.
 - **Dependencies:** ORG-C01 context design.
 - **Non-goals:** new admin mutations.
-- **Acceptance criteria:** the B01 method-compatibility portion is complete: Tenant governance/entitlement/limit operations pass through `createAcsHttpHandler` and unsupported methods remain explicit. Trusted origins/headers, request bounds, timeouts and proxy policy remain Milestone C scope.
+- **Acceptance criteria:** Tenant governance/entitlement/limit operations pass through `createAcsHttpHandler`; production uses explicit origins; Authorization preflight, body bounds, server timeouts, proxy policy and security headers are enforced and tested.
 - **Required evidence:** HTTP-level integration, preflight, oversize, timeout and proxy spoof tests.
 
-### ORG-C04 — Implement distributed rate limiting
+### ORG-C04 — Implement distributed rate limiting — COMPLETE WITH CAVEAT
 
 - **Findings:** ACS-ORG-010.
 - **Objective:** enforce abuse limits from trusted tenant/principal/IP context across replicas.
@@ -143,6 +143,8 @@ C01 completed principal propagation, signed Tenant-claim conflict rejection, exp
 - **Required evidence:** concurrency, multi-instance, reset, sensitive-route and backend-outage tests.
 
 ORG-C03 and ORG-C04 are the implementation stories consumed together by **Sprint C02 — Distributed Rate Limiting & HTTP Edge Hardening**. They remain separate stories because their failure semantics and acceptance evidence differ.
+
+C02 completed both application boundaries. Two independent SQLite-backed instances share an atomic bucket and client-controlled keys/forwarding headers cannot select a bucket. ORG-C04 retains a deployment caveat: multi-host/global-provider acceptance remains H/`ACS-ORG-019`, so `ACS-ORG-010` is partial rather than fully closed.
 
 ## Milestone D — Distributed Runtime & Execution Readiness
 

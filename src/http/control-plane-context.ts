@@ -84,6 +84,14 @@ import {
   type HttpIdentityValidator,
   type JwksProvider,
 } from "./auth.js";
+import {
+  FixedWindowRateLimiter,
+  InMemoryRateLimitStore,
+  RateLimitConfigurationError,
+  SqliteRateLimitStore,
+  type RateLimiter,
+} from "./rate-limit.js";
+import { HttpEdgePolicy } from "./edge.js";
 
 export interface ControlPlaneContext {
   readonly engineRegistry: EngineRegistry;
@@ -109,6 +117,8 @@ export interface ControlPlaneContext {
   readonly workerAssignmentService: WorkerAssignmentService;
   readonly localWorker: LocalExecutionWorker | null;
   readonly identityValidator: HttpIdentityValidator;
+  readonly rateLimiter: RateLimiter;
+  readonly edgePolicy: HttpEdgePolicy;
   readonly isolation: ControlPlaneIsolation;
   readonly administrativeState: {
     readonly mode: "memory" | "filesystem";
@@ -122,6 +132,7 @@ export interface ControlPlaneContext {
     readonly economicStore: EconomicStateStore["descriptor"];
     readonly settlementProvider: SettlementProvider["descriptor"];
     readonly identityValidator: HttpIdentityValidator["descriptor"];
+    readonly rateLimiter: RateLimiter["descriptor"];
   };
   close(): Promise<void>;
 }
@@ -189,6 +200,26 @@ export interface ControlPlaneContextOptions {
   readonly oidcTenantClaim?: string;
   readonly oidcPlatformAdminClaim?: string;
   readonly oidcPlatformAdminValue?: string;
+  readonly rateLimiter?: RateLimiter;
+  readonly rateLimitProvider?: "memory" | "sqlite";
+  readonly useDurableRateLimitStore?: boolean;
+  readonly rateLimitDatabasePath?: string;
+  readonly rateLimitWindowMs?: number;
+  readonly publicRequestsPerWindow?: number;
+  readonly authenticatedReadsPerWindow?: number;
+  readonly administrativeMutationsPerWindow?: number;
+  readonly executionStartsPerWindow?: number;
+  readonly systemAdminRequestsPerWindow?: number;
+  readonly allowedOrigins?: readonly string[];
+  readonly trustedProxyCidrs?: readonly string[];
+  readonly maxBodyBytes?: number;
+  readonly maxHeaderBytes?: number;
+  readonly maxHeadersCount?: number;
+  readonly headersTimeoutMs?: number;
+  readonly requestTimeoutMs?: number;
+  readonly keepAliveTimeoutMs?: number;
+  readonly maxRequestsPerSocket?: number;
+  readonly enableHsts?: boolean;
 }
 
 function resolveDefaultOperationalRoots(options: ControlPlaneContextOptions): {
@@ -244,6 +275,43 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   const targetService = new ExecutionTargetService(engineRegistry);
   const adapterProfile = options.adapterProfile
     ?? (process.env.ACS_ENVIRONMENT === "production" ? "production" : "development");
+  const configuredRateLimitProvider = options.rateLimitProvider ?? process.env.ACS_RATE_LIMIT_PROVIDER;
+  if (configuredRateLimitProvider !== undefined
+    && configuredRateLimitProvider !== "memory"
+    && configuredRateLimitProvider !== "sqlite") {
+    throw new RateLimitConfigurationError("ACS_RATE_LIMIT_PROVIDER must be memory or sqlite");
+  }
+  const rateLimitProvider = configuredRateLimitProvider
+    ?? (options.useDurableRateLimitStore === true || adapterProfile === "production" ? "sqlite" : "memory");
+  const rateLimitDatabasePath = options.rateLimitDatabasePath
+    ?? process.env.ACS_RATE_LIMIT_DATABASE_PATH
+    ?? join(roots.stateRoot, "control-plane", "http-rate-limit.sqlite");
+  const sqliteRateLimitStore = !options.rateLimiter && rateLimitProvider === "sqlite"
+    ? new SqliteRateLimitStore({ filePath: rateLimitDatabasePath })
+    : undefined;
+  const rateLimiter = options.rateLimiter ?? new FixedWindowRateLimiter(
+    sqliteRateLimitStore ?? new InMemoryRateLimitStore(),
+  );
+  const edgePolicy = new HttpEdgePolicy({
+    profile: adapterProfile,
+    rateLimiter,
+    allowedOrigins: options.allowedOrigins ?? splitEnvironmentList(process.env.ACS_ALLOWED_ORIGINS),
+    trustedProxyCidrs: options.trustedProxyCidrs ?? splitEnvironmentList(process.env.ACS_TRUSTED_PROXY_CIDRS),
+    rateLimitWindowMs: options.rateLimitWindowMs ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_WINDOW_MS"),
+    publicRequestsPerWindow: options.publicRequestsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_PUBLIC_PER_WINDOW"),
+    authenticatedReadsPerWindow: options.authenticatedReadsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_PRINCIPAL_PER_WINDOW"),
+    administrativeMutationsPerWindow: options.administrativeMutationsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_ADMIN_MUTATION_PER_WINDOW"),
+    executionStartsPerWindow: options.executionStartsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_EXECUTION_START_PER_WINDOW"),
+    systemAdminRequestsPerWindow: options.systemAdminRequestsPerWindow ?? readPositiveEnvironmentInteger("ACS_RATE_LIMIT_SYSTEM_ADMIN_PER_WINDOW"),
+    maxBodyBytes: options.maxBodyBytes ?? readPositiveEnvironmentInteger("ACS_HTTP_MAX_BODY_BYTES"),
+    maxHeaderBytes: options.maxHeaderBytes ?? readPositiveEnvironmentInteger("ACS_HTTP_MAX_HEADER_BYTES"),
+    maxHeadersCount: options.maxHeadersCount ?? readPositiveEnvironmentInteger("ACS_HTTP_MAX_HEADERS_COUNT"),
+    headersTimeoutMs: options.headersTimeoutMs ?? readPositiveEnvironmentInteger("ACS_HTTP_HEADERS_TIMEOUT_MS"),
+    requestTimeoutMs: options.requestTimeoutMs ?? readPositiveEnvironmentInteger("ACS_HTTP_REQUEST_TIMEOUT_MS"),
+    keepAliveTimeoutMs: options.keepAliveTimeoutMs ?? readPositiveEnvironmentInteger("ACS_HTTP_KEEP_ALIVE_TIMEOUT_MS"),
+    maxRequestsPerSocket: options.maxRequestsPerSocket ?? readPositiveEnvironmentInteger("ACS_HTTP_MAX_REQUESTS_PER_SOCKET"),
+    enableHsts: options.enableHsts ?? process.env.ACS_HTTP_HSTS === "true",
+  });
   const compositionResources = new CompositionResourceService();
   const useDurableAdministrativeState = options.useDurableAdministrativeState === true
     || options.administrativeStatePath !== undefined;
@@ -623,6 +691,8 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     workerAssignmentService,
     localWorker,
     identityValidator,
+    rateLimiter,
+    edgePolicy,
     isolation,
     administrativeState: durableAdministrativeState
       ? {
@@ -642,6 +712,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       economicStore: economicStateStore.descriptor,
       settlementProvider: settlementProvider.descriptor,
       identityValidator: identityValidator.descriptor,
+      rateLimiter: rateLimiter.descriptor,
     },
     async close(): Promise<void> {
       if (localWorker) {
@@ -651,8 +722,24 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       sqliteEconomicStore?.close();
       sqliteSettlementProvider?.close();
       sqliteSecretCatalog?.close();
+      rateLimiter.close?.();
     },
   };
+}
+
+function splitEnvironmentList(value: string | undefined): readonly string[] | undefined {
+  if (value === undefined) return undefined;
+  return value.split(",").map((entry) => entry.trim()).filter(Boolean);
+}
+
+function readPositiveEnvironmentInteger(name: string): number | undefined {
+  const value = process.env[name];
+  if (value === undefined || value === "") return undefined;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(name + " must be a positive safe integer");
+  }
+  return parsed;
 }
 
 export function resolveOperationalRoots(options: ControlPlaneContextOptions = {}): {

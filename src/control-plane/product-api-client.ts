@@ -19,6 +19,7 @@ import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord
 import type { AuditService, AuditEvent, AuditQueryFilter } from "./audit-service.js";
 import type { ExecutionTargetService } from "../targets/execution-target-service.js";
 import type { HttpIdentityValidator } from "../http/auth.js";
+import type { HttpEdgePolicy } from "../http/edge.js";
 import type { EconomicService } from "./neurons-economic-contract.js";
 import { OperationalEvidenceService } from "./operational-evidence-service.js";
 import type {
@@ -101,6 +102,7 @@ export interface ProductApiClientOptions {
   readonly readinessSignals?: Partial<Epic10ReadinessSignals>;
   readonly secretStore?: SecretStore;
   readonly identityValidator?: HttpIdentityValidator;
+  readonly edgePolicy?: HttpEdgePolicy;
   readonly baseUrl?: string;
 }
 
@@ -1474,6 +1476,7 @@ export class ProductApiClient {
   readonly #readinessSignals: Partial<Epic10ReadinessSignals>;
   readonly #secretStore: SecretStore | undefined;
   readonly #identityValidator: HttpIdentityValidator | undefined;
+  readonly #edgePolicy: HttpEdgePolicy | undefined;
   readonly #baseUrl: string | undefined;
 
   constructor(options: ProductApiClientOptions = {}) {
@@ -1493,6 +1496,7 @@ export class ProductApiClient {
     this.#readinessSignals = options.readinessSignals ?? {};
     this.#secretStore = options.secretStore;
     this.#identityValidator = options.identityValidator;
+    this.#edgePolicy = options.edgePolicy;
     this.#baseUrl = options.baseUrl;
 
     this.#operationalEvidence = new OperationalEvidenceService({
@@ -3090,9 +3094,10 @@ export class ProductApiClient {
             : "unavailable";
 
     const runtime = await this.#probeRuntimeConnectivity();
+    const edgeReadiness = this.#edgePolicy ? await this.#edgePolicy.readiness() : undefined;
     const report = createEpic10ReadinessReport({
       authMode: "disabled",
-      rateLimitEnabled: false,
+      rateLimitEnabled: edgeReadiness?.rateLimiter.reachable === true,
       observabilityExporterEnabled: false,
       persistenceBackend: "memory",
       secretBackend: "memory",
@@ -3491,6 +3496,7 @@ export class ProductApiClient {
 
     const secretHealth = this.#secretStore ? await this.#secretStore.health() : undefined;
     const identityHealth = this.#identityValidator ? await this.#identityValidator.health() : undefined;
+    const edgeReadiness = this.#edgePolicy ? await this.#edgePolicy.readiness() : undefined;
     return createProductionReadinessReport({
       environment: resolveCurrentEnvironment(),
       runtimeConnectivity: summary.runtime.connectivity,
@@ -3503,6 +3509,10 @@ export class ProductApiClient {
       secretBackend: this.#readinessSignals.secretBackend ?? "memory",
       secretProviderReachable: secretHealth?.reachable ?? false,
       settlementBackend: this.#readinessSignals.settlementBackend ?? "memory",
+      rateLimiterConfigured: edgeReadiness?.rateLimiter.configured ?? false,
+      rateLimiterReachable: edgeReadiness?.rateLimiter.reachable ?? false,
+      rateLimiterProductionGrade: edgeReadiness?.rateLimiter.productionGrade ?? false,
+      corsConfigured: edgeReadiness?.cors.configured === true && edgeReadiness.cors.explicitProductionAllowlist,
     });
   }
 
