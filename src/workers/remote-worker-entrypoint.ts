@@ -2,6 +2,8 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createOpenClawEngineFromManifest } from "../engines/openclaw-bootstrap.js";
+import { HttpProductionTargetEngine } from "../engines/http-production-target-engine.js";
+import type { AgentEngine } from "../engines/agent-engine.js";
 import { FetchRemoteWorkerTransport, RemoteExecutionWorker } from "./remote-worker.js";
 import { createOperationalTelemetryFromEnvironment } from "../control-plane/operational-telemetry.js";
 
@@ -16,16 +18,28 @@ export async function runRemoteWorkerFromEnvironment(environment: NodeJS.Process
   const configRoot = resolve(environment.ACS_CONFIG_ROOT ?? `${runtimeRoot}/.acs/config`);
   const artifactsRoot = resolve(environment.ACS_ARTIFACTS_ROOT ?? `${runtimeRoot}/.acs/artifacts`);
   const workspaceRoot = resolve(environment.ACS_WORKSPACE_ROOT ?? `${runtimeRoot}/.acs/workspace`);
-  const engine = createOpenClawEngineFromManifest({
-    acsRoot,
-    runtimeRoot,
-    stateRoot,
-    configRoot,
-    artifactsRoot,
-    workspaceRoot,
-    ...(environment.ACS_PYTHON_COMMAND ? { pythonCommand: environment.ACS_PYTHON_COMMAND } : {}),
-    ...(environment.ACS_ENGINE_TIMEOUT_MS ? { timeoutMs: positiveInteger(environment.ACS_ENGINE_TIMEOUT_MS, "ACS_ENGINE_TIMEOUT_MS") } : {}),
-  });
+  const engineMode = environment.ACS_WORKER_ENGINE ?? "openclaw";
+  let engine: AgentEngine;
+  if (engineMode === "production-http") {
+    engine = new HttpProductionTargetEngine({
+      baseUrl: required(environment, "ACS_PRODUCTION_TARGET_URL"),
+      token: required(environment, "ACS_PRODUCTION_TARGET_TOKEN"),
+      requestTimeoutMs: optionalPositiveInteger(environment.ACS_PRODUCTION_TARGET_TIMEOUT_MS),
+    });
+  } else if (engineMode === "openclaw") {
+    engine = createOpenClawEngineFromManifest({
+      acsRoot,
+      runtimeRoot,
+      stateRoot,
+      configRoot,
+      artifactsRoot,
+      workspaceRoot,
+      ...(environment.ACS_PYTHON_COMMAND ? { pythonCommand: environment.ACS_PYTHON_COMMAND } : {}),
+      ...(environment.ACS_ENGINE_TIMEOUT_MS ? { timeoutMs: positiveInteger(environment.ACS_ENGINE_TIMEOUT_MS, "ACS_ENGINE_TIMEOUT_MS") } : {}),
+    });
+  } else {
+    throw new Error("ACS_WORKER_ENGINE must be openclaw or production-http");
+  }
   const worker = new RemoteExecutionWorker({
     transport: new FetchRemoteWorkerTransport({
       baseUrl,
@@ -37,7 +51,8 @@ export async function runRemoteWorkerFromEnvironment(environment: NodeJS.Process
     instanceId,
     workerName: environment.ACS_WORKER_NAME ?? workerId,
     workerVersion: environment.ACS_WORKER_VERSION ?? "0.1.0",
-    targetId: environment.ACS_WORKER_TARGET_ID ?? "local-wsl",
+    targetId: environment.ACS_WORKER_TARGET_ID ?? (engineMode === "production-http" ? "production-single-host" : "local-wsl"),
+    supportedIsolationModes: engineMode === "production-http" ? ["tenant-scoped"] : ["sandbox"],
     telemetry: createOperationalTelemetryFromEnvironment({
       environment,
       serviceName: environment.ACS_OTEL_SERVICE_NAME ?? "acs-remote-worker",

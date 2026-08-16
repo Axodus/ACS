@@ -264,6 +264,8 @@ Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the st
 
 ### ORG-G01 — Certify production deployment prerequisites
 
+**Status:** COMPLETE — AEES-G. Aggregate hard/required checks, explicit Tenant production policy, durable evidence and negative denial matrix are implemented.
+
 - **Findings:** ACS-ORG-006.
 - **Objective:** convert B–F outputs into a fail-closed production gate.
 - **Scope:** dependency checklist, target contract, capacity/isolation/secrets/observability/recovery requirements and approval record.
@@ -273,6 +275,8 @@ Implemented through internal worker HTTP routes, `RemoteExecutionWorker`, the st
 - **Required evidence:** signed gate report and negative dependency matrix.
 
 ### ORG-G02 — Add and prove a production target with rollback
+
+**Status:** COMPLETE WITH TOPOLOGY CAVEAT — AEES-G. An authenticated production-like single-host target proves durable revisions, post-deploy health, degradation and idempotent rollback; managed multi-host topology remains H.
 
 - **Findings:** ACS-ORG-006.
 - **Objective:** deploy safely to an approved non-sandbox target.

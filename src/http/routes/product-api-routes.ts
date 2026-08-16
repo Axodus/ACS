@@ -9,7 +9,7 @@ import {
 } from "../validation.js";
 import type { ControlPlaneContext } from "../control-plane-context.js";
 import { ProductApiClient } from "../../control-plane/product-api-client.js";
-import { enforceTenantGovernanceMutation } from "../tenant-governance-enforcer.js";
+import { enforceTenantGovernanceMutation, type TenantGovernanceEnforcementDecision } from "../tenant-governance-enforcer.js";
 import type {
   AgentCreateInput,
   AgentCreateRevisionInput,
@@ -41,6 +41,8 @@ import type { AcsRouteOptions } from "./acs-routes.js";
 import type { IncomingMessage } from "node:http";
 import type { DeploymentMode } from "../../control-plane/unified-agent-model.js";
 import type { DeploymentRequest } from "../../control-plane/deployment-service.js";
+import { DeploymentRevisionConflictError } from "../../control-plane/deployment-service.js";
+import { ProductionReadinessBlockedError, type ProductionGovernanceEvidence } from "../../control-plane/production-deployment-readiness.js";
 import { routeTenantAdministrationRequest } from "./admin-tenant-routes.js";
 import { HttpAuthenticationError, type AcsAuthContext } from "../auth.js";
 import { TenantMembershipNotFoundError } from "../../control-plane/tenant-membership.js";
@@ -520,6 +522,31 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // GET /api/v1/agents/:agentId/production-readiness
+    if (segments[2] === "agents" && segments[3] && segments[4] === "production-readiness" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["targetId"]);
+      const agentId = readPathSegment(segments, 3, "agentId");
+      const targetId = url.searchParams.get("targetId") ?? "production-single-host";
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "deployment.create",
+        requirement: { governedAction: "deployment.production" },
+      });
+      const agent = context.agentService.get(agentId);
+      const readiness = await api.evaluateProductionDeployment({
+        agentId,
+        revision: agent.revision,
+        targetId,
+        governance: productionGovernanceEvidence(enforcement),
+      });
+      return { status: 200, body: ok(readiness, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "agents" && segments[3] && segments[4] === "production-readiness" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // POST /api/v1/agents/:agentId/deploy
     if (segments[2] === "agents" && segments[3] && segments[4] === "deploy" && request.method === "POST") {
       const agentId = readPathSegment(segments, 3, "agentId");
@@ -530,26 +557,30 @@ export async function routeProductApiRequest(
         return fail(`invalid deploymentMode: ${mode}`, 400, "invalid_request", options.correlationId, undefined, routeMeta);
       }
 
-      const requestData: DeploymentRequest = {
-        agentId,
-        revision: typeof body.revision === "number" ? body.revision : 1,
-        composition: isPlainObject(body.composition) ? body.composition as Record<string, unknown> : {},
-        deploymentMode: mode,
-        targetId: typeof body.targetId === "string" ? body.targetId : "local",
-      };
-
       const enforcement = enforceTenantGovernanceMutation({
         context,
         auth: options.auth,
         correlationId: options.correlationId,
         operation: "deployment.create",
         requirement: {
-          governedAction: "deployment.create",
+          governedAction: mode === "live" ? "deployment.production" : "deployment.create",
         },
       });
       if (!enforcement.allowed) {
         return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
       }
+
+      const requestData: DeploymentRequest = {
+        agentId,
+        revision: typeof body.revision === "number" ? body.revision : 1,
+        composition: isPlainObject(body.composition) ? body.composition as Record<string, unknown> : {},
+        deploymentMode: mode,
+        targetId: typeof body.targetId === "string" ? body.targetId : mode === "live" ? "production-single-host" : "local",
+        actor: options.auth?.actorId,
+        correlationId: options.correlationId,
+        scope: context.isolation.scope,
+        ...(mode === "live" ? { productionGovernance: productionGovernanceEvidence(enforcement) } : {}),
+      };
 
       const deployment = await api.deployAgent(requestData);
       return { status: 201, body: ok(deployment, [], options.correlationId, routeMeta) };
@@ -964,6 +995,26 @@ export async function routeProductApiRequest(
       }
       return { status: 200, body: ok(deployment, [], options.correlationId, routeMeta) };
     }
+    if (segments[2] === "deployments" && segments[3] && segments[4] === "rollback" && segments.length === 5 && request.method === "POST") {
+      const deploymentId = readPathSegment(segments, 3, "deploymentId");
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "deployment.create",
+        requirement: { governedAction: "deployment.production" },
+      });
+      if (!enforcement.allowed) return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      const deployment = await api.rollbackDeployment({
+        deploymentId,
+        expectedRecordRevision: readExpectedRevision(body.expectedRecordRevision),
+        productionGovernance: productionGovernanceEvidence(enforcement),
+        actor: options.auth?.actorId,
+        correlationId: options.correlationId,
+      });
+      return { status: 200, body: ok(deployment, [], options.correlationId, routeMeta) };
+    }
     if (segments[2] === "deployments") {
       return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
     }
@@ -1004,7 +1055,7 @@ export async function routeProductApiRequest(
       const requestData = {
         deploymentId: typeof body.deploymentId === "string" ? body.deploymentId : "",
         runtimeInstanceId,
-        deploymentMode: "sandbox",
+        ...(typeof body.deploymentMode === "string" && isDeploymentMode(body.deploymentMode) ? { deploymentMode: body.deploymentMode } : {}),
         correlationId: options.correlationId,
         actor: options.auth?.actorId,
         scope: context.isolation.scope,
@@ -1820,6 +1871,19 @@ function buildAuditQuery(url: URL) {
   return query;
 }
 
+function productionGovernanceEvidence(decision: TenantGovernanceEnforcementDecision): ProductionGovernanceEvidence {
+  const governance = decision.governanceDecision;
+  return {
+    allowed: decision.allowed && governance?.decision === "allow",
+    action: "deployment.production",
+    decision: governance?.decision ?? "deny",
+    basis: governance?.basis ?? decision.deniedLayer ?? "authority",
+    ...(governance?.policyId ? { policyId: governance.policyId } : {}),
+    ...(governance?.matchedRuleId ? { matchedRuleId: governance.matchedRuleId } : {}),
+    revision: governance?.revision ?? 0,
+  };
+}
+
 function buildEconomicQuery(url: URL) {
   const query: {
     agentId?: string;
@@ -2238,6 +2302,15 @@ function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined,
       retryable: false,
       severity: "error",
     });
+  }
+  if (error instanceof ProductionReadinessBlockedError) {
+    return fail(error.message, 409, "production_readiness_blocked", correlationId, {
+      decisionId: error.decision.decisionId,
+      blockers: error.decision.blockers.map((entry) => ({ code: entry.code, requiredAction: entry.requiredAction })),
+    }, meta, "production_readiness_blocked", { retryable: true, severity: "warning", guardrails: ["production_readiness", "governance"] });
+  }
+  if (error instanceof DeploymentRevisionConflictError) {
+    return fail(error.message, 409, "deployment_revision_conflict", correlationId, undefined, meta, "revision_conflict", { retryable: true, severity: "warning" });
   }
   if (error instanceof PolicyRejectedError) {
     return fail(error.message, 403, "policy_rejected", correlationId, undefined, meta, "blocked_by_policy", {

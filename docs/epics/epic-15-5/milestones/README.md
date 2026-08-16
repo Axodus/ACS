@@ -82,12 +82,14 @@ AEES-F securely federated the main shell and Tenant Administration, added Produc
 
 ## Milestone G — Production Deployment Readiness & Governance Gate
 
+**Status:** PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS — AEES-G, 2026-08-16.
+
 Recommended sprint order:
 
 1. **G01 — Production Prerequisite Certification**
 2. **G02 — Production Target, Rollout & Rollback**
 
-The first G change must not remove sandbox guards. The production capability is added behind an explicit gate after prerequisites are certified.
+G replaced the blanket sandbox-only decision with a stronger backend-authoritative gate: durable target/deployment state, hard/soft dependency checks, explicit `deployment.production` allow, TOCTOU re-evaluation, verified health and idempotent rollback. Sandbox remains supported. Production is READY only for the certified production-like single-host topology and PARTIAL globally. See [AEES-G-production-deployment-readiness-governance-gate.md](./AEES-G-production-deployment-readiness-governance-gate.md).
 
 ## Milestone H — Full-System Acceptance & Gap Closure
 

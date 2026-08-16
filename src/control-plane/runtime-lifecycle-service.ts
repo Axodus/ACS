@@ -1,5 +1,5 @@
 import type { AgentEngine, RuntimeInstanceResult } from "../engines/agent-engine.js";
-import { EngineSandboxOnlyError, EngineRuntimeNotFoundError } from "../engines/engine-errors.js";
+import { EngineRuntimeNotFoundError } from "../engines/engine-errors.js";
 import type { AuditService } from "./audit-service.js";
 import { assertSameIsolationScope, type IsolationScope } from "./isolation.js";
 import type { DurableRuntimeCoordinator, ExecutionJob } from "../workers/durable-runtime-state.js";
@@ -67,6 +67,7 @@ export interface ExecutionRunRecord {
 export interface DeploymentLookupRecord {
   readonly targetId?: string;
   readonly deploymentMode?: string;
+  readonly status?: string;
 }
 
 const VALID_TRANSITIONS: Record<RuntimeState, readonly RuntimeState[]> = {
@@ -120,11 +121,8 @@ export class RuntimeLifecycleService {
     const scope = request.scope ?? this.#defaultScope;
 
     try {
-      if (mode !== "sandbox") {
-        throw new EngineSandboxOnlyError(`Only sandbox runtime execution is supported, got: ${mode}`, {
-          code: "ACS_ENGINE_SANDBOX_ONLY",
-          details: { deploymentMode: mode },
-        });
+      if (mode === "live" && deployment?.status !== "active") {
+        throw new Error("live runtime requires an active, health-verified production deployment");
       }
 
       const targetId = request.targetId ?? deployment?.targetId;
@@ -143,6 +141,9 @@ export class RuntimeLifecycleService {
           deploymentId: request.deploymentId,
           ...(agentId ? { agentId } : {}),
           targetId,
+          deploymentMode: deploymentModeValue(mode),
+          engineId: this.#engine.identity.id,
+          isolationMode: mode === "live" ? "tenant-scoped" : "sandbox",
           correlationId,
           idempotencyKey: request.idempotencyKey ?? `runtime.start:${runtimeInstanceId}`,
           traceContext: request.traceContext,
@@ -458,4 +459,9 @@ export class RuntimeLifecycleService {
       ...(scope ? { scope } : {}),
     };
   }
+}
+
+function deploymentModeValue(mode: string): "sandbox" | "staged" | "live" {
+  if (mode === "sandbox" || mode === "staged" || mode === "live") return mode;
+  throw new Error(`unsupported deployment mode: ${mode}`);
 }

@@ -217,6 +217,8 @@ The diagram is normative only at the boundary level. It does not prescribe a dat
 
 Tenant-scoped authorization and governance receive a C01-authenticated principal. AEES-F clients use that trusted request/session context and no longer reconstruct actor or platform authority from local storage or arbitrary headers.
 
+AEES-G adds a separate production-deployment authority path: `Product API → explicit deployment.production governance → ProductionDeploymentReadinessEvaluator → durable deployment repository → DeploymentTargetAdapter → health/rollback`. The Control Plane only presents the decision; it cannot manufacture readiness. Agent/deployment revisions are single-node durable, and the external target contract is vendor-neutral. Shared multi-host persistence and live-provider topology remain H evidence gaps.
+
 ### Runtime contracts are connected to durable scheduling
 
 AEES-D connects the normal Product API runtime path to durable jobs and worker claims. The worker transport cannot grant ownership; it can only request an atomic claim and present the resulting lease/fencing identity. Runtime result and recovery state are inspectable through Product API read models. The residual gap is operational UX and multi-host infrastructure, not a missing scheduling boundary.

@@ -1,6 +1,8 @@
 # EPIC-15.5 Browser Acceptance
 
-**Latest certification:** AEES-F, 2026-08-16
+**Latest certification:** AEES-G targeted regression over the AEES-F matrix, 2026-08-16
+
+AEES-G adds a server-owned Production Gate card, actionable blocker list, confirmed live deploy and degraded-deployment rollback to the Agent journey. The regression manifest is `/tmp/acs-epic15-5-aees-g-browser-evidence/manifest.json`; it reuses the four normative viewports and AEES-F route matrix to detect navigation, accessibility, overflow, page-error and console-error regressions. The production target itself is certified by the backend G03 acceptance, not by browser simulation.
 **Result:** **PASS** for the certified multi-process single-host topology.
 
 ## Harness

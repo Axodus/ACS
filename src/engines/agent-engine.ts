@@ -79,6 +79,7 @@ export interface EngineCapabilities {
 }
 
 export interface DeployAgentRequest {
+  readonly deploymentId?: string;
   readonly agentId: string;
   readonly revision: number;
   readonly composition: Record<string, unknown>;
@@ -97,6 +98,23 @@ export interface DeploymentResult {
   readonly status: string;
   readonly artifactPath?: string;
   readonly timestamp: number;
+}
+
+export interface DeploymentInspectionResult {
+  readonly deploymentId: string;
+  readonly status: "active" | "degraded" | "failed" | "stopped";
+  readonly health: "ready" | "degraded" | "unavailable";
+  readonly targetId: string;
+  readonly deployedRevision: number;
+  readonly observedAt: number;
+  readonly reasonCode?: string;
+}
+
+export interface RollbackDeploymentRequest {
+  readonly deploymentId: string;
+  readonly predecessorDeploymentId: string;
+  readonly targetId: string;
+  readonly expectedRevision: number;
 }
 
 export interface StartRuntimeRequest {
@@ -126,6 +144,8 @@ export interface AgentEngine {
   listExecutionTargets(): Promise<readonly ExecutionTargetInfo[]>;
   inspectExecutionTarget(targetId: string): Promise<ExecutionTargetInfo>;
   deployAgent(request: DeployAgentRequest): Promise<DeploymentResult>;
+  inspectDeployment?(deploymentId: string): Promise<DeploymentInspectionResult>;
+  rollbackDeployment?(request: RollbackDeploymentRequest): Promise<DeploymentResult>;
   startRuntime?(request: StartRuntimeRequest): Promise<RuntimeInstanceResult>;
   inspectRuntime?(runtimeInstanceId: string): Promise<RuntimeInstanceResult>;
   stopRuntime?(runtimeInstanceId: string): Promise<RuntimeInstanceResult>;

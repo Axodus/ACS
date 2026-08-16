@@ -14,7 +14,8 @@ import type {
   CompositionFinding,
   GovernedAgentStatus,
 } from "./unified-agent-model.js";
-import type { DeploymentService, DeploymentRecord, DeploymentRequest } from "./deployment-service.js";
+import type { DeploymentService, DeploymentRecord, DeploymentRequest, DeploymentLifecycleStatus } from "./deployment-service.js";
+import type { ProductionGovernanceEvidence, ProductionReadinessDecision } from "./production-deployment-readiness.js";
 import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord, StartRuntimeServiceRequest } from "./runtime-lifecycle-service.js";
 import type { AuditService, AuditEvent, AuditQueryFilter } from "./audit-service.js";
 import type { ExecutionTargetService } from "../targets/execution-target-service.js";
@@ -57,7 +58,6 @@ import { createCanonicalModelId } from "../intelligence/model-provider.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
 import type { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
 import type { SecretStore } from "../intelligence/secret-store.js";
-import { EngineSandboxOnlyError } from "../engines/engine-errors.js";
 import type { EngineService } from "../engines/engine-service.js";
 import type { AgentEngine, EngineCapabilities } from "../engines/agent-engine.js";
 import { NotFoundError } from "../errors.js";
@@ -961,12 +961,18 @@ export interface DeploymentSummary {
   readonly deploymentId: string;
   readonly agentId: string;
   readonly revisionId: number;
-  readonly status: "deployed" | "failed" | "rejected" | "pending" | "stopped";
+  readonly status: DeploymentLifecycleStatus;
   readonly target: string;
   readonly engine: string;
   readonly workerId?: string;
   readonly runtimeId?: string;
   readonly active: boolean;
+  readonly health?: "ready" | "degraded" | "unavailable";
+  readonly deploymentMode: string;
+  readonly recordRevision: number;
+  readonly predecessorDeploymentId?: string;
+  readonly readinessDecisionId?: string;
+  readonly reasonCode?: string;
   readonly createdAt: number;
   readonly updatedAt: number;
   readonly lastOperation?: string;
@@ -1691,13 +1697,6 @@ export class ProductApiClient {
   }
 
   async deployAgent(request: DeploymentRequest): Promise<DeploymentRecord> {
-    if (request.deploymentMode !== "sandbox") {
-      throw new EngineSandboxOnlyError(`Only sandbox deployment mode is supported, got: ${request.deploymentMode}`, {
-        code: "ACS_ENGINE_SANDBOX_ONLY",
-        details: { deploymentMode: request.deploymentMode },
-      });
-    }
-
     if (this.#deploymentService) {
       return this.#deploymentService.deploy(request);
     }
@@ -1712,15 +1711,28 @@ export class ProductApiClient {
     return [];
   }
 
-  async startRuntime(request: StartRuntimeServiceRequest): Promise<RuntimeInstanceRecord> {
-    const mode = request.deploymentMode ?? "sandbox";
-    if (mode !== "sandbox") {
-      throw new EngineSandboxOnlyError(`Only sandbox runtime execution is supported, got: ${mode}`, {
-        code: "ACS_ENGINE_SANDBOX_ONLY",
-        details: { deploymentMode: mode },
-      });
-    }
+  async evaluateProductionDeployment(input: {
+    readonly agentId: string;
+    readonly revision: number;
+    readonly targetId: string;
+    readonly governance: ProductionGovernanceEvidence;
+  }): Promise<ProductionReadinessDecision> {
+    if (!this.#deploymentService) throw new Error("DeploymentService not configured");
+    return this.#deploymentService.evaluateProductionReadiness(input);
+  }
 
+  async rollbackDeployment(input: {
+    readonly deploymentId: string;
+    readonly expectedRecordRevision: number;
+    readonly productionGovernance: ProductionGovernanceEvidence;
+    readonly actor?: string;
+    readonly correlationId?: string;
+  }): Promise<DeploymentRecord> {
+    if (!this.#deploymentService) throw new Error("DeploymentService not configured");
+    return this.#deploymentService.rollback(input);
+  }
+
+  async startRuntime(request: StartRuntimeServiceRequest): Promise<RuntimeInstanceRecord> {
     if (this.#runtimeService) {
       return this.#runtimeService.start(request);
     }
@@ -2095,7 +2107,7 @@ export class ProductApiClient {
   }
 
   async getDeploymentSummary(deploymentId: string): Promise<DeploymentSummary | undefined> {
-    const deployment = this.#deploymentService?.getDeployment(deploymentId);
+    const deployment = await this.#deploymentService?.inspectDeployment(deploymentId);
     return deployment ? this.#deploymentRecordSummary(deployment) : undefined;
   }
 
@@ -2511,13 +2523,21 @@ export class ProductApiClient {
       revisionId: deployment.revision,
       status: deployment.status,
       target: deployment.targetId,
-      engine: "openclaw",
-      active: deployment.status === "deployed",
+      engine: deployment.deploymentMode === "live" ? "acs-production-target" : "openclaw",
+      active: deployment.status === "deployed" || deployment.status === "active",
+      deploymentMode: deployment.deploymentMode,
+      recordRevision: deployment.recordRevision,
       createdAt: deployment.createdAt,
-      updatedAt: deployment.createdAt,
-      errors: deployment.status === "failed" ? ["deployment failed"] : [],
-      availableActions: [],
+      updatedAt: deployment.updatedAt,
+      errors: ["failed", "rollback_failed"].includes(deployment.status) ? [deployment.reasonCode ?? "deployment failed"] : [],
+      availableActions: deployment.deploymentMode === "live" && ["active", "degraded", "failed", "rollback_failed"].includes(deployment.status) && deployment.predecessorDeploymentId
+        ? [{ action: "rollback", label: "Rollback", available: true, requiresConfirmation: true, destructive: true }]
+        : [],
       guardrails: OPERATIONAL_GUARDRAILS,
+      ...(deployment.health ? { health: deployment.health } : {}),
+      ...(deployment.predecessorDeploymentId ? { predecessorDeploymentId: deployment.predecessorDeploymentId } : {}),
+      ...(deployment.evidence?.productionReadiness ? { readinessDecisionId: deployment.evidence.productionReadiness.decisionId } : {}),
+      ...(deployment.reasonCode ? { reasonCode: deployment.reasonCode } : {}),
       ...(deployment.reservationId ? { lastOperation: "reserved" } : {}),
     };
   }

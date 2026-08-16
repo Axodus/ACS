@@ -22,7 +22,7 @@ export interface RuntimeStartWorkload {
   readonly type: "runtime.start";
   readonly deploymentId: string;
   readonly agentId?: string;
-  readonly deploymentMode: "sandbox";
+  readonly deploymentMode: "sandbox" | "staged" | "live";
   readonly targetId: string;
 }
 
@@ -1118,6 +1118,9 @@ export class DurableRuntimeCoordinator {
     readonly deploymentId: string;
     readonly agentId?: string;
     readonly targetId: string;
+    readonly deploymentMode?: "sandbox" | "staged" | "live";
+    readonly engineId?: string;
+    readonly isolationMode?: string;
     readonly correlationId: string;
     readonly idempotencyKey?: string;
     readonly maxAttempts?: number;
@@ -1130,13 +1133,13 @@ export class DurableRuntimeCoordinator {
         type: "runtime.start",
         deploymentId: input.deploymentId,
         ...(input.agentId ? { agentId: input.agentId } : {}),
-        deploymentMode: "sandbox",
+        deploymentMode: input.deploymentMode ?? "sandbox",
         targetId: input.targetId,
       },
       requirements: {
-        engineId: "openclaw",
-        requiredIsolationMode: "sandbox",
-        requiredDeploymentMode: "sandbox",
+        engineId: input.engineId ?? "openclaw",
+        requiredIsolationMode: input.isolationMode ?? (input.deploymentMode === "live" ? "tenant-scoped" : "sandbox"),
+        requiredDeploymentMode: input.deploymentMode ?? "sandbox",
         targetId: input.targetId,
       },
       correlationId: input.correlationId,

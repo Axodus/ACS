@@ -166,6 +166,8 @@ B and C may run in parallel after their decision gates, but no public mutation s
 
 ### Milestone G — Production Deployment Readiness & Governance Gate
 
+**Current status:** PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS on 2026-08-16. G01 established durable target/deployment contracts; G02 replaced the blanket sandbox-only decision with explicit aggregate readiness and Tenant governance; G03 proved live deployment, health degradation and rollback for `PRODUCTION_LIKE_SINGLE_HOST`. H owns live managed-provider, shared multi-host and final-system certification.
+
 - approved production target adapter;
 - target readiness, rollout and rollback;
 - production policy replaces sandbox-only only when prerequisites pass;

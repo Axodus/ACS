@@ -9,6 +9,7 @@ export type GovernedAction =
   | "agent.create"
   | "agent.configure"
   | "deployment.create"
+  | "deployment.production"
   | "deployment.start"
   | "tool.install"
   | "plugin.install"
@@ -270,6 +271,7 @@ const GOVERNED_ACTIONS = new Set<GovernedAction>([
   "agent.create",
   "agent.configure",
   "deployment.create",
+  "deployment.production",
   "deployment.start",
   "tool.install",
   "plugin.install",

@@ -281,6 +281,8 @@ export async function createAcsHttpServer(options: ControlPlaneContextOptions = 
   const context = createControlPlaneContext({
     ...options,
     useDurableAdministrativeState: options.useDurableAdministrativeState ?? true,
+    useDurableAgentState: options.useDurableAgentState ?? true,
+    useDurableDeploymentState: options.useDurableDeploymentState ?? true,
     useDurableSecretCatalog: options.useDurableSecretCatalog ?? true,
     useDurableEconomicState: options.useDurableEconomicState ?? true,
     useDurableRateLimitStore: options.useDurableRateLimitStore ?? true,

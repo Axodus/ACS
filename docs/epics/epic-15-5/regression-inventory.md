@@ -1,6 +1,6 @@
 # EPIC-15.5 Regression Inventory
 
-**Updated:** 2026-08-16 for AEES-F.
+**Updated:** 2026-08-16 for AEES-G.
 
 | Coverage | Suites/evidence | Latest result |
 | --- | --- | --- |
@@ -21,6 +21,9 @@
 | Control Plane hardening/current projections | `s28` | PASS against current temporary emit |
 | F01/F02 contracts | `s55` | PASS against current temporary emit |
 | F03 browser | AEES-F manifest | 56/56 route-viewports; journeys A–G PASS |
+| G01/G02/G03 | `s56-epic-15-5-production-deployment-gate.test.mjs` | durable revisions, aggregate denials/allows, health, degradation and rollback |
+| G UX | standalone typecheck/build plus `aees-g-production-deployment-ux.test.mjs` | backend-authoritative decision, confirmation and rollback wiring |
+| G browser regression | AEES-G browser manifest | four-viewports AEES-F route matrix with the production gate present |
 
 ## AEES-F validation commands
 

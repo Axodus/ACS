@@ -2118,7 +2118,7 @@ export type DeploymentSummary = {
   deploymentId: string;
   agentId: string;
   revisionId: number;
-  status: "deployed" | "failed" | "rejected" | "pending" | "stopped";
+  status: "pending" | "validating" | "deploying" | "deployed" | "active" | "degraded" | "failed" | "rejected" | "rolling_back" | "rolled_back" | "rollback_failed" | "stopped";
   target: string;
   engine: string;
   workerId?: string;
@@ -2130,6 +2130,34 @@ export type DeploymentSummary = {
   errors: string[];
   availableActions: OperationActionView[];
   guardrails: ProductApiOperationalGuardrails;
+  deploymentMode?: "sandbox" | "staged" | "live";
+  health?: "unknown" | "ready" | "degraded" | "unhealthy";
+  recordRevision?: number;
+  predecessorDeploymentId?: string;
+  productionReadinessDecisionId?: string;
+  reasonCode?: string;
+};
+
+export type ProductionReadinessCheck = {
+  code: string;
+  category: string;
+  requirement: "HARD_BLOCKER" | "REQUIRED" | "DEGRADED_ALLOWED" | "INFORMATIONAL";
+  status: "PASS" | "BLOCKED" | "DEGRADED" | "INFORMATIONAL";
+  reason: string;
+  requiredAction?: string;
+};
+
+export type ProductionReadinessDecision = {
+  decisionId: string;
+  allowed: boolean;
+  level: "BLOCKED" | "PRODUCTION_LIKE_SINGLE_HOST";
+  topology: "PRODUCTION_LIKE_SINGLE_HOST";
+  targetId: string;
+  checkedAt: number;
+  expiresAt: number;
+  checks: ProductionReadinessCheck[];
+  blockers: ProductionReadinessCheck[];
+  degradations: ProductionReadinessCheck[];
 };
 
 export type RuntimeSummary = {
@@ -2379,6 +2407,9 @@ export const productApi = {
   },
   async getAgentDeploymentPlan(agentId: string) {
     return request<DeploymentPlan>(`/agents/${agentId}/deployment-plan`);
+  },
+  async getProductionDeploymentReadiness(agentId: string, targetId: string) {
+    return request<ProductionReadinessDecision>(`/agents/${agentId}/production-readiness?targetId=${encodeURIComponent(targetId)}`);
   },
   async getAgentExecutionPlan(agentId: string) {
     return request<ExecutionPlan>(`/agents/${agentId}/execution-plan`);
@@ -2653,13 +2684,20 @@ export const productApi = {
     return request<ModelSummary[]>("/models");
   },
 
-  async deployAgent(agentId: string, data: { revision: number; composition: Record<string, unknown>; targetId: string }) {
+  async deployAgent(agentId: string, data: { revision: number; composition: Record<string, unknown>; targetId: string; mode?: "sandbox" | "live" }) {
     return request<unknown>(`/agents/${agentId}/deploy`, {
       method: "POST",
       body: JSON.stringify({
         ...data,
-        mode: "sandbox",
+        mode: data.mode ?? "sandbox",
       }),
+    });
+  },
+
+  async rollbackDeployment(deploymentId: string, expectedRecordRevision?: number) {
+    return request<DeploymentSummary>(`/deployments/${deploymentId}/rollback`, {
+      method: "POST",
+      body: JSON.stringify({ expectedRecordRevision }),
     });
   },
 

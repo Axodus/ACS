@@ -1,8 +1,8 @@
 # EPIC-15.5 — ACS Operational Readiness & Gap Elimination
 
-**Status:** AEES-F / Milestone F **PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS** on 2026-08-16; Milestone B residual work remains open
+**Status:** AEES-G / Milestone G **PASS WITH TOPOLOGY AND ENVIRONMENT CAVEATS** on 2026-08-16; Milestone H final acceptance remains open
 
-**Readiness conclusion:** ACS is **Operational Ready for the certified multi-process single-host sandbox topology**, **PARTIAL globally**, and **not Production Ready**.
+**Readiness conclusion:** ACS is **Operational Ready for the certified topology** and **Production Ready for `PRODUCTION_LIKE_SINGLE_HOST`**, while both remain **PARTIAL globally** pending H multi-host/live-provider certification.
 
 ## Mission
 
@@ -90,6 +90,10 @@ AEES-E added structured HTTP/runtime/worker logs, low-cardinality metrics, distr
 AEES-F connects the existing Product API, Tenant Administration, Agent composition, write-only secret references, readiness/deploy, durable runtime and E02 diagnostics into one supported operator journey. The main shell exposes Agents, Executions, Workers, System/Operations, secret references and Tenant Administration. The Tenant application remains a separate build but is securely federated through reciprocal navigation and one trusted bearer/session boundary; browser-controlled actor/platform selection was removed.
 
 The browser acceptance certified 14 real routes at four normative viewports: 56/56 route-viewports, 56 accessibility checks, zero horizontal overflow, zero page errors and zero console errors. Journeys A–G created/configured an Agent, wrote a secret reference without read-back, deployed to sandbox, executed through independent workers, observed crash/reassignment, diagnosed failure/capacity, administered a Tenant and proved coherent authorization denial. See [browser-acceptance.md](./browser-acceptance.md) and [milestones/AEES-F-end-to-end-operational-ux-certification.md](./milestones/AEES-F-end-to-end-operational-ux-certification.md).
+
+## AEES-G outcome
+
+AEES-G replaces the deliberate blanket sandbox-only deployment rule with a stronger production gate. Agent/deployment records are durable and revision-safe; the backend evaluates identity, edge, secrets, persistence, economics, remote runtime/recovery, worker capacity, external telemetry, target capability and explicit Tenant governance. A production-like single-host target proves health-gated live deployment, degradation and idempotent rollback. No global multi-host/cloud claim is made. See [milestones/AEES-G-production-deployment-readiness-governance-gate.md](./milestones/AEES-G-production-deployment-readiness-governance-gate.md).
 
 `ACS-ORG-014`, `015`, `016`, `017`, `022`, `023` and `024` are **RESOLVED** within the supported boundary. `ACS-ORG-018` and `021` are **PARTIALLY_RESOLVED** because infrastructure remediation/bootstrap remains external. Production deployment is still sandbox-gated; global Operational Readiness remains partial and Production Readiness remains blocked by G/H and residual shared-state/live-topology evidence.
 

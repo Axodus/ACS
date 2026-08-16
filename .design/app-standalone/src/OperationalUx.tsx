@@ -315,16 +315,19 @@ export function CredentialsPage() {
 }
 
 export function AgentOperationsPanel({ agentId, revision, composition }: { agentId: string; revision: number; composition: Record<string, unknown> }) {
+  const productionTargetId = "production-single-host";
   const loader = useCallback(async () => {
-    const [readiness, deploymentPlan, deployments, runtimes] = await Promise.all([
+    const [readiness, deploymentPlan, productionReadiness, deployments, runtimes] = await Promise.all([
       productApi.getAgentReadiness(agentId),
       productApi.getAgentDeploymentPlan(agentId),
+      productApi.getProductionDeploymentReadiness(agentId, productionTargetId),
       productApi.listDeployments(),
       productApi.listRuntimes(),
     ]);
     return {
       readiness,
       deploymentPlan,
+      productionReadiness,
       deployments: deployments.filter(item => item.agentId === agentId),
       runtimes: runtimes.filter(item => item.agentId === agentId),
     };
@@ -333,7 +336,7 @@ export function AgentOperationsPanel({ agentId, revision, composition }: { agent
   const [busy, setBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const data = resource.data;
-  const activeDeployment = [...(data?.deployments ?? [])].reverse().find(item => item.status === "deployed");
+  const activeDeployment = [...(data?.deployments ?? [])].reverse().find(item => item.status === "deployed" || item.status === "active" || item.status === "degraded");
   const activeRuntime = [...(data?.runtimes ?? [])].reverse().find(item => item.status === "running" || item.status === "starting" || item.status === "pending");
 
   const mutate = async (label: string, action: () => Promise<unknown>) => {
@@ -356,12 +359,23 @@ export function AgentOperationsPanel({ agentId, revision, composition }: { agent
       <div className="ops-summary-grid">
         <article className="ops-card"><span>Readiness</span><strong>{data.readiness.status}</strong><small>{data.readiness.blockers.length} blockers</small></article>
         <article className="ops-card"><span>Sandbox plan</span><strong>{data.deploymentPlan.eligible ? "eligible" : "blocked"}</strong><small>{data.deploymentPlan.target}</small></article>
+        <article className="ops-card"><span>Production gate</span><strong>{data.productionReadiness.allowed ? "allowed" : "blocked"}</strong><small>{data.productionReadiness.level} · {data.productionReadiness.blockers.length} blockers</small></article>
         <article className="ops-card"><span>Deployment</span><strong>{activeDeployment?.status ?? "not deployed"}</strong><small>{shortId(activeDeployment?.deploymentId)}</small></article>
         <article className="ops-card"><span>Runtime</span><strong>{activeRuntime?.status ?? "not running"}</strong><small>{shortId(activeRuntime?.runtimeId)}</small></article>
       </div>
       {data.readiness.blockers.length > 0 && <div className="ops-state error">{data.readiness.blockers.map(item => item.message).join(" ")}</div>}
+      {!data.productionReadiness.allowed && <div className="ops-state error" data-testid="production-readiness-blockers"><b>Production deployment is blocked.</b> {data.productionReadiness.blockers.map(item => `${item.code}: ${item.requiredAction ?? item.reason}`).join(" ")}</div>}
       <div className="ops-actions">
         <button type="button" className="secondary" disabled={!data.deploymentPlan.eligible || busy !== null} onClick={() => void mutate("Sandbox deployment", () => productApi.deployAgent(agentId, { revision, composition, targetId: data.deploymentPlan.target }))}>Deploy sandbox</button>
+        <button type="button" className="danger" disabled={!data.productionReadiness.allowed || busy !== null} onClick={() => {
+          const confirmed = window.confirm(`Deploy Agent revision ${revision} to production target ${productionTargetId}? Readiness decision ${data.productionReadiness.decisionId} will be re-evaluated by the server.`);
+          if (confirmed) void mutate("Production deployment", () => productApi.deployAgent(agentId, { revision, composition, targetId: productionTargetId, mode: "live" }));
+        }}>Deploy production</button>
+        <button type="button" className="danger" disabled={!activeDeployment || activeDeployment.deploymentMode !== "live" || activeDeployment.status !== "degraded" || busy !== null} onClick={() => {
+          if (!activeDeployment) return;
+          const confirmed = window.confirm(`Rollback deployment ${activeDeployment.deploymentId} to its recorded predecessor?`);
+          if (confirmed) void mutate("Production rollback", () => productApi.rollbackDeployment(activeDeployment.deploymentId, activeDeployment.recordRevision));
+        }}>Rollback production</button>
         <button type="button" className="secondary" disabled={!activeDeployment || Boolean(activeRuntime) || busy !== null} onClick={() => {
           if (!activeDeployment) return;
           const runtimeId = `runtime-${agentId}-${Date.now().toString(36)}`;

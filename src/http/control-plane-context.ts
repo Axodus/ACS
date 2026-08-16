@@ -4,10 +4,14 @@ import type { AgentEngine } from "../engines/agent-engine.js";
 import { EngineRegistry } from "../engines/engine-registry.js";
 import { EngineService } from "../engines/engine-service.js";
 import { createOpenClawEngineFromManifest } from "../engines/openclaw-bootstrap.js";
+import { HttpProductionTargetEngine } from "../engines/http-production-target-engine.js";
 import { ExecutionTargetService } from "../targets/execution-target-service.js";
-import { AgentService } from "../control-plane/agent-service.js";
+import { AgentService, type AgentRepository } from "../control-plane/agent-service.js";
+import { SqliteAgentRepository } from "../control-plane/durable-agent-state.js";
 import { CompositionResourceService } from "../control-plane/composition-resources.js";
-import { DeploymentService } from "../control-plane/deployment-service.js";
+import { DeploymentService, type DeploymentRepository } from "../control-plane/deployment-service.js";
+import { SqliteDeploymentRepository } from "../control-plane/durable-deployment-state.js";
+import { ProductionDeploymentReadinessEvaluator } from "../control-plane/production-deployment-readiness.js";
 import { RuntimeLifecycleService } from "../control-plane/runtime-lifecycle-service.js";
 import { AuditService } from "../control-plane/audit-service.js";
 import { DurableAdministrativeState } from "../control-plane/durable-administrative-state.js";
@@ -142,6 +146,7 @@ export interface ControlPlaneContext {
   readonly edgePolicy: HttpEdgePolicy;
   readonly telemetry: OperationalTelemetryProvider;
   readonly operationalDiagnostics: OperationalDiagnosticsService;
+  readonly productionDeploymentReadiness: ProductionDeploymentReadinessEvaluator;
   readonly isolation: ControlPlaneIsolation;
   readonly administrativeState: {
     readonly mode: "memory" | "filesystem";
@@ -168,6 +173,19 @@ export interface ControlPlaneContext {
       readonly adapter: string;
       readonly external: boolean;
       readonly productionOriented: boolean;
+    };
+    readonly agentState: {
+      readonly adapter: string;
+      readonly productionOriented: boolean;
+      readonly multiInstance: string;
+      readonly multiHost: string;
+    };
+    readonly deploymentState: DeploymentRepository["descriptor"];
+    readonly deploymentTarget: {
+      readonly adapter: string;
+      readonly productionOriented: boolean;
+      readonly topology: "production_like_single_host" | "development_local";
+      readonly multiHost: "not_proven" | "not_applicable";
     };
   };
   close(): Promise<void>;
@@ -199,6 +217,10 @@ const DEV_BILLING_POLICY: BillingPolicy = {
 export interface ControlPlaneContextOptions {
   readonly acsRoot?: string;
   readonly engine?: AgentEngine;
+  readonly deploymentEngine?: "openclaw" | "production-http";
+  readonly productionTargetUrl?: string;
+  readonly productionTargetToken?: string;
+  readonly productionTargetTimeoutMs?: number;
   readonly runtimeRoot?: string;
   readonly stateRoot?: string;
   readonly configRoot?: string;
@@ -223,6 +245,12 @@ export interface ControlPlaneContextOptions {
   readonly workerTokenSigningKey?: string;
   readonly useDurableAdministrativeState?: boolean;
   readonly administrativeStatePath?: string;
+  readonly agentRepository?: AgentRepository;
+  readonly useDurableAgentState?: boolean;
+  readonly agentStatePath?: string;
+  readonly deploymentRepository?: DeploymentRepository;
+  readonly useDurableDeploymentState?: boolean;
+  readonly deploymentStatePath?: string;
   readonly adapterProfile?: "development" | "production";
   readonly secretProvider?: "memory" | "vault";
   readonly secretStore?: SecretStore;
@@ -313,22 +341,32 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     }),
     roots,
   };
+  const adapterProfile = options.adapterProfile
+    ?? (process.env.ACS_ENVIRONMENT === "production" ? "production" : "development");
+  const deploymentEngine = options.deploymentEngine ?? process.env.ACS_DEPLOYMENT_ENGINE ?? "openclaw";
+  if (deploymentEngine !== "openclaw" && deploymentEngine !== "production-http") {
+    throw new Error("ACS_DEPLOYMENT_ENGINE must be openclaw or production-http");
+  }
   const engineRegistry = new EngineRegistry();
-  const engine = options.engine ?? createOpenClawEngineFromManifest({
-    acsRoot: defaultRoots.acsRoot,
-    runtimeRoot: roots.runtimeRoot,
-    stateRoot: roots.stateRoot,
-    configRoot: roots.configRoot,
-    artifactsRoot: roots.artifactsRoot,
-    workspaceRoot: roots.workspaceRoot,
-    ...(options.pythonCommand !== undefined ? { pythonCommand: options.pythonCommand } : {}),
-    ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
-  });
+  const engine = options.engine ?? (deploymentEngine === "production-http"
+    ? new HttpProductionTargetEngine({
+        baseUrl: options.productionTargetUrl ?? process.env.ACS_PRODUCTION_TARGET_URL ?? "",
+        token: options.productionTargetToken ?? process.env.ACS_PRODUCTION_TARGET_TOKEN ?? "",
+        requestTimeoutMs: options.productionTargetTimeoutMs ?? readPositiveEnvironmentInteger("ACS_PRODUCTION_TARGET_TIMEOUT_MS"),
+      })
+    : createOpenClawEngineFromManifest({
+        acsRoot: defaultRoots.acsRoot,
+        runtimeRoot: roots.runtimeRoot,
+        stateRoot: roots.stateRoot,
+        configRoot: roots.configRoot,
+        artifactsRoot: roots.artifactsRoot,
+        workspaceRoot: roots.workspaceRoot,
+        ...(options.pythonCommand !== undefined ? { pythonCommand: options.pythonCommand } : {}),
+        ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+      }));
   engineRegistry.register(engine);
 
   const targetService = new ExecutionTargetService(engineRegistry);
-  const adapterProfile = options.adapterProfile
-    ?? (process.env.ACS_ENVIRONMENT === "production" ? "production" : "development");
   const telemetry = options.telemetry ?? createOperationalTelemetryFromEnvironment({
     environment: options.telemetryEnvironment ?? process.env,
     serviceName: options.telemetryServiceName ?? "acs-control-plane",
@@ -608,7 +646,19 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     }).tenant;
   }
 
+  const useDurableAgentState = options.useDurableAgentState === true
+    || options.agentStatePath !== undefined
+    || process.env.ACS_AGENT_STORE === "sqlite"
+    || adapterProfile === "production";
+  const agentStatePath = options.agentStatePath
+    ?? process.env.ACS_AGENT_DATABASE_PATH
+    ?? join(roots.stateRoot, "control-plane", "agent-state.sqlite");
+  const sqliteAgentRepository = !options.agentRepository && useDurableAgentState
+    ? new SqliteAgentRepository({ filePath: agentStatePath })
+    : undefined;
+  const agentRepository = options.agentRepository ?? sqliteAgentRepository;
   const agentService = new AgentService({
+    ...(agentRepository ? { repository: agentRepository } : {}),
     providers: modelProviderRegistry,
     credentials,
     runners: runnerRegistry,
@@ -627,7 +677,9 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     runnerPreferences: [],
     modelStrategy: { primary: { providerId: "axodus", modelId: "axodus-multi" }, fallbacks: [] },
   };
-  agentService.create({ definition: devAgentDefinition, createdAt: Date.now() });
+  if (!agentService.list().some((agent) => agent.agentId === devAgentDefinition.agentId)) {
+    agentService.create({ definition: devAgentDefinition, createdAt: Date.now() });
+  }
 
   const useDurableEconomicState = options.useDurableEconomicState === true
     || options.economicStatePath !== undefined
@@ -687,15 +739,6 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     runners: runnerRegistry,
     engines: engineRegistry,
   });
-  const deploymentService = new DeploymentService({
-    engine,
-    targetService,
-    economicService,
-    agentService,
-    resolver: planResolver,
-    auditService,
-    scope: isolation.scope,
-  });
   const configuredRuntimeMode = options.runtimeMode ?? process.env.ACS_DISPATCH_MODE;
   if (configuredRuntimeMode !== undefined && configuredRuntimeMode !== "local" && configuredRuntimeMode !== "remote") {
     throw new WorkerIdentityConfigurationError("ACS_DISPATCH_MODE must be local or remote");
@@ -753,6 +796,56 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       })
     : null;
   runtimeRecoveryCoordinator?.start();
+  const useDurableDeploymentState = options.useDurableDeploymentState === true
+    || options.deploymentStatePath !== undefined
+    || process.env.ACS_DEPLOYMENT_STORE === "sqlite"
+    || adapterProfile === "production";
+  const deploymentStatePath = options.deploymentStatePath
+    ?? process.env.ACS_DEPLOYMENT_DATABASE_PATH
+    ?? join(roots.stateRoot, "control-plane", "deployment-state.sqlite");
+  const sqliteDeploymentRepository = !options.deploymentRepository && useDurableDeploymentState
+    ? new SqliteDeploymentRepository({ filePath: deploymentStatePath })
+    : undefined;
+  const deploymentRepository = options.deploymentRepository ?? sqliteDeploymentRepository;
+  const productionDeploymentReadiness = new ProductionDeploymentReadinessEvaluator({
+    targetService,
+    engineId: engine.identity.id,
+    identityValidator,
+    edgePolicy,
+    secretStore,
+    economicStore: economicStateStore,
+    settlementProvider,
+    runtimeCoordinator,
+    recoveryCoordinator: runtimeRecoveryCoordinator,
+    workerIdentityValidator,
+    telemetry,
+    adapterProfile,
+    administrativeStateHealth: () => {
+      const health = durableAdministrativeState?.health();
+      return {
+        configured: Boolean(durableAdministrativeState),
+        reachable: health?.reachable ?? false,
+        durable: Boolean(durableAdministrativeState),
+      };
+    },
+    agentStateHealth: () => sqliteAgentRepository?.health()
+      ?? (options.agentRepository && "health" in options.agentRepository && typeof options.agentRepository.health === "function"
+        ? (options.agentRepository.health as () => { configured: boolean; reachable: boolean; productionOriented: boolean; adapter: string })()
+        : { configured: Boolean(agentRepository), reachable: Boolean(agentRepository), productionOriented: false, adapter: "in-memory-agent-state" }),
+    deploymentStateHealth: () => deploymentRepository?.health()
+      ?? { configured: false, reachable: false, productionOriented: false, adapter: "in-memory-deployment-state" },
+  });
+  const deploymentService = new DeploymentService({
+    engine,
+    targetService,
+    economicService,
+    agentService,
+    resolver: planResolver,
+    auditService,
+    scope: isolation.scope,
+    ...(deploymentRepository ? { repository: deploymentRepository } : {}),
+    productionReadinessEvaluator: productionDeploymentReadiness,
+  });
   const runtimeService = new RuntimeLifecycleService({
     engine,
     deploymentLookup: (deploymentId) => deploymentService.getDeployment(deploymentId),
@@ -839,6 +932,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     edgePolicy,
     telemetry,
     operationalDiagnostics,
+    productionDeploymentReadiness,
     isolation,
     administrativeState: durableAdministrativeState
       ? {
@@ -880,6 +974,28 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
         external: telemetry.descriptor.external,
         productionOriented: telemetry.descriptor.productionGrade,
       },
+      agentState: sqliteAgentRepository
+        ? {
+            adapter: sqliteAgentRepository.descriptor.adapter,
+            productionOriented: sqliteAgentRepository.descriptor.productionOriented,
+            multiInstance: sqliteAgentRepository.descriptor.multiInstance,
+            multiHost: sqliteAgentRepository.descriptor.multiHost,
+          }
+        : {
+            adapter: "in-memory-agent-state",
+            productionOriented: false,
+            multiInstance: "not_applicable",
+            multiHost: "not_applicable",
+          },
+      deploymentState: deploymentService.descriptor,
+      deploymentTarget: engine instanceof HttpProductionTargetEngine
+        ? engine.descriptor
+        : {
+            adapter: "openclaw-local-target",
+            productionOriented: false,
+            topology: "development_local",
+            multiHost: "not_applicable",
+          },
     },
     async close(): Promise<void> {
       runtimeRecoveryCoordinator?.stop();
@@ -892,6 +1008,8 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       sqliteSecretCatalog?.close();
       rateLimiter.close?.();
       runtimeCoordinator?.close();
+      deploymentService.close();
+      sqliteAgentRepository?.close();
       await telemetry.close();
     },
   };

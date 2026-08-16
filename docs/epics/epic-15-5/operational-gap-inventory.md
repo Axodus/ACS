@@ -22,12 +22,12 @@ Findings use a primary area plus affected areas from this controlled set:
 
 | ID | Primary area | Finding | Severity | Milestone | Status |
 | --- | --- | --- | --- | --- | --- |
-| ACS-ORG-001 | PERSISTENCE | Active authoritative Control Plane state is process-local | BLOCKER | B/D | PARTIALLY_RESOLVED — runtime subset resolved by AEES-D |
+| ACS-ORG-001 | PERSISTENCE | Active authoritative Control Plane state is process-local | BLOCKER | B/D/G | PARTIALLY_RESOLVED — runtime plus Agent/deployment subsets durable |
 | ACS-ORG-002 | SECURITY | No production-grade secret adapter is available or active | BLOCKER | B | PARTIALLY_RESOLVED — B02 |
 | ACS-ORG-003 | IDENTITY | HTTP actor and platform authority are forgeable by the caller | BLOCKER | C | RESOLVED — C01 |
 | ACS-ORG-004 | DISTRIBUTED_EXECUTION | Operational execution uses a same-process local worker, not remote dispatch | BLOCKER | D | RESOLVED — AEES-D |
 | ACS-ORG-005 | RECOVERY | Runtime jobs, assignments and leases lack durable recovery semantics | BLOCKER | D | RESOLVED — AEES-D |
-| ACS-ORG-006 | DEPLOYMENT | Production deployment is blocked by a deliberate sandbox-only gate | BLOCKER | G | OPEN — VERIFIED |
+| ACS-ORG-006 | DEPLOYMENT | Production deployment is blocked by a deliberate sandbox-only gate | BLOCKER | G | RESOLVED — governed certified topology |
 | ACS-ORG-007 | ECONOMICS | Economic settlement and records use an in-memory provider and maps | BLOCKER | B | PARTIALLY_RESOLVED — B02 |
 | ACS-ORG-008 | PRODUCT_API | Real HTTP rejects Product API `PUT` and `DELETE` administration routes | BLOCKER | B | RESOLVED — B01 |
 | ACS-ORG-009 | OBSERVABILITY | Administrative and operational audit history is process-local | CRITICAL | B | PARTIALLY_RESOLVED — B01 |
@@ -109,14 +109,14 @@ Findings use a primary area plus affected areas from this controlled set:
 ### ACS-ORG-006 — Production deployment is blocked by a deliberate sandbox-only gate
 
 - **Area:** DEPLOYMENT; affects GOVERNANCE, RUNTIME.
-- **Severity / status:** **BLOCKER**, OPEN — VERIFIED; the gate itself is an intentional safety control.
+- **Severity / status:** **BLOCKER**, **RESOLVED for `PRODUCTION_LIKE_SINGLE_HOST` by AEES-G**; global multi-host certification remains H scope.
 - **Evidence:** `src/control-plane/deployment-service.ts`; `src/control-plane/runtime-lifecycle-service.ts`; `src/engines/openclaw-engine-adapter.ts:96-136`; `src/http/routes/product-api-routes.ts:1609-1613,1839-1845`; local worker capabilities only include `sandbox`.
-- **Current behavior:** non-sandbox deploy and runtime modes are rejected by governance, application service, engine adapter and worker capability checks.
+- **Current behavior after AEES-G:** sandbox remains supported by the sandbox adapter. `live` deployment is accepted only for an explicitly production-eligible target after a server-owned aggregate check and an explicit matched `deployment.production` governance allow. The decision is re-evaluated immediately before mutation and persisted with the durable deployment record.
 - **Operational impact:** no supported staged/live target can be selected, deployed, observed, rolled back or recovered.
 - **Root cause:** production prerequisites are knowingly absent; multiple layers enforce the safe default.
 - **Required target state:** keep fail-closed semantics and add an evidence-backed production target only after durable state, managed secrets, trusted identity, remote workers, external diagnostics, economic reconciliation and rollback/recovery are certified.
-- **Dependencies / milestone:** B–F are prerequisites; Milestone G.
-- **Acceptance evidence:** signed readiness gate, target health, deploy/rollback proof, restart/recovery, audit and operator browser journey. Removing a string guard alone is not acceptance.
+- **AEES-G evidence:** `src/control-plane/production-deployment-readiness.ts`, durable Agent/deployment repositories, authenticated HTTP production target, Product API readiness/deploy/rollback routes and `tests/s56-epic-15-5-production-deployment-gate.test.mjs`. Revision A/B deploy, health degradation and idempotent B→A rollback are proved with audit/OTLP correlation and zero secret leakage.
+- **Residual caveat:** the certified target is production-like single-host. Live managed providers, shared multi-host persistence/network topology and full-system closure remain H; this limits global readiness but does not reinstate the blanket sandbox gate.
 
 ### ACS-ORG-007 — Economic settlement and records use an in-memory provider and maps
 

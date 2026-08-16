@@ -4,7 +4,7 @@
 
 **Source revision:** `ed46412` plus B01/B02/C01/C02/AEES-D/AEES-E and AEES-F working-tree evidence
 
-**Overall classification:** **Development Ready / Integration Ready / Operational Ready PARTIAL (READY FOR CERTIFIED TOPOLOGY) / Production Ready BLOCKED**
+**Overall classification:** **Development Ready / Integration Ready / Operational Ready for certified topology (PARTIAL globally) / Production Ready for `PRODUCTION_LIKE_SINGLE_HOST` (PARTIAL globally)**
 
 This baseline evaluates the active composition, not only interfaces or milestone acceptance. `NOT PROVEN` is used when architecture or tests exist but no operational evidence demonstrates the required topology.
 
@@ -19,7 +19,7 @@ This baseline evaluates the active composition, not only interfaces or milestone
 | Persistence | PARTIAL | Tenant Administration, audit, secret metadata/references, economics and runtime ownership survive restart. Runtime is shared by local processes; Agents/deployments and global multi-host state remain unproven. | ACS-ORG-001, 009, 019 |
 | Runtime | READY FOR CERTIFIED TOPOLOGY | Durable jobs, workers, assignments, leases, fencing, results, cancellation and automatic recovery pass restart/crash acceptance and are now operable/observable through the Control Plane. Multi-host infrastructure remains outside this bounded status. | ACS-ORG-019 |
 | Distributed execution | PARTIAL | Two independent Control Planes and two worker processes execute through authenticated HTTP pull and one durable authority. Multi-host/network-partition and workload-identity deployment are not proven. | ACS-ORG-019, 020 |
-| Deployment | BLOCKED | Sandbox deployment works; staged/live are intentionally rejected. | ACS-ORG-006 |
+| Deployment | READY FOR CERTIFIED TOPOLOGY | Sandbox remains supported; live deploy is allowed only through explicit Tenant governance, aggregate readiness, target health and rollback capability. | ACS-ORG-006 resolved in certified topology |
 | Observability | READY FOR CERTIFIED TOPOLOGY / PARTIAL GLOBALLY | Structured HTTP/runtime/worker logs, low-cardinality metrics, distributed spans, bounded OTLP export and operator diagnostics pass external-process acceptance. Multi-host collector/retention/alert topology remains unproven. | ACS-ORG-009, 019, 020 |
 | Economics | PARTIAL | Durable SQLite economic/settlement adapters, idempotency and reconciliation pass; shared/external provider and production financial policy remain unproven. | ACS-ORG-007, 019 |
 | Audit | PARTIAL | Canonical events and Tenant history now survive restart on the selected single-node store; replica sharing, retention/tamper controls and transactional outbox semantics remain unproven. | ACS-ORG-009 |
@@ -226,7 +226,7 @@ Criteria:
 - security, capacity and failure acceptance;
 - approved production adapter configuration with no DEV fallback.
 
-**Current status: BLOCKED.** Milestones G and H may certify it only after all prerequisites pass.
+**Current status: READY FOR `PRODUCTION_LIKE_SINGLE_HOST` / PARTIAL GLOBALLY.** AEES-G proves fail-closed denial, explicit governance allow, durable revision evidence, target health, live execution boundary, degradation and rollback. H must still certify live managed providers, shared multi-host state/network topology and the final full-system regression before any global claim.
 
 ## AEES-E acceptance evidence
 

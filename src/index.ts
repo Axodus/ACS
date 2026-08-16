@@ -30,6 +30,8 @@ export * from "./engines/openclaw-engine-adapter.js";
 export * from "./engines/engine-registry.js";
 export * from "./engines/engine-service.js";
 export * from "./engines/openclaw-bootstrap.js";
+export * from "./engines/http-production-target-engine.js";
+export * from "./engines/production-target-server.js";
 export * from "./targets/execution-target-registry.js";
 export * from "./targets/execution-target-service.js";
 export * from "./intelligence/model-provider.js";
@@ -72,6 +74,7 @@ export {
 } from "./control-plane/unified-agent-model.js";
 export * from "./control-plane/composition-resources.js";
 export * from "./control-plane/agent-service.js";
+export * from "./control-plane/durable-agent-state.js";
 export * from "./control-plane/neurons-economic-contract.js";
 export * from "./control-plane/durable-economic-state.js";
 export * from "./control-plane/tenant-membership.js";
@@ -116,6 +119,8 @@ export * from "./user-status.js";
 export * from "./workflows/index.js";
 
 export * from "./control-plane/deployment-service.js";
+export * from "./control-plane/durable-deployment-state.js";
+export * from "./control-plane/production-deployment-readiness.js";
 export * from "./control-plane/epic-10-readiness.js";
 export * from "./control-plane/environment-readiness.js";
 export * from "./control-plane/persistence-readiness.js";
