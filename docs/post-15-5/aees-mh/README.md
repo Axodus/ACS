@@ -65,3 +65,16 @@ Evidence:
 ```
 
 The bounded single-host certifications remain valid. `MH_DUAL_HOST_TOPOLOGY_UNAVAILABLE` is an `OPEN_BLOCKER` for the global claim.
+
+## Functional roadmap handoff
+
+The physical multi-host certification line is paused at commit `4006e6c` until
+independent hosts/VMs and controllable network failure domains are available.
+Functional roadmap work continues separately and must not reinterpret the MH03
+result.
+
+The planning-only handoff for EPIC-16/17 is recorded in
+[EPIC-16 / EPIC-17 Post-15.5 Boundary Review](../../epics/EPIC-16-17_Post-15.5_Boundary_Review.md).
+It records that no canonical EPIC-16/17 package exists in reachable repository
+history, classifies the residual product domains and keeps implementation
+unauthorized until a successor mission is explicitly approved.
