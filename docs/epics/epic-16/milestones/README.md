@@ -1,10 +1,28 @@
 # EPIC-16 Milestones
 
+## Pre-execution gate — E16-M1-S00
+
+Before functional work starts, execute [`E16-M1-S00 — Normative Execution Readiness`](./E16-M1-S00.md).
+
+**Nature:** documentation, repository discovery and execution preparation only.  
+**Product code changes:** forbidden.  
+**Exit:** `EPIC-16 EXECUTION READINESS: READY` and a bounded, evidence-backed handoff for E16-M1-S01.
+
+E16-M1-S01 is not authorized until S00 reaches `PASS`.
+
 ## E16-M1 — Financial Truth & Pricing Provenance
 
 **Stories:** S01, S02, S11 (read-only slice)
 
 Deliver canonical Tenant-scoped economic read models, effective pricing/quote provenance and truthful Dashboard integration.
+
+**Execution sequence after S00:**
+
+1. E16-M1-S01 — Economic Read-Model Contract
+2. E16-M1-S02 — Pricing Provenance
+3. E16-M1-S03 — Product API Exposure
+4. E16-M1-S04 — Dashboard Integration
+5. E16-M1-S05 — Acceptance and Milestone Closure
 
 **Exit:** no financial surface depends on inferred/fabricated values; API semantics distinguish unavailable, zero and not-applicable states.
 
@@ -50,6 +68,7 @@ Complete the financial operations workspace and certify browser/regression behav
 
 ## Sequencing rules
 
+- S00 precedes all EPIC-16 functional execution.
 - M1 precedes new operator mutations.
 - M2 precedes remediation that depends on financial authority.
 - M3 precedes M4 because reconciliation requires canonical usage/settlement semantics.

@@ -2,7 +2,7 @@
 
 ## Mission
 
-Plan implementation for **Production Financial Operations** against baseline `9005e3a2167d7984f8f129eea4987c3a73f59e1f`.
+Plan implementation for **Production Financial Operations** against normative package baseline `f5ee24c4a80f9435f39716838b3bb001f1b1bd83` and preserve Dashboard/UX baseline `9005e3a2167d7984f8f129eea4987c3a73f59e1f`.
 
 ## Mandatory constraints
 
@@ -12,11 +12,32 @@ Plan implementation for **Production Financial Operations** against baseline `90
 4. Preserve the `9005e3a` Dashboard/UX baseline and truthful no-fake-data behavior.
 5. Keep MH03/global HA outside EPIC-16.
 
-## First implementation target
+## Mandatory pre-execution sprint
+
+Before any EPIC-16 product implementation, execute:
+
+**`E16-M1-S00 — Normative Execution Readiness`**
+
+See `milestones/E16-M1-S00.md` and complete `execution-readiness.md` from repository evidence.
+
+S00 is documentation/discovery only. Product code, Product API behavior, persistence schema and UI behavior must remain unchanged.
+
+Functional execution is authorized only after S00 records:
+
+```text
+E16-M1-S00: PASS
+EPIC-16 EXECUTION READINESS: READY
+AUTHORIZED NEXT SPRINT: E16-M1-S01
+PRODUCT CODE CHANGED: NO
+```
+
+If S00 finds an unresolved authority or product decision that prevents a bounded S01, close `BLOCKED` instead of inventing semantics.
+
+## First implementation target after S00
 
 Start with **E16-M1 — Financial Truth & Pricing Provenance**. Do not start with mutations.
 
-Planner should first inventory current economic domain code and Product API contracts, then produce the smallest read-only slice that:
+The planner/coder must use the completed S00 inventory to produce the smallest read-only slice that:
 
 - exposes a canonical Tenant-scoped economic operations projection;
 - identifies price/quote provenance;
@@ -25,38 +46,39 @@ Planner should first inventory current economic domain code and Product API cont
 - exposes truthful unavailable/empty states;
 - feeds existing Dashboard financial regions without fabricated history.
 
-## Required preflight
+## Required S00 inspection scope
 
-Before coding M1, inspect:
+Before coding M1, inspect and document:
 
 - EconomicService and economic state repositories;
 - settlement provider/projection and reconciliation code;
 - EPIC-13 financial boundary/read models;
 - current Product API economic endpoints;
-- Dashboard economics data contract at `9005e3a`;
+- Dashboard economics data contract at current `dev` and against `9005e3a` visual semantics;
 - Tenant/governance authorization context;
-- shared PostgreSQL composition and existing tests.
+- shared PostgreSQL composition and existing tests;
+- exact source/provenance for every candidate M1 field.
 
-## Suggested sprint decomposition
+## M1 execution sequence
 
-### E16-M1/S01 — Economic read-model contract
-Define canonical projection types/API and source mapping. No UI mutation.
+### E16-M1-S01 — Economic Read-Model Contract
+Define canonical projection types/API source mapping from the evidence frozen in S00. No UI mutation.
 
-### E16-M1/S02 — Pricing provenance
+### E16-M1-S02 — Pricing Provenance
 Add provenance fields and deterministic mapping from existing quote/pricing sources.
 
-### E16-M1/S03 — Product API exposure
-Expose Tenant-scoped list/detail/summary endpoints with stable degraded/error semantics.
+### E16-M1-S03 — Product API Exposure
+Expose Tenant-scoped read-only surfaces with stable degraded/error semantics.
 
-### E16-M1/S04 — Dashboard integration
-Replace any thin aggregate financial presentation with the new authoritative read model while preserving `9005e3a` hierarchy and truthful empty states.
+### E16-M1-S04 — Dashboard Integration
+Back financial Dashboard regions with the authoritative read model while preserving `9005e3a` hierarchy and truthful empty states.
 
-### E16-M1/S05 — Acceptance
+### E16-M1-S05 — Acceptance and Milestone Closure
 Run backend/app validation, Tenant isolation, shared-state regression if state access changes, browser acceptance, accessibility, overflow, console and no-fake-data checks.
 
 ## Planner output requirements
 
-For every sprint, specify:
+For every implementation sprint, specify:
 
 - exact files/components/contracts touched;
 - invariant protected;
