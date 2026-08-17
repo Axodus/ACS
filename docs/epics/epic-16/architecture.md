@@ -1,0 +1,107 @@
+# EPIC-16 Architecture
+
+## 1. Architectural intent
+
+EPIC-16 extends the existing ACS economic authority into an operator-facing financial operations domain. It does not introduce a parallel billing core.
+
+## 2. Target flow
+
+```text
+Trusted Operator / Runtime
+        |
+        v
+Product API Financial Operations
+        |
+        +--> Economic Read Model / Pricing Provenance
+        +--> Governance + Entitlements + Limits
+        +--> EconomicService
+        |      +--> Quote
+        |      +--> Reserve / Release
+        |      +--> Authorize
+        |      +--> Usage
+        |      +--> Settle
+        |      +--> Receipt
+        |      +--> Reconcile
+        |
+        +--> Financial Exception Service
+        +--> Audit / Evidence
+        +--> Telemetry / Readiness
+        |
+        v
+Shared authoritative repositories / PostgreSQL
+        |
+        +--> approved provider adapter boundary, if enabled
+```
+
+## 3. Source-of-truth rules
+
+- Product API is the supported operator boundary, not the authority itself.
+- EconomicService and canonical repositories remain the execution-economic authority.
+- Governance/entitlements/limits determine authorization inputs; UI cannot override them.
+- Shared repositories are authoritative for durable financial operational state.
+- Audit records prove actions and outcomes but do not replace financial state.
+- Telemetry is diagnostic only.
+
+## 4. New architectural responsibilities
+
+### 4.1 Financial Operations Read Model
+A Tenant-scoped projection that joins existing economic primitives into operator semantics: price basis, estimated, reserved, metered, settled, reconciliation and exception status. Projection logic must preserve provenance and never infer unavailable historical values.
+
+### 4.2 Pricing Provenance
+Each effective economic value exposed as a price/cost must identify its supported source: policy/version, quote identifier, unit/currency-like unit where applicable, effective timestamp and execution correlation. EPIC-16 must not invent a universal pricing engine if existing quote policy is sufficient.
+
+### 4.3 Economic Authorization
+Authorization composes existing governance/entitlement/limit truth with economic request context. It must return an explicit allowed/denied outcome and machine-readable reasons. It must not rely on client-side thresholds.
+
+### 4.4 Reservation Operations
+Reservations gain operator lifecycle semantics: active/released/consumed/expired/failed where supported by underlying truth. Any new state transition must be persisted and idempotent.
+
+### 4.5 Settlement Operations
+Settlement must expose lifecycle state, provider correlation where applicable, retry/replay policy and durable receipt identity. Existing idempotency guarantees are mandatory.
+
+### 4.6 Reconciliation and Exceptions
+Mismatch detection produces durable, Tenant-scoped reconciliation/exception records. A financial exception must have identity, category, severity, state, evidence references and permitted remediation policy.
+
+## 5. Persistence
+
+Any new authoritative record must:
+
+- implement the async repository boundary;
+- work under the shared PostgreSQL profile;
+- preserve Tenant partitioning;
+- use stable identities and concurrency-safe writes;
+- define retry/idempotency semantics;
+- fail closed when the authoritative shared store is unavailable.
+
+No production-only financial truth may exist solely in process memory.
+
+## 6. Provider boundary
+
+A commercial or external financial provider is not assumed. If an approved adapter is introduced, ACS must persist provider references/correlation identifiers rather than opaque provider truth, expose provider dependency health, and keep provider credentials in the existing secret-provider boundary.
+
+Provider outage must result in explicit pending/degraded/failed operational state according to contract; it must not silently mark settlement as successful.
+
+## 7. UX architecture
+
+Extend the existing Control Plane rather than creating a parallel finance console. Candidate routes may include financial/economic operations surfaces under the existing navigation architecture, but route naming must follow EPIC-14 IA conventions.
+
+Dashboard integration must preserve `9005e3a`:
+
+- expressive KPI/visual hierarchy;
+- stable visualization canvases;
+- light/dark parity;
+- responsive behavior;
+- truthful zero/empty states;
+- no fabricated histories or customer counts.
+
+## 8. Security and authority
+
+All financial reads and writes require trusted identity context and Tenant authorization. Mutation authority must be server-side and action-specific. High-risk remediation should support policy thresholds or explicit elevated authority rather than generic admin permission.
+
+## 9. Observability
+
+Every mutation must emit correlated structured logs/traces/metrics and audit evidence with Tenant, operation identity and outcome. Sensitive provider/financial payloads must not be copied indiscriminately into telemetry.
+
+## 10. Topology boundary
+
+EPIC-16 acceptance runs within the certified post-15.5 bounded topology. It must not claim physical multi-host, provider HA or global production certification. New financial state must nevertheless remain compatible with shared-state/multi-process operation.
