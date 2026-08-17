@@ -8,6 +8,7 @@ import type { WorkerServiceIdentityValidator } from "../workers/worker-service-a
 import type { EconomicStateStore, SettlementProvider } from "./neurons-economic-contract.js";
 import type { OperationalTelemetryProvider } from "./operational-telemetry.js";
 import type { SharedStateHealth } from "./shared-state/contracts.js";
+import type { ManagedProviderComposition } from "./managed-provider-composition.js";
 
 export type ProductionReadinessCheckRequirement =
   | "HARD_BLOCKER"
@@ -73,6 +74,7 @@ export interface ProductionDeploymentReadinessEvaluatorOptions {
   readonly deploymentStateHealth: () => { readonly configured: boolean; readonly reachable: boolean; readonly productionOriented: boolean; readonly adapter: string };
   readonly topology?: "PRODUCTION_LIKE_SINGLE_HOST" | "SHARED_MULTI_INSTANCE";
   readonly sharedStateHealth?: () => Promise<SharedStateHealth>;
+  readonly managedProviderComposition?: ManagedProviderComposition;
   readonly ttlMs?: number;
 }
 
@@ -105,7 +107,7 @@ export class ProductionDeploymentReadinessEvaluator {
     const canonicalTargetId = ExecutionTargetRegistry.canonicalId(this.#options.engineId, input.targetId);
     let target;
     try { target = this.#options.targetService.get(canonicalTargetId); } catch { target = undefined; }
-    const [identity, edge, secrets, telemetry, sharedState] = await Promise.all([
+    const [identity, edge, secrets, telemetry, sharedState, managedProviders] = await Promise.all([
       this.#options.identityValidator.health().catch(() => ({ configured: false, reachable: false, mode: this.#options.identityValidator.descriptor.mode })),
       this.#options.edgePolicy.readiness().catch(() => undefined),
       this.#options.secretStore.health().catch(() => ({ configured: true, reachable: false, productionGrade: this.#options.secretStore.descriptor.productionOriented, adapter: this.#options.secretStore.descriptor.provider })),
@@ -118,6 +120,7 @@ export class ProductionDeploymentReadinessEvaluator {
         adapter: "shared-state",
         reasonCode: "SHARED_STATE_UNAVAILABLE" as const,
       })),
+      this.#options.managedProviderComposition?.health().catch(() => undefined),
     ]);
     const administrative = this.#options.administrativeStateHealth();
     const agentState = this.#options.agentStateHealth();
@@ -160,6 +163,13 @@ export class ProductionDeploymentReadinessEvaluator {
           "Shared authoritative state is reachable, writable, and schema-compatible.",
           "Restore the shared database, writer access, or compatible schema before multi-instance production deployment.",
           sharedState ? { ...sharedState } : { configured: false, reachable: false, writable: false, schemaCurrent: false }),
+      ] : []),
+      ...(this.#options.managedProviderComposition ? [
+        check("MANAGED_PROVIDER_COMPOSITION_READY", "managed-providers", "HARD_BLOCKER",
+          Boolean(managedProviders?.ready),
+          "Distributed production providers are configured, reachable, authenticated, and transport-secure.",
+          "Restore every required external identity, secret, edge, limiter, and telemetry provider before deployment.",
+          managedProviders ? { ...managedProviders } : { ready: false, reasonCodes: ["MANAGED_PROVIDER_HEALTH_UNAVAILABLE"] }),
       ] : []),
       check("ECONOMIC_STATE_DURABLE", "economics", "REQUIRED",
         this.#options.economicStore.descriptor.productionOriented && this.#options.settlementProvider.descriptor.productionOriented,
@@ -216,6 +226,7 @@ export class ProductionDeploymentReadinessEvaluator {
         governanceRevision: input.governance.revision,
         productionProfile: this.#options.adapterProfile,
         multiHost: this.#options.topology === "SHARED_MULTI_INSTANCE" ? "shared_state_ready_topology_proof_required" : "not_proven",
+        ...(managedProviders ? { managedProviders } : {}),
       },
     };
   }

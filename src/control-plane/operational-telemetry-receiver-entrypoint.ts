@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import { createServer as createSecureServer } from "node:https";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -14,16 +16,23 @@ export async function runOperationalTelemetryReceiverFromEnvironment(environment
   const host = environment.ACS_TELEMETRY_RECEIVER_HOST ?? "127.0.0.1";
   const port = optionalPort(environment.ACS_TELEMETRY_RECEIVER_PORT);
   const capacity = optionalPositiveInteger(environment.ACS_TELEMETRY_RECEIVER_CAPACITY) ?? 2_048;
+  const certificatePath = environment.ACS_TELEMETRY_RECEIVER_TLS_CERT_PATH;
+  const keyPath = environment.ACS_TELEMETRY_RECEIVER_TLS_KEY_PATH;
+  const authenticationToken = environment.ACS_TELEMETRY_RECEIVER_AUTH_TOKEN;
+  if (Boolean(certificatePath) !== Boolean(keyPath)) throw new Error("telemetry receiver TLS certificate and key must be configured together");
   const state = {
     logs: [] as unknown[],
     metrics: [] as unknown[],
     traces: [] as unknown[],
     requests: [] as { path: string; receivedAt: number; bytes: number }[],
   };
-  const server = createServer(async (request, response) => {
-    const url = new URL(request.url ?? "/", "http://localhost");
+  const handler: import("node:http").RequestListener = async (request, response) => {
+    const url = new URL(request.url ?? "/", certificatePath ? "https://localhost" : "http://localhost");
     if (request.method === "GET" && url.pathname === "/health") {
-      return writeJson(response, 200, { status: "ready", processId: process.pid });
+      return writeJson(response, 200, { status: "ready", processId: process.pid, transport: certificatePath ? "https" : "http" });
+    }
+    if (authenticationToken && request.headers.authorization !== `Bearer ${authenticationToken}`) {
+      return writeJson(response, 401, { error: { code: "unauthorized", message: "receiver credential is required" } });
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
       const snapshot: TelemetryReceiverSnapshot = {
@@ -52,7 +61,10 @@ export async function runOperationalTelemetryReceiverFromEnvironment(environment
       return;
     }
     writeJson(response, 404, { error: { code: "not_found", message: "receiver route not found" } });
-  });
+  };
+  const server = certificatePath && keyPath
+    ? createSecureServer({ cert: readFileSync(certificatePath), key: readFileSync(keyPath) }, handler)
+    : createServer(handler);
   await new Promise<void>((resolveListen, reject) => {
     server.once("error", reject);
     server.listen(port, host, resolveListen);
@@ -63,6 +75,7 @@ export async function runOperationalTelemetryReceiverFromEnvironment(environment
     server,
     host,
     port: address.port,
+    transport: certificatePath ? "https" as const : "http" as const,
     snapshot: (): TelemetryReceiverSnapshot => ({
       receivedAt: Date.now(),
       logs: structuredClone(state.logs),
@@ -81,6 +94,7 @@ async function main(): Promise<void> {
     service: "acs-operational-telemetry-receiver",
     host: receiver.host,
     port: receiver.port,
+    transport: receiver.transport,
     processId: process.pid,
   }) + "\n");
   const stop = async () => { await receiver.close(); process.exit(0); };

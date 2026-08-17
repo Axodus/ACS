@@ -22,10 +22,10 @@ import {
 } from "./secret-store.js";
 
 export interface SecretMetadataStore {
-  create(metadata: SecretMetadata): SecretMetadata;
-  get(secretId: string): SecretMetadata | undefined;
-  list(): readonly SecretMetadata[];
-  save(metadata: SecretMetadata): SecretMetadata;
+  create(metadata: SecretMetadata): SecretMetadata | Promise<SecretMetadata>;
+  get(secretId: string): SecretMetadata | undefined | Promise<SecretMetadata | undefined>;
+  list(): readonly SecretMetadata[] | Promise<readonly SecretMetadata[]>;
+  save(metadata: SecretMetadata, expectedVersion?: number): SecretMetadata | Promise<SecretMetadata>;
 }
 
 export class InMemorySecretMetadataStore implements SecretMetadataStore {
@@ -262,13 +262,33 @@ export class FetchVaultSecretTransport implements VaultSecretTransport {
   readonly #baseUrl: string;
   readonly #token: string;
   readonly #namespace: string | undefined;
+  readonly #timeoutMs: number;
 
-  constructor(options: { readonly baseUrl: string; readonly token: string; readonly namespace?: string }) {
+  constructor(options: {
+    readonly baseUrl: string;
+    readonly token: string;
+    readonly namespace?: string;
+    readonly timeoutMs?: number;
+    readonly requireHttps?: boolean;
+  }) {
     if (!options.baseUrl) throw new SecretProviderConfigurationError("Vault base URL is required");
     if (!options.token) throw new SecretProviderConfigurationError("Vault authentication token is required");
-    this.#baseUrl = options.baseUrl.replace(/\/+$/, "");
+    let baseUrl: URL;
+    try {
+      baseUrl = new URL(options.baseUrl);
+    } catch {
+      throw new SecretProviderConfigurationError("Vault base URL must be absolute");
+    }
+    if ((options.requireHttps ?? true) && baseUrl.protocol !== "https:") {
+      throw new SecretProviderConfigurationError("Vault base URL must use HTTPS");
+    }
+    if (baseUrl.protocol !== "https:" && baseUrl.protocol !== "http:") {
+      throw new SecretProviderConfigurationError("Vault base URL must use HTTP or HTTPS");
+    }
+    this.#baseUrl = baseUrl.toString().replace(/\/+$/, "");
     this.#token = options.token;
     this.#namespace = options.namespace;
+    this.#timeoutMs = positiveTimeout(options.timeoutMs ?? 5_000);
   }
 
   async request(input: {
@@ -286,6 +306,7 @@ export class FetchVaultSecretTransport implements VaultSecretTransport {
           ...(input.body === undefined ? {} : { "content-type": "application/json" }),
         },
         ...(input.body === undefined ? {} : { body: JSON.stringify(input.body) }),
+        signal: AbortSignal.timeout(this.#timeoutMs),
       });
     } catch {
       throw new SecretProviderUnavailableError("vault-kv-v2", input.method.toLowerCase());
@@ -321,18 +342,13 @@ function toReference(metadata: SecretMetadata): SecretReference {
 }
 
 export class VaultSecretProvider implements SecretStore {
-  readonly descriptor: SecretProviderDescriptor = {
-    provider: "vault-kv-v2",
-    productionOriented: true,
-    materialStorage: "external_managed",
-    metadataDurability: "single_node_durable",
-    multiInstance: "external_provider_managed",
-  };
+  readonly descriptor: SecretProviderDescriptor;
   readonly #transport: VaultSecretTransport;
   readonly #metadata: SecretMetadataStore;
   readonly #auditService: AuditService | undefined;
   readonly #mount: string;
   readonly #pathPrefix: string;
+  readonly #secureTransport: boolean;
 
   constructor(options: {
     readonly metadataStore: SecretMetadataStore;
@@ -340,18 +356,33 @@ export class VaultSecretProvider implements SecretStore {
     readonly baseUrl?: string;
     readonly token?: string;
     readonly namespace?: string;
+    readonly timeoutMs?: number;
+    readonly requireHttps?: boolean;
+    readonly secureTransport?: boolean;
     readonly mount?: string;
     readonly pathPrefix?: string;
+    readonly metadataDurability?: SecretProviderDescriptor["metadataDurability"];
     readonly auditService?: AuditService;
   }) {
+    this.descriptor = {
+      provider: "vault-kv-v2",
+      productionOriented: true,
+      materialStorage: "external_managed",
+      metadataDurability: options.metadataDurability ?? "single_node_durable",
+      multiInstance: "external_provider_managed",
+    };
     this.#metadata = options.metadataStore;
     this.#mount = encodePath(options.mount ?? "secret");
     this.#pathPrefix = encodePath(options.pathPrefix ?? "acs");
     this.#auditService = options.auditService;
+    this.#secureTransport = options.secureTransport
+      ?? Boolean(options.baseUrl && new URL(options.baseUrl).protocol === "https:");
     this.#transport = options.transport ?? new FetchVaultSecretTransport({
       baseUrl: options.baseUrl ?? "",
       token: options.token ?? "",
       ...(options.namespace ? { namespace: options.namespace } : {}),
+      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      requireHttps: options.requireHttps,
     });
   }
 
@@ -370,7 +401,7 @@ export class VaultSecretProvider implements SecretStore {
     const now = input.at ?? Date.now();
     let metadata: SecretMetadata;
     try {
-      metadata = this.#metadata.create({
+      metadata = await this.#metadata.create({
         secretId,
         tenantId: input.tenantId,
         providerId: input.providerId,
@@ -394,7 +425,7 @@ export class VaultSecretProvider implements SecretStore {
   }
 
   async get(secretRef: SecretReference, access?: SecretAccessContext): Promise<string> {
-    const metadata = this.#requireMetadata(secretRef, access);
+    const metadata = await this.#requireMetadata(secretRef, access);
     if (metadata.status === "revoked") throw new SecretRevokedError(secretRef.id);
     const response = await this.#transport.request({
       method: "GET",
@@ -421,7 +452,7 @@ export class VaultSecretProvider implements SecretStore {
 
   async rotate(secretRef: SecretReference, input: RotateSecretInput): Promise<SecretReference> {
     if (!input.value) throw new SecretInputError("secret value is required");
-    const current = this.#requireMetadata(secretRef, input);
+    const current = await this.#requireMetadata(secretRef, input);
     if (current.status === "revoked") throw new SecretRevokedError(secretRef.id);
     const response = await this.#transport.request({
       method: "POST",
@@ -432,12 +463,12 @@ export class VaultSecretProvider implements SecretStore {
     const now = input.at ?? Date.now();
     let metadata: SecretMetadata;
     try {
-      metadata = this.#metadata.save({
+      metadata = await this.#metadata.save({
         ...current,
         version,
         updatedAt: now,
         rotatedAt: now,
-      });
+      }, current.version);
     } catch (error) {
       try {
         await this.#transport.request({
@@ -455,7 +486,7 @@ export class VaultSecretProvider implements SecretStore {
   }
 
   async revoke(secretRef: SecretReference, access?: SecretAccessContext): Promise<SecretMetadata> {
-    const current = this.#requireMetadata(secretRef, access);
+    const current = await this.#requireMetadata(secretRef, access);
     if (current.status === "revoked") return current;
     const versions = Array.from({ length: current.version }, (_, index) => index + 1);
     const response = await this.#transport.request({
@@ -467,12 +498,12 @@ export class VaultSecretProvider implements SecretStore {
       throw new SecretProviderUnavailableError(this.descriptor.provider, "revoke");
     }
     const now = access?.at ?? Date.now();
-    const metadata = this.#metadata.save({
+    const metadata = await this.#metadata.save({
       ...current,
       status: "revoked",
       updatedAt: now,
       revokedAt: now,
-    });
+    }, current.version);
     this.#recordAudit("secret.revoked", metadata, access);
     return metadata;
   }
@@ -484,7 +515,7 @@ export class VaultSecretProvider implements SecretStore {
 
   async exists(secretRef: SecretReference, access?: SecretAccessContext): Promise<boolean> {
     try {
-      const metadata = this.#requireMetadata(secretRef, access);
+      const metadata = await this.#requireMetadata(secretRef, access);
       if (metadata.status !== "active") return false;
       const response = await this.#transport.request({
         method: "GET",
@@ -497,20 +528,47 @@ export class VaultSecretProvider implements SecretStore {
     }
   }
 
-  async health(): Promise<{ readonly reachable: boolean; readonly provider: string }> {
+  async health(): Promise<{
+    readonly reachable: boolean;
+    readonly provider: string;
+    readonly authenticated: boolean;
+    readonly secureTransport: boolean;
+    readonly reasonCode?: string;
+  }> {
     try {
       const response = await this.#transport.request({ method: "GET", path: "/v1/sys/health" });
+      const reachable = [200, 429, 472, 473].includes(response.status);
+      if (!reachable) {
+        return {
+          reachable: false,
+          authenticated: false,
+          secureTransport: this.#secureTransport,
+          provider: this.descriptor.provider,
+          reasonCode: "SECRET_PROVIDER_UNREACHABLE",
+        };
+      }
+      const identity = await this.#transport.request({ method: "GET", path: "/v1/auth/token/lookup-self" });
+      const authenticated = identity.status >= 200 && identity.status < 300;
       return {
-        reachable: [200, 429, 472, 473].includes(response.status),
+        reachable,
+        authenticated,
+        secureTransport: this.#secureTransport,
         provider: this.descriptor.provider,
+        ...(!authenticated ? { reasonCode: "SECRET_PROVIDER_AUTHENTICATION_FAILED" } : {}),
       };
     } catch {
-      return { reachable: false, provider: this.descriptor.provider };
+      return {
+        reachable: false,
+        authenticated: false,
+        secureTransport: this.#secureTransport,
+        provider: this.descriptor.provider,
+        reasonCode: "SECRET_PROVIDER_UNREACHABLE",
+      };
     }
   }
 
-  #requireMetadata(secretRef: SecretReference, access?: SecretAccessContext): SecretMetadata {
-    const metadata = this.#metadata.get(secretRef.id);
+  async #requireMetadata(secretRef: SecretReference, access?: SecretAccessContext): Promise<SecretMetadata> {
+    const metadata = await this.#metadata.get(secretRef.id);
     if (!metadata) throw new SecretNotFoundError(secretRef.id);
     if (!metadata.tenantId || access?.tenantId !== metadata.tenantId) {
       this.#recordDenied(metadata, access);
@@ -581,4 +639,11 @@ export class VaultSecretProvider implements SecretStore {
       },
     });
   }
+}
+
+function positiveTimeout(value: number): number {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new SecretProviderConfigurationError("Vault timeout must be a positive safe integer");
+  }
+  return value;
 }

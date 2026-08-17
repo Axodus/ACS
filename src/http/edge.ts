@@ -112,6 +112,7 @@ export class HttpEdgePolicy {
   readonly #allowedHeaders: ReadonlySet<string>;
   readonly #policies: Readonly<Record<HttpRouteClass, RateLimitPolicy>>;
   readonly #securityHeaders: Readonly<Record<string, string>>;
+  readonly #trustedProxyCount: number;
 
   constructor(options: HttpEdgePolicyOptions) {
     this.profile = options.profile;
@@ -130,6 +131,7 @@ export class HttpEdgePolicy {
     this.#allowedOrigins = new Set(origins);
     this.#allowedHeaders = new Set(options.profile === "production" ? PRODUCTION_ALLOWED_HEADERS : DEVELOPMENT_ALLOWED_HEADERS);
     this.clientAddressResolver = new ClientAddressResolver(options.trustedProxyCidrs);
+    this.#trustedProxyCount = options.trustedProxyCidrs?.length ?? 0;
 
     const windowMs = positiveInteger(options.rateLimitWindowMs ?? 60_000, "rate-limit window");
     this.#policies = {
@@ -167,7 +169,7 @@ export class HttpEdgePolicy {
 
   routeClass(requestUrl: string, method = "GET"): HttpRouteClass {
     const path = new URL(requestUrl, "http://localhost").pathname.replace(/\/+$/, "") || "/";
-    if (path === "/api/v1/health" || path === "/acs/health" || path === "/acs/version") return "public_health";
+    if (path === "/api/v1/health" || path === "/api/v1/ready" || path === "/acs/health" || path === "/acs/version") return "public_health";
     if (path.startsWith("/api/v1/internal/runtime/")) return "runtime_worker";
     if (path.startsWith("/api/v1/system/")) return "system_admin";
     if ((path.endsWith("/runtime/start") || path.endsWith("/runtime/stop") || path.endsWith("/execute")) && method !== "GET") {
@@ -252,6 +254,7 @@ export class HttpEdgePolicy {
   async readiness(): Promise<{
     readonly rateLimiter: { readonly configured: boolean; readonly reachable: boolean; readonly productionGrade: boolean; readonly adapter: string };
     readonly cors: { readonly configured: boolean; readonly explicitProductionAllowlist: boolean };
+    readonly proxyTrust: { readonly configured: boolean; readonly explicitAllowlist: boolean; readonly entries: number };
   }> {
     const health = await this.rateLimiter.health();
     return {
@@ -259,6 +262,11 @@ export class HttpEdgePolicy {
       cors: {
         configured: this.#allowAnyOrigin || this.#allowedOrigins.size > 0,
         explicitProductionAllowlist: this.profile !== "production" || (!this.#allowAnyOrigin && this.#allowedOrigins.size > 0),
+      },
+      proxyTrust: {
+        configured: this.#trustedProxyCount > 0,
+        explicitAllowlist: this.#trustedProxyCount > 0,
+        entries: this.#trustedProxyCount,
       },
     };
   }

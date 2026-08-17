@@ -14,7 +14,7 @@ export interface SecretProviderDescriptor {
   readonly provider: string;
   readonly productionOriented: boolean;
   readonly materialStorage: "memory" | "plaintext_filesystem" | "external_managed";
-  readonly metadataDurability: "process_local" | "single_node_durable" | "external_managed";
+  readonly metadataDurability: "process_local" | "single_node_durable" | "shared_durable" | "external_managed";
   readonly multiInstance: SecretProviderMultiInstance;
 }
 
@@ -61,7 +61,13 @@ export interface SecretStore {
   revoke(secretRef: SecretReference, access?: SecretAccessContext): Promise<SecretMetadata>;
   delete(secretRef: SecretReference, access?: SecretAccessContext): Promise<boolean>;
   exists(secretRef: SecretReference, access?: SecretAccessContext): Promise<boolean>;
-  health(): Promise<{ readonly reachable: boolean; readonly provider: string }>;
+  health(): Promise<{
+    readonly reachable: boolean;
+    readonly provider: string;
+    readonly authenticated?: boolean;
+    readonly secureTransport?: boolean;
+    readonly reasonCode?: string;
+  }>;
 }
 
 export class SecretInputError extends AcsError {

@@ -186,10 +186,16 @@ export class RemoteJwksProvider implements JwksProvider {
   readonly #jwksUri: string;
   readonly #cacheTtlMs: number;
   readonly #fetch: typeof fetch;
+  readonly #timeoutMs: number;
   #keys = new Map<string, Readonly<Record<string, unknown>>>();
   #expiresAt = 0;
 
-  constructor(options: { readonly jwksUri: string; readonly cacheTtlMs?: number; readonly fetch?: typeof fetch }) {
+  constructor(options: {
+    readonly jwksUri: string;
+    readonly cacheTtlMs?: number;
+    readonly timeoutMs?: number;
+    readonly fetch?: typeof fetch;
+  }) {
     if (!options.jwksUri.trim()) throw new HttpIdentityConfigurationError("OIDC JWKS URI is required");
     let jwksUrl: URL;
     try {
@@ -202,6 +208,7 @@ export class RemoteJwksProvider implements JwksProvider {
     }
     this.#jwksUri = jwksUrl.toString();
     this.#cacheTtlMs = options.cacheTtlMs ?? 5 * 60 * 1000;
+    this.#timeoutMs = positiveIdentityDuration(options.timeoutMs ?? 5_000, "OIDC JWKS timeout");
     this.#fetch = options.fetch ?? globalThis.fetch;
   }
 
@@ -229,7 +236,7 @@ export class RemoteJwksProvider implements JwksProvider {
       response = await this.#fetch(this.#jwksUri, {
         headers: { accept: "application/json" },
         redirect: "error",
-        signal: AbortSignal.timeout(5_000),
+        signal: AbortSignal.timeout(this.#timeoutMs),
       });
     } catch {
       throw new HttpAuthenticationError("identity_provider_unavailable", "identity provider signing keys are unavailable");
@@ -248,6 +255,11 @@ export class RemoteJwksProvider implements JwksProvider {
     this.#keys = next;
     this.#expiresAt = Date.now() + this.#cacheTtlMs;
   }
+}
+
+function positiveIdentityDuration(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value <= 0) throw new HttpIdentityConfigurationError(`${label} must be a positive safe integer`);
+  return value;
 }
 
 export interface OidcJwtIdentityValidatorOptions {

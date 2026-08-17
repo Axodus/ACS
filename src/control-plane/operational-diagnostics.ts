@@ -13,6 +13,7 @@ import { isWorkerEligibleForRequirements } from "../workers/durable-runtime-stat
 import type { EconomicStateStore, SettlementProvider } from "./neurons-economic-contract.js";
 import type { OperationalTelemetryProvider, TelemetryExporterHealth } from "./operational-telemetry.js";
 import type { SharedStateHealth } from "./shared-state/contracts.js";
+import type { ManagedProviderComposition, ManagedProviderName, ManagedProviderReasonCode } from "./managed-provider-composition.js";
 
 export type OperationalReadinessState = "READY" | "DEGRADED" | "BLOCKED" | "UNKNOWN";
 export type OperationalDependencyCategory = "identity" | "secrets" | "edge" | "persistence" | "economics" | "runtime" | "telemetry";
@@ -32,7 +33,8 @@ export type OperationalReasonCode =
   | "TELEMETRY_EXPORTER_DISABLED"
   | "SHARED_STATE_UNAVAILABLE"
   | "SHARED_STATE_SCHEMA_MISMATCH"
-  | "SHARED_STATE_READ_ONLY";
+  | "SHARED_STATE_READ_ONLY"
+  | ManagedProviderReasonCode;
 
 export interface OperationalDependency {
   readonly name: string;
@@ -139,6 +141,7 @@ export interface OperationalDiagnosticsOptions {
   readonly recoveryCoordinator: RuntimeRecoveryCoordinator | null;
   readonly telemetry: OperationalTelemetryProvider;
   readonly sharedStateHealth?: () => Promise<SharedStateHealth>;
+  readonly managedProviderComposition?: ManagedProviderComposition;
   readonly checkTimeoutMs?: number;
   readonly cacheTtlMs?: number;
 }
@@ -268,7 +271,23 @@ export class OperationalDiagnosticsService {
           })
         : Promise.resolve(undefined),
     ]);
-    const dependencies = [identity, edge, secrets, administrative, economics, settlement, ...runtime, telemetry, ...(sharedState ? [sharedState] : [])];
+    const managedProviderHealth = this.#options.managedProviderComposition
+      ? await this.#options.managedProviderComposition.health().catch(() => undefined)
+      : undefined;
+    const managedProviderDependencies: OperationalDependency[] = managedProviderHealth?.statuses.map((provider) => ({
+      name: `managed-provider:${provider.name}`,
+      category: providerCategory(provider.name),
+      required: true,
+      configured: provider.configured,
+      reachable: provider.reachable,
+      status: provider.ready ? "READY" : "BLOCKED",
+      lastCheckedAt: provider.checkedAt,
+      latencyMs: 0,
+      ...(provider.reasonCode ? { reasonCode: provider.reasonCode } : {}),
+      summary: provider.detail,
+      ...(!provider.ready ? { recommendedAction: `Restore the ${provider.name.replaceAll("_", " ")} production provider boundary.` } : {}),
+    })) ?? [];
+    const dependencies = [identity, edge, secrets, administrative, economics, settlement, ...runtime, telemetry, ...(sharedState ? [sharedState] : []), ...managedProviderDependencies];
     const workers = this.workerDiagnostics();
     const jobs = this.#options.runtimeCoordinator?.listJobs().map((job) => this.jobDiagnostic(job)) ?? [];
     const recovery = this.#options.recoveryCoordinator?.health() ?? { healthy: this.#options.runtimeMode === "local" };
@@ -503,6 +522,13 @@ function defaultFailureCode(category: OperationalDependencyCategory): Operationa
   if (category === "runtime") return "RUNTIME_STORE_UNAVAILABLE";
   if (category === "telemetry") return "TELEMETRY_EXPORTER_DEGRADED";
   return "ADMIN_STATE_UNAVAILABLE";
+}
+
+function providerCategory(name: ManagedProviderName): OperationalDependencyCategory {
+  if (name === "identity" || name === "workload_identity") return "identity";
+  if (name === "secrets") return "secrets";
+  if (name === "telemetry") return "telemetry";
+  return "edge";
 }
 
 function delay(ms: number): Promise<void> { return new Promise((resolveDelay) => setTimeout(resolveDelay, ms)); }

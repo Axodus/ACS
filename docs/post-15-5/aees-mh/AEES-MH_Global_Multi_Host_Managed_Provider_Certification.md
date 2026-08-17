@@ -5,6 +5,8 @@
 **Result:** **NOT CERTIFIED**
 **Gate result:** `MH01=FAIL`, `MH02=NOT_STARTED_BY_GATE`, `MH03=NOT_STARTED_BY_GATE`
 
+> Historical result retained. AEES-SH subsequently resolved the MH01 architectural blockers and resumed MH02 passed on 2026-08-17. Global certification remains `NOT_CERTIFIED` until MH03.
+
 ## Baseline imported from H
 
 The H closure is the source of truth:
@@ -154,3 +156,27 @@ AEES-SH completed on 2026-08-17 without rewriting this historical result:
 - `MH_DUAL_HOST_TOPOLOGY_UNAVAILABLE` → `DUAL_INSTANCE_PROVEN / PHYSICAL_MULTI_HOST_NOT_PROVEN`.
 
 Evidence: `docs/post-15-5/aees-sh/` and `/tmp/acs-post15-5-aees-sh-evidence/manifest.json`. AEES-MH may resume at MH02 after bounded revalidation of these claims.
+
+## Resumed certification — MH02
+
+MH02 resumed on 2026-08-17 without rewriting the original failed attempt. All five internal gates passed:
+
+```text
+MH02-A provider composition: PASS
+MH02-B identity/workload identity: PASS
+MH02-C secrets/shared edge controls: PASS
+MH02-D telemetry/TLS/DNS/network failure: PASS
+MH02-E integrated acceptance: PASS
+```
+
+The certified resumed topology is:
+
+```text
+DUAL_PROCESS_SHARED_STATE_WITH_EXTERNAL_PROVIDERS
+```
+
+It includes two independent Control Plane processes, shared PostgreSQL authority/rate limiting, an independent TLS edge, external HTTPS OIDC/JWKS, external Vault KV v2, external authenticated HTTPS OTLP and an independent worker identity client. Provider boundaries, outage/reconnect and one-Control-Plane process failover are proven. All services shared one physical host; managed SaaS/HA, physical multi-host and cross-host runtime remain unproven.
+
+Detailed result: [MH02 managed-provider certification](./MH02-managed-provider-certification.md). Evidence: `/tmp/acs-post15-5-aees-mh-mh02-evidence/manifest.json`.
+
+MH03 is now authorized. The global AEES-MH result remains `NOT CERTIFIED` until MH03 proves physical host separation, cross-host workers, host/partition recovery and cross-host deployment/rollback.

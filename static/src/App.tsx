@@ -5,6 +5,7 @@ import { Architecture, OpenClawDiagram } from './components/Diagrams'
 import { HeroSystemGraphic } from './components/HeroSystemGraphic'
 import { CoreEvolution, WorkflowEvidence } from './components/CoreEvolution'
 import { TenantAdministrationApp } from './admin/TenantAdministrationApp'
+import { ManagedProvidersApp } from './operations/ManagedProvidersApp'
 import { EXTERNAL_LINKS } from './config/links'
 
 const APP=import.meta.env.VITE_ACS_APP_URL||'https://acs-app.axodus.country'
@@ -72,5 +73,6 @@ function PublicLandingPage(){return <div id="top">
 
 export default function App() {
  const pathname = usePathname()
+ if (pathname.startsWith('/operations/providers')) return <ManagedProvidersApp />
  return pathname.startsWith('/admin/tenants') ? <TenantAdministrationApp /> : <PublicLandingPage />
 }

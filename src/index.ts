@@ -139,12 +139,14 @@ export * from "./control-plane/audit-service.js";
 export * from "./control-plane/durable-administrative-state.js";
 export * from "./control-plane/operational-telemetry.js";
 export * from "./control-plane/operational-diagnostics.js";
+export * from "./control-plane/managed-provider-composition.js";
 export * from "./control-plane/shared-state/contracts.js";
 export * from "./control-plane/shared-state/migrations.js";
 export * from "./control-plane/shared-state/postgres-shared-state.js";
 export * from "./control-plane/shared-state/shared-authority-service.js";
 export * from "./control-plane/shared-state/shared-control-plane-context.js";
 export * from "./control-plane/shared-state/shared-rate-limiter.js";
+export * from "./control-plane/shared-state/shared-secret-metadata-store.js";
 
 export * from "./control-plane/epic-11-acceptance.js";
 

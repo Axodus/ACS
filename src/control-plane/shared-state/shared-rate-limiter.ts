@@ -19,7 +19,10 @@ export class SharedDatabaseRateLimiter implements RateLimiter {
     multiHost: "capable_not_topology_proof",
   };
 
-  constructor(private readonly store: AsyncRateLimitRepository) {}
+  constructor(
+    private readonly store: AsyncRateLimitRepository,
+    private readonly healthProbe?: () => Promise<{ readonly reachable: boolean; readonly writable?: boolean; readonly schemaCurrent?: boolean }>,
+  ) {}
 
   async consume(input: RateLimitConsumeInput): Promise<RateLimitDecision> {
     if (!input.key.trim()) throw new RateLimitConfigurationError("rate-limit key is required");
@@ -54,6 +57,19 @@ export class SharedDatabaseRateLimiter implements RateLimiter {
   }
 
   async health(): Promise<RateLimitStoreHealth> {
-    return { configured: true, reachable: true, productionGrade: true, adapter: this.descriptor.adapter };
+    if (!this.healthProbe) {
+      return { configured: true, reachable: true, productionGrade: true, adapter: this.descriptor.adapter };
+    }
+    try {
+      const health = await this.healthProbe();
+      return {
+        configured: true,
+        reachable: health.reachable && health.writable !== false && health.schemaCurrent !== false,
+        productionGrade: true,
+        adapter: this.descriptor.adapter,
+      };
+    } catch {
+      return { configured: true, reachable: false, productionGrade: true, adapter: this.descriptor.adapter };
+    }
   }
 }

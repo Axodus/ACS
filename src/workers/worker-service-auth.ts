@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, createPublicKey, timingSafeEqual, verify, type JsonWebKey } from "node:crypto";
+import { HttpAuthenticationError, type JwksProvider } from "../http/auth.js";
 
 export interface WorkerServicePrincipal {
   readonly workerId: string;
@@ -6,12 +7,12 @@ export interface WorkerServicePrincipal {
   readonly subject: string;
   readonly issuer: string;
   readonly audience: string;
-  readonly authenticationMethod: "development_headers" | "signed_worker_jwt";
+  readonly authenticationMethod: "development_headers" | "signed_worker_jwt" | "oidc_worker_jwt";
   readonly permittedCapabilities: readonly string[];
 }
 
 export interface WorkerServiceIdentityDescriptor {
-  readonly mode: "development" | "signed_jwt";
+  readonly mode: "development" | "signed_jwt" | "oidc";
   readonly provider: string;
   readonly productionOriented: boolean;
   readonly issuer?: string;
@@ -34,7 +35,10 @@ export type WorkerAuthenticationFailureCode =
   | "invalid_audience"
   | "missing_subject"
   | "missing_worker_instance"
-  | "unsupported_algorithm";
+  | "unsupported_algorithm"
+  | "unknown_signing_key"
+  | "identity_provider_unavailable"
+  | "revoked_credential";
 
 export class WorkerAuthenticationError extends Error {
   constructor(readonly code: WorkerAuthenticationFailureCode, message: string) {
@@ -167,6 +171,123 @@ export class SignedWorkerIdentityValidator implements WorkerServiceIdentityValid
 
   async health(): Promise<{ readonly configured: true; readonly reachable: true; readonly detail: string }> {
     return { configured: true, reachable: true, detail: "signed worker credential validation is configured" };
+  }
+}
+
+export interface OidcWorkerIdentityValidatorOptions {
+  readonly issuer: string;
+  readonly audience: string;
+  readonly jwksProvider: JwksProvider;
+  readonly clockToleranceSeconds?: number;
+  readonly now?: () => number;
+  readonly revocationCheck?: (jti: string) => boolean | Promise<boolean>;
+}
+
+/**
+ * Network-backed workload identity validator. Delivery headers only carry the
+ * signed credential; worker and instance authority are derived from verified
+ * claims and remain subordinate to the durable assignment/lease boundary.
+ */
+export class OidcWorkerIdentityValidator implements WorkerServiceIdentityValidator {
+  readonly descriptor: WorkerServiceIdentityDescriptor;
+  readonly #issuer: string;
+  readonly #audience: string;
+  readonly #jwksProvider: JwksProvider;
+  readonly #clockToleranceSeconds: number;
+  readonly #now: () => number;
+  readonly #revocationCheck: ((jti: string) => boolean | Promise<boolean>) | undefined;
+
+  constructor(options: OidcWorkerIdentityValidatorOptions) {
+    if (!options.issuer.trim()) throw new WorkerIdentityConfigurationError("worker OIDC issuer is required");
+    if (!options.audience.trim()) throw new WorkerIdentityConfigurationError("worker OIDC audience is required");
+    this.#issuer = options.issuer.trim();
+    this.#audience = options.audience.trim();
+    this.#jwksProvider = options.jwksProvider;
+    this.#clockToleranceSeconds = options.clockToleranceSeconds ?? 5;
+    this.#now = options.now ?? (() => Date.now());
+    this.#revocationCheck = options.revocationCheck;
+    this.descriptor = {
+      mode: "oidc",
+      provider: "oidc-rs256-workload-identity",
+      productionOriented: true,
+      issuer: this.#issuer,
+      audience: this.#audience,
+    };
+  }
+
+  async authenticate(headers: Readonly<Record<string, string | undefined>>): Promise<WorkerServicePrincipal> {
+    const authorization = headers.authorization?.trim();
+    const match = authorization ? /^Bearer\s+([^\s]+)$/i.exec(authorization) : undefined;
+    if (!match?.[1]) throw new WorkerAuthenticationError("missing_credentials", "worker bearer credential is required");
+    const parts = match[1].split(".");
+    if (parts.length !== 3 || parts.some((part) => !part)) throw new WorkerAuthenticationError("malformed_token", "worker credential is malformed");
+    const [encodedHeader, encodedPayload, encodedSignature] = parts as [string, string, string];
+    const header = decodeObject(encodedHeader, "malformed_token");
+    if (header.alg !== "RS256") throw new WorkerAuthenticationError("unsupported_algorithm", "worker credential algorithm is not allowed");
+    if (typeof header.kid !== "string" || !header.kid) throw new WorkerAuthenticationError("unknown_signing_key", "worker credential signing key is missing");
+    let jwk: Readonly<Record<string, unknown>> | undefined;
+    try {
+      jwk = await this.#jwksProvider.getKey(header.kid);
+      if (!jwk) jwk = await this.#jwksProvider.getKey(header.kid, true);
+    } catch (error) {
+      if (error instanceof HttpAuthenticationError && error.code !== "identity_provider_unavailable") throw error;
+      throw new WorkerAuthenticationError("identity_provider_unavailable", "worker identity signing keys are unavailable");
+    }
+    if (!jwk || jwk.kty !== "RSA" || (jwk.alg !== undefined && jwk.alg !== "RS256") || (jwk.use !== undefined && jwk.use !== "sig")) {
+      throw new WorkerAuthenticationError("unknown_signing_key", "worker credential signing key is not trusted");
+    }
+    let signatureValid = false;
+    try {
+      signatureValid = verify(
+        "RSA-SHA256",
+        Buffer.from(`${encodedHeader}.${encodedPayload}`, "ascii"),
+        createPublicKey({ key: jwk as JsonWebKey, format: "jwk" }),
+        Buffer.from(encodedSignature, "base64url"),
+      );
+    } catch {
+      signatureValid = false;
+    }
+    if (!signatureValid) throw new WorkerAuthenticationError("invalid_signature", "worker credential signature is invalid");
+
+    const claims = decodeObject(encodedPayload, "malformed_token");
+    if (claims.iss !== this.#issuer) throw new WorkerAuthenticationError("invalid_issuer", "worker credential issuer is invalid");
+    const audiences = typeof claims.aud === "string" ? [claims.aud] : Array.isArray(claims.aud) ? claims.aud : [];
+    if (!audiences.includes(this.#audience)) throw new WorkerAuthenticationError("invalid_audience", "worker credential audience is invalid");
+    if (typeof claims.sub !== "string" || !claims.sub.trim()) throw new WorkerAuthenticationError("missing_subject", "worker credential subject is required");
+    if (typeof claims.instance_id !== "string" || !claims.instance_id.trim()) {
+      throw new WorkerAuthenticationError("missing_worker_instance", "worker credential instance is required");
+    }
+    const nowSeconds = Math.floor(this.#now() / 1000);
+    if (typeof claims.exp !== "number" || claims.exp + this.#clockToleranceSeconds < nowSeconds) {
+      throw new WorkerAuthenticationError("expired_token", "worker credential is expired");
+    }
+    if (typeof claims.nbf === "number" && claims.nbf - this.#clockToleranceSeconds > nowSeconds) {
+      throw new WorkerAuthenticationError("token_not_active", "worker credential is not active");
+    }
+    if (typeof claims.jti === "string" && this.#revocationCheck && await this.#revocationCheck(claims.jti)) {
+      throw new WorkerAuthenticationError("revoked_credential", "worker credential is revoked");
+    }
+    const capabilities = Array.isArray(claims.capabilities)
+      ? claims.capabilities.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+      : [];
+    return {
+      workerId: claims.sub.trim(),
+      instanceId: claims.instance_id.trim(),
+      subject: claims.sub.trim(),
+      issuer: this.#issuer,
+      audience: this.#audience,
+      authenticationMethod: "oidc_worker_jwt",
+      permittedCapabilities: capabilities,
+    };
+  }
+
+  async health(): Promise<{ readonly configured: boolean; readonly reachable: boolean; readonly detail: string }> {
+    const health = await this.#jwksProvider.health();
+    return {
+      configured: health.configured,
+      reachable: health.reachable,
+      detail: health.reachable ? "external OIDC workload identity signing keys are reachable" : health.detail,
+    };
   }
 }
 
