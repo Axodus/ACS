@@ -6,6 +6,10 @@
 
 **Resumed MH02:** **PASS on 2026-08-17**
 
+**MH03 final:** **NOT CERTIFIED on 2026-08-17 — physical multi-host unavailable**
+
+**Final AEES-MH result:** **NOT CERTIFIED**
+
 This package records the attempted Global Multi-Host & Managed Provider Certification after the formal EPIC-15.5 closure. It does not reopen EPIC-15.5 and does not alter the `PRODUCTION_LIKE_SINGLE_HOST` guarantee.
 
 Consumption order:
@@ -15,8 +19,12 @@ Consumption order:
 3. [Managed-provider certification](./managed-provider-certification.md)
 4. [MH02 detailed certification](./MH02-managed-provider-certification.md)
 5. [Multi-host runtime acceptance](./multi-host-runtime-acceptance.md)
-6. [Global readiness decision](./global-readiness-decision.md)
-7. [Regression inventory](./regression-inventory.md)
+6. [MH03 cross-host certification](./MH03-cross-host-runtime-failover-certification.md)
+7. [MH03 physical topology](./MH03-multi-host-topology.md)
+8. [MH03 failure-domain matrix](./MH03-failure-domain-matrix.md)
+9. [MH03 global production decision](./MH03-global-production-decision.md)
+10. [Global readiness decision](./global-readiness-decision.md)
+11. [Regression inventory](./regression-inventory.md)
 
 The executable preflight is `scripts/certify-aees-mh-preflight.mjs`. Its evidence target is:
 
@@ -37,3 +45,23 @@ MH02 evidence:
 ```text
 /tmp/acs-post15-5-aees-mh-mh02-evidence/manifest.json
 ```
+
+## MH03 terminal execution
+
+MH03 executed its physical-topology preflight on 2026-08-17. The environment exposed one WSL2 host, one local Docker context, no running VM, no remote Docker context, no SSH host alias, no configured cloud/Kubernetes target and zero online Tailscale peers. Containers/processes on that host were not accepted as substitutes.
+
+```text
+MH03-A: FAIL
+MH03-B: NOT_STARTED_BY_GATE
+MH03-C: NOT_STARTED_BY_GATE
+MH03-D: NOT_STARTED_BY_GATE
+MH03-E: PASS_TERMINAL_DECISION / NOT_CERTIFIED
+```
+
+Evidence:
+
+```text
+/tmp/acs-post15-5-aees-mh-mh03-evidence/manifest.json
+```
+
+The bounded single-host certifications remain valid. `MH_DUAL_HOST_TOPOLOGY_UNAVAILABLE` is an `OPEN_BLOCKER` for the global claim.

@@ -1,12 +1,12 @@
 # AEES-MH Global Readiness Decision
 
-**Decision:** global multi-host production remains `NOT_CERTIFIED` after resumed MH02.
+**Decision:** global multi-host production is terminally `NOT_CERTIFIED` after MH03 stopped at the physical-topology gate.
 
-| Level | EPIC-15.5 certified topology | Global claim after AEES-MH attempt |
+| Level | Certified bounded topology | Final global claim |
 | --- | --- | --- |
 | Development Ready | `READY` | `READY` |
 | Integration Ready | `READY` | `PARTIALLY_CERTIFIED` |
-| Operational Ready | `READY` | `PARTIALLY_CERTIFIED` |
+| Operational Ready | `READY` | `NOT_CERTIFIED` |
 | Production Ready | `READY for PRODUCTION_LIKE_SINGLE_HOST` | `NOT_CERTIFIED` |
 
 ## Resumed MH02 impact
@@ -21,6 +21,19 @@ MH02 now certifies the external-provider boundary for `DUAL_PROCESS_SHARED_STATE
 
 This materially advances Integration and Operational evidence, but does not change Global Production Ready because all components remained on one physical host.
 
+## MH03 final impact
+
+MH03 found one verified physical host for the required minimum of two. No CP host, remote worker host or remote target host could be assigned. The following terminal gate result therefore applies:
+
+```text
+MH03-A: FAIL
+MH03-B/C/D: NOT_STARTED_BY_GATE
+MH03-E: PASS_TERMINAL_DECISION
+AEES-MH: NOT_CERTIFIED
+```
+
+Global Operational Ready is no longer described as partially certified: the integration contracts are partially certified globally, but host-level operator continuity itself was not executed and is `NOT_CERTIFIED`.
+
 ## Certified guarantees retained
 
 - trusted user identity and Tenant isolation;
@@ -33,7 +46,7 @@ This materially advances Integration and Operational evidence, but does not chan
 
 ## Non-guarantees
 
-- networked shared authoritative storage;
+- PostgreSQL/Vault HA and physical database/provider failover;
 - dual-host Control Plane authority/failover;
 - cross-host worker and partition recovery;
 - managed SaaS/provider HA;
@@ -44,8 +57,8 @@ This materially advances Integration and Operational evidence, but does not chan
 
 ## Terminal AEES-MH residuals
 
-For the resumed claim, AEES-SH resolved shared state/audit foundations and MH02 resolves `ACS-ORG-002` for the external-provider topology and `ACS-ORG-010` for dual-instance edge traffic. `ACS-ORG-018` remains `ACCEPTABLE_DEFERRED`; `ACS-ORG-021` is materially reduced by explicit provider composition but infrastructure provisioning remains external. Physical multi-host residuals, including `ACS-ORG-019`, remain blockers for the global claim. The EPIC-15.5 historical dispositions are unchanged.
+For the final post-15.5 claim, `ACS-ORG-001` and `ACS-ORG-009` are `RESOLVED`; `ACS-ORG-002` and `ACS-ORG-018` are `ACCEPTABLE_DEFERRED`; `ACS-ORG-010`, `ACS-ORG-019`, `ACS-ORG-021` and `MH_DUAL_HOST_TOPOLOGY_UNAVAILABLE` are `OPEN_BLOCKER`. The EPIC-15.5 historical dispositions are unchanged.
 
 ## Post-attempt foundation note
 
-AEES-SH certified shared PostgreSQL authority and dual-process Control Plane semantics. Resumed MH02 certified external provider boundaries. Global readiness remains `NOT_CERTIFIED`: physical multi-host and cross-host runtime/deployment still require MH03.
+AEES-SH certified shared PostgreSQL authority and dual-process Control Plane semantics. Resumed MH02 certified external provider boundaries. MH03 did not have independent hosts and therefore closed `NOT_CERTIFIED`. A new attempt requires an explicitly authorized multi-host inventory; it must not repeat same-host simulations.

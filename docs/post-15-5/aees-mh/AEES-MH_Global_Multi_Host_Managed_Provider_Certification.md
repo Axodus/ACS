@@ -5,7 +5,9 @@
 **Result:** **NOT CERTIFIED**
 **Gate result:** `MH01=FAIL`, `MH02=NOT_STARTED_BY_GATE`, `MH03=NOT_STARTED_BY_GATE`
 
-> Historical result retained. AEES-SH subsequently resolved the MH01 architectural blockers and resumed MH02 passed on 2026-08-17. Global certification remains `NOT_CERTIFIED` until MH03.
+> Historical result retained. AEES-SH subsequently resolved the MH01 architectural blockers and resumed MH02 passed on 2026-08-17. Global certification remained `NOT_CERTIFIED` pending MH03 and is now terminally `NOT_CERTIFIED` after MH03-A failed.
+
+> Final resumed sequence: MH03 executed on 2026-08-17 and stopped at `MH03-A` because only one physical host/VM was available. AEES-MH is terminally `NOT_CERTIFIED`; see `MH03-cross-host-runtime-failover-certification.md`.
 
 ## Baseline imported from H
 
@@ -179,4 +181,18 @@ It includes two independent Control Plane processes, shared PostgreSQL authority
 
 Detailed result: [MH02 managed-provider certification](./MH02-managed-provider-certification.md). Evidence: `/tmp/acs-post15-5-aees-mh-mh02-evidence/manifest.json`.
 
-MH03 is now authorized. The global AEES-MH result remains `NOT CERTIFIED` until MH03 proves physical host separation, cross-host workers, host/partition recovery and cross-host deployment/rollback.
+MH03 was authorized by MH02 and has now executed its physical-topology gate. The global result is terminally `NOT CERTIFIED`.
+
+## Final resumed certification — MH03
+
+MH03 executed the physical-topology preflight on 2026-08-17. It found one WSL2 host, one local Docker context, no running VM, no remote SSH/cloud/Kubernetes target and zero online Tailscale peers. The required independent Control Plane, worker and target hosts could not be assigned.
+
+```text
+MH03-A: FAIL
+MH03-B: NOT_STARTED_BY_GATE
+MH03-C: NOT_STARTED_BY_GATE
+MH03-D: NOT_STARTED_BY_GATE
+MH03-E: PASS_TERMINAL_DECISION / NOT_CERTIFIED
+```
+
+`MH_DUAL_HOST_TOPOLOGY_UNAVAILABLE` is an `OPEN_BLOCKER`. Same-host processes/containers were not accepted as substitutes. The detailed terminal result is [MH03 cross-host certification](./MH03-cross-host-runtime-failover-certification.md); root evidence is `/tmp/acs-post15-5-aees-mh-mh03-evidence/manifest.json`.

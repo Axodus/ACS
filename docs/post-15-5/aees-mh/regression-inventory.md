@@ -13,6 +13,8 @@
 | `scripts/aees-mh02-edge-proxy.mjs` | independent TLS edge with forwarding sanitization and CP failover |
 | `scripts/aees-mh02-tls-provider-proxy.mjs` | TLS boundary for the external Vault process |
 | `scripts/aees-mh02-worker-client.mjs` | independent worker workload-identity process |
+| `tests/s61-post-15-5-aees-mh03-physical-topology.test.mjs` | rejects same-host process/container substitution and validates terminal evidence redaction |
+| `scripts/certify-aees-mh03-preflight.mjs` | probes available physical/VM inventory and emits the MH03 terminal manifest |
 
 ## Execution result
 
@@ -71,3 +73,35 @@ Final writable outputs:
 /tmp/acs-mh02-dist-final
 /tmp/acs-mh02-static-final/dist
 ```
+
+## MH03 execution
+
+| Check | Result |
+| --- | --- |
+| prerequisite import (SH/MH02) | `PASS` |
+| S61 physical-topology gate | `PASS` — correctly yields `MH03-A=FAIL` |
+| physical/VM host inventory | `1 verified / 2 required` |
+| Docker topology | `1 local context / 0 remote` |
+| Hyper-V/WSL | `0 running VM / 1 WSL distribution` |
+| remote SSH/cloud/Kubernetes inventory | `not configured` |
+| MH03-B/C/D | `NOT_STARTED_BY_GATE` |
+| MH03-E | `PASS_TERMINAL_DECISION / NOT_CERTIFIED` |
+| sensitive manifest scan | `0 matches in 6 categories` |
+| evidence manifest | `/tmp/acs-post15-5-aees-mh-mh03-evidence/manifest.json` |
+
+No browser or cross-host process suite was run after Gate A failed; those scenarios remain unexecuted rather than skipped and represented as passing.
+
+### Final validation details
+
+| Validation | Result |
+| --- | --- |
+| no-emit TypeScript | `PASS` |
+| official backend/frontend emit | `ENVIRONMENT_LIMITATION_TS5033_EROFS` |
+| writable backend build | `/tmp/acs-mh03-backend.rpoa2l/dist PASS` |
+| writable frontend build | `/tmp/acs-mh03-static.GS4NDo/dist PASS` |
+| full serial suite, clean absolute dist | `577/580 PASS`; D02 aggregate timeout; two conditional SH DB skips |
+| D02 isolated stability | four file executions, `12/12 PASS` |
+| D03 process acceptance | `PASS` in aggregate |
+| classification | `TEST_INFRASTRUCTURE_CONTENTION`; full suite not labeled entirely green |
+
+An earlier aggregate run used a stale/misresolved default `dist` and produced five import/spawn failures. All five passed against the clean absolute `/tmp` build; that run is invalid for product classification. The remaining D02 aggregate timeout is retained explicitly because it recurred in the long suite even though isolated repetitions passed.
