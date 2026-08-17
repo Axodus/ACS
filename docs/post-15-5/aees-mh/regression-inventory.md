@@ -31,3 +31,5 @@ MH02/MH03 provider, cross-host, failover, browser and full regression suites are
 ```
 
 Sensitive evidence matches must remain zero.
+
+Follow-up AEES-SH coverage is indexed separately in `docs/post-15-5/aees-sh/regression-inventory.md`; it does not alter the original MH preflight result.

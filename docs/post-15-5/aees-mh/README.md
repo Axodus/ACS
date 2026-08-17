@@ -21,3 +21,7 @@ The executable preflight is `scripts/certify-aees-mh-preflight.mjs`. Its evidenc
 ```
 
 The sequence stopped because MH01 did not pass. Per the requested gate order, managed-provider and cross-host runtime acceptance were not started.
+
+## Follow-up foundation
+
+On 2026-08-17, [AEES-SH](../aees-sh/README.md) completed the shared-authority foundation as `PASS` for `DUAL_PROCESS_SHARED_STATE`. It resolves the async repository and shared authoritative-state blockers. The historical AEES-MH result above remains `NOT CERTIFIED`; physical dual-host topology, managed providers and cross-host runtime remain for resumed MH02/MH03.

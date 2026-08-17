@@ -26,8 +26,9 @@ export interface RateLimitDecision {
 export interface RateLimitStoreDescriptor {
   readonly adapter: string;
   readonly productionOriented: boolean;
-  readonly durability: "process_local" | "single_node_durable";
+  readonly durability: "process_local" | "single_node_durable" | "shared_durable";
   readonly multiInstance: "not_applicable" | "shared_database" | "not_proven";
+  readonly multiHost?: "capable_not_topology_proof" | "proven";
 }
 
 export interface RateLimitStoreHealth {

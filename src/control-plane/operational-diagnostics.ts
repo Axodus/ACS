@@ -12,6 +12,7 @@ import type {
 import { isWorkerEligibleForRequirements } from "../workers/durable-runtime-state.js";
 import type { EconomicStateStore, SettlementProvider } from "./neurons-economic-contract.js";
 import type { OperationalTelemetryProvider, TelemetryExporterHealth } from "./operational-telemetry.js";
+import type { SharedStateHealth } from "./shared-state/contracts.js";
 
 export type OperationalReadinessState = "READY" | "DEGRADED" | "BLOCKED" | "UNKNOWN";
 export type OperationalDependencyCategory = "identity" | "secrets" | "edge" | "persistence" | "economics" | "runtime" | "telemetry";
@@ -28,7 +29,10 @@ export type OperationalReasonCode =
   | "NO_ELIGIBLE_WORKERS"
   | "RECOVERY_COORDINATOR_UNHEALTHY"
   | "TELEMETRY_EXPORTER_DEGRADED"
-  | "TELEMETRY_EXPORTER_DISABLED";
+  | "TELEMETRY_EXPORTER_DISABLED"
+  | "SHARED_STATE_UNAVAILABLE"
+  | "SHARED_STATE_SCHEMA_MISMATCH"
+  | "SHARED_STATE_READ_ONLY";
 
 export interface OperationalDependency {
   readonly name: string;
@@ -134,6 +138,7 @@ export interface OperationalDiagnosticsOptions {
   readonly runtimeCoordinator: DurableRuntimeCoordinator | null;
   readonly recoveryCoordinator: RuntimeRecoveryCoordinator | null;
   readonly telemetry: OperationalTelemetryProvider;
+  readonly sharedStateHealth?: () => Promise<SharedStateHealth>;
   readonly checkTimeoutMs?: number;
   readonly cacheTtlMs?: number;
 }
@@ -163,7 +168,7 @@ export class OperationalDiagnosticsService {
   async status(options: { readonly force?: boolean } = {}): Promise<OperationalStatus> {
     const now = Date.now();
     if (!options.force && this.#cached && this.#cached.expiresAt > now) return this.#cached.value;
-    const [identity, edge, secrets, administrative, economics, settlement, runtime, telemetry] = await Promise.all([
+    const [identity, edge, secrets, administrative, economics, settlement, runtime, telemetry, sharedState] = await Promise.all([
       this.#dependency("identity-provider", "identity", true, async () => {
         const health = await this.#options.identityValidator.health();
         return {
@@ -246,8 +251,24 @@ export class OperationalDiagnosticsService {
           recommendedAction: "Restore the configured external telemetry receiver; domain operations remain authoritative.",
         };
       }),
+      this.#options.sharedStateHealth
+        ? this.#dependency("shared-authoritative-state", "persistence", true, async () => {
+            const health = await this.#options.sharedStateHealth!();
+            const ready = health.reachable && health.writable && health.schemaCurrent;
+            return {
+              configured: health.configured,
+              reachable: health.reachable,
+              status: ready ? "READY" as const : "BLOCKED" as const,
+              reasonCode: ready ? undefined : health.reasonCode ?? "SHARED_STATE_UNAVAILABLE" as const,
+              summary: ready
+                ? "Shared authoritative state is reachable, writable, and schema-compatible."
+                : "Shared authoritative state cannot safely accept authoritative mutations.",
+              recommendedAction: "Restore database connectivity, writer access, or the expected schema version.",
+            };
+          })
+        : Promise.resolve(undefined),
     ]);
-    const dependencies = [identity, edge, secrets, administrative, economics, settlement, ...runtime, telemetry];
+    const dependencies = [identity, edge, secrets, administrative, economics, settlement, ...runtime, telemetry, ...(sharedState ? [sharedState] : [])];
     const workers = this.workerDiagnostics();
     const jobs = this.#options.runtimeCoordinator?.listJobs().map((job) => this.jobDiagnostic(job)) ?? [];
     const recovery = this.#options.recoveryCoordinator?.health() ?? { healthy: this.#options.runtimeMode === "local" };

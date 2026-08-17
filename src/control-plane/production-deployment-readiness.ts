@@ -7,6 +7,7 @@ import type { DurableRuntimeCoordinator, RuntimeRecoveryCoordinator } from "../w
 import type { WorkerServiceIdentityValidator } from "../workers/worker-service-auth.js";
 import type { EconomicStateStore, SettlementProvider } from "./neurons-economic-contract.js";
 import type { OperationalTelemetryProvider } from "./operational-telemetry.js";
+import type { SharedStateHealth } from "./shared-state/contracts.js";
 
 export type ProductionReadinessCheckRequirement =
   | "HARD_BLOCKER"
@@ -39,8 +40,8 @@ export interface ProductionGovernanceEvidence {
 export interface ProductionReadinessDecision {
   readonly decisionId: string;
   readonly allowed: boolean;
-  readonly level: "PRODUCTION_LIKE_SINGLE_HOST" | "BLOCKED";
-  readonly topology: "PRODUCTION_LIKE_SINGLE_HOST";
+  readonly level: "PRODUCTION_LIKE_SINGLE_HOST" | "SHARED_MULTI_INSTANCE" | "BLOCKED";
+  readonly topology: "PRODUCTION_LIKE_SINGLE_HOST" | "SHARED_MULTI_INSTANCE";
   readonly tenantId: string;
   readonly agentId: string;
   readonly agentRevision: number;
@@ -70,6 +71,8 @@ export interface ProductionDeploymentReadinessEvaluatorOptions {
   readonly administrativeStateHealth: () => { readonly configured: boolean; readonly reachable: boolean; readonly durable: boolean };
   readonly agentStateHealth: () => { readonly configured: boolean; readonly reachable: boolean; readonly productionOriented: boolean; readonly adapter: string };
   readonly deploymentStateHealth: () => { readonly configured: boolean; readonly reachable: boolean; readonly productionOriented: boolean; readonly adapter: string };
+  readonly topology?: "PRODUCTION_LIKE_SINGLE_HOST" | "SHARED_MULTI_INSTANCE";
+  readonly sharedStateHealth?: () => Promise<SharedStateHealth>;
   readonly ttlMs?: number;
 }
 
@@ -102,11 +105,19 @@ export class ProductionDeploymentReadinessEvaluator {
     const canonicalTargetId = ExecutionTargetRegistry.canonicalId(this.#options.engineId, input.targetId);
     let target;
     try { target = this.#options.targetService.get(canonicalTargetId); } catch { target = undefined; }
-    const [identity, edge, secrets, telemetry] = await Promise.all([
+    const [identity, edge, secrets, telemetry, sharedState] = await Promise.all([
       this.#options.identityValidator.health().catch(() => ({ configured: false, reachable: false, mode: this.#options.identityValidator.descriptor.mode })),
       this.#options.edgePolicy.readiness().catch(() => undefined),
       this.#options.secretStore.health().catch(() => ({ configured: true, reachable: false, productionGrade: this.#options.secretStore.descriptor.productionOriented, adapter: this.#options.secretStore.descriptor.provider })),
       this.#options.telemetry.health().catch(() => ({ configured: true, external: this.#options.telemetry.descriptor.external, reachable: false, degraded: true, adapter: this.#options.telemetry.descriptor.adapter })),
+      this.#options.sharedStateHealth?.().catch(() => ({
+        configured: true as const,
+        reachable: false,
+        writable: false,
+        schemaCurrent: false,
+        adapter: "shared-state",
+        reasonCode: "SHARED_STATE_UNAVAILABLE" as const,
+      })),
     ]);
     const administrative = this.#options.administrativeStateHealth();
     const agentState = this.#options.agentStateHealth();
@@ -143,6 +154,13 @@ export class ProductionDeploymentReadinessEvaluator {
       check("DEPLOYMENT_STATE_DURABLE", "persistence", "HARD_BLOCKER",
         deploymentState.configured && deploymentState.reachable && deploymentState.productionOriented,
         "Deployment lifecycle and readiness evidence are durable.", "Configure the durable deployment repository before deployment.", deploymentState),
+      ...(this.#options.topology === "SHARED_MULTI_INSTANCE" ? [
+        check("SHARED_AUTHORITATIVE_STATE_READY", "persistence", "HARD_BLOCKER",
+          Boolean(sharedState?.reachable && sharedState.writable && sharedState.schemaCurrent),
+          "Shared authoritative state is reachable, writable, and schema-compatible.",
+          "Restore the shared database, writer access, or compatible schema before multi-instance production deployment.",
+          sharedState ? { ...sharedState } : { configured: false, reachable: false, writable: false, schemaCurrent: false }),
+      ] : []),
       check("ECONOMIC_STATE_DURABLE", "economics", "REQUIRED",
         this.#options.economicStore.descriptor.productionOriented && this.#options.settlementProvider.descriptor.productionOriented,
         "Economic and settlement adapters are production-oriented.", "Configure durable economics and settlement adapters.", { economicStore: this.#options.economicStore.descriptor, settlementProvider: this.#options.settlementProvider.descriptor }),
@@ -181,8 +199,8 @@ export class ProductionDeploymentReadinessEvaluator {
     return {
       decisionId: `prod-ready-${input.agentId}-r${input.agentRevision}-${checkedAt}`,
       allowed,
-      level: allowed ? "PRODUCTION_LIKE_SINGLE_HOST" : "BLOCKED",
-      topology: "PRODUCTION_LIKE_SINGLE_HOST",
+      level: allowed ? (this.#options.topology ?? "PRODUCTION_LIKE_SINGLE_HOST") : "BLOCKED",
+      topology: this.#options.topology ?? "PRODUCTION_LIKE_SINGLE_HOST",
       tenantId: input.tenantId,
       agentId: input.agentId,
       agentRevision: input.agentRevision,
@@ -197,7 +215,7 @@ export class ProductionDeploymentReadinessEvaluator {
         canonicalTargetId,
         governanceRevision: input.governance.revision,
         productionProfile: this.#options.adapterProfile,
-        multiHost: "not_proven",
+        multiHost: this.#options.topology === "SHARED_MULTI_INSTANCE" ? "shared_state_ready_topology_proof_required" : "not_proven",
       },
     };
   }

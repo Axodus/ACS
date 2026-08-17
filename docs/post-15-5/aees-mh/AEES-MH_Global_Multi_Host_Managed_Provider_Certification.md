@@ -144,3 +144,13 @@ node scripts/certify-aees-mh-preflight.mjs \
 ```
 
 The manifest contains the imported H baseline, source-backed state inventory, environment probes, gate results and blocker codes. It contains no credentials.
+
+## Follow-up status — AEES-SH
+
+AEES-SH completed on 2026-08-17 without rewriting this historical result:
+
+- `MH_ASYNC_SHARED_REPOSITORY_BOUNDARY_UNAVAILABLE` → `RESOLVED`;
+- `MH_SHARED_AUTHORITATIVE_STATE_UNAVAILABLE` → `RESOLVED` for the shared PostgreSQL profile;
+- `MH_DUAL_HOST_TOPOLOGY_UNAVAILABLE` → `DUAL_INSTANCE_PROVEN / PHYSICAL_MULTI_HOST_NOT_PROVEN`.
+
+Evidence: `docs/post-15-5/aees-sh/` and `/tmp/acs-post15-5-aees-sh-evidence/manifest.json`. AEES-MH may resume at MH02 after bounded revalidation of these claims.

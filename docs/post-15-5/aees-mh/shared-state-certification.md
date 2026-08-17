@@ -37,3 +37,9 @@ Consequently the following required evidence is absent:
 The correct follow-up is a production shared-store implementation, not a certification harness workaround. It must preserve the existing domain models while making network I/O explicit and acknowledgement-safe. Schema migration must cover current snapshot and SQLite data with integrity verification and rollback.
 
 SQLite remains valid only for development and the already certified single-host topology. SQLite on a shared network filesystem is not an accepted MH01 design.
+
+## Follow-up result
+
+AEES-SH completed this foundation on 2026-08-17 with PostgreSQL network authority, async repositories, transactional audit, DB-backed CAS/fencing and dual-process acceptance. See `../aees-sh/SH02-shared-database-adapters.md` and `../aees-sh/SH03-dual-control-plane-certification.md`.
+
+This does not retroactively change the MH01 attempt from `FAIL`; it supplies the prerequisite for resuming MH02/MH03. Physical multi-host remains unproven.

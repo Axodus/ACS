@@ -33,3 +33,7 @@
 ## Terminal AEES-MH residuals
 
 For the attempted global claim, `ACS-ORG-001`, `002`, `009`, `010`, `018`, `019` and `021` are `OPEN_BLOCKER`. Their EPIC-15.5 disposition remains `ACCEPTABLE_DEFERRED` because they do not invalidate the closed single-host certified topology.
+
+## Post-attempt foundation note
+
+AEES-SH subsequently certified shared PostgreSQL authority and dual-process Control Plane semantics. Global readiness remains `NOT_CERTIFIED`: physical multi-host, managed providers and cross-host runtime still require MH02/MH03.
