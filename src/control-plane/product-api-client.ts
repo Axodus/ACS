@@ -21,6 +21,7 @@ import type { AuditService, AuditEvent, AuditQueryFilter } from "./audit-service
 import type { ExecutionTargetService } from "../targets/execution-target-service.js";
 import type { HttpIdentityValidator } from "../http/auth.js";
 import type { HttpEdgePolicy } from "../http/edge.js";
+import type { OperationalTelemetryProvider } from "./operational-telemetry.js";
 import type { EconomicService } from "./neurons-economic-contract.js";
 import { OperationalEvidenceService } from "./operational-evidence-service.js";
 import type {
@@ -106,6 +107,7 @@ export interface ProductApiClientOptions {
   readonly secretStore?: SecretStore;
   readonly identityValidator?: HttpIdentityValidator;
   readonly edgePolicy?: HttpEdgePolicy;
+  readonly telemetry?: OperationalTelemetryProvider;
   readonly baseUrl?: string;
 }
 
@@ -1490,6 +1492,7 @@ export class ProductApiClient {
   readonly #secretStore: SecretStore | undefined;
   readonly #identityValidator: HttpIdentityValidator | undefined;
   readonly #edgePolicy: HttpEdgePolicy | undefined;
+  readonly #telemetry: OperationalTelemetryProvider | undefined;
   readonly #baseUrl: string | undefined;
 
   constructor(options: ProductApiClientOptions = {}) {
@@ -1512,6 +1515,7 @@ export class ProductApiClient {
     this.#secretStore = options.secretStore;
     this.#identityValidator = options.identityValidator;
     this.#edgePolicy = options.edgePolicy;
+    this.#telemetry = options.telemetry;
     this.#baseUrl = options.baseUrl;
 
     this.#operationalEvidence = new OperationalEvidenceService({
@@ -3188,14 +3192,29 @@ export class ProductApiClient {
 
     const runtime = await this.#probeRuntimeConnectivity();
     const edgeReadiness = this.#edgePolicy ? await this.#edgePolicy.readiness() : undefined;
+    // Derive signals from live descriptors when available. Never force pre-15.5 historical defaults
+    // for the operational dashboard path. Global multi-host limitations are expressed as caveats,
+    // not as active production blockers.
+    const derivedAuthMode = this.#identityValidator?.descriptor.mode ?? this.#readinessSignals.authMode ?? "disabled";
+    const derivedSecret = this.#secretStore?.descriptor.productionOriented
+      ? (this.#secretStore.descriptor.provider.includes("vault") || this.#secretStore.descriptor.provider.includes("kms") ? "vault" : "memory")
+      : (this.#readinessSignals.secretBackend ?? "memory");
+    const derivedPersistence = this.#readinessSignals.persistenceBackend
+      ?? (this.#runtimeCoordinator?.descriptor.multiInstance === "shared_database" ? "database" : "memory");
+    const derivedSettlement = this.#readinessSignals.settlementBackend
+      ?? (this.#economicService?.settlementProviderDescriptor.productionOriented ? "production" : "memory");
+    const derivedTelemetry = this.#readinessSignals.observabilityExporterEnabled
+      ?? (this.#telemetry ? this.#telemetry.descriptor.external : false);
+    const derivedLiveDeploy = this.#readinessSignals.liveDeploymentEnabled ?? false;
+
     const report = createEpic10ReadinessReport({
-      authMode: "disabled",
+      authMode: derivedAuthMode,
       rateLimitEnabled: edgeReadiness?.rateLimiter.reachable === true,
-      observabilityExporterEnabled: false,
-      persistenceBackend: "memory",
-      secretBackend: "memory",
-      settlementBackend: "memory",
-      liveDeploymentEnabled: false,
+      observabilityExporterEnabled: derivedTelemetry,
+      persistenceBackend: derivedPersistence,
+      secretBackend: derivedSecret,
+      settlementBackend: derivedSettlement,
+      liveDeploymentEnabled: derivedLiveDeploy,
       ...this.#readinessSignals,
       remoteWorkerSupported,
       workerStatus,
@@ -3204,7 +3223,19 @@ export class ProductApiClient {
     });
 
     const blockers = [...report.blockers];
-    const warnings = report.findings.filter((finding) => !finding.blocksProduction);
+    const warnings = [
+      ...report.findings.filter((finding) => !finding.blocksProduction),
+      ...(this.#runtimeCoordinator?.descriptor.multiHost === "not_proven" ? [{
+        domain: "global-topology",
+        component: "physical multi-host",
+        severity: "warning" as const,
+        currentState: "Certified topology is single-host/dual-process.",
+        requiredState: "Physical multi-host Control Plane and worker acceptance.",
+        reason: "Physical multi-host topology, cross-host workers and host-failure recovery are not globally certified.",
+        recommendedRemediation: "Resume AEES-MH MH03 only when independent hosts or VMs and failure-injection infrastructure are available.",
+        blocksProduction: false,
+      }] : []),
+    ];
     const distributedRuntimeReady = remoteWorkerSupported
       && runtimeStoreHealth?.reachable === true
       && recoveryHealth?.healthy !== false
@@ -3241,15 +3272,11 @@ export class ProductApiClient {
       },
       {
         id: "production",
-        label: "Production readiness",
-        status: report.productionReady
-          ? "ready"
-          : report.blockers.length > 0
-            ? "blocked"
-            : "partial",
+        label: "Certified topology readiness",
+        status: report.blockers.length > 0 ? "blocked" : "ready",
         detail: report.blockers.length > 0
-          ? `Blocked by ${report.blockers.length} production finding(s).`
-          : "Production readiness is not claimed in this inspection slice.",
+          ? "Active production findings prevent operation in the selected certified topology."
+          : "Production-oriented dependencies are ready for the selected certified topology.",
       },
     ];
 
@@ -3461,12 +3488,6 @@ export class ProductApiClient {
         domain: "system",
         message: "Product API is in inspection mode; automation is disabled.",
       },
-      {
-        code: "EXECUTION_SANDBOX_ONLY",
-        severity: "warning",
-        domain: "execution",
-        message: "Runtime and deployment operations are limited to sandbox mode in this slice.",
-      },
     ];
 
     for (const deployment of deployments) {
@@ -3527,6 +3548,15 @@ export class ProductApiClient {
         severity: "warning",
         domain: finding.domain,
         message: finding.reason,
+      });
+    }
+
+    if (readinessSummary.warnings.some((finding) => finding.domain === "global-topology")) {
+      warnings.push({
+        code: "GLOBAL_MULTI_HOST_NOT_CERTIFIED",
+        severity: "warning",
+        domain: "global-topology",
+        message: "Global multi-host, host failover and cross-host worker recovery are not certified; the selected certified topology remains supported.",
       });
     }
 

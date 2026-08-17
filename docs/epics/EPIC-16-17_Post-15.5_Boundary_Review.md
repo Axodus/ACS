@@ -34,6 +34,31 @@ attempt. EPIC-16 and EPIC-17 must not absorb MH03 merely to change that result.
 
 ## 2. Source recovery result
 
+### BR-01 result — 2026-08-17
+
+BR-01 completed with the terminal status:
+
+```text
+NO_EXTERNAL_CANONICAL_ROADMAP_FOUND
+```
+
+The current tree, reachable Git history, deleted/renamed files, local refs,
+portfolio planning material and accessible external references were searched.
+GitHub issues/PRs were unavailable because `api.github.com` could not be
+reached. No source met the canonical criteria for EPIC-16 or EPIC-17.
+
+Accordingly:
+
+```text
+EPIC-16 canonical mission: NOT FOUND
+EPIC-16 strongest hypothesis: Production Financial Operations
+EPIC-16 hypothesis status: SUPPORTED_HYPOTHESIS / NOT_CANONICAL
+EPIC-17 mission: UNASSIGNED
+```
+
+See the complete search log and provenance in
+[BR-01 External Roadmap Recovery](./BR-01_External_Roadmap_Recovery.md).
+
 The review inspected the current documentation tree, reachable branches and
 commit history.
 
@@ -284,8 +309,8 @@ Before mission approval, do not:
 
 | ID | Decision | Status |
 | --- | --- | --- |
-| BR-01 | Import an external canonical EPIC-16/17 roadmap, if one exists | `OPEN` |
-| BR-02 | Approve or reject Production Financial Operations as EPIC-16 mission | `OPEN` |
+| BR-01 | Import an external canonical EPIC-16/17 roadmap, if one exists | `COMPLETE_NO_EXTERNAL_CANONICAL_ROADMAP_FOUND` |
+| BR-02 | Approve or reject Production Financial Operations as EPIC-16 mission | `APPROVE` — see [BR-02 mission decision](./BR-02_EPIC-16_Mission_Decision.md) |
 | BR-03 | Select Enterprise Identity Lifecycle or Reliability/Fleet Operations as the next independent mission | `OPEN` |
 | BR-04 | Decide whether any financial provider, money movement, tax or accounting scope is authorized | `OPEN` |
 | BR-05 | Confirm MH03 remains a lateral infrastructure-gated certification line | `PROPOSED_CONFIRMED_BY_BASELINE` |
@@ -322,8 +347,12 @@ clusters.
 ```text
 EPIC-16 canonical mission recovered: NO
 EPIC-17 canonical mission recovered: NO
+BR-01 terminal status: NO_EXTERNAL_CANONICAL_ROADMAP_FOUND
+BR-02 terminal status: APPROVE
+EPIC-16 mission: Production Financial Operations
+EPIC-17 mission: UNASSIGNED
 Post-15.5 boundary review: COMPLETE
 Functional implementation authorized: NO
 MH03 resumed: NO
-Recommended next decision: approve or replace the EPIC-16 financial-operations hypothesis
+Authorized next step: Create EPIC-16 Normative Package (planning only)
 ```

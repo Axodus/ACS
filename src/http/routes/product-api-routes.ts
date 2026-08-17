@@ -112,11 +112,18 @@ export async function routeProductApiRequest(
     secretStore: context.secretStore,
     identityValidator: context.identityValidator,
     edgePolicy: context.edgePolicy,
+    telemetry: context.telemetry,
     readinessSignals: {
       authMode: context.identityValidator.descriptor.mode,
-      persistenceBackend: context.administrativeState.durability === "single_node_durable" ? "filesystem" : "memory",
+      persistenceBackend: context.productionAdapters.runtime.multiInstance === "shared_database"
+        || context.productionAdapters.deploymentState.multiInstance === "shared_database"
+        ? "database"
+        : context.administrativeState.durability === "single_node_durable" ? "filesystem" : "memory",
       secretBackend: context.productionAdapters.secretProvider.provider === "vault-kv-v2" ? "vault" : "memory",
       settlementBackend: context.productionAdapters.settlementProvider.productionOriented ? "production" : "memory",
+      observabilityExporterEnabled: context.productionAdapters.telemetry.external,
+      remoteWorkerSupported: context.productionAdapters.runtime.productionOriented,
+      liveDeploymentEnabled: context.productionAdapters.deploymentTarget.productionOriented,
     },
   });
 
