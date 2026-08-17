@@ -75,7 +75,7 @@ Customer operational health  → /
 Technical readiness          → /administration
 ```
 
-The real `.design/app-standalone` surface passed the four-viewport light/dark Dashboard matrix, Administration desktop/mobile checks, route regressions and mobile drawer interactions. The manifest reports zero accessibility, overflow, page, console, API, request and sensitive-data failures.
+The real `.design/app-standalone` surface passed the four-viewport light/dark Dashboard matrix, Administration desktop/mobile checks, route regressions and mobile drawer interactions. After the first visually insufficient implementation was rejected, HOTFIX-05 was remediated against `dashboard-reference.png` and passed explicit hierarchy, KPI weight, visualization-region, attention-priority, information-density, semantic-color and theme-richness checks. The manifest reports zero accessibility, overflow, page, console, API, request and sensitive-data failures.
 
 The profile regression contract remains unchanged:
 

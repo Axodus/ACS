@@ -78,18 +78,17 @@ async function selectTheme(page, theme) {
 async function inspect(page, route, viewport, theme, screenshotName) {
   const runtime = { consoleErrors: [], pageErrors: [], requestFailures: [], apiErrors: [], dashboardRequests: [] };
   attachRuntimeCapture(page, runtime);
-  const dashboardResponse = route === "/" || route === "/administration"
-    ? page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/dashboard" && response.status() === 200, { timeout: 30_000 })
-    : null;
   const response = await page.goto(new URL(route, frontend).toString(), { waitUntil: "domcontentloaded", timeout: 30_000 });
   await page.locator("main h1").first().waitFor({ state: "visible", timeout: 15_000 });
-  if (dashboardResponse) await dashboardResponse;
   if (route === "/") {
     await page.locator(".dashboard-health h2").waitFor({ state: "visible", timeout: 15_000 });
     await page.waitForFunction(() => document.querySelector(".dashboard-health h2")?.textContent?.trim() !== "UNAVAILABLE", undefined, { timeout: 30_000 });
     await page.waitForFunction(() => ![...document.querySelectorAll(".dashboard-kpi > strong")].some(node => node.textContent?.trim() === "--"), undefined, { timeout: 30_000 });
   }
   if (route === "/administration") await page.getByText("Physical multi-host, host failover and cross-host worker recovery are not certified.", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
+  if ((route === "/" || route === "/administration") && runtime.dashboardRequests.length === 0) {
+    await page.waitForFunction(() => performance.getEntriesByType("resource").some(entry => new URL(entry.name).pathname === "/api/v1/dashboard"), undefined, { timeout: 15_000 });
+  }
   await page.waitForTimeout(150);
   await selectTheme(page, theme);
   await page.waitForTimeout(150);
@@ -118,6 +117,8 @@ const manifest = {
   status: "FAIL",
   frontend,
   dashboardApi: apiEndpoint,
+  visualReference: "screenshots/dashboard-reference.png",
+  visualComparison: "screenshots/dashboard-desktop-light.png",
   viewports,
   baselineScreenshots: ["baseline/desktop-light.png", "baseline/desktop-dark.png", "baseline/mobile-light.png", "baseline/mobile-dark.png"],
   dashboardStates: [],
@@ -125,6 +126,7 @@ const manifest = {
   regressionRoutes: [],
   navigation: {},
   semanticChecks: {},
+  visualFidelityChecks: {},
   sensitiveScan: {},
   summary: {},
 };
@@ -196,13 +198,23 @@ try {
     await semanticPage.getByText(/Operational signals need review|customer-impacting execution|Operational health is unavailable/, { exact: false }).waitFor({ state: "visible", timeout: 30_000 });
   });
   const rootText = await semanticPage.locator("main").innerText();
+  manifest.visualFidelityChecks = await semanticPage.evaluate(() => ({
+    welcomeAndHealthHierarchy: Boolean(document.querySelector(".dashboard-canvas .domain-header") && document.querySelector(".dashboard-health")),
+    expressiveKpis: document.querySelectorAll(".dashboard-metric").length === 6 && document.querySelectorAll(".dashboard-metric-icon svg").length === 6,
+    executionVisualization: Boolean(document.querySelector(".execution-chart") && document.querySelector(".success-orbit")),
+    healthAndFinancialVisualizations: Boolean(document.querySelector(".health-visuals") && document.querySelector(".financial-visual")),
+    attentionPriority: Boolean(document.querySelector(".cockpit-attention .attention-count") && document.querySelector(".attention-list")),
+    recentActivityStream: Boolean(document.querySelector(".recent-activity-table")),
+    visualQuickActions: document.querySelectorAll(".quick-access.visual a svg").length === 8,
+    desktopCockpitColumns: getComputedStyle(document.querySelector(".dashboard-cockpit-grid")).gridTemplateColumns.split(" ").length >= 3,
+  }));
   await semanticPage.goto(new URL("/administration", frontend).toString(), { waitUntil: "domcontentloaded" });
   await semanticPage.getByText("Physical multi-host, host failover and cross-host worker recovery are not certified.", { exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   const administrationText = await semanticPage.locator("main").innerText();
   const apiResponse = await semanticPage.request.get(apiEndpoint);
   const apiBody = await apiResponse.json();
   manifest.semanticChecks = {
-    rootIsCustomerFacing: rootText.includes("Operational overview") && rootText.includes("Execution Activity") && rootText.includes("Requires Attention"),
+    rootIsCustomerFacing: rootText.includes("Welcome back, Operator") && rootText.includes("Execution Activity") && rootText.includes("Requires Attention"),
     rootTechnicalCompositionAbsent: !rootText.includes("Active composition") && !rootText.includes("Critical blockers"),
     administrationReadinessPresent: administrationText.includes("Active composition") && administrationText.includes("Critical blockers") && administrationText.includes("Certified platform capability"),
     developmentProfilePreserved: apiBody?.data?.activeProfile?.activeProfile === "development" && apiBody?.data?.criticalBlockers?.length === 0,
@@ -212,7 +224,7 @@ try {
   await semanticContext.close();
 
   const records = [...manifest.dashboardStates, ...manifest.administrationStates, ...manifest.regressionRoutes];
-  const evidenceText = JSON.stringify({ records, semanticChecks: manifest.semanticChecks, navigation: manifest.navigation });
+  const evidenceText = JSON.stringify({ records, semanticChecks: manifest.semanticChecks, visualFidelityChecks: manifest.visualFidelityChecks, navigation: manifest.navigation });
   const sensitivePatterns = {
     bearerTokens: /Bearer\s+[A-Za-z0-9._~+\/-]{12,}/gi,
     privateKeys: /BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY/g,
@@ -229,6 +241,7 @@ try {
   const requestFailures = records.flatMap(record => record.requestFailures).filter(failure => !failure.url.includes("fonts.googleapis.com") && !failure.url.includes("fonts.gstatic.com"));
   const dashboardApiObserved = manifest.dashboardStates.some(record => record.dashboardRequests.some(request => request.status === 200));
   const semanticPass = Object.values(manifest.semanticChecks).every(Boolean);
+  const visualFidelityPass = Object.values(manifest.visualFidelityChecks).every(Boolean);
   const navigationPass = manifest.navigation.drawerOpen && manifest.navigation.overlayClose && manifest.navigation.escapeClose && manifest.navigation.routeChangeClose && manifest.navigation.bodyLocked && manifest.navigation.menuTouchTarget?.pass;
   const sensitivePass = Object.values(manifest.sensitiveScan).every(count => count === 0);
   manifest.summary = {
@@ -241,10 +254,11 @@ try {
     requestFailures,
     dashboardApiObserved,
     semanticPass,
+    visualFidelityPass,
     navigationPass,
     sensitivePass,
   };
-  manifest.status = accessibilityFailures.length === 0 && overflowFailures.length === 0 && pageErrors.length === 0 && consoleErrors.length === 0 && apiErrors.length === 0 && requestFailures.length === 0 && dashboardApiObserved && semanticPass && navigationPass && sensitivePass ? "PASS" : "FAIL";
+  manifest.status = accessibilityFailures.length === 0 && overflowFailures.length === 0 && pageErrors.length === 0 && consoleErrors.length === 0 && apiErrors.length === 0 && requestFailures.length === 0 && dashboardApiObserved && semanticPass && visualFidelityPass && navigationPass && sensitivePass ? "PASS" : "FAIL";
 } finally {
   await browser.close();
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");

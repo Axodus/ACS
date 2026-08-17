@@ -1,6 +1,6 @@
 # HOTFIX-05 — Dashboard Information Architecture
 
-**Result:** PASS
+**Result:** PASS — VISUAL REMEDIATION ACCEPTED
 
 **Date:** August 17, 2026
 
@@ -15,6 +15,22 @@
 ```
 
 The canonical surface remains `.design/app-standalone`. The approved mockup guides Dashboard hierarchy and density; the accepted ACS shell governs navigation, theme and responsive behavior.
+
+## Visual-remediation closure
+
+The first implementation correctly delivered IA, profile-aware semantics, real-data behavior, navigation preservation and technical browser gates, but did not yet satisfy the approved mockup's visual language. Its equal-weight administrative containers, weak KPI hierarchy, oversized health region, low semantic color use and missing visualization canvases were classified as a HOTFIX-05 visual-fidelity failure.
+
+The same HOTFIX was reopened and corrected on the Dashboard content canvas only:
+
+- overall health is compact and integrated into the welcome row;
+- all six KPIs use icons, dominant metrics, supporting context and semantic accents;
+- execution activity, execution success, agent/worker health and financial activity retain stable visual regions even with zero data;
+- Requires Attention is a priority panel with explicit severity iconography;
+- service health, recent activity and quick access are visually scannable rather than generic administrative blocks;
+- desktop width and information density now materially follow the approved cockpit composition;
+- light and dark themes preserve the same visual richness.
+
+The protected shell, navigation mechanics, breakpoints, theme architecture and readiness semantics were not replaced.
 
 ## Protected shell baseline
 
@@ -102,6 +118,8 @@ Evidence root: `/tmp/acs-aees-rp-hotfix05-evidence/manifest.json`
 - sensitive matches: 0;
 - drawer interaction matrix: PASS;
 - real browser Dashboard API observation: PASS.
+- explicit visual-fidelity browser checks: PASS;
+- reference comparison in `.design/app-standalone/design-qa.md`: PASS with no actionable P0/P1/P2 mismatch.
 
 Design comparison: `.design/app-standalone/design-qa.md` (`final result: passed`).
 

@@ -29,6 +29,12 @@ test("customer Dashboard presents operational health without technical compositi
   assert.match(dashboard, /\(\) => productApi\.listEvents\(\)/);
   assert.match(dashboard, /Financial data unavailable/);
   assert.match(dashboard, /Unable to load recent activity/);
+  assert.match(dashboard, /Welcome back, Operator/);
+  assert.match(dashboard, /<DashboardMetric label="Active Agents"/);
+  assert.match(dashboard, /className="execution-chart"/);
+  assert.match(dashboard, /className=\{`success-orbit/);
+  assert.match(dashboard, /className="financial-visual"/);
+  assert.match(dashboard, /className="quick-access visual"/);
 });
 
 test("Administration Overview preserves profile-aware readiness semantics", () => {
@@ -52,8 +58,12 @@ test("navigation keeps supported customer and administration destinations reacha
 });
 
 test("Dashboard styles include responsive customer grids and semantic severities", () => {
-  assert.match(cssSource, /\.customer-dashboard-grid/);
+  assert.match(cssSource, /\.dashboard-cockpit-grid/);
   assert.match(cssSource, /\.dashboard-kpis/);
+  assert.match(cssSource, /\.dashboard-metric-icon/);
+  assert.match(cssSource, /\.cockpit-attention/);
+  assert.match(cssSource, /\.financial-bars/);
+  assert.match(cssSource, /\.quick-access\.visual/);
   assert.match(cssSource, /\.finding-severity-error \{ color: var\(--red\); \}/);
   assert.match(cssSource, /\.finding-severity-warning \{ color: var\(--amber\); \}/);
   assert.match(cssSource, /@media \(max-width: 430px\)/);

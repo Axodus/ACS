@@ -10,6 +10,28 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import {
+  ArrowRight,
+  ChartBar,
+  ChartDonut,
+  ChartLineUp,
+  CheckCircle,
+  ClockCountdown,
+  CurrencyDollar,
+  Gauge,
+  HardDrives,
+  PlayCircle,
+  Pulse,
+  Robot,
+  RocketLaunch,
+  ShieldCheck,
+  UserPlus,
+  UsersThree,
+  Wallet,
+  WarningOctagon,
+  Wrench,
+  XCircle,
+} from "@phosphor-icons/react";
+import {
   productApi,
   productApiConfig,
   type AgentCompositionDetail,
@@ -342,6 +364,53 @@ function DashboardCard({ title, meta, state, emptyMessage, children }: {
       {(state === "ready" || state === "refreshing") && children}
     </div>
   </section>;
+}
+
+type DashboardAccent = "agents" | "executions" | "customers" | "usage" | "workers" | "attention" | "success" | "info";
+
+function CockpitPanel({ title, meta, state, className = "", accent = "info", action, children }: {
+  title: string;
+  meta: string;
+  state: DashboardCardState;
+  className?: string;
+  accent?: DashboardAccent;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return <section className={`cockpit-panel cockpit-panel-${accent} state-${state} ${className}`.trim()}>
+    <header className="cockpit-panel-head">
+      <div><h2>{title}</h2><p>{meta}</p></div>
+      {action}
+    </header>
+    <div className="cockpit-panel-body">
+      {state === "loading" && <div className="cockpit-loading">Loading operational state...</div>}
+      {state === "error" && <div className="cockpit-error">This operational section is temporarily unavailable.</div>}
+      {(state === "ready" || state === "refreshing" || state === "empty") && children}
+    </div>
+  </section>;
+}
+
+function DashboardMetric({ label, value, context, action, to, icon, accent, progress }: {
+  label: string;
+  value: string | number;
+  context: string;
+  action: string;
+  to: string;
+  icon: ReactNode;
+  accent: DashboardAccent;
+  progress?: number | null;
+}) {
+  const normalizedProgress = progress === null || progress === undefined ? null : Math.max(0, Math.min(100, progress));
+  const body = <>
+    <div className="dashboard-metric-top"><span className="dashboard-metric-icon" aria-hidden="true">{icon}</span><span>{label}</span></div>
+    <strong>{value}</strong>
+    <small>{context}</small>
+    <div className={`dashboard-metric-signal${normalizedProgress === null ? " is-neutral" : ""}`} aria-hidden="true"><span style={normalizedProgress === null ? undefined : { width: `${normalizedProgress}%` }} /></div>
+    <span className="dashboard-metric-link">{action}<ArrowRight size={13} weight="bold" aria-hidden="true" /></span>
+  </>;
+  return to.startsWith("http")
+    ? <a className={`dashboard-metric dashboard-metric-${accent}`} href={to}>{body}</a>
+    : <Link className={`dashboard-metric dashboard-metric-${accent}`} to={to}>{body}</Link>;
 }
 
 function SummaryRow({ label, value, tone }: { label: string; value: string | number; tone?: "good" | "warn" | "muted" }) {
@@ -815,83 +884,110 @@ function CustomerDashboard() {
       : attention.length > 0 || unavailableWorkers > 0
         ? "ATTENTION"
         : "HEALTHY";
-  const healthTone = health === "HEALTHY" ? "good" : health === "UNAVAILABLE" ? "muted" : "warn";
   const completionTotal = (summary?.executionRuns.completed ?? 0) + (summary?.executionRuns.failed ?? 0) + (summary?.executionRuns.cancelled ?? 0);
   const successRate = completionTotal > 0 ? Math.round(((summary?.executionRuns.completed ?? 0) / completionTotal) * 100) : null;
-  const executionTotal = Math.max(summary?.executionRuns.total ?? 0, 1);
   const economicValue = (value: string | number | undefined, unit?: string) => value === undefined || value === null || value === "" ? "No data" : `${value}${unit ? ` ${unit}` : ""}`;
   const rootState: DashboardLoadState = summary ? (dashboard.loadState === "refreshing" ? "refreshing" : "ready") : dashboard.loadState;
   const events = [...(activity.data ?? [])].sort((left, right) => right.createdAt - left.createdAt).slice(0, 6);
+  const agentProgress = summary && summary.agents.total > 0 ? (summary.agents.active / summary.agents.total) * 100 : 0;
+  const workerProgress = summary && summary.workers.total > 0 ? (summary.workers.available / summary.workers.total) * 100 : 0;
+  const executionProgress = summary && summary.executionRuns.total > 0 ? (summary.executionRuns.completed / summary.executionRuns.total) * 100 : 0;
+  const executionLifecycle = [
+    { label: "Completed", value: summary?.executionRuns.completed ?? 0, tone: "completed" },
+    { label: "Running", value: summary?.executionRuns.running ?? 0, tone: "running" },
+    { label: "Failed", value: summary?.executionRuns.failed ?? 0, tone: "failed" },
+    { label: "Pending", value: (summary?.executionRuns.pending ?? 0) + (summary?.executionRuns.cancelled ?? 0), tone: "pending" },
+  ];
+  const maxExecutionLifecycle = Math.max(...executionLifecycle.map(item => item.value), 1);
+  const economicStages = [
+    { label: "Estimated", value: Number(economics.data?.totalEstimated ?? 0), display: economicValue(economics.data?.totalEstimated, economics.data?.unit) },
+    { label: "Reserved", value: Number(economics.data?.totalReserved ?? 0), display: economicValue(economics.data?.totalReserved, economics.data?.unit) },
+    { label: "Metered", value: Number(economics.data?.totalMetered ?? 0), display: economicValue(economics.data?.totalMetered, economics.data?.unit) },
+    { label: "Settled", value: Number(economics.data?.totalSettled ?? 0), display: economicValue(economics.data?.totalSettled, economics.data?.unit) },
+  ];
+  const maxEconomicValue = Math.max(...economicStages.map(stage => Number.isFinite(stage.value) ? stage.value : 0), 1);
+  const serviceRows = [
+    { label: "Control Plane", status: summary?.system.status === "ok" ? "healthy" : "unavailable" },
+    { label: "Runtime", status: summary?.runtime.connectivity ?? "unavailable" },
+    { label: "Workers", status: (summary?.workers.available ?? 0) > 0 ? "available" : (summary?.workers.total ?? 0) > 0 ? "degraded" : "unavailable" },
+    { label: "Deployments", status: (summary?.deployments.failed ?? 0) > 0 ? "degraded" : "healthy" },
+  ];
 
-  return <>
-    <DomainHeader domain="Dashboard" title="Operational overview" description="Health, activity and customer impact across the ACS environment." actions={<button className="secondary" disabled={dashboard.loadState === "loading" || dashboard.loadState === "refreshing"} onClick={() => { dashboard.refresh(); economics.refresh(); activity.refresh(); }}>{dashboard.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
+  return <div className="dashboard-canvas">
+    <DomainHeader domain="Dashboard" title="Welcome back, Operator" description="Here is what is happening across your ACS environment." actions={<button className="secondary" disabled={dashboard.loadState === "loading" || dashboard.loadState === "refreshing"} onClick={() => { dashboard.refresh(); economics.refresh(); activity.refresh(); }}>{dashboard.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
     {dashboard.stale && <div className="stale-banner" role="status">Showing a stale operational snapshot. Refresh to recover live state.</div>}
     {dashboard.loadError && <div className="error-banner" role="alert">{dashboard.loadError}</div>}
 
     <section className={`dashboard-health dashboard-health-${health.toLowerCase()}`} aria-labelledby="dashboard-health-title">
-      <div><span className="dashboard-eyebrow">Overall health</span><h2 id="dashboard-health-title">{health}</h2><p>{health === "HEALTHY" ? "Core operational signals are healthy." : health === "ATTENTION" ? "Operational signals need review, but no critical customer-impacting failure is active." : health === "DEGRADED" ? "A customer-impacting execution, deployment or worker condition needs action." : "Operational health is unavailable until the Product API responds."}</p></div>
-      <StateBadge label={health.toLowerCase()} dimension="Overall health" />
+      <span className="dashboard-health-icon" aria-hidden="true">{health === "HEALTHY" ? <ShieldCheck size={25} weight="fill" /> : health === "UNAVAILABLE" ? <Pulse size={25} weight="bold" /> : <WarningOctagon size={25} weight="fill" />}</span>
+      <div className="dashboard-health-copy"><span className="dashboard-eyebrow">Overall health</span><h2 id="dashboard-health-title">{health}</h2><p>{health === "HEALTHY" ? "Core operational signals are healthy." : health === "ATTENTION" ? "Operational signals need review; no critical customer-impacting failure is active." : health === "DEGRADED" ? "A customer-impacting execution, deployment or worker condition needs action." : "Operational health is unavailable until the Product API responds."}</p></div>
       <div className="dashboard-health-meta"><span>Environment <b>{summary?.activeProfile.activeProfile ?? "unavailable"}</b></span><span>Last checked <b>{summary ? new Date(summary.system.checkedAt).toLocaleTimeString() : "--"}</b></span></div>
     </section>
 
     <div className="dashboard-kpis" aria-label="Key operational indicators">
-      <article className="dashboard-kpi"><span>Active Agents</span><strong>{summary?.agents.active ?? "--"}</strong><small>{summary ? `${summary.agents.total} total` : "Loading"}</small><Link to="/agents">View Agents →</Link></article>
-      <article className="dashboard-kpi"><span>Executions</span><strong>{summary?.executionRuns.total ?? "--"}</strong><small>{summary ? `${summary.executionRuns.running} running` : "Loading"}</small><Link to="/executions">View Executions →</Link></article>
-      <article className="dashboard-kpi"><span>Workers Available</span><strong>{summary?.workers.available ?? "--"}</strong><small>{summary ? `${summary.workers.availableSlots} open slots` : "Loading"}</small><Link to="/workers">View Workers →</Link></article>
-      <article className="dashboard-kpi"><span>Active Customers</span><strong>—</strong><small>Tenant count not exposed by the current read model</small><a href={productApiConfig.tenantAdministrationUrl}>Tenant Administration ↗</a></article>
-      <article className="dashboard-kpi"><span>Usage</span><strong>{economicValue(economics.data?.totalMetered, economics.data?.unit)}</strong><small>{economics.loadError ? "Financial data unavailable" : "Operational metering"}</small><Link to="/economics">View Financial Operations →</Link></article>
-      <article className={`dashboard-kpi dashboard-kpi-${healthTone}`}><span>Requires Attention</span><strong>{attention.length}</strong><small>{operationalBlockers.length} critical operational findings</small><Link to="/operations">Review Operations →</Link></article>
+      <DashboardMetric label="Active Agents" value={summary?.agents.active ?? "--"} context={summary ? `${summary.agents.total} total agents` : "Loading current inventory"} action="View Agents" to="/agents" icon={<Robot size={25} weight="fill" />} accent="agents" progress={agentProgress} />
+      <DashboardMetric label="Executions" value={summary?.executionRuns.total ?? "--"} context={summary ? `${summary.executionRuns.running} running now` : "Loading execution state"} action="View Executions" to="/executions" icon={<PlayCircle size={25} weight="fill" />} accent="executions" progress={executionProgress} />
+      <DashboardMetric label="Active Customers" value="—" context="Tenant count is not exposed by the current read model" action="Tenant Administration" to={productApiConfig.tenantAdministrationUrl} icon={<UsersThree size={25} weight="fill" />} accent="customers" progress={null} />
+      <DashboardMetric label="Usage" value={economicValue(economics.data?.totalMetered, economics.data?.unit)} context={economics.loadError ? "Financial data unavailable" : "Current operational metering"} action="View Financial Operations" to="/economics" icon={<CurrencyDollar size={25} weight="fill" />} accent="usage" progress={null} />
+      <DashboardMetric label="Workers" value={summary?.workers.available ?? "--"} context={summary ? `${summary.workers.availableSlots} open slots` : "Loading worker capacity"} action="View Workers" to="/workers" icon={<HardDrives size={25} weight="fill" />} accent="workers" progress={workerProgress} />
+      <DashboardMetric label="Requires Attention" value={attention.length} context={`${operationalBlockers.length} critical operational findings`} action="Review Operations" to="/operations" icon={<WarningOctagon size={25} weight="fill" />} accent="attention" progress={Math.min(100, (attention.length / 5) * 100)} />
     </div>
 
-    <div className="customer-dashboard-grid">
-      <DashboardCard title="Execution Activity" meta="Current execution lifecycle distribution" state={rootState}>
-        <div className="execution-activity" role="img" aria-label={`${summary?.executionRuns.completed ?? 0} completed, ${summary?.executionRuns.running ?? 0} running, ${summary?.executionRuns.failed ?? 0} failed, ${summary?.executionRuns.pending ?? 0} pending executions`}>
-          <div className="execution-bars" aria-hidden="true">
-            <span className="completed" style={{ width: `${((summary?.executionRuns.completed ?? 0) / executionTotal) * 100}%` }} />
-            <span className="running" style={{ width: `${((summary?.executionRuns.running ?? 0) / executionTotal) * 100}%` }} />
-            <span className="failed" style={{ width: `${((summary?.executionRuns.failed ?? 0) / executionTotal) * 100}%` }} />
-            <span className="pending" style={{ width: `${(((summary?.executionRuns.pending ?? 0) + (summary?.executionRuns.cancelled ?? 0)) / executionTotal) * 100}%` }} />
+    <div className="dashboard-cockpit-grid">
+      <CockpitPanel title="Execution Activity" meta="Current execution lifecycle distribution" state={rootState} className="cockpit-execution" accent="executions" action={<Link className="cockpit-action" to="/executions">View all<ArrowRight size={13} weight="bold" /></Link>}>
+        <div className="execution-chart" role="img" aria-label={`${summary?.executionRuns.completed ?? 0} completed, ${summary?.executionRuns.running ?? 0} running, ${summary?.executionRuns.failed ?? 0} failed and ${(summary?.executionRuns.pending ?? 0) + (summary?.executionRuns.cancelled ?? 0)} pending or other executions`}>
+          <div className="execution-chart-grid" aria-hidden="true"><i /><i /><i /><i /></div>
+          <div className="execution-chart-bars">
+            {executionLifecycle.map(item => <div className="execution-chart-column" key={item.label}><span className={`execution-chart-bar ${item.tone}${item.value === 0 ? " is-zero" : ""}`} style={{ height: `${item.value === 0 ? 8 : Math.max(20, (item.value / maxExecutionLifecycle) * 100)}%` }}><b>{item.value}</b></span><small>{item.label}</small></div>)}
           </div>
-          <div className="execution-legend"><span><i className="completed" />Completed <b>{summary?.executionRuns.completed ?? 0}</b></span><span><i className="running" />Running <b>{summary?.executionRuns.running ?? 0}</b></span><span><i className="failed" />Failed <b>{summary?.executionRuns.failed ?? 0}</b></span><span><i className="pending" />Pending/other <b>{(summary?.executionRuns.pending ?? 0) + (summary?.executionRuns.cancelled ?? 0)}</b></span></div>
+          {(summary?.executionRuns.total ?? 0) === 0 && <div className="chart-empty-copy"><ChartLineUp size={24} weight="duotone" /><b>No execution activity</b><span>The visualization will populate from authoritative execution history.</span></div>}
         </div>
-        <Link className="surface-link" to="/executions">Open execution history →</Link>
-      </DashboardCard>
+        <div className="execution-legend compact">{executionLifecycle.map(item => <span key={item.label}><i className={item.tone} />{item.label}<b>{item.value}</b></span>)}</div>
+      </CockpitPanel>
 
-      <DashboardCard title="Execution Success" meta="Completed outcomes from current history" state={rootState}>
-        <div className="success-summary"><strong>{successRate === null ? "No data" : `${successRate}%`}</strong><span>{successRate === null ? "No completed execution outcomes are available yet." : `${summary?.executionRuns.completed ?? 0} of ${completionTotal} completed outcomes succeeded.`}</span></div>
-        <div className="summary-list"><SummaryRow label="Running" value={summary?.executionRuns.running ?? 0} /><SummaryRow label="Failed" value={summary?.executionRuns.failed ?? 0} tone={(summary?.executionRuns.failed ?? 0) > 0 ? "warn" : "muted"} /><SummaryRow label="Cancelled" value={summary?.executionRuns.cancelled ?? 0} /></div>
-      </DashboardCard>
+      <CockpitPanel title="Execution Success" meta="Completed outcomes in the current snapshot" state={rootState} className="cockpit-success" accent="success">
+        <div className="success-visual">
+          <div className={`success-orbit${successRate === null ? " is-empty" : ""}`}><ChartDonut size={94} weight="duotone" aria-hidden="true" /><div><strong>{successRate === null ? "—" : `${successRate}%`}</strong><span>{successRate === null ? "No data" : "Success"}</span></div></div>
+          <div className="success-breakdown"><span><i className="completed" />Success <b>{summary?.executionRuns.completed ?? 0}</b></span><span><i className="failed" />Failed <b>{summary?.executionRuns.failed ?? 0}</b></span><span><i className="pending" />Cancelled <b>{summary?.executionRuns.cancelled ?? 0}</b></span></div>
+        </div>
+        <p className="visual-footnote">{successRate === null ? "No completed execution outcomes are available yet." : `${summary?.executionRuns.completed ?? 0} of ${completionTotal} completed outcomes succeeded.`}</p>
+      </CockpitPanel>
 
-      <DashboardCard title="Requires Attention" meta="Actionable operational conditions" state={attention.length > 0 ? "ready" : rootState === "ready" ? "empty" : rootState} emptyMessage="No customer-impacting operational conditions need attention">
-        <div className="attention-list">{attention.map(finding => <Link to={finding.domain === "worker" ? "/workers" : finding.domain === "execution" ? "/executions" : finding.domain === "deployment" ? "/operational-execution" : "/operations"} key={`${finding.code}-${finding.message}`} className={`attention-item ${finding.severity}`}><FindingSeverity severity={finding.severity} /><span><b>{finding.domain}</b>{finding.message}</span><i>→</i></Link>)}</div>
-      </DashboardCard>
+      <CockpitPanel title="Requires Attention" meta="Actionable operational conditions" state={rootState} className="cockpit-attention" accent="attention" action={<span className="attention-count">{attention.length}</span>}>
+        {attention.length === 0 ? <div className="attention-empty"><CheckCircle size={42} weight="duotone" /><b>No operational issues require action</b><span>Customer-impacting signals will appear here.</span></div> : <div className="attention-list">{attention.map(finding => <Link to={finding.domain === "worker" ? "/workers" : finding.domain === "execution" ? "/executions" : finding.domain === "deployment" ? "/operational-execution" : "/operations"} key={`${finding.code}-${finding.message}`} className={`attention-item ${finding.severity}`}><span className="attention-icon" aria-hidden="true">{finding.severity === "error" ? <XCircle size={19} weight="fill" /> : <WarningOctagon size={19} weight="fill" />}</span><span><b>{finding.domain}</b>{finding.message}</span><ArrowRight size={14} weight="bold" aria-hidden="true" /></Link>)}</div>}
+      </CockpitPanel>
 
-      <DashboardCard title="Agent & Worker Health" meta="Lifecycle and availability from authoritative inventories" state={rootState}>
-        <div className="health-columns"><div><h3>Agents</h3><SummaryRow label="Active" value={summary?.agents.active ?? 0} tone="good" /><SummaryRow label="Draft" value={summary?.agents.draft ?? 0} /><SummaryRow label="Disabled / archived" value={(summary?.agents.disabled ?? 0) + (summary?.agents.archived ?? 0)} /></div><div><h3>Workers</h3><SummaryRow label="Available" value={summary?.workers.available ?? 0} tone="good" /><SummaryRow label="Degraded" value={summary?.workers.degraded ?? 0} tone={(summary?.workers.degraded ?? 0) > 0 ? "warn" : "muted"} /><SummaryRow label="Unavailable / stale" value={(summary?.workers.unavailable ?? 0) + (summary?.workers.stale ?? 0)} tone={unavailableWorkers > 0 ? "warn" : "muted"} /></div></div>
-      </DashboardCard>
+      <CockpitPanel title="Agent & Worker Health" meta="Lifecycle and availability from authoritative inventories" state={rootState} className="cockpit-agent-health" accent="agents">
+        <div className="health-visuals">
+          <div className="health-visual-block"><div className="health-visual-primary"><span className="health-visual-icon"><Robot size={30} weight="duotone" /></span><div><small>Active Agents</small><strong>{summary?.agents.active ?? 0}<em>/ {summary?.agents.total ?? 0}</em></strong></div></div><progress max="100" value={agentProgress} aria-label={`${Math.round(agentProgress)} percent of agents active`} /><div className="health-visual-legend"><span><i className="completed" />Active {summary?.agents.active ?? 0}</span><span><i className="pending" />Other {(summary?.agents.draft ?? 0) + (summary?.agents.disabled ?? 0) + (summary?.agents.archived ?? 0)}</span></div></div>
+          <div className="health-visual-block"><div className="health-visual-primary"><span className="health-visual-icon worker"><HardDrives size={30} weight="duotone" /></span><div><small>Available Workers</small><strong>{summary?.workers.available ?? 0}<em>/ {summary?.workers.total ?? 0}</em></strong></div></div><progress max="100" value={workerProgress} aria-label={`${Math.round(workerProgress)} percent of workers available`} /><div className="health-visual-legend"><span><i className="completed" />Available {summary?.workers.available ?? 0}</span><span><i className="failed" />Unavailable {unavailableWorkers}</span></div></div>
+        </div>
+      </CockpitPanel>
 
-      <DashboardCard title="Financial Activity" meta="Existing operational economics; expanded workflows are deferred to EPIC-16" state={economics.data ? "ready" : economics.loadState === "error" ? "error" : economics.loadState}>
-        <div className="summary-list"><SummaryRow label="Estimated" value={economicValue(economics.data?.totalEstimated, economics.data?.unit)} /><SummaryRow label="Reserved" value={economicValue(economics.data?.totalReserved, economics.data?.unit)} /><SummaryRow label="Metered" value={economicValue(economics.data?.totalMetered, economics.data?.unit)} /><SummaryRow label="Settled" value={economicValue(economics.data?.totalSettled, economics.data?.unit)} /></div>
-        <p className="panel-note">Reconciliation and exception workflows remain DEFERRED_TO_EPIC16.</p><Link className="surface-link" to="/economics">Open Financial Operations →</Link>
-      </DashboardCard>
+      <CockpitPanel title="Financial Activity" meta="Existing operational economics" state={economics.data ? "ready" : economics.loadState === "error" ? "error" : economics.loadState} className="cockpit-financial" accent="usage" action={<Link className="cockpit-action" to="/economics">View usage<ArrowRight size={13} weight="bold" /></Link>}>
+        <div className="financial-visual" role="img" aria-label={economicStages.map(stage => `${stage.label} ${stage.display}`).join(", ")}>
+          <div className="financial-bars" aria-hidden="true">{economicStages.map(stage => <div key={stage.label}><span style={{ height: `${stage.value > 0 && Number.isFinite(stage.value) ? Math.max(18, (stage.value / maxEconomicValue) * 100) : 8}%` }} className={stage.value > 0 ? "" : "is-zero"} /><small>{stage.label}</small></div>)}</div>
+          <div className="financial-values">{economicStages.map(stage => <span key={stage.label}><small>{stage.label}</small><b>{stage.display}</b></span>)}</div>
+          {economicStages.every(stage => !Number.isFinite(stage.value) || stage.value === 0) && <div className="financial-zero"><Wallet size={24} weight="duotone" /><span>No economic movement in the current snapshot</span></div>}
+        </div>
+        <p className="visual-footnote">Reconciliation and exception workflows remain DEFERRED_TO_EPIC16.</p>
+      </CockpitPanel>
 
-      <DashboardCard title="Service Health" meta="Customer-relevant service availability" state={rootState}>
-        <div className="service-health"><div><span>Control Plane</span><Status status={summary?.system.status === "ok" ? "healthy" : "unavailable"} /></div><div><span>Runtime</span><Status status={summary?.runtime.connectivity ?? "unavailable"} /></div><div><span>Workers</span><Status status={(summary?.workers.available ?? 0) > 0 ? "available" : (summary?.workers.total ?? 0) > 0 ? "degraded" : "unavailable"} /></div><div><span>Deployments</span><Status status={(summary?.deployments.failed ?? 0) > 0 ? "degraded" : "healthy"} /></div></div>
-        <Link className="surface-link" to="/operations">Open Operations →</Link>
-      </DashboardCard>
+      <CockpitPanel title="Service Health" meta="Customer-relevant service availability" state={rootState} className="cockpit-services" accent="success" action={<Link className="cockpit-action" to="/operations">View all<ArrowRight size={13} weight="bold" /></Link>}>
+        <div className="service-health visual">{serviceRows.map(service => { const healthy = /healthy|available|connected/.test(service.status); const warning = /degraded|partial/.test(service.status); return <div key={service.label}><span className={`service-icon ${healthy ? "healthy" : warning ? "warning" : "error"}`}>{healthy ? <CheckCircle size={18} weight="fill" /> : warning ? <Gauge size={18} weight="fill" /> : <XCircle size={18} weight="fill" />}</span><span>{service.label}</span><Status status={service.status} /></div>; })}</div>
+      </CockpitPanel>
 
-      <DashboardCard title="Recent Activity" meta="Latest operational events" state={events.length > 0 ? "ready" : activity.loadState === "error" ? "error" : activity.loadState === "ready" ? "empty" : activity.loadState} emptyMessage="No recent operational events are available">
-        <div className="recent-activity">{events.map(event => <article key={event.eventId}><time dateTime={new Date(event.createdAt).toISOString()}>{new Date(event.createdAt).toLocaleTimeString()}</time><span><b>{event.type}</b>{event.message}</span><FindingSeverity severity={event.severity === "critical" ? "error" : event.severity} /></article>)}</div>
-        <Link className="surface-link" to="/operational-evidence">Open operational evidence →</Link>
-      </DashboardCard>
+      <CockpitPanel title="Recent Activity" meta="Latest operational events" state={activity.loadState === "error" ? "error" : activity.loadState} className="cockpit-recent" accent="info" action={<Link className="cockpit-action" to="/operational-evidence">View all activity<ArrowRight size={13} weight="bold" /></Link>}>
+        {events.length === 0 ? <div className="recent-empty"><ClockCountdown size={34} weight="duotone" /><b>No recent activity</b><span>Authoritative events will appear here as they occur.</span></div> : <div className="recent-activity-table" role="table" aria-label="Recent operational activity"><div className="recent-activity-head" role="row"><span>Time</span><span>Event</span><span>Detail</span><span>Status</span></div>{events.map(event => <article key={event.eventId} role="row"><time dateTime={new Date(event.createdAt).toISOString()}>{new Date(event.createdAt).toLocaleTimeString()}</time><b>{event.type}</b><span>{event.message}</span><FindingSeverity severity={event.severity === "critical" ? "error" : event.severity} /></article>)}</div>}
+      </CockpitPanel>
 
-      <DashboardCard title="Quick Access" meta="Supported ACS workflows" state="ready">
-        <div className="quick-access"><Link to="/agents/new"><b>Create Agent</b><span>Start a governed agent lifecycle.</span></Link><Link to="/operational-execution"><b>Plan Execution</b><span>Review readiness before execution or deployment.</span></Link><a href={productApiConfig.tenantAdministrationUrl}><b>Tenant Administration</b><span>Manage accounts, members and governance.</span></a><Link to="/economics"><b>View Usage</b><span>Inspect current operational economics.</span></Link><Link to="/administration"><b>Administration Overview</b><span>Inspect profile, readiness and certification.</span></Link><Link to="/operations"><b>Operations</b><span>Review runtime and service diagnostics.</span></Link></div>
-      </DashboardCard>
+      <CockpitPanel title="Quick Access" meta="Supported ACS workflows" state="ready" className="cockpit-quick" accent="info">
+        <div className="quick-access visual"><Link to="/agents/new"><span><Robot size={23} weight="duotone" /></span><b>Create Agent</b></Link><Link to="/operational-execution"><span><RocketLaunch size={23} weight="duotone" /></span><b>Plan Execution</b></Link><a href={productApiConfig.tenantAdministrationUrl}><span><UserPlus size={23} weight="duotone" /></span><b>Add Tenant</b></a><Link to="/economics"><span><ChartBar size={23} weight="duotone" /></span><b>View Usage</b></Link><Link to="/economics"><span><Wallet size={23} weight="duotone" /></span><b>Reservations</b></Link><Link to="/economics"><span><CurrencyDollar size={23} weight="duotone" /></span><b>Settlements</b></Link><Link to="/administration"><span><ShieldCheck size={23} weight="duotone" /></span><b>Providers</b></Link><Link to="/operations"><span><Wrench size={23} weight="duotone" /></span><b>Operations</b></Link></div>
+      </CockpitPanel>
     </div>
 
     {(summary?.globalCaveats.length ?? 0) > 0 && <aside className="administration-advisory"><div><b>System configuration has advisory notices</b><span>Global certification caveats are tracked separately from current customer health.</span></div><Link to="/administration">View Administration Overview →</Link></aside>}
-  </>;
+  </div>;
 }
 
 function AdministrationOverview() {

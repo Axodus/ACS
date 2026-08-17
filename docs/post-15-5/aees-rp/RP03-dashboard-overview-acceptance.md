@@ -1,6 +1,6 @@
 # RP03 — Dashboard Overview Acceptance
 
-**Result:** PASS — browser evidence complete on August 17, 2026
+**Result:** PASS — browser and visual-remediation evidence complete on August 17, 2026
 
 ## Canonical routes
 
@@ -28,10 +28,16 @@
 - API/request failures `0`;
 - mobile drawer interaction checks PASS;
 - sensitive evidence matches `0`.
+- visual hierarchy materially equivalent to the approved reference;
+- six expressive KPI cards and required visualization regions present;
+- Requires Attention priority and semantic accent usage present in light/dark;
+- accepted ACS shell and mobile navigation behavior preserved.
 
 Manifest: `/tmp/acs-aees-rp-hotfix05-evidence/manifest.json`.
 
 The root Dashboard is customer-facing. Technical readiness remains complete and profile-aware under Administration Overview. Global multi-host certification remains a warning/caveat and does not become customer health failure.
+
+The initial HOTFIX-05 visual result was explicitly rejected despite its functional PASS. RP03 only closes after the in-scope visual remediation and the final comparison against `dashboard-reference.png`; functional correctness alone is not represented as visual acceptance.
 
 ## Historical blocker regression list
 

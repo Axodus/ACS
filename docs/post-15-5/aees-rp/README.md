@@ -1,6 +1,6 @@
 # AEES-RP — Readiness Projection & Dashboard Reconciliation
 
-**Status:** PASS — HOTFIX-05 ACCEPTED
+**Status:** PASS — HOTFIX-05 VISUAL REMEDIATION ACCEPTED
 
 **Sequence:** RP01 → RP02 → RP03
 
@@ -51,7 +51,7 @@ Hotfix of projection and documentation only. No foundation reimplementation.
 
 - HOTFIX-03 proved the runtime path and active application provenance.
 - HOTFIX-04 made readiness relative to the selected profile.
-- HOTFIX-05 separated customer operational health from technical administration and completed browser acceptance.
+- HOTFIX-05 separated customer operational health from technical administration, then reopened and corrected its initially insufficient visual fidelity against the approved Dashboard reference before completing browser acceptance.
 
 Evidence: `/tmp/acs-aees-rp-hotfix05-evidence/manifest.json` (`PASS`).
 
