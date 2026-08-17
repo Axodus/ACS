@@ -63,11 +63,12 @@ function corsHeaders() {
   };
 }
 
+const host = process.env.ACS_RP_HOST ?? "0.0.0.0";
 await new Promise((resolve, reject) => {
   server.once("error", reject);
-  server.listen(port, "127.0.0.1", resolve);
+  server.listen(port, host, resolve);
 });
-process.stdout.write(JSON.stringify({ ready: true, port, pid: process.pid }) + "\n");
+process.stdout.write(JSON.stringify({ ready: true, port, host, pid: process.pid }) + "\n");
 
 async function shutdown() {
   await new Promise((resolve) => server.close(resolve));
