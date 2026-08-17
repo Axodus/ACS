@@ -113,9 +113,32 @@ export interface ProductApiClientOptions {
 
 export interface DashboardFinding {
   readonly code: string;
-  readonly severity: "error" | "warning";
+  readonly severity: "error" | "warning" | "info";
   readonly domain: string;
   readonly message: string;
+  readonly category?: "active-profile" | "certified-capability" | "global-caveat" | "operational";
+  readonly detail?: string;
+}
+
+function isDashboardFinding(
+  finding: Epic10ReadinessFinding | DashboardFinding,
+): finding is DashboardFinding {
+  return "code" in finding && "message" in finding;
+}
+
+export interface DashboardEnvironmentDescriptor {
+  readonly activeProfile: "development" | "integration" | "production_like_single_host" | "distributed_production";
+  readonly expectedReadiness: "development" | "production";
+  readonly status: "development_profile" | "ready" | "blocked";
+  readonly message: string;
+}
+
+export interface DashboardCertifiedCapability {
+  readonly id: string;
+  readonly label: string;
+  readonly status: "available" | "active" | "blocked";
+  readonly topology: string;
+  readonly detail: string;
 }
 
 export type ProductApiRuntimeConnectivity = "connected" | "degraded" | "unavailable" | "unverified";
@@ -1415,6 +1438,17 @@ export interface DashboardSummary {
   readonly historicalBlockerScan: GlobalReadinessSummary["historicalBlockerScan"];
   readonly criticalBlockers: readonly DashboardFinding[];
   readonly operationalCaveats: readonly DashboardFinding[];
+  readonly activeProfile: DashboardEnvironmentDescriptor;
+  readonly activeComposition: {
+    readonly identity: string;
+    readonly secrets: string;
+    readonly persistence: string;
+    readonly telemetry: string;
+    readonly workers: string;
+    readonly deployment: string;
+  };
+  readonly certifiedCapabilities: readonly DashboardCertifiedCapability[];
+  readonly globalCaveats: readonly DashboardFinding[];
 }
 
 export interface GlobalReadinessSummary {
@@ -1471,7 +1505,7 @@ export interface GlobalReadinessSummary {
     readonly requiredState: string;
   }[];
   readonly blockers: readonly Epic10ReadinessFinding[];
-  readonly warnings: readonly Epic10ReadinessFinding[];
+  readonly warnings: readonly (Epic10ReadinessFinding | DashboardFinding)[];
   readonly evidence: readonly Epic10ReadinessDomainReport[];
   readonly composition: {
     readonly authMode: Epic10ReadinessSignals["authMode"];
@@ -1487,6 +1521,9 @@ export interface GlobalReadinessSummary {
     readonly count: number;
     readonly matches: readonly string[];
   };
+  readonly activeProfile: DashboardEnvironmentDescriptor;
+  readonly certifiedCapabilities: readonly DashboardCertifiedCapability[];
+  readonly globalCaveats: readonly DashboardFinding[];
 }
 
 export class ProductApiClient {
@@ -3257,10 +3294,44 @@ export class ProductApiClient {
       targetStatus,
       runtimeStatus: runtime.connectivity === "connected" || runtime.connectivity === "degraded" ? "running" : "failed",
     });
-
-    const blockers = [...report.blockers];
+    const activeProfile = this.#deriveActiveProfile({
+      authMode: derivedAuthMode,
+      secretBackend: derivedSecret,
+      observabilityExporterEnabled: derivedTelemetry,
+      remoteWorkerSupported: derivedRemoteWorkers,
+      liveDeploymentEnabled: derivedLiveDeploy,
+    });
+    const certifiedCapabilities = this.#buildCertifiedCapabilities({
+      authMode: derivedAuthMode,
+      secretBackend: derivedSecret,
+      persistenceBackend: derivedPersistence,
+      observabilityExporterEnabled: derivedTelemetry,
+      remoteWorkerSupported: derivedRemoteWorkers,
+      liveDeploymentEnabled: derivedLiveDeploy,
+    });
+    const globalCaveats: DashboardFinding[] = [{
+      code: "GLOBAL_MULTI_HOST_NOT_CERTIFIED",
+      severity: "warning",
+      category: "global-caveat",
+      domain: "global-topology",
+      message: "Physical multi-host, host failover and cross-host worker recovery are not certified.",
+      detail: "The selected certified topology remains supported; global multi-host claims remain unproven.",
+    }];
+    const blockers = activeProfile.expectedReadiness === "production"
+      ? [...report.blockers]
+      : report.blockers.filter((finding) => !this.#isHistoricalProductionOnlyBlocker(finding.reason));
     const warnings = [
       ...report.findings.filter((finding) => !finding.blocksProduction),
+      ...(activeProfile.expectedReadiness === "development"
+        ? this.#buildDevelopmentCompositionWarnings({
+            authMode: derivedAuthMode,
+            secretBackend: derivedSecret,
+            persistenceBackend: derivedPersistence,
+            observabilityExporterEnabled: derivedTelemetry,
+            remoteWorkerSupported: derivedRemoteWorkers,
+            liveDeploymentEnabled: derivedLiveDeploy,
+          })
+        : []),
       ...(this.#runtimeCoordinator?.descriptor.multiHost === "not_proven" ? [{
         domain: "global-topology",
         component: "physical multi-host",
@@ -3455,6 +3526,9 @@ export class ProductApiClient {
         count: historicalMatches.length,
         matches: historicalMatches,
       },
+      activeProfile,
+      certifiedCapabilities,
+      globalCaveats,
     };
   }
 
@@ -3549,6 +3623,7 @@ export class ProductApiClient {
       {
         code: "INSPECTION_MODE",
         severity: "warning",
+        category: "operational",
         domain: "system",
         message: "Product API is in inspection mode; automation is disabled.",
       },
@@ -3559,6 +3634,7 @@ export class ProductApiClient {
         blockers.push({
           code: `DEPLOYMENT_${deployment.status.toUpperCase()}`,
           severity: "error",
+          category: "operational",
           domain: "deployment",
           message: `Deployment ${deployment.deploymentId} for agent ${deployment.agentId} is ${deployment.status}.`,
         });
@@ -3570,6 +3646,7 @@ export class ProductApiClient {
         blockers.push({
           code: "EXECUTION_RUN_FAILED",
           severity: "error",
+          category: "operational",
           domain: "execution",
           message: `Execution run ${run.runId} for agent ${run.agentId} failed.`,
         });
@@ -3582,6 +3659,7 @@ export class ProductApiClient {
           blockers.push({
             code: finding.code,
             severity: "error",
+            category: "operational",
             domain: "worker",
             message: `${worker.identity.name}: ${finding.message}`,
           });
@@ -3590,6 +3668,7 @@ export class ProductApiClient {
           warnings.push({
             code: finding.code,
             severity: "warning",
+            category: "operational",
             domain: "worker",
             message: `${worker.identity.name}: ${finding.message}`,
           });
@@ -3598,31 +3677,42 @@ export class ProductApiClient {
     }
 
     for (const finding of readinessSummary.blockers) {
-      blockers.push({
+      const dashboardFinding: DashboardFinding = {
         code: `READINESS_BLOCKER_${finding.domain.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_${finding.component.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`,
         severity: "error",
+        category: "active-profile",
         domain: finding.domain,
         message: finding.reason,
-      });
+        detail: `${finding.currentState} → ${finding.requiredState}`,
+      };
+      if (readinessSummary.activeProfile.expectedReadiness === "production" || !this.#isHistoricalProductionOnlyBlocker(finding.reason)) {
+        blockers.push(dashboardFinding);
+      } else {
+        warnings.push({
+          ...dashboardFinding,
+          severity: "info",
+          message: finding.currentState,
+          detail: "Expected for the active development profile. Production-capable implementation is tracked separately.",
+        });
+      }
     }
 
     for (const finding of readinessSummary.warnings) {
+      if (isDashboardFinding(finding)) {
+        warnings.push(finding);
+        continue;
+      }
       warnings.push({
         code: `READINESS_WARNING_${finding.domain.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_${finding.component.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`,
         severity: "warning",
+        category: "operational",
         domain: finding.domain,
         message: finding.reason,
+        detail: `${finding.currentState} → ${finding.requiredState}`,
       });
     }
 
-    if (readinessSummary.warnings.some((finding) => finding.domain === "global-topology")) {
-      warnings.push({
-        code: "GLOBAL_MULTI_HOST_NOT_CERTIFIED",
-        severity: "warning",
-        domain: "global-topology",
-        message: "Global multi-host, host failover and cross-host worker recovery are not certified; the selected certified topology remains supported.",
-      });
-    }
+    warnings.push(...readinessSummary.globalCaveats);
 
     const stateAgeMs = Math.max(0, Date.now() - generatedAt);
     const stale = stateAgeMs > OPERATIONAL_REFRESH_WINDOW_MS
@@ -3682,8 +3772,196 @@ export class ProductApiClient {
       composition: readinessSummary.composition,
       historicalBlockerScan: readinessSummary.historicalBlockerScan,
       criticalBlockers: blockers.filter((finding) => finding.severity === "error"),
-      operationalCaveats: warnings.filter((finding) => finding.severity === "warning"),
+      operationalCaveats: warnings.filter((finding) => finding.severity !== "error"),
+      activeProfile: readinessSummary.activeProfile,
+      activeComposition: {
+        identity: readinessSummary.composition.authMode,
+        secrets: readinessSummary.composition.secretBackend,
+        persistence: readinessSummary.composition.persistenceBackend,
+        telemetry: readinessSummary.composition.observabilityExporterEnabled ? "external" : "local/disabled",
+        workers: readinessSummary.composition.remoteWorkerSupported ? "remote" : "local",
+        deployment: readinessSummary.composition.liveDeploymentEnabled ? "production-enabled" : "sandbox/development",
+      },
+      certifiedCapabilities: readinessSummary.certifiedCapabilities,
+      globalCaveats: readinessSummary.globalCaveats,
     };
+  }
+
+  #isHistoricalProductionOnlyBlocker(reason: string): boolean {
+    return [
+      "in-memory or filesystem secret storage",
+      "HTTP auth is disabled or mock-only",
+      "external exporters as disabled",
+      "worker implementation is local-only",
+      "current secret store is in-memory",
+      "governance policy only allows sandbox deployments",
+    ].some((fragment) => reason.includes(fragment));
+  }
+
+  #deriveActiveProfile(input: {
+    authMode: Epic10ReadinessSignals["authMode"];
+    secretBackend: Epic10ReadinessSignals["secretBackend"];
+    observabilityExporterEnabled: boolean;
+    remoteWorkerSupported: boolean;
+    liveDeploymentEnabled: boolean;
+  }): DashboardEnvironmentDescriptor {
+    const selectedProfile = this.#readinessSignals.activeProfile;
+    if (selectedProfile === "production_like_single_host" || selectedProfile === "distributed_production") {
+      const productionReadySignals = input.authMode === "oidc"
+        && (input.secretBackend === "vault" || input.secretBackend === "kms")
+        && input.observabilityExporterEnabled
+        && input.remoteWorkerSupported
+        && input.liveDeploymentEnabled;
+      return {
+        activeProfile: selectedProfile,
+        expectedReadiness: "production",
+        status: productionReadySignals ? "ready" : "blocked",
+        message: productionReadySignals
+          ? `${selectedProfile} profile is active and satisfies its production requirements.`
+          : `${selectedProfile} profile is selected but its production requirements are not satisfied.`,
+      };
+    }
+    if (selectedProfile === "integration") {
+      return {
+        activeProfile: "integration",
+        expectedReadiness: "development",
+        status: "development_profile",
+        message: "Integration profile is active; production-only capabilities are reported separately.",
+      };
+    }
+    const productionReadySignals = input.authMode === "oidc"
+      && (input.secretBackend === "vault" || input.secretBackend === "kms")
+      && input.observabilityExporterEnabled
+      && input.remoteWorkerSupported
+      && input.liveDeploymentEnabled;
+    if (productionReadySignals) {
+      return {
+        activeProfile: "production_like_single_host",
+        expectedReadiness: "production",
+        status: "ready",
+        message: "Production-like single-host profile is active.",
+      };
+    }
+    return {
+      activeProfile: "development",
+      expectedReadiness: "development",
+      status: "development_profile",
+      message: "This localhost instance is intentionally running a development profile.",
+    };
+  }
+
+  #buildDevelopmentCompositionWarnings(input: {
+    authMode: Epic10ReadinessSignals["authMode"];
+    secretBackend: Epic10ReadinessSignals["secretBackend"];
+    persistenceBackend: Epic10ReadinessSignals["persistenceBackend"];
+    observabilityExporterEnabled: boolean;
+    remoteWorkerSupported: boolean;
+    liveDeploymentEnabled: boolean;
+  }): readonly DashboardFinding[] {
+    return [
+      {
+        code: "ACTIVE_PROFILE_DEVELOPMENT_IDENTITY",
+        severity: "info",
+        category: "active-profile",
+        domain: "identity",
+        message: `Identity uses ${input.authMode} mode in the active development profile.`,
+      },
+      {
+        code: "ACTIVE_PROFILE_DEVELOPMENT_SECRETS",
+        severity: "info",
+        category: "active-profile",
+        domain: "secrets",
+        message: `Secrets use ${input.secretBackend} storage in the active development profile.`,
+      },
+      {
+        code: "ACTIVE_PROFILE_DEVELOPMENT_TELEMETRY",
+        severity: input.observabilityExporterEnabled ? "info" : "warning",
+        category: "active-profile",
+        domain: "observability",
+        message: input.observabilityExporterEnabled
+          ? "External telemetry is active for this profile."
+          : "External telemetry is not enabled in the active development profile.",
+      },
+      {
+        code: "ACTIVE_PROFILE_DEVELOPMENT_WORKERS",
+        severity: input.remoteWorkerSupported ? "info" : "warning",
+        category: "active-profile",
+        domain: "runtime",
+        message: input.remoteWorkerSupported
+          ? "Remote worker transport is active for this profile."
+          : "Local worker transport is active in the development profile.",
+      },
+      {
+        code: "ACTIVE_PROFILE_DEVELOPMENT_DEPLOYMENT",
+        severity: input.liveDeploymentEnabled ? "info" : "warning",
+        category: "active-profile",
+        domain: "deployment",
+        message: input.liveDeploymentEnabled
+          ? "Production deployment gate is active for this profile."
+          : "Sandbox/development deployment mode is active for this profile.",
+      },
+      {
+        code: "ACTIVE_PROFILE_DEVELOPMENT_PERSISTENCE",
+        severity: "info",
+        category: "active-profile",
+        domain: "persistence",
+        message: `Persistence backend is ${input.persistenceBackend} for the active profile.`,
+      },
+    ];
+  }
+
+  #buildCertifiedCapabilities(input: {
+    authMode: Epic10ReadinessSignals["authMode"];
+    secretBackend: Epic10ReadinessSignals["secretBackend"];
+    persistenceBackend: Epic10ReadinessSignals["persistenceBackend"];
+    observabilityExporterEnabled: boolean;
+    remoteWorkerSupported: boolean;
+    liveDeploymentEnabled: boolean;
+  }): readonly DashboardCertifiedCapability[] {
+    return [
+      {
+        id: "trusted-identity",
+        label: "Trusted OIDC identity",
+        status: input.authMode === "oidc" ? "active" : "available",
+        topology: "EPIC-15.5 certified topology",
+        detail: "Trusted production identity is certified for the documented topology; localhost may run development auth.",
+      },
+      {
+        id: "managed-secrets",
+        label: "Vault-backed production secrets",
+        status: input.secretBackend === "vault" || input.secretBackend === "kms" ? "active" : "available",
+        topology: "EPIC-15.5 / MH02",
+        detail: "External secret-provider capability is certified separately from local development storage.",
+      },
+      {
+        id: "shared-state",
+        label: "Shared PostgreSQL state",
+        status: input.persistenceBackend === "database" ? "active" : "available",
+        topology: "AEES-SH",
+        detail: "Shared authoritative state is certified for the SH profile.",
+      },
+      {
+        id: "external-telemetry",
+        label: "External telemetry",
+        status: input.observabilityExporterEnabled ? "active" : "available",
+        topology: "EPIC-15.5 / MH02",
+        detail: "External telemetry remains a certified capability even when disabled in local development.",
+      },
+      {
+        id: "remote-runtime",
+        label: "Remote/distributed runtime",
+        status: input.remoteWorkerSupported ? "active" : "available",
+        topology: "EPIC-15.5 D / MH02",
+        detail: "Distributed runtime and recovery are certified for the bounded topology.",
+      },
+      {
+        id: "production-governance",
+        label: "Production deployment gate",
+        status: input.liveDeploymentEnabled ? "active" : "available",
+        topology: "EPIC-15.5 G",
+        detail: "Production deployment governance is certified for the documented topology.",
+      },
+    ];
   }
 
   // ---- Milestone F: Governance / System boundary (read-only) ----

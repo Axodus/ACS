@@ -1,6 +1,12 @@
 # RP03 — Dashboard Overview Acceptance
 
-**Result:** PASS
+**Result:** PASS — browser evidence complete on August 17, 2026
+
+## Canonical routes
+
+- Customer Dashboard: `http://127.0.0.1:3000/`
+- Administration Overview: `http://127.0.0.1:3000/administration`
+- Product API: `GET http://127.0.0.1:8788/api/v1/dashboard`
 
 ## Required proof
 
@@ -9,6 +15,23 @@
 - dashboard API parity with readiness summary;
 - targeted browser acceptance of Overview if the static surface is changed;
 - no secret/token material in dashboard response or evidence.
+
+## HOTFIX-05 browser result
+
+- 8 Dashboard states across four viewports and light/dark themes;
+- 4 Administration Overview states across desktop/mobile and light/dark;
+- 8 representative route regressions;
+- accessibility failures `0`;
+- horizontal overflow `0`;
+- page errors `0`;
+- console errors `0`;
+- API/request failures `0`;
+- mobile drawer interaction checks PASS;
+- sensitive evidence matches `0`.
+
+Manifest: `/tmp/acs-aees-rp-hotfix05-evidence/manifest.json`.
+
+The root Dashboard is customer-facing. Technical readiness remains complete and profile-aware under Administration Overview. Global multi-host certification remains a warning/caveat and does not become customer health failure.
 
 ## Historical blocker regression list
 

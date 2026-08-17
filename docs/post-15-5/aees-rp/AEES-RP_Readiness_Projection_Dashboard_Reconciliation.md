@@ -66,6 +66,24 @@ Global claim
 
 **RP03 gate:** PASS when targeted backend and browser acceptance prove the Overview is topology-aware.
 
+### Final acceptance
+
+HOTFIX-05 establishes the final information architecture:
+
+```text
+Customer operational health  → /
+Technical readiness          → /administration
+```
+
+The real `.design/app-standalone` surface passed the four-viewport light/dark Dashboard matrix, Administration desktop/mobile checks, route regressions and mobile drawer interactions. The manifest reports zero accessibility, overflow, page, console, API, request and sensitive-data failures.
+
+The profile regression contract remains unchanged:
+
+- development adapters are truthful characteristics, not critical errors;
+- misconfigured production-like profiles retain critical blockers;
+- certified production-oriented composition removes corresponding blockers;
+- `GLOBAL_MULTI_HOST_NOT_CERTIFIED` remains a global caveat.
+
 ## Non-goals
 
 - no MH03 retry;
@@ -81,4 +99,15 @@ Dashboard Overview is truthful for the selected certified topology.
 Historical blockers are absent when their successor capabilities are active.
 Actual dependency failures remain actionable.
 Global limitations remain explicit but are not misrepresented as local errors.
+```
+
+## Terminal decision
+
+```text
+RP01: PASS
+RP02: PASS
+RP03: PASS
+AEES-RP: PASS
+
+EPIC-16 Normative Package: UNBLOCKED
 ```

@@ -26,6 +26,7 @@ export interface Epic10ReadinessDomainReport {
 }
 
 export interface Epic10ReadinessSignals {
+  readonly activeProfile?: "development" | "integration" | "production_like_single_host" | "distributed_production";
   readonly workerStatus: "registered" | "available" | "unavailable" | "degraded" | "stale";
   readonly targetStatus: "ready" | "degraded" | "unavailable" | "misconfigured";
   readonly runtimeStatus: RuntimeState;

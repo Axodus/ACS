@@ -35,6 +35,7 @@ select {
     --green: #42d392;
     --lime: #b8f440;
     --amber: #f4bd50;
+    --red: #ff6b72;
     --blue: #6aa7ff;
     --violet: #9d83ff;
     min-height: 100vh;
@@ -58,6 +59,7 @@ select {
     --green: #0f7a4c;
     --lime: #6f9918;
     --amber: #9c6100;
+    --red: #b4232c;
     --blue: #2f69d9;
     --violet: #6750e6;
     --nav-hover-bg: #e6ebe3;

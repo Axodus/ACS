@@ -85,6 +85,7 @@ import "./operational.css";
 
 type View =
   | "Dashboard"
+  | "Administration Overview"
   | "Operational Execution"
   | "Readiness"
   | "Composition"
@@ -110,7 +111,7 @@ type View =
   | "Governance & System"
   | "Settings";
 
-type Domain = "Overview" | "Agents" | "Operations" | "Capabilities" | "Evidence" | "Economics" | "Governance" | "Administration" | "System";
+type Domain = "Dashboard" | "Agents" | "Executions" | "Workers" | "Financial Operations" | "Customers" | "Operations" | "Administration" | "Capabilities" | "Evidence" | "Economics" | "Governance" | "System";
 
 type DomainChild = {
   readonly label: string;
@@ -135,6 +136,7 @@ type ConnectivityState =
 
 const viewPaths: Record<View, string> = {
   Dashboard: "/",
+  "Administration Overview": "/administration",
   "Operational Execution": "/operational-execution",
   Readiness: "/readiness",
   Composition: "/composition",
@@ -162,26 +164,24 @@ const viewPaths: Record<View, string> = {
 };
 
 const domainDefs: readonly DomainDef[] = [
-  { id: "Overview", icon: "⌂", to: "/", description: "Cross-domain attention and next safe steps.", children: [{ label: "Attention", to: "/" }] },
+  { id: "Dashboard", icon: "⌂", to: "/", description: "Customer-facing operational health and activity.", children: [] },
   { id: "Agents", icon: "◫", to: "/agents", description: "Governed agent identity, lifecycle, composition and secret references.", children: [{ label: "Inventory", to: "/agents" }, { label: "Create", to: "/agents/new" }, { label: "Secret references", to: "/credentials" }] },
-  { id: "Operations", icon: "⟡", to: "/executions", description: "Execution, runtime ownership, workers and remediation.", children: [{ label: "Executions", to: "/executions" }, { label: "Workers", to: "/workers" }, { label: "System status", to: "/operations" }, { label: "Planning", to: "/operational-execution", kind: "compatibility" }, { label: "Runtime inventory", to: "/runtime", kind: "compatibility" }] },
-  { id: "Capabilities", icon: "◈", to: "/composition", description: "Composition resources, catalogs and governed capability context.", children: [{ label: "Overview", to: "/composition" }, { label: "Roles", to: "/roles" }, { label: "Profiles", to: "/profiles" }, { label: "Capabilities", to: "/capabilities" }, { label: "Skills", to: "/skills" }, { label: "Tools & plugins", to: "/plugins" }, { label: "Engines", to: "/engines" }] },
-  { id: "Evidence", icon: "◍", to: "/operational-evidence", description: "Canonical technical proof, logs, audit and diagnostics.", children: [{ label: "Timeline", to: "/operational-evidence" }, { label: "Logs", to: "/logs" }, { label: "Audit", to: "/audit" }] },
-  { id: "Economics", icon: "$", to: "/economics", description: "Operational economics and financial-boundary evidence.", children: [{ label: "Operational economics", to: "/economics" }, { label: "Billing", to: "/system/billing-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Financial boundaries" }, { label: "Settlement & receipts", to: "/system/settlement-reconciliation", kind: "compatibility", group: "Financial boundaries" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility", group: "Financial boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Financial boundaries" }] },
-  { id: "Governance", icon: "⚖", to: "/system", description: "Policies, guardrails and governed-action boundaries.", children: [{ label: "Overview", to: "/system" }] },
-  { id: "Administration", icon: "▦", to: productApiConfig.tenantAdministrationUrl, description: "Tenant lifecycle, members, authority, governance and audit.", children: [{ label: "Tenant Administration", to: productApiConfig.tenantAdministrationUrl, external: true }] },
-  { id: "System", icon: "⚙", to: "/readiness", description: "Readiness, reliability, configuration and administration boundary.", children: [{ label: "Readiness", to: "/readiness" }, { label: "Reliability", to: "/system/operational-reliability" }, { label: "Settings", to: "/settings" }] },
+  { id: "Executions", icon: "▷", to: "/executions", description: "Execution activity, outcomes and governed planning.", children: [{ label: "Execution history", to: "/executions" }, { label: "Plan execution", to: "/operational-execution", kind: "compatibility" }] },
+  { id: "Workers", icon: "◇", to: "/workers", description: "Worker availability, capacity and execution support.", children: [{ label: "Worker inventory", to: "/workers" }] },
+  { id: "Financial Operations", icon: "$", to: "/economics", description: "Current operational economics and future governed financial operations.", children: [{ label: "Overview", to: "/economics" }, { label: "Reservations & settlement", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Billing boundary", to: "/system/billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Boundaries" }] },
+  { id: "Customers", icon: "◎", to: productApiConfig.tenantAdministrationUrl, description: "Tenant accounts, members, governance and activity.", children: [{ label: "Accounts / Tenants", to: productApiConfig.tenantAdministrationUrl, external: true }] },
+  { id: "Operations", icon: "⟡", to: "/operations", description: "Runtime, deployments, telemetry, incidents and operational evidence.", children: [{ label: "Operational status", to: "/operations" }, { label: "Runtime", to: "/runtime" }, { label: "Deployments", to: "/operational-execution", kind: "compatibility" }, { label: "Telemetry & logs", to: "/logs" }, { label: "Incidents & evidence", to: "/operational-evidence" }, { label: "Audit", to: "/audit" }] },
+  { id: "Administration", icon: "⚙", to: "/administration", description: "Environment readiness, composition, certification and platform controls.", children: [{ label: "Overview", to: "/administration" }, { label: "Readiness evidence", to: "/readiness" }, { label: "Tenants", to: productApiConfig.tenantAdministrationUrl, external: true }, { label: "Identity & access", to: "/credentials" }, { label: "Governance", to: "/system" }, { label: "Providers", to: "/engines" }, { label: "Capabilities", to: "/composition" }, { label: "System reliability", to: "/system/operational-reliability" }, { label: "Settings", to: "/settings" }] },
 ];
 
 const domainByPath = (path: string): Domain => {
-  if (path === "/") return "Overview";
-  if (path.startsWith("/agents") || path.startsWith("/credentials")) return "Agents";
-  if (path.startsWith("/operational-execution") || path.startsWith("/runtime") || path.startsWith("/executions") || path.startsWith("/workers") || path.startsWith("/operations")) return "Operations";
-  if (path.startsWith("/composition") || path.startsWith("/roles") || path.startsWith("/profiles") || path.startsWith("/capabilities") || path.startsWith("/skills") || path.startsWith("/plugins") || path.startsWith("/tools") || path.startsWith("/engines") || path.startsWith("/providers") || path.startsWith("/memory")) return "Capabilities";
-  if (path.startsWith("/operational-evidence") || path.startsWith("/logs") || path.startsWith("/audit")) return "Evidence";
-  if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Economics";
-  if (path === "/system") return "Governance";
-  return "System";
+  if (path === "/") return "Dashboard";
+  if (path.startsWith("/agents")) return "Agents";
+  if (path.startsWith("/executions")) return "Executions";
+  if (path.startsWith("/workers")) return "Workers";
+  if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Financial Operations";
+  if (path.startsWith("/operational-execution") || path.startsWith("/runtime") || path.startsWith("/operations") || path.startsWith("/operational-evidence") || path.startsWith("/logs") || path.startsWith("/audit")) return "Operations";
+  return "Administration";
 };
 
 function childActive(pathname: string, to: string) {
@@ -210,8 +210,8 @@ function apiErrorMessage(error: unknown): string {
 
 function statusTone(status: string): "good" | "warn" | "muted" {
   const normalized = status.trim().toLowerCase();
+  if (/warning|attention|updating|degraded|failed|unavailable|blocked|partial|pending|restricted|unvalidated|incompatible|credential|required|error|expired|cancelled|released/.test(normalized)) return "warn";
   if (/healthy|connected|installed|active|available|ready|validated|compatible|assigned|deployed|running|issued|settled/.test(normalized)) return "good";
-  if (/warning|updating|degraded|failed|unavailable|blocked|partial|pending|restricted|unvalidated|incompatible|credential|required|error|expired|cancelled|released/.test(normalized)) return "warn";
   return "muted";
 }
 
@@ -504,7 +504,7 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate }: {
         return acc;
       }, {});
       return <section className={`sidebar-domain ${expanded ? "expanded" : ""}`} key={domain.id}>
-        {domain.id === "Administration" ? <a className="domain-link" href={domain.to} onClick={onNavigate}>
+        {domain.id === "Customers" ? <a className="domain-link" href={domain.to} onClick={onNavigate}>
           <span>{domain.icon}</span>{domain.id}<i className="sidebar-chevron" aria-hidden="true">↗</i>
         </a> : <Link className={`domain-link ${expanded ? "active" : ""}`} to={domain.to} onClick={onNavigate} aria-current={expanded ? "page" : undefined}>
           <span>{domain.icon}</span>{domain.id}<i className="sidebar-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</i>
@@ -785,7 +785,116 @@ function Readiness() {
   </>;
 }
 
-function Dashboard() {
+function CustomerDashboard() {
+  const dashboard = useOperationalSummary<DashboardSummary>(
+    () => productApi.getDashboardSummary(),
+    "Unable to load the customer dashboard from Product API",
+    data => data.system.stale,
+  );
+  const economics = useOperationalSummary<EconomicSummary>(
+    () => productApi.getEconomicSummary(),
+    "Unable to load financial activity",
+    data => data.checkedAt < Date.now() - 60_000,
+  );
+  const activity = useOperationalSummary<EventRecord[]>(
+    () => productApi.listEvents(),
+    "Unable to load recent activity",
+    records => records.some(record => record.createdAt < Date.now() - 24 * 60 * 60_000),
+  );
+
+  const summary = dashboard.data;
+  const operationalBlockers = (summary?.blockers ?? []).filter(finding => finding.category === "operational");
+  const operationalWarnings = (summary?.warnings ?? []).filter(finding => finding.category === "operational" && finding.code !== "INSPECTION_MODE");
+  const attention = [...operationalBlockers, ...operationalWarnings].slice(0, 5);
+  const failedOperations = (summary?.executionRuns.failed ?? 0) + (summary?.deployments.failed ?? 0) + (summary?.deployments.rejected ?? 0);
+  const unavailableWorkers = (summary?.workers.degraded ?? 0) + (summary?.workers.unavailable ?? 0) + (summary?.workers.stale ?? 0);
+  const health = !summary
+    ? "UNAVAILABLE"
+    : operationalBlockers.length > 0 || failedOperations > 0
+      ? "DEGRADED"
+      : attention.length > 0 || unavailableWorkers > 0
+        ? "ATTENTION"
+        : "HEALTHY";
+  const healthTone = health === "HEALTHY" ? "good" : health === "UNAVAILABLE" ? "muted" : "warn";
+  const completionTotal = (summary?.executionRuns.completed ?? 0) + (summary?.executionRuns.failed ?? 0) + (summary?.executionRuns.cancelled ?? 0);
+  const successRate = completionTotal > 0 ? Math.round(((summary?.executionRuns.completed ?? 0) / completionTotal) * 100) : null;
+  const executionTotal = Math.max(summary?.executionRuns.total ?? 0, 1);
+  const economicValue = (value: string | number | undefined, unit?: string) => value === undefined || value === null || value === "" ? "No data" : `${value}${unit ? ` ${unit}` : ""}`;
+  const rootState: DashboardLoadState = summary ? (dashboard.loadState === "refreshing" ? "refreshing" : "ready") : dashboard.loadState;
+  const events = [...(activity.data ?? [])].sort((left, right) => right.createdAt - left.createdAt).slice(0, 6);
+
+  return <>
+    <DomainHeader domain="Dashboard" title="Operational overview" description="Health, activity and customer impact across the ACS environment." actions={<button className="secondary" disabled={dashboard.loadState === "loading" || dashboard.loadState === "refreshing"} onClick={() => { dashboard.refresh(); economics.refresh(); activity.refresh(); }}>{dashboard.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
+    {dashboard.stale && <div className="stale-banner" role="status">Showing a stale operational snapshot. Refresh to recover live state.</div>}
+    {dashboard.loadError && <div className="error-banner" role="alert">{dashboard.loadError}</div>}
+
+    <section className={`dashboard-health dashboard-health-${health.toLowerCase()}`} aria-labelledby="dashboard-health-title">
+      <div><span className="dashboard-eyebrow">Overall health</span><h2 id="dashboard-health-title">{health}</h2><p>{health === "HEALTHY" ? "Core operational signals are healthy." : health === "ATTENTION" ? "Operational signals need review, but no critical customer-impacting failure is active." : health === "DEGRADED" ? "A customer-impacting execution, deployment or worker condition needs action." : "Operational health is unavailable until the Product API responds."}</p></div>
+      <StateBadge label={health.toLowerCase()} dimension="Overall health" />
+      <div className="dashboard-health-meta"><span>Environment <b>{summary?.activeProfile.activeProfile ?? "unavailable"}</b></span><span>Last checked <b>{summary ? new Date(summary.system.checkedAt).toLocaleTimeString() : "--"}</b></span></div>
+    </section>
+
+    <div className="dashboard-kpis" aria-label="Key operational indicators">
+      <article className="dashboard-kpi"><span>Active Agents</span><strong>{summary?.agents.active ?? "--"}</strong><small>{summary ? `${summary.agents.total} total` : "Loading"}</small><Link to="/agents">View Agents →</Link></article>
+      <article className="dashboard-kpi"><span>Executions</span><strong>{summary?.executionRuns.total ?? "--"}</strong><small>{summary ? `${summary.executionRuns.running} running` : "Loading"}</small><Link to="/executions">View Executions →</Link></article>
+      <article className="dashboard-kpi"><span>Workers Available</span><strong>{summary?.workers.available ?? "--"}</strong><small>{summary ? `${summary.workers.availableSlots} open slots` : "Loading"}</small><Link to="/workers">View Workers →</Link></article>
+      <article className="dashboard-kpi"><span>Active Customers</span><strong>—</strong><small>Tenant count not exposed by the current read model</small><a href={productApiConfig.tenantAdministrationUrl}>Tenant Administration ↗</a></article>
+      <article className="dashboard-kpi"><span>Usage</span><strong>{economicValue(economics.data?.totalMetered, economics.data?.unit)}</strong><small>{economics.loadError ? "Financial data unavailable" : "Operational metering"}</small><Link to="/economics">View Financial Operations →</Link></article>
+      <article className={`dashboard-kpi dashboard-kpi-${healthTone}`}><span>Requires Attention</span><strong>{attention.length}</strong><small>{operationalBlockers.length} critical operational findings</small><Link to="/operations">Review Operations →</Link></article>
+    </div>
+
+    <div className="customer-dashboard-grid">
+      <DashboardCard title="Execution Activity" meta="Current execution lifecycle distribution" state={rootState}>
+        <div className="execution-activity" role="img" aria-label={`${summary?.executionRuns.completed ?? 0} completed, ${summary?.executionRuns.running ?? 0} running, ${summary?.executionRuns.failed ?? 0} failed, ${summary?.executionRuns.pending ?? 0} pending executions`}>
+          <div className="execution-bars" aria-hidden="true">
+            <span className="completed" style={{ width: `${((summary?.executionRuns.completed ?? 0) / executionTotal) * 100}%` }} />
+            <span className="running" style={{ width: `${((summary?.executionRuns.running ?? 0) / executionTotal) * 100}%` }} />
+            <span className="failed" style={{ width: `${((summary?.executionRuns.failed ?? 0) / executionTotal) * 100}%` }} />
+            <span className="pending" style={{ width: `${(((summary?.executionRuns.pending ?? 0) + (summary?.executionRuns.cancelled ?? 0)) / executionTotal) * 100}%` }} />
+          </div>
+          <div className="execution-legend"><span><i className="completed" />Completed <b>{summary?.executionRuns.completed ?? 0}</b></span><span><i className="running" />Running <b>{summary?.executionRuns.running ?? 0}</b></span><span><i className="failed" />Failed <b>{summary?.executionRuns.failed ?? 0}</b></span><span><i className="pending" />Pending/other <b>{(summary?.executionRuns.pending ?? 0) + (summary?.executionRuns.cancelled ?? 0)}</b></span></div>
+        </div>
+        <Link className="surface-link" to="/executions">Open execution history →</Link>
+      </DashboardCard>
+
+      <DashboardCard title="Execution Success" meta="Completed outcomes from current history" state={rootState}>
+        <div className="success-summary"><strong>{successRate === null ? "No data" : `${successRate}%`}</strong><span>{successRate === null ? "No completed execution outcomes are available yet." : `${summary?.executionRuns.completed ?? 0} of ${completionTotal} completed outcomes succeeded.`}</span></div>
+        <div className="summary-list"><SummaryRow label="Running" value={summary?.executionRuns.running ?? 0} /><SummaryRow label="Failed" value={summary?.executionRuns.failed ?? 0} tone={(summary?.executionRuns.failed ?? 0) > 0 ? "warn" : "muted"} /><SummaryRow label="Cancelled" value={summary?.executionRuns.cancelled ?? 0} /></div>
+      </DashboardCard>
+
+      <DashboardCard title="Requires Attention" meta="Actionable operational conditions" state={attention.length > 0 ? "ready" : rootState === "ready" ? "empty" : rootState} emptyMessage="No customer-impacting operational conditions need attention">
+        <div className="attention-list">{attention.map(finding => <Link to={finding.domain === "worker" ? "/workers" : finding.domain === "execution" ? "/executions" : finding.domain === "deployment" ? "/operational-execution" : "/operations"} key={`${finding.code}-${finding.message}`} className={`attention-item ${finding.severity}`}><FindingSeverity severity={finding.severity} /><span><b>{finding.domain}</b>{finding.message}</span><i>→</i></Link>)}</div>
+      </DashboardCard>
+
+      <DashboardCard title="Agent & Worker Health" meta="Lifecycle and availability from authoritative inventories" state={rootState}>
+        <div className="health-columns"><div><h3>Agents</h3><SummaryRow label="Active" value={summary?.agents.active ?? 0} tone="good" /><SummaryRow label="Draft" value={summary?.agents.draft ?? 0} /><SummaryRow label="Disabled / archived" value={(summary?.agents.disabled ?? 0) + (summary?.agents.archived ?? 0)} /></div><div><h3>Workers</h3><SummaryRow label="Available" value={summary?.workers.available ?? 0} tone="good" /><SummaryRow label="Degraded" value={summary?.workers.degraded ?? 0} tone={(summary?.workers.degraded ?? 0) > 0 ? "warn" : "muted"} /><SummaryRow label="Unavailable / stale" value={(summary?.workers.unavailable ?? 0) + (summary?.workers.stale ?? 0)} tone={unavailableWorkers > 0 ? "warn" : "muted"} /></div></div>
+      </DashboardCard>
+
+      <DashboardCard title="Financial Activity" meta="Existing operational economics; expanded workflows are deferred to EPIC-16" state={economics.data ? "ready" : economics.loadState === "error" ? "error" : economics.loadState}>
+        <div className="summary-list"><SummaryRow label="Estimated" value={economicValue(economics.data?.totalEstimated, economics.data?.unit)} /><SummaryRow label="Reserved" value={economicValue(economics.data?.totalReserved, economics.data?.unit)} /><SummaryRow label="Metered" value={economicValue(economics.data?.totalMetered, economics.data?.unit)} /><SummaryRow label="Settled" value={economicValue(economics.data?.totalSettled, economics.data?.unit)} /></div>
+        <p className="panel-note">Reconciliation and exception workflows remain DEFERRED_TO_EPIC16.</p><Link className="surface-link" to="/economics">Open Financial Operations →</Link>
+      </DashboardCard>
+
+      <DashboardCard title="Service Health" meta="Customer-relevant service availability" state={rootState}>
+        <div className="service-health"><div><span>Control Plane</span><Status status={summary?.system.status === "ok" ? "healthy" : "unavailable"} /></div><div><span>Runtime</span><Status status={summary?.runtime.connectivity ?? "unavailable"} /></div><div><span>Workers</span><Status status={(summary?.workers.available ?? 0) > 0 ? "available" : (summary?.workers.total ?? 0) > 0 ? "degraded" : "unavailable"} /></div><div><span>Deployments</span><Status status={(summary?.deployments.failed ?? 0) > 0 ? "degraded" : "healthy"} /></div></div>
+        <Link className="surface-link" to="/operations">Open Operations →</Link>
+      </DashboardCard>
+
+      <DashboardCard title="Recent Activity" meta="Latest operational events" state={events.length > 0 ? "ready" : activity.loadState === "error" ? "error" : activity.loadState === "ready" ? "empty" : activity.loadState} emptyMessage="No recent operational events are available">
+        <div className="recent-activity">{events.map(event => <article key={event.eventId}><time dateTime={new Date(event.createdAt).toISOString()}>{new Date(event.createdAt).toLocaleTimeString()}</time><span><b>{event.type}</b>{event.message}</span><FindingSeverity severity={event.severity === "critical" ? "error" : event.severity} /></article>)}</div>
+        <Link className="surface-link" to="/operational-evidence">Open operational evidence →</Link>
+      </DashboardCard>
+
+      <DashboardCard title="Quick Access" meta="Supported ACS workflows" state="ready">
+        <div className="quick-access"><Link to="/agents/new"><b>Create Agent</b><span>Start a governed agent lifecycle.</span></Link><Link to="/operational-execution"><b>Plan Execution</b><span>Review readiness before execution or deployment.</span></Link><a href={productApiConfig.tenantAdministrationUrl}><b>Tenant Administration</b><span>Manage accounts, members and governance.</span></a><Link to="/economics"><b>View Usage</b><span>Inspect current operational economics.</span></Link><Link to="/administration"><b>Administration Overview</b><span>Inspect profile, readiness and certification.</span></Link><Link to="/operations"><b>Operations</b><span>Review runtime and service diagnostics.</span></Link></div>
+      </DashboardCard>
+    </div>
+
+    {(summary?.globalCaveats.length ?? 0) > 0 && <aside className="administration-advisory"><div><b>System configuration has advisory notices</b><span>Global certification caveats are tracked separately from current customer health.</span></div><Link to="/administration">View Administration Overview →</Link></aside>}
+  </>;
+}
+
+function AdministrationOverview() {
   const { data: summary, loadState, loadError, stale, refresh } = useOperationalSummary<DashboardSummary>(
     () => productApi.getDashboardSummary(),
     "Unable to load dashboard summary from Product API",
@@ -804,17 +913,26 @@ function Dashboard() {
   const checkedAt = summary ? new Date(summary.system.checkedAt).toLocaleTimeString() : "--";
   const connectivityTone = summary?.runtime.connectivity === "connected" ? "good" : summary?.runtime.connectivity === "degraded" ? "warn" : "muted";
   const readinessTone = summary && summary.readiness.blockerCount > 0 ? "warn" : "good";
+  const profileTone = summary?.activeProfile.status === "development_profile" ? "muted" : summary?.activeProfile.status === "blocked" ? "warn" : "good";
 
   return <>
-    <DomainHeader domain="Overview" title="What needs attention" description="Start with blockers and warnings, then inspect the affected domain. Every value is a Product API projection, not a locally inferred claim." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
-    <div className="review-flow" aria-label="Operator review journey">
-      <span>Review</span><span>Identify attention</span><span>Inspect context</span><span>Diagnose</span><span>Determine actionability</span>
+    <DomainHeader domain="Administration" title="Administration Overview" description="Environment profile, active composition, readiness, certified capabilities and global certification boundaries." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
+    <div className="review-flow" aria-label="Administration review journey">
+      <span>Environment</span><span>Composition</span><span>Readiness</span><span>Capabilities</span><span>Global caveats</span>
     </div>
     <OperationalModeNotice guardrails={summary?.system.guardrails} />
     {stale && <div className="stale-banner" role="status">Showing a stale dashboard snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing dashboard and readiness...</div>}
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     <div className="dashboard-grid">
+      <DashboardCard title="Active environment" meta="Current process profile and expected readiness" state={readyState}>
+        <div className="summary-list">
+          <SummaryRow label="Profile" value={summary?.activeProfile.activeProfile ?? "unavailable"} tone={profileTone} />
+          <SummaryRow label="Expectation" value={summary?.activeProfile.expectedReadiness ?? "unavailable"} tone={profileTone} />
+          <SummaryRow label="Status" value={summary?.activeProfile.status ?? "unavailable"} tone={profileTone} />
+        </div>
+        <p className="panel-note">{summary?.activeProfile.message ?? "No active profile was reported."}</p>
+      </DashboardCard>
       <DashboardCard title="Attention" meta="Blockers and warnings requiring review" state={readyState}>
         <div className="summary-list">
           <SummaryRow label="Readiness" value={summary?.readiness.state ?? "unknown"} tone={readinessTone} />
@@ -824,11 +942,29 @@ function Dashboard() {
         </div>
         <CrossLinks links={[{ to: "/readiness", label: "Inspect readiness evidence" }, { to: "/operational-execution", label: "Inspect operations" }, { to: "/agents", label: "Inspect affected agents" }]} />
       </DashboardCard>
-      <DashboardCard title="Critical blockers" meta="Operational errors requiring attention" state={cardState(summary?.blockers.length)} emptyMessage="No critical blockers reported">
+      <DashboardCard title="Critical blockers" meta="Failures against the active profile expectation" state={cardState(summary?.blockers.length)} emptyMessage="No critical blockers reported for the active profile">
         <div className="finding-list">{summary?.blockers.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
       </DashboardCard>
-      <DashboardCard title="Operational warnings" meta="Non-blocking operational signals" state={cardState(summary?.warnings.length)} emptyMessage="No operational warnings reported">
-        <div className="finding-list">{summary?.warnings.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
+      <DashboardCard title="Active composition" meta="Truthful local process configuration" state={readyState}>
+        <div className="summary-list">
+          <SummaryRow label="Identity" value={summary?.activeComposition.identity ?? "unavailable"} />
+          <SummaryRow label="Secrets" value={summary?.activeComposition.secrets ?? "unavailable"} />
+          <SummaryRow label="Persistence" value={summary?.activeComposition.persistence ?? "unavailable"} />
+          <SummaryRow label="Telemetry" value={summary?.activeComposition.telemetry ?? "unavailable"} />
+          <SummaryRow label="Workers" value={summary?.activeComposition.workers ?? "unavailable"} />
+          <SummaryRow label="Deployment" value={summary?.activeComposition.deployment ?? "unavailable"} />
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Operational warnings" meta="Non-blocking operational signals and development characteristics" state={cardState(summary?.warnings.filter(finding => finding.category !== "global-caveat").length)} emptyMessage="No operational warnings reported">
+        <div className="finding-list">{summary?.warnings.filter(finding => finding.category !== "global-caveat").map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
+      </DashboardCard>
+      <DashboardCard title="Certified platform capability" meta="Available for documented certified topologies; not necessarily active locally" state={cardState(summary?.certifiedCapabilities.length)} emptyMessage="No certified capability projection reported">
+        <div className="finding-list">
+          {summary?.certifiedCapabilities.map(capability => <div className="finding-row info" key={capability.id}><FindingSeverity severity="info" /><p><b>{capability.label}</b> — {capability.status} · {capability.topology}<small>{capability.detail}</small></p></div>)}
+        </div>
+      </DashboardCard>
+      <DashboardCard title="Global caveats" meta="Limits on global claims, not active local errors" state={cardState(summary?.globalCaveats.length)} emptyMessage="No global caveats reported">
+        <div className="finding-list">{summary?.globalCaveats.map(finding => <FindingRow key={`${finding.code}-${finding.message}`} finding={finding} />)}</div>
       </DashboardCard>
       <DashboardCard title="System context" meta="Product API boundary and freshness" state={readyState}>
         <div className="summary-list">
@@ -5121,7 +5257,8 @@ export default function App() {
         <div className="content">
           <EntityContextNav pathname={location.pathname} />
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<CustomerDashboard />} />
+            <Route path="/administration" element={<AdministrationOverview />} />
             <Route path="/operational-execution" element={<OperationalExecution />} />
             <Route path="/executions" element={<ExecutionsPage />} />
             <Route path="/executions/:jobId" element={<ExecutionDetailPage />} />

@@ -274,9 +274,11 @@ export type AgentDuplicateInput = {
 
 export type DashboardFinding = {
   code: string;
-  severity: "error" | "warning";
+  severity: "error" | "warning" | "info";
+  category?: "active-profile" | "certified-capability" | "global-caveat" | "operational";
   domain: string;
   message: string;
+  detail?: string;
 };
 
 export type ProductApiOperationalGuardrails = {
@@ -1915,6 +1917,28 @@ export type DashboardSummary = {
     connectivity: ProductApiRuntimeConnectivity;
     checkedAt: number;
   };
+  activeProfile: {
+    activeProfile: "development" | "integration" | "production_like_single_host" | "distributed_production";
+    expectedReadiness: "development" | "production";
+    status: "development_profile" | "ready" | "blocked";
+    message: string;
+  };
+  activeComposition: {
+    identity: string;
+    secrets: string;
+    persistence: string;
+    telemetry: string;
+    workers: string;
+    deployment: string;
+  };
+  certifiedCapabilities: {
+    id: string;
+    label: string;
+    status: "available" | "active" | "blocked";
+    topology: string;
+    detail: string;
+  }[];
+  globalCaveats: DashboardFinding[];
 };
 
 export type ProductApiRuntimeConnectivity = "connected" | "degraded" | "unavailable" | "unverified";

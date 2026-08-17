@@ -2,17 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ProductApiClient } from "../dist/control-plane/product-api-client.js";
 
-const HISTORICAL_BLOCKER_TEXT = [
+const HISTORICAL_PRODUCTION_ONLY_BLOCKERS = [
   "in-memory or filesystem secret storage",
-  "process-local structures",
   "HTTP auth is disabled or mock-only",
   "external exporters as disabled",
   "worker implementation is local-only",
+  "current secret store is in-memory",
   "current governance policy only allows sandbox deployments",
 ];
 
-function productionClient() {
-  const runtimeCoordinator = {
+function productionClient(overrides = {}) {
+  const runtimeCoordinator = overrides.runtimeCoordinator ?? {
     descriptor: {
       adapter: "postgres-runtime-state",
       productionOriented: true,
@@ -29,18 +29,18 @@ function productionClient() {
     refresh: async () => ({ failures: [] }),
     list: () => [{ status: "ready", stale: false }],
   };
-  const secretStore = {
+  const secretStore = overrides.secretStore ?? {
     descriptor: { provider: "vault-kv-v2", productionOriented: true },
     health: async () => ({ reachable: true, provider: "vault-kv-v2", authenticated: true, secureTransport: true }),
   };
-  const identityValidator = {
+  const identityValidator = overrides.identityValidator ?? {
     descriptor: { mode: "oidc", provider: "oidc_jwt_jwks", productionOriented: true },
     health: async () => ({ configured: true, reachable: true, detail: "ok" }),
   };
   const edgePolicy = {
     readiness: async () => ({ rateLimiter: { configured: true, reachable: true, productionGrade: true }, cors: { configured: true, explicitProductionAllowlist: true } }),
   };
-  const telemetry = { descriptor: { adapter: "otlp-http-json", external: true, productionGrade: true } };
+  const telemetry = overrides.telemetry ?? { descriptor: { adapter: "otlp-http-json", external: true, productionGrade: true } };
   const economicService = { settlementProviderDescriptor: { productionOriented: true } };
   return new ProductApiClient({
     runtimeCoordinator,
@@ -52,38 +52,88 @@ function productionClient() {
     edgePolicy,
     telemetry,
     economicService,
-    readinessSignals: { liveDeploymentEnabled: true },
+    readinessSignals: { liveDeploymentEnabled: true, ...overrides.readinessSignals },
   });
 }
 
-test("AEES-RP dashboard does not project historical A01 blockers for certified topology", async () => {
-  const client = productionClient();
-  const dashboard = await client.getDashboardSummary();
-  const serialized = JSON.stringify(dashboard);
-
-  for (const text of HISTORICAL_BLOCKER_TEXT) {
-    assert.equal(serialized.includes(text), false, text);
-  }
-
-  assert.equal(dashboard.readiness.blockerCount, 0);
-  assert.equal(dashboard.readiness.state, "partial");
-  assert.ok(dashboard.warnings.some((warning) => warning.code === "GLOBAL_MULTI_HOST_NOT_CERTIFIED"));
-});
-
-test("AEES-RP preserves real dependency blockers", async () => {
+test("HOTFIX-04 development profile keeps local descriptors truthful without critical production-only blockers", async () => {
   const client = new ProductApiClient({
     readinessSignals: {
-      authMode: "disabled",
+      authMode: "development",
       secretBackend: "memory",
-      persistenceBackend: "memory",
-      settlementBackend: "memory",
+      persistenceBackend: "database",
+      settlementBackend: "production",
       observabilityExporterEnabled: false,
       remoteWorkerSupported: false,
       liveDeploymentEnabled: false,
+      rateLimitEnabled: true,
     },
   });
   const dashboard = await client.getDashboardSummary();
+  const blockers = JSON.stringify(dashboard.criticalBlockers);
 
-  assert.ok(dashboard.readiness.blockerCount > 0);
-  assert.ok(dashboard.blockers.some((finding) => finding.message.includes("HTTP auth is disabled or mock-only")));
+  assert.equal(dashboard.activeProfile.activeProfile, "development");
+  assert.equal(dashboard.activeProfile.expectedReadiness, "development");
+  assert.equal(dashboard.readiness.blockerCount, 0);
+  assert.equal(dashboard.criticalBlockers.length, 0);
+  assert.equal(dashboard.activeComposition.identity, "development");
+  assert.equal(dashboard.activeComposition.secrets, "memory");
+  assert.equal(dashboard.activeComposition.telemetry, "local/disabled");
+  assert.equal(dashboard.activeComposition.workers, "local");
+  assert.equal(dashboard.activeComposition.deployment, "sandbox/development");
+  assert.ok(dashboard.certifiedCapabilities.some((capability) => capability.id === "managed-secrets" && capability.status === "available"));
+  assert.ok(dashboard.globalCaveats.some((finding) => finding.code === "GLOBAL_MULTI_HOST_NOT_CERTIFIED"));
+  for (const text of HISTORICAL_PRODUCTION_ONLY_BLOCKERS) {
+    assert.equal(blockers.includes(text), false, text);
+  }
+});
+
+test("HOTFIX-04 production-like profile with unsafe descriptors still emits critical blockers", async () => {
+  const client = productionClient({
+    identityValidator: { descriptor: { mode: "development" }, health: async () => ({ configured: true, reachable: true, detail: "dev" }) },
+    secretStore: { descriptor: { provider: "memory", productionOriented: false }, health: async () => ({ reachable: true, provider: "memory" }) },
+    telemetry: { descriptor: { adapter: "console", external: false, productionGrade: false } },
+    runtimeCoordinator: {
+      descriptor: {
+        adapter: "local-process-runtime",
+        productionOriented: false,
+        durability: "process_local",
+        multiInstance: "not_applicable",
+        multiHost: "not_applicable",
+      },
+      listWorkers: () => [],
+      health: () => ({ reachable: false }),
+    },
+    readinessSignals: {
+      authMode: "development",
+      secretBackend: "memory",
+      observabilityExporterEnabled: false,
+      remoteWorkerSupported: false,
+      liveDeploymentEnabled: false,
+      activeProfile: "production_like_single_host",
+    },
+  });
+  const dashboard = await client.getDashboardSummary();
+  const blockers = JSON.stringify(dashboard.criticalBlockers);
+
+  assert.equal(dashboard.activeProfile.activeProfile, "production_like_single_host");
+  assert.equal(dashboard.activeProfile.expectedReadiness, "production");
+  assert.ok(dashboard.criticalBlockers.length >= 5);
+  for (const text of HISTORICAL_PRODUCTION_ONLY_BLOCKERS) {
+    assert.equal(blockers.includes(text), true, text);
+  }
+});
+
+test("HOTFIX-04 production-capable profile has no critical historical blockers and keeps global caveat as warning", async () => {
+  const client = productionClient();
+  const dashboard = await client.getDashboardSummary();
+  const serializedBlockers = JSON.stringify(dashboard.criticalBlockers);
+
+  assert.equal(dashboard.activeProfile.expectedReadiness, "production");
+  assert.equal(dashboard.readiness.blockerCount, 0);
+  assert.equal(dashboard.criticalBlockers.length, 0);
+  assert.ok(dashboard.globalCaveats.some((finding) => finding.code === "GLOBAL_MULTI_HOST_NOT_CERTIFIED" && finding.severity === "warning"));
+  for (const text of HISTORICAL_PRODUCTION_ONLY_BLOCKERS) {
+    assert.equal(serializedBlockers.includes(text), false, text);
+  }
 });
