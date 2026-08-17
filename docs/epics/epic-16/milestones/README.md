@@ -10,19 +10,20 @@ Before functional work starts, execute [`E16-M1-S00 — Normative Execution Read
 
 E16-M1-S01 is not authorized until S00 reaches `PASS`.
 
-## E16-M1 — Financial Truth & Pricing Provenance
+## AEES-16-01 — Financial Truth & Pricing Provenance
 
+**Execution unit:** AEES-16-01
 **Stories:** S01, S02, S11 (read-only slice)
 
 Deliver canonical Tenant-scoped economic read models, effective pricing/quote provenance and truthful Dashboard integration.
 
 **Execution sequence after S00:**
 
-1. E16-M1-S01 — Economic Read-Model Contract
-2. E16-M1-S02 — Pricing Provenance
-3. E16-M1-S03 — Product API Exposure
-4. E16-M1-S04 — Dashboard Integration
-5. E16-M1-S05 — Acceptance and Milestone Closure
+1. AEES-16-01 / S01 — Economic Read-Model Contract
+2. AEES-16-01 / S02 — Pricing Provenance
+3. AEES-16-01 / S03 — Product API Exposure
+4. AEES-16-01 / S04 — Dashboard Integration
+5. AEES-16-01 / S05 — Acceptance and Milestone Closure
 
 **Exit:** no financial surface depends on inferred/fabricated values; API semantics distinguish unavailable, zero and not-applicable states.
 

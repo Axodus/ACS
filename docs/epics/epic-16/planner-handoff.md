@@ -27,7 +27,7 @@ Functional execution is authorized only after S00 records:
 ```text
 E16-M1-S00: PASS
 EPIC-16 EXECUTION READINESS: READY
-AUTHORIZED NEXT SPRINT: E16-M1-S01
+AUTHORIZED NEXT SPRINT: AEES-16-01
 PRODUCT CODE CHANGED: NO
 ```
 
@@ -35,7 +35,7 @@ If S00 finds an unresolved authority or product decision that prevents a bounded
 
 ## First implementation target after S00
 
-Start with **E16-M1 — Financial Truth & Pricing Provenance**. Do not start with mutations.
+Start with **AEES-16-01 — Financial Truth & Pricing Provenance**. Do not start with mutations.
 
 The planner/coder must use the completed S00 inventory to produce the smallest read-only slice that:
 
@@ -61,19 +61,19 @@ Before coding M1, inspect and document:
 
 ## M1 execution sequence
 
-### E16-M1-S01 — Economic Read-Model Contract
+### AEES-16-01 / S01 — Economic Read-Model Contract
 Define canonical projection types/API source mapping from the evidence frozen in S00. No UI mutation.
 
-### E16-M1-S02 — Pricing Provenance
+### AEES-16-01 / S02 — Pricing Provenance
 Add provenance fields and deterministic mapping from existing quote/pricing sources.
 
-### E16-M1-S03 — Product API Exposure
+### AEES-16-01 / S03 — Product API Exposure
 Expose Tenant-scoped read-only surfaces with stable degraded/error semantics.
 
-### E16-M1-S04 — Dashboard Integration
+### AEES-16-01 / S04 — Dashboard Integration
 Back financial Dashboard regions with the authoritative read model while preserving `9005e3a` hierarchy and truthful empty states.
 
-### E16-M1-S05 — Acceptance and Milestone Closure
+### AEES-16-01 / S05 — Acceptance and Milestone Closure
 Run backend/app validation, Tenant isolation, shared-state regression if state access changes, browser acceptance, accessibility, overflow, console and no-fake-data checks.
 
 ## Planner output requirements
