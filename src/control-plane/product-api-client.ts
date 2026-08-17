@@ -1411,6 +1411,10 @@ export interface DashboardSummary {
     readonly connectivity: ProductApiRuntimeConnectivity;
     readonly checkedAt: number;
   };
+  readonly composition: GlobalReadinessSummary["composition"];
+  readonly historicalBlockerScan: GlobalReadinessSummary["historicalBlockerScan"];
+  readonly criticalBlockers: readonly DashboardFinding[];
+  readonly operationalCaveats: readonly DashboardFinding[];
 }
 
 export interface GlobalReadinessSummary {
@@ -1469,6 +1473,20 @@ export interface GlobalReadinessSummary {
   readonly blockers: readonly Epic10ReadinessFinding[];
   readonly warnings: readonly Epic10ReadinessFinding[];
   readonly evidence: readonly Epic10ReadinessDomainReport[];
+  readonly composition: {
+    readonly authMode: Epic10ReadinessSignals["authMode"];
+    readonly secretBackend: Epic10ReadinessSignals["secretBackend"];
+    readonly persistenceBackend: Epic10ReadinessSignals["persistenceBackend"];
+    readonly settlementBackend: Epic10ReadinessSignals["settlementBackend"];
+    readonly observabilityExporterEnabled: boolean;
+    readonly remoteWorkerSupported: boolean;
+    readonly liveDeploymentEnabled: boolean;
+    readonly rateLimitEnabled: boolean;
+  };
+  readonly historicalBlockerScan: {
+    readonly count: number;
+    readonly matches: readonly string[];
+  };
 }
 
 export class ProductApiClient {
@@ -3192,31 +3210,49 @@ export class ProductApiClient {
 
     const runtime = await this.#probeRuntimeConnectivity();
     const edgeReadiness = this.#edgePolicy ? await this.#edgePolicy.readiness() : undefined;
-    // Derive signals from live descriptors when available. Never force pre-15.5 historical defaults
-    // for the operational dashboard path. Global multi-host limitations are expressed as caveats,
-    // not as active production blockers.
-    const derivedAuthMode = this.#identityValidator?.descriptor.mode ?? this.#readinessSignals.authMode ?? "disabled";
-    const derivedSecret = this.#secretStore?.descriptor.productionOriented
-      ? (this.#secretStore.descriptor.provider.includes("vault") || this.#secretStore.descriptor.provider.includes("kms") ? "vault" : "memory")
-      : (this.#readinessSignals.secretBackend ?? "memory");
-    const derivedPersistence = this.#readinessSignals.persistenceBackend
-      ?? (this.#runtimeCoordinator?.descriptor.multiInstance === "shared_database" ? "database" : "memory");
-    const derivedSettlement = this.#readinessSignals.settlementBackend
-      ?? (this.#economicService?.settlementProviderDescriptor.productionOriented ? "production" : "memory");
-    const derivedTelemetry = this.#readinessSignals.observabilityExporterEnabled
-      ?? (this.#telemetry ? this.#telemetry.descriptor.external : false);
-    const derivedLiveDeploy = this.#readinessSignals.liveDeploymentEnabled ?? false;
+    // Derive signals from live descriptors when available. readinessSignals may supply overrides for
+    // tests, but live identity/secret/telemetry/runtime descriptors always win for projection.
+    // Global multi-host limitations are caveats, never historical A01 blockers.
+    const secretDescriptor = this.#secretStore?.descriptor;
+    const secretProvider = String(secretDescriptor?.provider ?? this.#readinessSignals.secretBackend ?? "memory").toLowerCase();
+    const secretIsManaged = Boolean(secretDescriptor?.productionOriented)
+      && (secretProvider.includes("vault") || secretProvider.includes("kms") || secretDescriptor?.materialStorage === "external_managed");
+    const derivedAuthMode = this.#identityValidator?.descriptor.mode
+      ?? this.#readinessSignals.authMode
+      ?? "disabled";
+    const derivedSecret: Epic10ReadinessSignals["secretBackend"] = secretIsManaged
+      ? (secretProvider.includes("kms") ? "kms" : "vault")
+      : secretProvider.includes("filesystem")
+        ? "filesystem"
+        : (this.#readinessSignals.secretBackend ?? "memory");
+    const derivedPersistence: Epic10ReadinessSignals["persistenceBackend"] = this.#runtimeCoordinator?.descriptor.multiInstance === "shared_database"
+      || this.#readinessSignals.persistenceBackend === "database"
+      ? "database"
+      : this.#readinessSignals.persistenceBackend
+        ?? "memory";
+    const derivedSettlement: Epic10ReadinessSignals["settlementBackend"] = this.#economicService?.settlementProviderDescriptor.productionOriented
+      || this.#readinessSignals.settlementBackend === "production"
+      ? "production"
+      : (this.#readinessSignals.settlementBackend ?? "memory");
+    const derivedTelemetry = this.#telemetry?.descriptor.external
+      ?? this.#readinessSignals.observabilityExporterEnabled
+      ?? false;
+    const derivedLiveDeploy = this.#readinessSignals.liveDeploymentEnabled
+      ?? false;
+    const derivedRemoteWorkers = remoteWorkerSupported
+      || this.#readinessSignals.remoteWorkerSupported === true;
 
     const report = createEpic10ReadinessReport({
+      ...this.#readinessSignals,
       authMode: derivedAuthMode,
-      rateLimitEnabled: edgeReadiness?.rateLimiter.reachable === true,
+      rateLimitEnabled: edgeReadiness?.rateLimiter.reachable === true
+        || this.#readinessSignals.rateLimitEnabled === true,
       observabilityExporterEnabled: derivedTelemetry,
       persistenceBackend: derivedPersistence,
       secretBackend: derivedSecret,
       settlementBackend: derivedSettlement,
       liveDeploymentEnabled: derivedLiveDeploy,
-      ...this.#readinessSignals,
-      remoteWorkerSupported,
+      remoteWorkerSupported: derivedRemoteWorkers,
       workerStatus,
       targetStatus,
       runtimeStatus: runtime.connectivity === "connected" || runtime.connectivity === "degraded" ? "running" : "failed",
@@ -3353,6 +3389,19 @@ export class ProductApiClient {
       || durableWorkers.some((worker) => worker.expiresAt !== undefined && worker.expiresAt < generatedAt)
       || targets.some((target) => target.stale);
 
+    const historicalFragments = [
+      "in-memory or filesystem secret storage",
+      "process-local structures",
+      "HTTP auth is disabled or mock-only",
+      "external exporters as disabled",
+      "worker implementation is local-only",
+      "current secret store is in-memory",
+      "governance policy only allows sandbox",
+    ] as const;
+    const historicalMatches = blockers
+      .map((finding) => finding.reason)
+      .filter((reason) => historicalFragments.some((fragment) => reason.includes(fragment)));
+
     return {
       generatedAt,
       mode: "inspection",
@@ -3391,6 +3440,21 @@ export class ProductApiClient {
       blockers,
       warnings,
       evidence: report.domains,
+      composition: {
+        authMode: derivedAuthMode,
+        secretBackend: derivedSecret,
+        persistenceBackend: derivedPersistence,
+        settlementBackend: derivedSettlement,
+        observabilityExporterEnabled: derivedTelemetry,
+        remoteWorkerSupported: derivedRemoteWorkers,
+        liveDeploymentEnabled: derivedLiveDeploy,
+        rateLimitEnabled: edgeReadiness?.rateLimiter.reachable === true
+          || this.#readinessSignals.rateLimitEnabled === true,
+      },
+      historicalBlockerScan: {
+        count: historicalMatches.length,
+        matches: historicalMatches,
+      },
     };
   }
 
@@ -3615,6 +3679,10 @@ export class ProductApiClient {
         connectivity: readinessSummary.runtime.connectivity,
         checkedAt: readinessSummary.runtime.checkedAt,
       },
+      composition: readinessSummary.composition,
+      historicalBlockerScan: readinessSummary.historicalBlockerScan,
+      criticalBlockers: blockers.filter((finding) => finding.severity === "error"),
+      operationalCaveats: warnings.filter((finding) => finding.severity === "warning"),
     };
   }
 
