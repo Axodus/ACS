@@ -48,6 +48,19 @@ Final milestone evidence should record:
 - financial-truth assertions;
 - failures/waivers with exact rationale.
 
+## Certified AEES-16-01 evidence
+
+- manifest: `/tmp/acs-aees-16-01-browser-recovery/manifest.json`
+- route: `/operations/overview`
+- viewports: desktop, tablet, mobile
+- themes: light, dark
+- result: PASS
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- no-fake-data: PASS
+
 ## Closure gate
 
 EPIC-16 cannot close with an unresolved P0/P1 financial-truth or authorization UX defect. P2/P3 visual deviations require explicit disposition and must not weaken the `9005e3a` hierarchy or accessibility.

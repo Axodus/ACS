@@ -27,6 +27,8 @@ Deliver canonical Tenant-scoped economic read models, effective pricing/quote pr
 
 **Exit:** no financial surface depends on inferred/fabricated values; API semantics distinguish unavailable, zero and not-applicable states.
 
+Certified browser evidence: `/tmp/acs-aees-16-01-browser-recovery/manifest.json`.
+
 ## E16-M2 — Economic Authorization & Reservations
 
 **Stories:** S03, S04

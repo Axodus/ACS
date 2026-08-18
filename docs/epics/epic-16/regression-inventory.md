@@ -63,3 +63,15 @@ For affected areas, run and report:
 ## Closure requirement
 
 Every regression affecting financial authority, Tenant isolation, idempotency, audit evidence or truthful UX is release-blocking until resolved or explicitly reclassified by normative review.
+
+## AEES-16-01 browser acceptance evidence
+
+- route: `/operations/overview`
+- matrix: desktop, tablet, mobile × light, dark
+- result: PASS
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- no-fake-data: PASS
+- manifest: `/tmp/acs-aees-16-01-browser-recovery/manifest.json`

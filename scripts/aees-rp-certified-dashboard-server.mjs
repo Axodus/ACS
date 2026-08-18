@@ -1,9 +1,10 @@
 import { createServer } from "node:http";
 
-const distRoot = process.env.ACS_TEST_DIST_ROOT ?? "../dist";
+const [cliDistRoot, cliPort, cliHost, cliBrowserOrigin] = process.argv.slice(2);
+const distRoot = cliDistRoot ?? process.env.ACS_TEST_DIST_ROOT ?? "../dist";
 const { ProductApiClient } = await import(`${distRoot}/control-plane/product-api-client.js`);
 
-const port = Number(process.env.ACS_RP_PORT ?? 0);
+const port = Number(cliPort ?? process.env.ACS_RP_PORT ?? 0);
 if (!Number.isSafeInteger(port) || port <= 0) throw new Error("ACS_RP_PORT is required");
 
 const runtimeCoordinator = {
@@ -57,13 +58,13 @@ const server = createServer(async (request, response) => {
 
 function corsHeaders() {
   return {
-    "access-control-allow-origin": process.env.ACS_RP_BROWSER_ORIGIN ?? "http://127.0.0.1",
+    "access-control-allow-origin": cliBrowserOrigin ?? process.env.ACS_RP_BROWSER_ORIGIN ?? "http://127.0.0.1",
     "access-control-allow-methods": "GET, OPTIONS",
     "access-control-allow-headers": "authorization, content-type, x-correlation-id",
   };
 }
 
-const host = process.env.ACS_RP_HOST ?? "0.0.0.0";
+const host = cliHost ?? process.env.ACS_RP_HOST ?? "127.0.0.1";
 await new Promise((resolve, reject) => {
   server.once("error", reject);
   server.listen(port, host, resolve);
