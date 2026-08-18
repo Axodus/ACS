@@ -104,3 +104,5 @@ Stop and request normative amendment if implementation requires:
 ## Definition of done for M1
 
 M1 is complete when an authorized operator can inspect authoritative execution-economic state and pricing provenance through Product API/Control Plane, Dashboard financial information is backed by those contracts, and all unavailable historical series remain explicitly truthful rather than synthetic.
+AEES-16-02 is the next authorized execution unit for EPIC-16 after AEES-16-01.
+Primary sprint order remains S01 through S05.

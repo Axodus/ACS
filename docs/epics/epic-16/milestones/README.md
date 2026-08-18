@@ -81,3 +81,4 @@ Complete the financial operations workspace and certify browser/regression behav
 ## Decision gate
 
 Invoice issuance, payment/money movement, tax/accounting and unrestricted adjustment work are not hidden milestones. If approved, the normative package must be amended with explicit contracts, risk model and acceptance before such work is scheduled.
+AEES-16-02 — Economic Authorization & Reservations

@@ -64,3 +64,7 @@ Final milestone evidence should record:
 ## Closure gate
 
 EPIC-16 cannot close with an unresolved P0/P1 financial-truth or authorization UX defect. P2/P3 visual deviations require explicit disposition and must not weaken the `9005e3a` hierarchy or accessibility.
+AEES-16-02 / Browser Acceptance Recovery
+Route: /operations/overview
+Base URL: http://localhost:3000
+Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json

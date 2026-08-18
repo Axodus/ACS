@@ -75,3 +75,6 @@ Every regression affecting financial authority, Tenant isolation, idempotency, a
 - page errors: 0
 - no-fake-data: PASS
 - manifest: `/tmp/acs-aees-16-01-browser-recovery/manifest.json`
+AEES-16-02 / Browser Acceptance Recovery
+Route: /operations/overview
+Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
