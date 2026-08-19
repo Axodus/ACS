@@ -41,12 +41,27 @@ Final milestone evidence should record:
 - routes tested;
 - viewport dimensions;
 - theme;
+- certified Git SHA;
+- deployment/base URL and source;
 - screenshots;
 - accessibility result;
 - overflow result;
 - console result;
 - financial-truth assertions;
 - failures/waivers with exact rationale.
+
+## Remote-first browser certification
+
+EPIC-16 browser acceptance is certified against the deployed application artifact first.
+
+Canonical target order:
+
+1. explicit AEES_BROWSER_BASE_URL or AEES_BROWSER_DEPLOYMENT_URL;
+2. Vercel deployment URL from the certified commit or branch environment;
+3. localhost only when AEES_BROWSER_ALLOW_LOCALHOST=1 is set for development diagnostics.
+
+Localhost availability is not a prerequisite for milestone completion when the same commit is reachable through a matching deployment URL.
+The browser manifest should record the deployment URL source so certification evidence stays tied to the certified artifact.
 
 ## Certified AEES-16-01 evidence
 
@@ -63,8 +78,4 @@ Final milestone evidence should record:
 
 ## Closure gate
 
-EPIC-16 cannot close with an unresolved P0/P1 financial-truth or authorization UX defect. P2/P3 visual deviations require explicit disposition and must not weaken the `9005e3a` hierarchy or accessibility.
-AEES-16-02 / Browser Acceptance Recovery
-Route: /operations/overview
-Base URL: http://localhost:3000
-Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
+EPIC-16 cannot close with an unresolved P0/P1 financial-truth or authorization UX defect. P2/P3 visual deviations require explicit disposition and must not weaken the 9005e3a hierarchy or accessibility.

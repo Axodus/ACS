@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 const outputPath = process.argv[2] || "/tmp/acs-aees-16-02-browser-recovery/manifest.json";
 const evidenceRoot = outputPath.slice(0, outputPath.lastIndexOf("/"));
 const screenshotsDir = join(evidenceRoot, "screenshots");
-const baseUrl = normalizeBaseUrl(process.env.AEES_BROWSER_BASE_URL);
+const { baseUrl, source: baseUrlSource } = resolveBrowserBaseUrl();
 const route = "/operations/overview";
 const chromiumExecutablePath = process.env.AEES_BROWSER_EXECUTABLE_PATH || "/home/mzfshark/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome";
 
@@ -16,8 +16,9 @@ const manifest = {
   schemaVersion: 1,
   certification: "AEES-16-02/ACCEPTANCE-RECOVERY-01",
   executedAt: new Date().toISOString(),
-  serverMode: baseUrl ? "external" : "managed",
+  serverMode: baseUrlSource,
   baseUrl: baseUrl || null,
+  baseUrlSource,
   route,
   routes: [route],
   viewports: ["desktop", "tablet", "mobile"],
@@ -44,6 +45,23 @@ const historicalTexts = [
 function normalizeBaseUrl(value) {
   if (!value) return null;
   return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function resolveBrowserBaseUrl() {
+  const explicit = normalizeBaseUrl(process.env.AEES_BROWSER_BASE_URL || process.env.AEES_BROWSER_DEPLOYMENT_URL);
+  if (explicit) {
+    return { baseUrl: explicit, source: "explicit" };
+  }
+  const vercelUrl = process.env.AEES_BROWSER_VERCEL_URL || process.env.VERCEL_URL || process.env.VERCEL_BRANCH_URL;
+  if (vercelUrl) {
+    const resolved = normalizeBaseUrl(vercelUrl.startsWith("http://") || vercelUrl.startsWith("https://") ? vercelUrl : "https://" + vercelUrl);
+    return { baseUrl: resolved, source: "vercel" };
+  }
+  if (process.env.AEES_BROWSER_ALLOW_LOCALHOST === "1") {
+    const localhost = normalizeBaseUrl(process.env.AEES_BROWSER_LOCAL_URL || "http://localhost:3000");
+    return { baseUrl: localhost, source: "localhost-fallback" };
+  }
+  return { baseUrl: null, source: "unresolved" };
 }
 
 async function resolvePlaywrightCorePath() {
@@ -196,7 +214,7 @@ async function main() {
   await mkdir(screenshotsDir, { recursive: true });
 
   if (!baseUrl) {
-    throw new Error("AEES_BROWSER_BASE_URL is required for external browser recovery");
+    throw new Error("AEES browser target is unresolved; provide AEES_BROWSER_BASE_URL, a Vercel deployment URL, or enable AEES_BROWSER_ALLOW_LOCALHOST=1 for development fallback");
   }
 
   await preflightExternalUrl(baseUrl);

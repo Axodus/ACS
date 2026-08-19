@@ -22,6 +22,8 @@ See `milestones/E16-M1-S00.md` and complete `execution-readiness.md` from reposi
 
 S00 is documentation/discovery only. Product code, Product API behavior, persistence schema and UI behavior must remain unchanged.
 
+Browser acceptance for EPIC-16 is remote-first: prefer the certified deployment URL for the exact commit under test, then an explicit browser base URL, and use localhost only when development fallback is explicitly enabled.
+
 Functional execution is authorized only after S00 records:
 
 ```text
