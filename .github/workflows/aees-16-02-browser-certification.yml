@@ -12,8 +12,12 @@ jobs:
   browser-certification:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      AEES_CERTIFIED_GIT_SHA: 793588519503c5a4e5ca9d37516e60e8f98ecd55
+      AEES_BROWSER_BASE_URL: https://acs-myigjjyor-axodus.vercel.app
+
     steps:
-      - name: Checkout
+      - name: Checkout orchestration commit
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -21,6 +25,11 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+
+      - name: Verify certified implementation commit exists
+        run: |
+          git fetch --depth=1 origin "$AEES_CERTIFIED_GIT_SHA"
+          git cat-file -e "$AEES_CERTIFIED_GIT_SHA^{commit}"
 
       - name: Install core dependencies
         run: npm ci
@@ -31,34 +40,19 @@ jobs:
       - name: Run AEES-16-02 targeted tests
         run: node --test tests/s62-epic-16-2-economic-authorization-reservations.test.mjs
 
-      - name: Install static app dependencies
-        working-directory: static
-        run: npm ci
-
-      - name: Build static app
-        working-directory: static
-        run: npm run build
-
-      - name: Install Playwright runtime for recovery harness
+      - name: Install Playwright runtime
         run: |
           npm install --no-save playwright@1.62.1
           npx playwright install --with-deps chromium
 
-      - name: Start browser target
-        run: |
-          nohup npm --prefix static run preview -- --host 127.0.0.1 --port 3000 > /tmp/acs-static-preview.log 2>&1 &
-          for i in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:3000/operations/overview >/dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          cat /tmp/acs-static-preview.log
-          exit 1
+      - name: Resolve Chromium executable
+        run: echo "AEES_BROWSER_EXECUTABLE_PATH=$(node -e \"const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())\")" >> "$GITHUB_ENV"
 
-      - name: Execute AEES-16-02 browser recovery
-        env:
-          AEES_BROWSER_BASE_URL: http://127.0.0.1:3000
+      - name: Preflight exact Vercel deployment
+        run: |
+          curl --fail --show-error --silent "$AEES_BROWSER_BASE_URL/operations/overview" >/dev/null
+
+      - name: Execute AEES-16-02 remote browser certification
         run: node scripts/certify-aees-16-02-browser-recovery.mjs
 
       - name: Validate manifest
@@ -68,19 +62,35 @@ jobs:
           const path = '/tmp/acs-aees-16-02-browser-recovery/manifest.json';
           const manifest = JSON.parse(fs.readFileSync(path, 'utf8'));
           const failures = [];
-          if (manifest.accessibility !== 'PASS') failures.push('accessibility');
-          if (manifest.horizontalOverflow !== 0) failures.push('horizontalOverflow');
-          if (manifest.consoleErrors !== 0) failures.push('consoleErrors');
-          if (manifest.pageErrors !== 0) failures.push('pageErrors');
-          if (manifest.noFakeData !== 'PASS') failures.push('noFakeData');
-          if (!Array.isArray(manifest.routes) || manifest.routes.length !== 6) failures.push('routeMatrix');
-          if (manifest.routes?.some(r => r.status !== 200 || r.overflow !== 0)) failures.push('routeStatusOrOverflow');
+          if (manifest.result !== 'PASS') failures.push('result');
+          if (manifest.preflight?.status !== 'ok') failures.push('preflight');
+          if (!Array.isArray(manifest.browser?.checks) || manifest.browser.checks.length !== 6) failures.push('viewportThemeMatrix');
+          if (manifest.browser?.accessibilityFailures !== 0) failures.push('accessibility');
+          if (manifest.browser?.horizontalOverflow !== 0) failures.push('horizontalOverflow');
+          if (manifest.browser?.consoleErrors !== 0) failures.push('consoleErrors');
+          if (manifest.browser?.pageErrors !== 0) failures.push('pageErrors');
+          if ((manifest.browser?.requestFailures?.length ?? 0) !== 0) failures.push('requestFailures');
+          if (manifest.noFakeData?.syntheticMarkers !== 0) failures.push('syntheticMarkers');
+          if (manifest.noFakeData?.historicalTexts !== 0) failures.push('historicalTexts');
+          if (manifest.noFakeData?.tokenInBrowserStorage !== 0) failures.push('tokenInBrowserStorage');
           if (failures.length) {
             console.error('AEES-16-02 certification failed:', failures.join(', '));
             process.exit(1);
           }
-          console.log('AEES-16-02 browser manifest: PASS');
+          console.log('AEES-16-02 remote browser manifest: PASS');
           NODE
+
+      - name: Write certification metadata
+        if: always()
+        run: |
+          cat > /tmp/acs-aees-16-02-browser-recovery/certification-metadata.json <<EOF
+          {
+            "certifiedGitSha": "$AEES_CERTIFIED_GIT_SHA",
+            "deploymentUrl": "$AEES_BROWSER_BASE_URL",
+            "orchestrationGitSha": "$GITHUB_SHA",
+            "runner": "github-actions/ubuntu-latest"
+          }
+          EOF
 
       - name: Upload browser evidence
         if: always()
@@ -88,12 +98,4 @@ jobs:
         with:
           name: aees-16-02-browser-evidence
           path: /tmp/acs-aees-16-02-browser-recovery/
-          if-no-files-found: warn
-
-      - name: Upload preview log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: aees-16-02-browser-preview-log
-          path: /tmp/acs-static-preview.log
-          if-no-files-found: warn
+          if-no-files-found: error
