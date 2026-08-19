@@ -76,6 +76,28 @@ The browser manifest should record the deployment URL source so certification ev
 - page errors: 0
 - no-fake-data: PASS
 
+## AEES-16-03 browser acceptance target
+
+AEES-16-03 reuses the same remote-first browser policy and the supported
+operations overview surface for usage and settlement evidence.
+
+Target route:
+
+- /operations/overview
+
+Target matrix:
+
+- desktop, tablet, mobile
+- light and dark themes
+
+Required evidence categories:
+
+- usage correlation visibility;
+- settlement lifecycle visibility;
+- receipt evidence visibility;
+- no fabricated usage or settlement history;
+- accessibility, overflow, console, page-error and request-failure checks.
+
 ## Closure gate
 
 EPIC-16 cannot close with an unresolved P0/P1 financial-truth or authorization UX defect. P2/P3 visual deviations require explicit disposition and must not weaken the 9005e3a hierarchy or accessibility.

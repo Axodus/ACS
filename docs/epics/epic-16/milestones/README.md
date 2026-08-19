@@ -37,13 +37,40 @@ Integrate economic authorization with existing governance/entitlements/limits an
 
 **Exit:** authorization reasons are deterministic/audited; reservation actions are explicitly authorized and idempotent.
 
+## AEES-16-02 — Economic Authorization & Reservations
+
+**Execution unit:** AEES-16-02
+**Status:** BLOCKED on browser acceptance evidence
+
+This execution unit covers the governed authorization, reservation, operator
+integration and acceptance recovery work for E16-M2.
+
+**Execution sequence after S00:**
+
+1. AEES-16-02 / S01 — Economic Authorization Contract
+2. AEES-16-02 / S02 — Governance / Entitlements / Limits Integration
+3. AEES-16-02 / S03 — Reservation Lifecycle Operations
+4. AEES-16-02 / S04 — Product API & Operator Integration
+5. AEES-16-02 / S05 — Acceptance and Milestone Closure
+
 ## E16-M3 — Usage & Settlement Operations
 
-**Stories:** S05, S06
+**Execution unit:** AEES-16-03
+**Stories:** S01, S02, S03, S04, S05
 
-Expose usage correlation, settlement lifecycle, receipts and safe failure/retry semantics.
+Expose usage correlation, settlement lifecycle, receipts and safe failure/retry
+semantics.
 
-**Exit:** an operator can trace execution economics through metering/usage to settlement without repository inspection.
+**Exit:** an operator can trace execution economics through metering/usage to
+settlement without repository inspection.
+
+**Execution sequence after E16-M2:**
+
+1. AEES-16-03 / S01 — Usage Correlation Contract
+2. AEES-16-03 / S02 — Usage Inspection & Evidence
+3. AEES-16-03 / S03 — Settlement Lifecycle Operations
+4. AEES-16-03 / S04 — Settlement Failure, Retry & Receipt Semantics
+5. AEES-16-03 / S05 — Acceptance and Milestone Closure
 
 ## E16-M4 — Reconciliation & Financial Exceptions
 
@@ -81,4 +108,3 @@ Complete the financial operations workspace and certify browser/regression behav
 ## Decision gate
 
 Invoice issuance, payment/money movement, tax/accounting and unrestricted adjustment work are not hidden milestones. If approved, the normative package must be amended with explicit contracts, risk model and acceptance before such work is scheduled.
-AEES-16-02 — Economic Authorization & Reservations

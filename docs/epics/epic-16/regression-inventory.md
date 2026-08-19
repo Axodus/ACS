@@ -78,3 +78,14 @@ Every regression affecting financial authority, Tenant isolation, idempotency, a
 AEES-16-02 / Browser Acceptance Recovery
 Route: /operations/overview
 Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
+
+## AEES-16-03 regression focus
+
+- preserve truthful usage and settlement evidence on /operations/overview;
+- do not fabricate usage histories, settlement histories or receipt evidence;
+- preserve AEES-16-01 financial truth surfaces and Dashboard hierarchy;
+- preserve AEES-16-02 authorization and reservation semantics while usage and
+  settlement projections are added;
+- keep Tenant isolation, idempotency and shared-state behavior authoritative;
+- browser acceptance remains remote-first and must record any environment
+  limitation separately from product failure.

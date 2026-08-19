@@ -78,6 +78,38 @@ Back financial Dashboard regions with the authoritative read model while preserv
 ### AEES-16-01 / S05 — Acceptance and Milestone Closure
 Run backend/app validation, Tenant isolation, shared-state regression if state access changes, browser acceptance, accessibility, overflow, console and no-fake-data checks.
 
+## Next authorized execution unit
+
+E16-M2 remains formally blocked on browser acceptance evidence, but E16-M3 is
+authorized for execution planning and implementation.
+
+### AEES-16-03 — Usage & Settlement Operations
+
+The next execution unit extends the existing economic foundation to usage
+correlation, inspection, settlement lifecycle, retry/failure semantics and
+receipt evidence.
+
+### AEES-16-03 / S01 — Usage Correlation Contract
+Define the canonical usage record projection from the existing economic and
+runtime evidence.
+
+### AEES-16-03 / S02 — Usage Inspection & Evidence
+Expose tenant-scoped usage inspection and evidence references through Product
+API and dashboard-facing projections.
+
+### AEES-16-03 / S03 — Settlement Lifecycle Operations
+Normalize settlement lifecycle state and governed operations over usage-backed
+economic records.
+
+### AEES-16-03 / S04 — Settlement Failure, Retry & Receipt Semantics
+Preserve durable receipt evidence, retry semantics and failure classification
+without introducing invoice/payment semantics.
+
+### AEES-16-03 / S05 — Acceptance and Milestone Closure
+Run backend/app validation, Tenant isolation, shared-state regression if state
+access changes, remote-first browser acceptance, accessibility, overflow,
+console, page-error and no-fake-data checks.
+
 ## Planner output requirements
 
 For every implementation sprint, specify:
@@ -106,5 +138,5 @@ Stop and request normative amendment if implementation requires:
 ## Definition of done for M1
 
 M1 is complete when an authorized operator can inspect authoritative execution-economic state and pricing provenance through Product API/Control Plane, Dashboard financial information is backed by those contracts, and all unavailable historical series remain explicitly truthful rather than synthetic.
-AEES-16-02 is the next authorized execution unit for EPIC-16 after AEES-16-01.
+AEES-16-03 is the next authorized execution unit for EPIC-16 after AEES-16-01, while AEES-16-02 remains formally blocked on browser acceptance evidence.
 Primary sprint order remains S01 through S05.
