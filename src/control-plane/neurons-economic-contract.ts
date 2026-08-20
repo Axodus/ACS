@@ -634,7 +634,7 @@ export class EconomicService {
     return this.#assertVisible(receipt);
   }
 
-  listUsage(runId: string): readonly UsageRecord[] {
+  listUsage(runId?: string): readonly UsageRecord[] {
     return this.#store.listUsage(runId).filter((record) => this.#isVisible(record));
   }
 

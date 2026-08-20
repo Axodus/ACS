@@ -79,12 +79,21 @@ test("usage records are canonical, deduplicated, and execution-correlated", asyn
           runId: "run_usage_1",
           runtimeInstanceId: "runtime_1",
           agentId: "agent_1",
-          deploymentId: "deployment_1",
+          executionPlanId: "plan_1",
+          status: "completed",
           startedAt: 50,
         }];
       },
       listRuntimes() {
-        return [];
+        return [{
+          runtimeInstanceId: "runtime_1",
+          deploymentId: "deployment_1",
+          targetId: "target_1",
+          deploymentMode: "managed",
+          status: "running",
+          startedAt: 40,
+          updatedAt: 50,
+        }];
       },
     },
   });
@@ -114,4 +123,3 @@ test("usage records are canonical, deduplicated, and execution-correlated", asyn
   const missing = await evidence.getUsageRecord("missing-usage");
   assert.equal(missing, undefined);
 });
-

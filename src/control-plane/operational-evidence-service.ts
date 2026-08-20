@@ -1382,12 +1382,15 @@ export class OperationalEvidenceService {
         ? `quote:${authorization.quoteId}`
         : undefined;
     const executionRun = this.#runtimeService?.listExecutionRuns().find((run) => run.runId === record.runId);
+    const runtime = executionRun
+      ? this.#runtimeService?.listRuntimes().find((item) => item.runtimeInstanceId === executionRun.runtimeInstanceId)
+      : undefined;
     return {
       usageId: record.recordId,
       executionRunId: record.runId,
       ...(executionRun?.runtimeInstanceId ? { runtimeId: executionRun.runtimeInstanceId } : {}),
       ...(executionRun?.agentId ? { agentId: executionRun.agentId } : {}),
-      ...(executionRun?.deploymentId ? { deploymentId: executionRun.deploymentId } : {}),
+      ...(runtime?.deploymentId ? { deploymentId: runtime.deploymentId } : {}),
       ...(record.workloadId ? { workloadId: record.workloadId } : {}),
       ...(reservation ? { reservationId: reservation.reservationId } : {}),
       ...(authorization ? { authorizationDecisionId: authorization.decisionId } : {}),
