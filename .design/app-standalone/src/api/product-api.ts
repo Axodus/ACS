@@ -1,4 +1,17 @@
-const API_BASE_URL = import.meta.env.VITE_ACS_API_BASE_URL ?? "/api/v1";
+function resolveApiBaseUrl(): string {
+  const explicit = import.meta.env.VITE_ACS_API_BASE_URL;
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+  if (typeof explicit === "string" && explicit.trim()) {
+    const value = explicit.trim().replace(/\/+$/, "");
+    if (!isLocalHost && /^(https?:\/\/)?(127\.0\.0\.1|localhost)(:|\/|$)/i.test(value)) {
+      return "/api/v1";
+    }
+    return value;
+  }
+  return isLocalHost ? "http://127.0.0.1:8788/api/v1" : "/api/v1";
+}
+const API_BASE_URL = resolveApiBaseUrl();
 
 declare global {
   interface Window {
@@ -1658,6 +1671,24 @@ export type ReconciliationBacklogItem = {
   evidenceRefs?: string[];
 };
 
+export type ReconciliationMismatch = {
+  mismatchId: string;
+  reconciliationId: string;
+  tenantId?: string;
+  classification: string;
+  severity: "warning" | "error";
+  settlementId?: string;
+  usageId?: string;
+  receiptId?: string;
+  executionRunId?: string;
+  observedStatus?: string;
+  expectedStatus?: string;
+  detectedAt: number;
+  lastEvaluatedAt: number;
+  retryable: boolean;
+  evidenceRefs?: string[];
+};
+
 export type CompositionActionName =
   | "assignRole"
   | "adoptRole"
@@ -2556,6 +2587,9 @@ export const productApi = {
   },
   async listReconciliationBacklog() {
     return request<ReconciliationBacklogItem[]>("/economics/reconciliation?limit=8");
+  },
+  async listReconciliationMismatches() {
+    return request<ReconciliationMismatch[]>("/economics/mismatches?limit=8");
   },
   async listWorkers() {
     return request<WorkerSummary[]>("/workers");
