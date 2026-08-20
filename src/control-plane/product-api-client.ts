@@ -46,6 +46,8 @@ import type {
   ReconciliationMismatch,
   ReconciliationMismatchQuery,
   ReconciliationQuery,
+  FinancialException,
+  FinancialExceptionQuery,
   Reservation,
   ReservationQuery,
   Settlement,
@@ -2045,6 +2047,26 @@ export class ProductApiClient {
 
   async getReconciliationMismatch(mismatchId: string): Promise<ReconciliationMismatch | undefined> {
     return this.#operationalEvidence.getReconciliationMismatch(mismatchId);
+  }
+
+  async listFinancialExceptions(query?: FinancialExceptionQuery): Promise<readonly FinancialException[]> {
+    return this.#operationalEvidence.listFinancialExceptions(query);
+  }
+
+  async getFinancialException(exceptionId: string): Promise<FinancialException | undefined> {
+    return this.#operationalEvidence.getFinancialException(exceptionId);
+  }
+
+  async openFinancialException(mismatchId: string, actor?: string): Promise<FinancialException> {
+    return this.#operationalEvidence.openFinancialException(mismatchId, actor);
+  }
+
+  async transitionFinancialException(
+    exceptionId: string,
+    action: "acknowledge" | "review" | "remediate" | "resolve" | "reject" | "close",
+    input?: { actor?: string; justification?: string },
+  ): Promise<FinancialException> {
+    return this.#operationalEvidence.transitionFinancialException(exceptionId, action, input);
   }
 
   async getExecutionRunMetering(runId: string): Promise<readonly MeteringRecord[]> {

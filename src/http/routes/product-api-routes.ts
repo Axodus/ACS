@@ -1978,6 +1978,111 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // GET /api/v1/economics/exceptions and GET /api/v1/economics/exceptions/:exceptionId
+    if (apiPath === "economics/exceptions" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["exceptionId", "mismatchId", "reconciliationId", "settlementId", "status", "limit"]);
+      const query: {
+        exceptionId?: string;
+        mismatchId?: string;
+        reconciliationId?: string;
+        settlementId?: string;
+        status?: "open" | "acknowledged" | "under_review" | "remediation_pending" | "resolved" | "rejected" | "closed";
+        limit?: number;
+      } = {};
+      const exceptionIdParam = url.searchParams.get("exceptionId");
+      if (exceptionIdParam) query.exceptionId = exceptionIdParam;
+      const mismatchIdParam = url.searchParams.get("mismatchId");
+      if (mismatchIdParam) query.mismatchId = mismatchIdParam;
+      const reconciliationIdParam = url.searchParams.get("reconciliationId");
+      if (reconciliationIdParam) query.reconciliationId = reconciliationIdParam;
+      const settlementIdParam = url.searchParams.get("settlementId");
+      if (settlementIdParam) query.settlementId = settlementIdParam;
+      const statusParam = url.searchParams.get("status");
+      if (statusParam) query.status = statusParam as NonNullable<typeof query.status>;
+      const limitParam = url.searchParams.get("limit");
+      if (limitParam) query.limit = parseInt(limitParam, 10);
+      const items = await api.listFinancialExceptions(query);
+      return { status: 200, body: ok(items, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "exceptions" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const exceptionId = readPathSegment(segments, 4, "exceptionId");
+      const item = await api.getFinancialException(exceptionId);
+      if (!item) {
+        return fail("financial exception not found: " + exceptionId, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(item, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "economics/exceptions" && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const mismatchId = readOptionalString(body.mismatchId, "mismatchId");
+      if (!mismatchId) {
+        throw new AcsHttpValidationError("mismatchId is required");
+      }
+      try {
+        const opened = await api.openFinancialException(mismatchId, options.auth?.actorId);
+        return { status: 200, body: ok(opened, [], options.correlationId, routeMeta) };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "unable to open financial exception";
+        if (message.includes("proven mismatch")) {
+          return fail(message, 409, "conflict", options.correlationId, { mismatchId }, routeMeta, "financial_exception_requires_mismatch", {
+            retryable: false,
+            severity: "warning",
+            guardrails: ["financial_exception", "no_fake_data"],
+          });
+        }
+        throw error;
+      }
+    }
+    if (segments[2] === "economics" && segments[3] === "exceptions" && segments.length === 6 && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const exceptionId = readPathSegment(segments, 4, "exceptionId");
+      const action = readPathSegment(segments, 5, "action");
+      if (!["acknowledge", "review", "remediate", "resolve", "reject", "close"].includes(action)) {
+        return fail("unsupported financial exception action: " + action, 405, "unsupported_action", options.correlationId, { action }, routeMeta, "unsupported_action", {
+          retryable: false,
+          severity: "warning",
+        });
+      }
+      let body: Record<string, unknown> = {};
+      try {
+        body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      } catch (error) {
+        if (!(error instanceof AcsHttpValidationError && error.message === "request body must be a JSON object")) {
+          throw error;
+        }
+      }
+      const actor = readOptionalString(body.actor, "actor") ?? options.auth?.actorId;
+      const justification = readOptionalString(body.justification, "justification");
+      try {
+        const updated = await api.transitionFinancialException(
+          exceptionId,
+          action as "acknowledge" | "review" | "remediate" | "resolve" | "reject" | "close",
+          { ...(actor ? { actor } : {}), ...(justification ? { justification } : {}) },
+        );
+        return { status: 200, body: ok(updated, [], options.correlationId, routeMeta) };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "unable to transition financial exception";
+        if (message.startsWith("financial exception not found")) {
+          return fail(message, 404, "not_found", options.correlationId, { exceptionId }, routeMeta);
+        }
+        if (message.startsWith("invalid financial exception transition")) {
+          return fail(message, 409, "conflict", options.correlationId, { exceptionId, action }, routeMeta, "invalid_financial_exception_transition", {
+            retryable: false,
+            severity: "warning",
+          });
+        }
+        throw error;
+      }
+    }
+    if (segments[2] === "economics" && segments[3] === "exceptions" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/exceptions") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
+    }
+
     // Entity-scoped metering and settlement
     if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments[5] === "metering" && segments.length === 6 && request.method === "GET") {
       assertAllowedQueryParams(url, []);

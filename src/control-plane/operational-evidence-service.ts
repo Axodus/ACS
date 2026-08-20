@@ -429,6 +429,48 @@ export interface ReconciliationQuery {
   readonly limit?: number;
 }
 
+export type FinancialExceptionStatus =
+  | "open"
+  | "acknowledged"
+  | "under_review"
+  | "remediation_pending"
+  | "resolved"
+  | "rejected"
+  | "closed";
+
+export interface FinancialException {
+  readonly exceptionId: string;
+  readonly tenantId?: string;
+  readonly mismatchId: string;
+  readonly reconciliationId: string;
+  readonly category: ReconciliationMismatchClass;
+  readonly severity: "warning" | "error";
+  readonly status: FinancialExceptionStatus;
+  readonly settlementId?: string;
+  readonly usageId?: string;
+  readonly receiptId?: string;
+  readonly executionRunId?: string;
+  readonly openedAt: number;
+  readonly updatedAt: number;
+  readonly acknowledgedAt?: number;
+  readonly closedAt?: number;
+  readonly actor?: string;
+  readonly justification?: string;
+  readonly evidenceRefs: readonly string[];
+  readonly availableActions: readonly AvailableAction[];
+  readonly guardrails: EvidenceGuardrails;
+}
+
+export interface FinancialExceptionQuery {
+  readonly exceptionId?: string;
+  readonly mismatchId?: string;
+  readonly reconciliationId?: string;
+  readonly settlementId?: string;
+  readonly status?: FinancialExceptionStatus;
+  readonly tenantId?: string;
+  readonly limit?: number;
+}
+
 // --- Available actions & operation results ---
 
 export type AvailableActionName =
@@ -437,7 +479,14 @@ export type AvailableActionName =
   | "cancel_reservation"
   | "settle_metering"
   | "refresh"
-  | "recheck";
+  | "recheck"
+  | "open_exception"
+  | "acknowledge_exception"
+  | "review_exception"
+  | "remediate_exception"
+  | "resolve_exception"
+  | "reject_exception"
+  | "close_exception";
 
 export interface AvailableAction {
   readonly action: AvailableActionName;
@@ -615,6 +664,7 @@ export class OperationalEvidenceService {
   readonly #deploymentService: OperationalEvidenceServiceOptions["deploymentService"];
   readonly #runtimeService: OperationalEvidenceServiceOptions["runtimeService"];
   readonly #agentService: OperationalEvidenceServiceOptions["agentService"];
+  readonly #exceptions = new Map<string, FinancialException>();
 
   constructor(options: OperationalEvidenceServiceOptions = {}) {
     this.#auditService = options.auditService;
@@ -1086,6 +1136,77 @@ export class OperationalEvidenceService {
     return mismatches.find((item) => item.mismatchId === mismatchId);
   }
 
+  async listFinancialExceptions(query?: FinancialExceptionQuery): Promise<readonly FinancialException[]> {
+    const items = [...this.#exceptions.values()];
+    return this.#filterFinancialExceptions(items, query);
+  }
+
+  async getFinancialException(exceptionId: string): Promise<FinancialException | undefined> {
+    return this.#exceptions.get(exceptionId);
+  }
+
+  async openFinancialException(mismatchId: string, actor?: string): Promise<FinancialException> {
+    const mismatch = await this.getReconciliationMismatch(mismatchId);
+    if (!mismatch) {
+      throw new Error("financial exception requires a proven mismatch");
+    }
+    const existing = [...this.#exceptions.values()].find((item) =>
+      item.mismatchId === mismatchId && this.#isOpenFinancialException(item.status)
+    );
+    if (existing) return existing;
+    const now = Date.now();
+    const exceptionId = "exc_" + mismatch.mismatchId;
+    const closed = this.#exceptions.get(exceptionId);
+    if (closed && !this.#isOpenFinancialException(closed.status)) {
+      throw new Error("financial exception already closed for mismatch: " + mismatchId);
+    }
+    const exception: FinancialException = {
+      exceptionId,
+      ...(mismatch.tenantId ? { tenantId: mismatch.tenantId } : {}),
+      mismatchId: mismatch.mismatchId,
+      reconciliationId: mismatch.reconciliationId,
+      category: mismatch.classification,
+      severity: mismatch.severity,
+      status: "open",
+      ...(mismatch.settlementId ? { settlementId: mismatch.settlementId } : {}),
+      ...(mismatch.usageId ? { usageId: mismatch.usageId } : {}),
+      ...(mismatch.receiptId ? { receiptId: mismatch.receiptId } : {}),
+      ...(mismatch.executionRunId ? { executionRunId: mismatch.executionRunId } : {}),
+      openedAt: now,
+      updatedAt: now,
+      ...(actor ? { actor } : {}),
+      evidenceRefs: mismatch.evidenceRefs,
+      availableActions: this.#exceptionActions("open"),
+      guardrails: mismatch.guardrails,
+    };
+    this.#exceptions.set(exception.exceptionId, exception);
+    return exception;
+  }
+
+  async transitionFinancialException(exceptionId: string, action: "acknowledge" | "review" | "remediate" | "resolve" | "reject" | "close", input?: { actor?: string; justification?: string }): Promise<FinancialException> {
+    const current = this.#exceptions.get(exceptionId);
+    if (!current) {
+      throw new Error("financial exception not found: " + exceptionId);
+    }
+    const nextStatus = this.#nextExceptionStatus(current.status, action);
+    if (!nextStatus) {
+      throw new Error("invalid financial exception transition: " + current.status + " -> " + action);
+    }
+    const now = Date.now();
+    const updated: FinancialException = {
+      ...current,
+      status: nextStatus,
+      updatedAt: now,
+      ...(action === "acknowledge" ? { acknowledgedAt: now } : {}),
+      ...(nextStatus === "closed" ? { closedAt: now } : {}),
+      ...(input?.actor ? { actor: input.actor } : {}),
+      ...(input?.justification ? { justification: input.justification } : {}),
+      availableActions: this.#exceptionActions(nextStatus),
+    };
+    this.#exceptions.set(exceptionId, updated);
+    return updated;
+  }
+
   // --- Economic audit ---
 
   async listEconomicAudit(): Promise<readonly AuditEntry[]> {
@@ -1476,7 +1597,7 @@ export class OperationalEvidenceService {
       ...(mismatchClass ? { mismatchClass } : {}),
       mismatch,
       operatorActionRequired: mismatch,
-      exceptionOpen: false,
+      exceptionOpen: this.#hasOpenExceptionForReconciliation("recon_" + settlement.settlementId),
       observedStatus: settlement.status,
       expectedStatus: usage && receipt && settlement.status === "settled" ? "settled" : usage ? "pending" : "matched",
       evaluatedAt,
@@ -1490,6 +1611,7 @@ export class OperationalEvidenceService {
       availableActions: mismatch
         ? [
           { action: "recheck", label: "Recheck reconciliation", available: true },
+          { action: "open_exception", label: "Open financial exception", available: true },
           { action: "refresh", label: "Refresh evidence", available: true },
         ]
         : [{ action: "refresh", label: "Refresh evidence", available: true }],
@@ -1508,6 +1630,131 @@ export class OperationalEvidenceService {
     });
     const limit = query?.limit && query.limit > 0 ? query.limit : filtered.length;
     return filtered.slice(0, limit);
+  }
+
+  #toReconciliationMismatch(item: ReconciliationBacklogItem): ReconciliationMismatch {
+    return {
+      mismatchId: "mismatch_" + item.reconciliationId,
+      reconciliationId: item.reconciliationId,
+      ...(item.tenantId ? { tenantId: item.tenantId } : {}),
+      classification: item.mismatchClass ?? "status_mismatch",
+      severity: item.state === "retryable" ? "warning" : "error",
+      ...(item.settlementId ? { settlementId: item.settlementId } : {}),
+      ...(item.usageId ? { usageId: item.usageId } : {}),
+      ...(item.receiptId ? { receiptId: item.receiptId } : {}),
+      ...(item.executionRunId ? { executionRunId: item.executionRunId } : {}),
+      ...(item.observedStatus ? { observedStatus: item.observedStatus } : {}),
+      ...(item.expectedStatus ? { expectedStatus: item.expectedStatus } : {}),
+      detectedAt: item.evaluatedAt,
+      lastEvaluatedAt: item.lastEvaluatedAt,
+      retryable: item.state === "retryable",
+      evidenceRefs: item.evidenceRefs,
+      availableActions: [
+        { action: "open_exception", label: "Open financial exception", available: true },
+        { action: "recheck", label: "Recheck reconciliation", available: true },
+        { action: "refresh", label: "Refresh evidence", available: true },
+      ],
+      guardrails: item.guardrails,
+    };
+  }
+
+  #filterReconciliationMismatches(
+    items: readonly ReconciliationMismatch[],
+    query?: ReconciliationMismatchQuery,
+  ): readonly ReconciliationMismatch[] {
+    const filtered = items.filter((item) => {
+      if (query?.mismatchId && item.mismatchId !== query.mismatchId) return false;
+      if (query?.reconciliationId && item.reconciliationId !== query.reconciliationId) return false;
+      if (query?.settlementId && item.settlementId !== query.settlementId) return false;
+      if (query?.usageId && item.usageId !== query.usageId) return false;
+      if (query?.executionRunId && item.executionRunId !== query.executionRunId) return false;
+      if (query?.classification && item.classification !== query.classification) return false;
+      return true;
+    });
+    const limit = query?.limit && query.limit > 0 ? query.limit : filtered.length;
+    return filtered.slice(0, limit);
+  }
+
+  #filterFinancialExceptions(
+    items: readonly FinancialException[],
+    query?: FinancialExceptionQuery,
+  ): readonly FinancialException[] {
+    const filtered = items.filter((item) => {
+      if (query?.exceptionId && item.exceptionId !== query.exceptionId) return false;
+      if (query?.mismatchId && item.mismatchId !== query.mismatchId) return false;
+      if (query?.reconciliationId && item.reconciliationId !== query.reconciliationId) return false;
+      if (query?.settlementId && item.settlementId !== query.settlementId) return false;
+      if (query?.status && item.status !== query.status) return false;
+      if (query?.tenantId && item.tenantId !== query.tenantId) return false;
+      return true;
+    });
+    const limit = query?.limit && query.limit > 0 ? query.limit : filtered.length;
+    return filtered.slice(0, limit);
+  }
+
+  #hasOpenExceptionForReconciliation(reconciliationId: string): boolean {
+    return [...this.#exceptions.values()].some((item) =>
+      item.reconciliationId === reconciliationId && this.#isOpenFinancialException(item.status)
+    );
+  }
+
+  #isOpenFinancialException(status: FinancialExceptionStatus): boolean {
+    return status !== "closed" && status !== "rejected" && status !== "resolved";
+  }
+
+  #exceptionActions(status: FinancialExceptionStatus): readonly AvailableAction[] {
+    const refresh: AvailableAction = { action: "refresh", label: "Refresh evidence", available: true };
+    if (status === "open") {
+      return [
+        { action: "acknowledge_exception", label: "Acknowledge exception", available: true },
+        { action: "reject_exception", label: "Reject exception", available: true },
+        refresh,
+      ];
+    }
+    if (status === "acknowledged") {
+      return [
+        { action: "review_exception", label: "Move to review", available: true },
+        { action: "reject_exception", label: "Reject exception", available: true },
+        refresh,
+      ];
+    }
+    if (status === "under_review") {
+      return [
+        { action: "remediate_exception", label: "Mark remediation pending", available: true },
+        { action: "resolve_exception", label: "Resolve exception", available: true },
+        { action: "reject_exception", label: "Reject exception", available: true },
+        refresh,
+      ];
+    }
+    if (status === "remediation_pending") {
+      return [
+        { action: "resolve_exception", label: "Resolve exception", available: true },
+        { action: "reject_exception", label: "Reject exception", available: true },
+        refresh,
+      ];
+    }
+    if (status === "resolved" || status === "rejected") {
+      return [
+        { action: "close_exception", label: "Close exception", available: true },
+        refresh,
+      ];
+    }
+    return [refresh];
+  }
+
+  #nextExceptionStatus(
+    status: FinancialExceptionStatus,
+    action: "acknowledge" | "review" | "remediate" | "resolve" | "reject" | "close",
+  ): FinancialExceptionStatus | undefined {
+    if (action === "acknowledge" && status === "open") return "acknowledged";
+    if (action === "review" && status === "acknowledged") return "under_review";
+    if (action === "remediate" && status === "under_review") return "remediation_pending";
+    if (action === "resolve" && (status === "under_review" || status === "remediation_pending")) return "resolved";
+    if (action === "reject" && (status === "open" || status === "acknowledged" || status === "under_review" || status === "remediation_pending")) {
+      return "rejected";
+    }
+    if (action === "close" && (status === "resolved" || status === "rejected")) return "closed";
+    return undefined;
   }
 
   #toUsageInspectionRecord(record: UsageRecord): UsageInspectionRecord {

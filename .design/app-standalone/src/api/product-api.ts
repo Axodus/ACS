@@ -1689,6 +1689,27 @@ export type ReconciliationMismatch = {
   evidenceRefs?: string[];
 };
 
+export type FinancialException = {
+  exceptionId: string;
+  tenantId?: string;
+  mismatchId: string;
+  reconciliationId: string;
+  category: string;
+  severity: "warning" | "error";
+  status: string;
+  settlementId?: string;
+  usageId?: string;
+  receiptId?: string;
+  executionRunId?: string;
+  openedAt: number;
+  updatedAt: number;
+  acknowledgedAt?: number;
+  closedAt?: number;
+  actor?: string;
+  justification?: string;
+  evidenceRefs?: string[];
+};
+
 export type CompositionActionName =
   | "assignRole"
   | "adoptRole"
@@ -2590,6 +2611,21 @@ export const productApi = {
   },
   async listReconciliationMismatches() {
     return request<ReconciliationMismatch[]>("/economics/mismatches?limit=8");
+  },
+  async listFinancialExceptions() {
+    return request<FinancialException[]>("/economics/exceptions?limit=8");
+  },
+  async openFinancialException(mismatchId: string) {
+    return request<FinancialException>("/economics/exceptions", {
+      method: "POST",
+      body: JSON.stringify({ mismatchId }),
+    });
+  },
+  async transitionFinancialException(exceptionId: string, action: "acknowledge" | "review" | "remediate" | "resolve" | "reject" | "close", justification?: string) {
+    return request<FinancialException>(`/economics/exceptions/${encodeURIComponent(exceptionId)}/${action}`, {
+      method: "POST",
+      body: JSON.stringify(justification ? { justification } : {}),
+    });
   },
   async listWorkers() {
     return request<WorkerSummary[]>("/workers");
