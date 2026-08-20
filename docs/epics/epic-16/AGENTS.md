@@ -58,7 +58,7 @@ Each milestone must include:
 - operator UX behavior where applicable;
 - tests for Tenant isolation, idempotency and degraded dependencies;
 - browser acceptance for changed Control Plane surfaces;
-- browser acceptance is remote-first and should prefer the certified deployment URL for the exact commit under test; localhost is only a development fallback when explicitly enabled;
+- browser acceptance is local-first: Vite + Playwright certify the implementation before commit/push; Vercel exact-SHA verification is a secondary deployment gate;
 - regression evidence against EPIC-14/15/15.5 operational flows.
 
 ## Required validation

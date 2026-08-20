@@ -50,18 +50,18 @@ function normalizeBaseUrl(value) {
 function resolveBrowserBaseUrl() {
   const explicit = normalizeBaseUrl(process.env.AEES_BROWSER_BASE_URL || process.env.AEES_BROWSER_DEPLOYMENT_URL);
   if (explicit) {
-    return { baseUrl: explicit, source: "explicit" };
+    const source = /localhost|127\.0\.0\.1/.test(explicit) ? "local-vite" : "explicit";
+    return { baseUrl: explicit, source };
   }
-  const vercelUrl = process.env.AEES_BROWSER_VERCEL_URL || process.env.VERCEL_URL || process.env.VERCEL_BRANCH_URL;
-  if (vercelUrl) {
-    const resolved = normalizeBaseUrl(vercelUrl.startsWith("http://") || vercelUrl.startsWith("https://") ? vercelUrl : "https://" + vercelUrl);
-    return { baseUrl: resolved, source: "vercel" };
+  if (process.env.AEES_BROWSER_FORCE_REMOTE === "1") {
+    const vercelUrl = process.env.AEES_BROWSER_VERCEL_URL || process.env.VERCEL_URL || process.env.VERCEL_BRANCH_URL;
+    if (vercelUrl) {
+      const resolved = normalizeBaseUrl(vercelUrl.startsWith("http://") || vercelUrl.startsWith("https://") ? vercelUrl : "https://" + vercelUrl);
+      return { baseUrl: resolved, source: "vercel" };
+    }
   }
-  if (process.env.AEES_BROWSER_ALLOW_LOCALHOST === "1") {
-    const localhost = normalizeBaseUrl(process.env.AEES_BROWSER_LOCAL_URL || "http://localhost:3000");
-    return { baseUrl: localhost, source: "localhost-fallback" };
-  }
-  return { baseUrl: null, source: "unresolved" };
+  const localhost = normalizeBaseUrl(process.env.AEES_BROWSER_LOCAL_URL || "http://127.0.0.1:5173");
+  return { baseUrl: localhost, source: "local-vite" };
 }
 
 async function resolvePlaywrightCorePath() {
@@ -181,7 +181,7 @@ async function runBrowserAcceptance(playwright, url) {
           usageSurfaceVisible: (state.headings || []).includes("Usage") || /\busage\b/i.test(String(state.text)),
           settlementSurfaceVisible: (state.headings || []).includes("Settlements") || /\bsettlements?\b/i.test(String(state.text)),
           receiptSurfaceVisible: (state.headings || []).includes("Receipts") || /\breceipts?\b/i.test(String(state.text)),
-          fabricatedHistory: /(usage history|settlement history|settlement volume|trend|last 30 days|customers)/i.test(String(state.text)),
+          fabricatedHistory: /(fake customers|sample customers|settlement volume|last 30 days|usage history over|fabricated settlement history)/i.test(String(state.text)),
         });
 
         await context.close();

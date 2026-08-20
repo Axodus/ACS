@@ -96,3 +96,10 @@ Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
 - SHA da89456 produced accessibility/overflow/console/page/request PASS
 - usage, settlement and receipt operator surfaces were absent from the certified artifact
 - result remains FAIL until a SHA containing those surfaces is certified
+
+## AEES-16-03 local product acceptance
+
+- local Vite + Playwright against http://127.0.0.1:5173/operations/overview PASS
+- Usage, Settlements and Receipts are present without fabricated financial history
+- prior remote FAILs against older or mismatched deployments remain chronology
+  evidence, not local product defects

@@ -22,7 +22,9 @@ See `milestones/E16-M1-S00.md` and complete `execution-readiness.md` from reposi
 
 S00 is documentation/discovery only. Product code, Product API behavior, persistence schema and UI behavior must remain unchanged.
 
-Browser acceptance for EPIC-16 is remote-first: prefer the certified deployment URL for the exact commit under test, then an explicit browser base URL, and use localhost only when development fallback is explicitly enabled.
+Browser acceptance for EPIC-16 is local-first: Vite + Playwright certify the
+implementation before commit/push. Vercel exact-SHA verification is a secondary
+deployment gate, not the primary mechanism for testing unpublished code.
 
 Functional execution is authorized only after S00 records:
 
@@ -107,7 +109,7 @@ without introducing invoice/payment semantics.
 
 ### AEES-16-03 / S05 — Acceptance and Milestone Closure
 Run backend/app validation, Tenant isolation, shared-state regression if state
-access changes, remote-first browser acceptance, accessibility, overflow,
+access changes, local Vite browser acceptance, accessibility, overflow,
 console, page-error and no-fake-data checks.
 
 ## Planner output requirements

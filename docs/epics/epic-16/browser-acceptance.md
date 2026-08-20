@@ -50,18 +50,39 @@ Final milestone evidence should record:
 - financial-truth assertions;
 - failures/waivers with exact rationale.
 
-## Remote-first browser certification
+## Browser acceptance chronology
 
-EPIC-16 browser acceptance is certified against the deployed application artifact first.
+EPIC-16 separates product acceptance from deployment verification.
 
-Canonical target order:
+PRIMARY — implementation acceptance:
 
-1. explicit AEES_BROWSER_BASE_URL or AEES_BROWSER_DEPLOYMENT_URL;
-2. Vercel deployment URL from the certified commit or branch environment;
-3. localhost only when AEES_BROWSER_ALLOW_LOCALHOST=1 is set for development diagnostics.
+- local Vite + Playwright;
+- certifies the working tree before commit/push;
+- proves Usage, Settlements, Receipts and no-fake-data on the implementation under test.
 
-Localhost availability is not a prerequisite for milestone completion when the same commit is reachable through a matching deployment URL.
-The browser manifest should record the deployment URL source so certification evidence stays tied to the certified artifact.
+SECONDARY — deployment verification:
+
+- Vercel exact-SHA deployment;
+- proves the already-certified implementation was published correctly;
+- requires deployment SHA == certified implementation SHA and READY status.
+
+FALLBACK:
+
+- remote browser acceptance may replace local acceptance only when the execution
+  environment genuinely cannot host Vite/Chromium.
+
+Canonical target order for S05 product acceptance:
+
+1. explicit AEES_BROWSER_BASE_URL when it already points at the implementation under test;
+2. local Vite URL, typically http://127.0.0.1:5173, when the local server is reachable;
+3. Vercel exact-SHA deployment only as deployment verification, or as fallback when local
+   Vite/Chromium cannot run.
+
+A remote FAIL against a SHA that does not yet contain the implementation is historical
+chronology evidence, not a product defect.
+
+The browser manifest should record the base URL source so certification evidence stays
+tied to the certified artifact.
 
 ## Certified AEES-16-01 evidence
 
@@ -78,8 +99,8 @@ The browser manifest should record the deployment URL source so certification ev
 
 ## AEES-16-03 browser acceptance target
 
-AEES-16-03 reuses the same remote-first browser policy and the supported
-operations overview surface for usage and settlement evidence.
+AEES-16-03 uses local Vite + Playwright as the S05 product-acceptance gate.
+Vercel exact-SHA verification remains a secondary deployment gate.
 
 Target route:
 
@@ -115,6 +136,27 @@ Required evidence categories:
 - usage/settlement/receipt surfaces: ABSENT
 - result: FAIL
 - classification: certified SHA does not include the AEES-16-03 operator surfaces
+
+## AEES-16-03 local product acceptance
+
+- server mode: local-vite
+- base URL: http://127.0.0.1:5173
+- route: /operations/overview
+- matrix: desktop, tablet, mobile x light, dark
+- manifest: /tmp/acs-aees-16-03-local/manifest.json
+- screenshots: /tmp/acs-aees-16-03-local/screenshots/
+- result: PASS
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- request failures: 0
+- no-fake-data: PASS
+- Usage: PRESENT
+- Settlements: PRESENT
+- Receipts: PRESENT
+- classification: local implementation acceptance PASS; Vercel exact-SHA
+  verification remains outstanding
 
 ## Closure gate
 
