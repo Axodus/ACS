@@ -1941,6 +1941,43 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // GET /api/v1/economics/mismatches and GET /api/v1/economics/mismatches/:mismatchId
+    if (apiPath === "economics/mismatches" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["mismatchId", "reconciliationId", "settlementId", "usageId", "executionRunId", "classification", "limit"]);
+      const query: { mismatchId?: string; reconciliationId?: string; settlementId?: string; usageId?: string; executionRunId?: string; classification?: string; limit?: number } = {};
+      const mismatchIdParam = url.searchParams.get("mismatchId");
+      if (mismatchIdParam) query.mismatchId = mismatchIdParam;
+      const reconciliationIdParam = url.searchParams.get("reconciliationId");
+      if (reconciliationIdParam) query.reconciliationId = reconciliationIdParam;
+      const settlementIdParam = url.searchParams.get("settlementId");
+      if (settlementIdParam) query.settlementId = settlementIdParam;
+      const usageIdParam = url.searchParams.get("usageId");
+      if (usageIdParam) query.usageId = usageIdParam;
+      const runIdParam = url.searchParams.get("executionRunId");
+      if (runIdParam) query.executionRunId = runIdParam;
+      const classificationParam = url.searchParams.get("classification");
+      if (classificationParam) query.classification = classificationParam;
+      const limitParam = url.searchParams.get("limit");
+      if (limitParam) query.limit = parseInt(limitParam, 10);
+      const items = await api.listReconciliationMismatches(query as Parameters<typeof api.listReconciliationMismatches>[0]);
+      return { status: 200, body: ok(items, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "mismatches" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const mismatchId = readPathSegment(segments, 4, "mismatchId");
+      const item = await api.getReconciliationMismatch(mismatchId);
+      if (!item) {
+        return fail("reconciliation mismatch not found: " + mismatchId, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(item, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "mismatches" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/mismatches") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // Entity-scoped metering and settlement
     if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments[5] === "metering" && segments.length === 6 && request.method === "GET") {
       assertAllowedQueryParams(url, []);

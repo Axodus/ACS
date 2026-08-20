@@ -390,6 +390,36 @@ export interface ReconciliationBacklogItem {
   readonly guardrails: EvidenceGuardrails;
 }
 
+export interface ReconciliationMismatch {
+  readonly mismatchId: string;
+  readonly reconciliationId: string;
+  readonly tenantId?: string;
+  readonly classification: ReconciliationMismatchClass;
+  readonly severity: "warning" | "error";
+  readonly settlementId?: string;
+  readonly usageId?: string;
+  readonly receiptId?: string;
+  readonly executionRunId?: string;
+  readonly observedStatus?: string;
+  readonly expectedStatus?: string;
+  readonly detectedAt: number;
+  readonly lastEvaluatedAt: number;
+  readonly retryable: boolean;
+  readonly evidenceRefs: readonly string[];
+  readonly availableActions: readonly AvailableAction[];
+  readonly guardrails: EvidenceGuardrails;
+}
+
+export interface ReconciliationMismatchQuery {
+  readonly mismatchId?: string;
+  readonly reconciliationId?: string;
+  readonly settlementId?: string;
+  readonly usageId?: string;
+  readonly executionRunId?: string;
+  readonly classification?: ReconciliationMismatchClass;
+  readonly limit?: number;
+}
+
 export interface ReconciliationQuery {
   readonly reconciliationId?: string;
   readonly settlementId?: string;
@@ -1043,6 +1073,17 @@ export class OperationalEvidenceService {
   async getReconciliationItem(reconciliationId: string): Promise<ReconciliationBacklogItem | undefined> {
     const items = await this.listReconciliationBacklog({ reconciliationId, limit: 1 });
     return items.find((item) => item.reconciliationId === reconciliationId);
+  }
+
+  async listReconciliationMismatches(query?: ReconciliationMismatchQuery): Promise<readonly ReconciliationMismatch[]> {
+    const items = await this.listReconciliationBacklog();
+    const mismatches = items.filter((item) => item.mismatch && item.mismatchClass).map((item) => this.#toReconciliationMismatch(item));
+    return this.#filterReconciliationMismatches(mismatches, query);
+  }
+
+  async getReconciliationMismatch(mismatchId: string): Promise<ReconciliationMismatch | undefined> {
+    const mismatches = await this.listReconciliationMismatches({ mismatchId, limit: 1 });
+    return mismatches.find((item) => item.mismatchId === mismatchId);
   }
 
   // --- Economic audit ---

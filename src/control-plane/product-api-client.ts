@@ -43,6 +43,8 @@ import type {
   Receipt,
   ReceiptQuery,
   ReconciliationBacklogItem,
+  ReconciliationMismatch,
+  ReconciliationMismatchQuery,
   ReconciliationQuery,
   Reservation,
   ReservationQuery,
@@ -2035,6 +2037,14 @@ export class ProductApiClient {
 
   async getReconciliationItem(reconciliationId: string): Promise<ReconciliationBacklogItem | undefined> {
     return this.#operationalEvidence.getReconciliationItem(reconciliationId);
+  }
+
+  async listReconciliationMismatches(query?: ReconciliationMismatchQuery): Promise<readonly ReconciliationMismatch[]> {
+    return this.#operationalEvidence.listReconciliationMismatches(query);
+  }
+
+  async getReconciliationMismatch(mismatchId: string): Promise<ReconciliationMismatch | undefined> {
+    return this.#operationalEvidence.getReconciliationMismatch(mismatchId);
   }
 
   async getExecutionRunMetering(runId: string): Promise<readonly MeteringRecord[]> {
