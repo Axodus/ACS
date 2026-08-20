@@ -216,7 +216,7 @@ function EconomicOperationsPanel() {
   const [lastResult, setLastResult] = useState<unknown>(null)
   const [quoteId, setQuoteId] = useState('')
   const [economicOperationId, setEconomicOperationId] = useState(() => 'econ-' + crypto.randomUUID().slice(0, 8))
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID())
   const [decisionId, setDecisionId] = useState('')
   const [reservationId, setReservationId] = useState('')
   const [requestedAmount, setRequestedAmount] = useState('')
