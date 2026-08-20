@@ -83,7 +83,13 @@ export class StdioEngineTransport implements EngineTransport {
     });
     this.#child = child;
     child.on("error", (error) => {
-      this.#failOpen(new EngineTransportError(`engine process failed to start: ${error.message}`));
+      this.#startError = new EngineTransportError(`engine process failed to start: ${error.message}`);
+      this.#closed = true;
+      for (const pending of this.#pending.values()) {
+        if (pending.timer) clearTimeout(pending.timer);
+        pending.reject(this.#startError);
+      }
+      this.#pending.clear();
     });
     if (!child.stdout) {
       this.#failOpen(new EngineTransportError("engine process has no stdout pipe"));

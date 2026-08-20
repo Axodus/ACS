@@ -864,7 +864,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   });
 
   let localWorker: LocalExecutionWorker | null = null;
-  if (runtimeMode === "local" && options.startLocalWorker !== false) {
+  if (runtimeMode === "local" && options.startLocalWorker === true) {
     localWorker = new LocalExecutionWorker({
       workerRegistry,
       assignmentService: workerAssignmentService,
