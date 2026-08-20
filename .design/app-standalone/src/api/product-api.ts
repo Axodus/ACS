@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_ACS_API_BASE_URL ?? "http://127.0.0.1:8788/api/v1";
+const API_BASE_URL = import.meta.env.VITE_ACS_API_BASE_URL ?? "/api/v1";
 
 declare global {
   interface Window {
@@ -1636,6 +1636,28 @@ export type UsageInspectionRecord = {
   evidenceRefs?: string[];
 };
 
+export type ReconciliationBacklogItem = {
+  reconciliationId: string;
+  tenantId?: string;
+  settlementId?: string;
+  usageId?: string;
+  receiptId?: string;
+  executionRunId?: string;
+  reservationId?: string;
+  quoteId?: string;
+  providerReference?: string;
+  state: string;
+  mismatchClass?: string;
+  mismatch?: boolean;
+  operatorActionRequired: boolean;
+  exceptionOpen: boolean;
+  observedStatus?: string;
+  expectedStatus?: string;
+  evaluatedAt: number;
+  lastEvaluatedAt: number;
+  evidenceRefs?: string[];
+};
+
 export type CompositionActionName =
   | "assignRole"
   | "adoptRole"
@@ -2531,6 +2553,9 @@ export const productApi = {
   },
   async listUsageRecords() {
     return request<UsageInspectionRecord[]>("/economics/usage?limit=8");
+  },
+  async listReconciliationBacklog() {
+    return request<ReconciliationBacklogItem[]>("/economics/reconciliation?limit=8");
   },
   async listWorkers() {
     return request<WorkerSummary[]>("/workers");

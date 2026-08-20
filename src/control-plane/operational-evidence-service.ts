@@ -349,6 +349,56 @@ export interface Receipt {
   readonly guardrails: EvidenceGuardrails;
 }
 
+export type ReconciliationState =
+  | "pending"
+  | "matched"
+  | "mismatched"
+  | "unavailable"
+  | "retryable"
+  | "exception_open"
+  | "remediation_pending"
+  | "resolved";
+
+export type ReconciliationMismatchClass =
+  | "usage_correlation_mismatch"
+  | "missing_receipt_evidence"
+  | "missing_settlement"
+  | "status_mismatch"
+  | "authoritative_source_unavailable";
+
+export interface ReconciliationBacklogItem {
+  readonly reconciliationId: string;
+  readonly tenantId?: string;
+  readonly settlementId?: string;
+  readonly usageId?: string;
+  readonly receiptId?: string;
+  readonly executionRunId?: string;
+  readonly reservationId?: string;
+  readonly quoteId?: string;
+  readonly providerReference?: string;
+  readonly state: ReconciliationState;
+  readonly mismatchClass?: ReconciliationMismatchClass;
+  readonly mismatch?: boolean;
+  readonly operatorActionRequired: boolean;
+  readonly exceptionOpen: boolean;
+  readonly observedStatus?: string;
+  readonly expectedStatus?: string;
+  readonly evaluatedAt: number;
+  readonly lastEvaluatedAt: number;
+  readonly evidenceRefs: readonly string[];
+  readonly availableActions: readonly AvailableAction[];
+  readonly guardrails: EvidenceGuardrails;
+}
+
+export interface ReconciliationQuery {
+  readonly reconciliationId?: string;
+  readonly settlementId?: string;
+  readonly usageId?: string;
+  readonly executionRunId?: string;
+  readonly state?: ReconciliationState;
+  readonly limit?: number;
+}
+
 // --- Available actions & operation results ---
 
 export type AvailableActionName =
@@ -982,6 +1032,19 @@ export class OperationalEvidenceService {
     return settlement ? this.#toSettlement(settlement) : undefined;
   }
 
+  async listReconciliationBacklog(query?: ReconciliationQuery): Promise<readonly ReconciliationBacklogItem[]> {
+    if (!this.#economicService) {
+      return [];
+    }
+    const items = this.#economicService.listSettlements().map((settlement) => this.#toReconciliationItem(settlement));
+    return this.#filterReconciliation(items, query);
+  }
+
+  async getReconciliationItem(reconciliationId: string): Promise<ReconciliationBacklogItem | undefined> {
+    const items = await this.listReconciliationBacklog({ reconciliationId, limit: 1 });
+    return items.find((item) => item.reconciliationId === reconciliationId);
+  }
+
   // --- Economic audit ---
 
   async listEconomicAudit(): Promise<readonly AuditEntry[]> {
@@ -1334,6 +1397,76 @@ export class OperationalEvidenceService {
       evidenceRefs: [receipt.receiptId, receipt.quoteId, receipt.reservationId],
       guardrails: NO_SECRET_GUARDRAILS,
     };
+  }
+
+  #toReconciliationItem(settlement: EconomicSettlement): ReconciliationBacklogItem {
+    const evaluatedAt = Date.now();
+    const usage = this.#economicService?.listUsage(settlement.runId)[0];
+    const receipt = this.#economicService?.listReceipts().find((item) => item.settlementId === settlement.settlementId || item.runId === settlement.runId);
+    const reservation = this.#economicService?.listReservations().find((item) => item.reservationId === settlement.reservationId);
+    let mismatchClass: ReconciliationMismatchClass | undefined;
+    let state: ReconciliationState = "matched";
+    if (!this.#economicService) {
+      state = "unavailable";
+      mismatchClass = "authoritative_source_unavailable";
+    } else if (!usage) {
+      state = "mismatched";
+      mismatchClass = "usage_correlation_mismatch";
+    } else if (!receipt) {
+      state = settlement.status === "settled" ? "mismatched" : "pending";
+      mismatchClass = settlement.status === "settled" ? "missing_receipt_evidence" : undefined;
+    } else if (settlement.status === "failed") {
+      state = "retryable";
+      mismatchClass = "status_mismatch";
+    } else if (settlement.status === "pending") {
+      state = "pending";
+    }
+    const mismatch = state === "mismatched" || state === "retryable";
+    return {
+      reconciliationId: "recon_" + settlement.settlementId,
+      ...(settlement.tenantId ? { tenantId: settlement.tenantId } : {}),
+      settlementId: settlement.settlementId,
+      ...(usage ? { usageId: usage.recordId } : {}),
+      ...(receipt ? { receiptId: receipt.receiptId } : {}),
+      ...(settlement.runId ? { executionRunId: settlement.runId } : {}),
+      ...(reservation ? { reservationId: reservation.reservationId, quoteId: reservation.quoteId } : {}),
+      providerReference: "settlement-provider",
+      state,
+      ...(mismatchClass ? { mismatchClass } : {}),
+      mismatch,
+      operatorActionRequired: mismatch,
+      exceptionOpen: false,
+      observedStatus: settlement.status,
+      expectedStatus: usage && receipt && settlement.status === "settled" ? "settled" : usage ? "pending" : "matched",
+      evaluatedAt,
+      lastEvaluatedAt: evaluatedAt,
+      evidenceRefs: [
+        settlement.settlementId,
+        ...(usage ? [usage.recordId] : []),
+        ...(receipt ? [receipt.receiptId] : []),
+        ...(reservation ? [reservation.reservationId] : []),
+      ],
+      availableActions: mismatch
+        ? [
+          { action: "recheck", label: "Recheck reconciliation", available: true },
+          { action: "refresh", label: "Refresh evidence", available: true },
+        ]
+        : [{ action: "refresh", label: "Refresh evidence", available: true }],
+      guardrails: NO_SECRET_GUARDRAILS,
+    };
+  }
+
+  #filterReconciliation(items: readonly ReconciliationBacklogItem[], query?: ReconciliationQuery): readonly ReconciliationBacklogItem[] {
+    const filtered = items.filter((item) => {
+      if (query?.reconciliationId && item.reconciliationId !== query.reconciliationId) return false;
+      if (query?.settlementId && item.settlementId !== query.settlementId) return false;
+      if (query?.usageId && item.usageId !== query.usageId) return false;
+      if (query?.executionRunId && item.executionRunId !== query.executionRunId) return false;
+      if (query?.state && item.state !== query.state) return false;
+      return true;
+    });
+    const limit = query?.limit && query.limit > 0 ? query.limit : filtered.length;
+    return filtered.slice(0, limit);
   }
 
   #toUsageInspectionRecord(record: UsageRecord): UsageInspectionRecord {

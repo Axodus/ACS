@@ -4,8 +4,8 @@
 
 Before functional work starts, execute [`E16-M1-S00 — Normative Execution Readiness`](./E16-M1-S00.md).
 
-**Nature:** documentation, repository discovery and execution preparation only.  
-**Product code changes:** forbidden.  
+**Nature:** documentation, repository discovery and execution preparation only.
+**Product code changes:** forbidden.
 **Exit:** `EPIC-16 EXECUTION READINESS: READY` and a bounded, evidence-backed handoff for E16-M1-S01.
 
 E16-M1-S01 is not authorized until S00 reaches `PASS`.
@@ -74,7 +74,10 @@ settlement without repository inspection.
 
 ## E16-M4 — Reconciliation & Financial Exceptions
 
+**Execution unit:** AEES-16-04
 **Stories:** S07, S08, S09
+**Canonical UI:** `.design/app-standalone`
+** /static:** forbidden for EPIC-16 UI changes
 
 Create durable reconciliation backlog, first-class financial exceptions and bounded remediation.
 
