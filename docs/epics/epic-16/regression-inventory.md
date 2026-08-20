@@ -89,3 +89,10 @@ Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
 - keep Tenant isolation, idempotency and shared-state behavior authoritative;
 - browser acceptance remains remote-first and must record any environment
   limitation separately from product failure.
+
+## AEES-16-03 / ACCEPTANCE-RECOVERY-01
+
+- remote Playwright ran against https://acs-hl29hhkoe-axodus.vercel.app/operations/overview
+- SHA da89456 produced accessibility/overflow/console/page/request PASS
+- usage, settlement and receipt operator surfaces were absent from the certified artifact
+- result remains FAIL until a SHA containing those surfaces is certified

@@ -98,6 +98,24 @@ Required evidence categories:
 - no fabricated usage or settlement history;
 - accessibility, overflow, console, page-error and request-failure checks.
 
+## AEES-16-03 / ACCEPTANCE-RECOVERY-01 evidence
+
+- certified Git SHA: da89456525f50a8e94f06784446332df85399363
+- deployment URL: https://acs-hl29hhkoe-axodus.vercel.app
+- route: /operations/overview
+- matrix: desktop, tablet, mobile x light, dark
+- manifest: /tmp/acs-aees-16-03-browser-recovery/manifest.json
+- screenshots: /tmp/acs-aees-16-03-browser-recovery/screenshots/
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- request failures: 0
+- no-fake-data on displayed content: PASS
+- usage/settlement/receipt surfaces: ABSENT
+- result: FAIL
+- classification: certified SHA does not include the AEES-16-03 operator surfaces
+
 ## Closure gate
 
 EPIC-16 cannot close with an unresolved P0/P1 financial-truth or authorization UX defect. P2/P3 visual deviations require explicit disposition and must not weaken the 9005e3a hierarchy or accessibility.
