@@ -102,3 +102,15 @@ test("stdio transport times out and rejects malformed engine output", async () =
     rmSync(malformedWorkspace, { recursive: true, force: true });
   }
 });
+
+test("stdio transport reports missing engine command without crashing the process", async () => {
+  const transport = new StdioEngineTransport({
+    command: "python3-missing-acs-engine",
+    args: ["-m", "acs.protocol.stdio"],
+  });
+  await assert.rejects(
+    () => transport.request({ protocol: ACS_ENGINE_PROTOCOL, id: "missing", operation: "engine.health", params: {} }, 200),
+    (error) => error instanceof Error && /failed to start|ENOENT|not available|already closed/i.test(error.message),
+  );
+  await transport.close();
+});

@@ -17,36 +17,32 @@ type Pending = {
 };
 
 export class StdioEngineTransport implements EngineTransport {
-  readonly #child: ChildProcessWithoutNullStreams;
-  readonly #stdout: Interface;
+  readonly #options: StdioEngineTransportOptions;
   readonly #pending = new Map<string, Pending>();
+  #child: ChildProcessWithoutNullStreams | undefined;
+  #stdout: Interface | undefined;
   #closed = false;
+  #startError: EngineTransportError | undefined;
 
   constructor(options: StdioEngineTransportOptions) {
-    this.#child = spawn(options.command, options.args ?? [], {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    this.#stdout = createInterface({ input: this.#child.stdout });
-    this.#stdout.on("line", (line) => this.#onLine(line));
-    this.#child.on("exit", (code, signal) => {
-      const error = new EngineTransportError(`engine process exited before response (code=${code} signal=${signal})`);
-      for (const pending of this.#pending.values()) {
-        if (pending.timer) clearTimeout(pending.timer);
-        pending.reject(error);
-      }
-      this.#pending.clear();
-      this.#closed = true;
-    });
+    this.#options = options;
   }
 
   request(message: EngineRequest, timeoutMs = 5000): Promise<EngineResponse> {
     if (this.#closed) {
-      return Promise.reject(new EngineTransportError("engine transport already closed"));
+      return Promise.reject(this.#startError ?? new EngineTransportError("engine transport already closed"));
     }
     if (message.id === null) {
       return Promise.reject(new EngineTransportError("stdio transport requires a non-null request id"));
+    }
+    try {
+      this.#ensureStarted();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    const child = this.#child;
+    if (!child || this.#startError) {
+      return Promise.reject(this.#startError ?? new EngineTransportError("engine process is not available"));
     }
     const requestId = message.id as string;
     return new Promise<EngineResponse>((resolve, reject) => {
@@ -55,7 +51,7 @@ export class StdioEngineTransport implements EngineTransport {
         reject(new EngineTimeoutError(`engine request timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       this.#pending.set(requestId, { resolve, reject, timer });
-      this.#child.stdin.write(JSON.stringify(message) + "\n", "utf8", (error) => {
+      child.stdin.write(JSON.stringify(message) + "\n", "utf8", (error) => {
         if (error) {
           clearTimeout(timer);
           this.#pending.delete(requestId);
@@ -68,11 +64,47 @@ export class StdioEngineTransport implements EngineTransport {
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
-    this.#stdout.close();
-    this.#child.stdin.end();
-    if (!this.#child.killed) {
+    this.#stdout?.close();
+    this.#child?.stdin.end();
+    if (this.#child && !this.#child.killed) {
       this.#child.kill();
     }
+  }
+
+  #ensureStarted(): void {
+    if (this.#child || this.#startError) {
+      if (this.#startError) throw this.#startError;
+      return;
+    }
+    const child = spawn(this.#options.command, this.#options.args ?? [], {
+      cwd: this.#options.cwd,
+      env: this.#options.env,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    this.#child = child;
+    child.on("error", (error) => {
+      this.#failOpen(new EngineTransportError(`engine process failed to start: ${error.message}`));
+    });
+    if (!child.stdout) {
+      this.#failOpen(new EngineTransportError("engine process has no stdout pipe"));
+      return;
+    }
+    this.#stdout = createInterface({ input: child.stdout });
+    this.#stdout.on("line", (line) => this.#onLine(line));
+    child.on("exit", (code, signal) => {
+      const error = new EngineTransportError(`engine process exited before response (code=${code} signal=${signal})`);
+      this.#failOpen(error);
+    });
+  }
+
+  #failOpen(error: EngineTransportError): void {
+    this.#startError = error;
+    this.#closed = true;
+    for (const pending of this.#pending.values()) {
+      if (pending.timer) clearTimeout(pending.timer);
+      pending.reject(error);
+    }
+    this.#pending.clear();
   }
 
   #onLine(line: string): void {
@@ -81,21 +113,13 @@ export class StdioEngineTransport implements EngineTransport {
       payload = JSON.parse(line) as EngineResponse;
     } catch {
       const error = new EngineTransportError(`engine emitted malformed JSON: ${line}`);
-      for (const pending of this.#pending.values()) {
-        if (pending.timer) clearTimeout(pending.timer);
-        pending.reject(error);
-      }
-      this.#pending.clear();
+      this.#failOpen(error);
       return;
     }
     const id = payload.id;
     if (id === null) {
       const error = new EngineTransportError("engine response did not include a correlation id");
-      for (const pending of this.#pending.values()) {
-        if (pending.timer) clearTimeout(pending.timer);
-        pending.reject(error);
-      }
-      this.#pending.clear();
+      this.#failOpen(error);
       return;
     }
     const pending = this.#pending.get(id as string);
