@@ -27,6 +27,7 @@ import { OperationalEvidenceService } from "./operational-evidence-service.js";
 import type {
   AgentEconomicConsumption,
   AuditEntry,
+  AuthorizationDecision,
   DiagnosticReport,
   EconomicQuery,
   EconomicSummary,
@@ -45,6 +46,8 @@ import type {
   ReservationQuery,
   Settlement,
   SettlementQuery,
+  UsageInspectionRecord,
+  UsageQuery,
   EventsQuery,
   AuditQuery,
  } from "./operational-evidence-service.js";
@@ -55,6 +58,7 @@ import type {
   ModelProvider,
   ModelProviderCapabilities,
 } from "../intelligence/model-provider.js";
+import type { EconomicAuthorizationDecisionCode } from "./neurons-economic-contract.js";
 import { createCanonicalModelId } from "../intelligence/model-provider.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
 import type { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
@@ -1955,6 +1959,14 @@ export class ProductApiClient {
     return this.#operationalEvidence.getExecutionRunEconomics(runId);
   }
 
+  async listAuthorizations(): Promise<readonly AuthorizationDecision[]> {
+    return this.#operationalEvidence.listAuthorizations();
+  }
+
+  async getAuthorizationDetail(decisionId: string): Promise<AuthorizationDecision | undefined> {
+    return this.#operationalEvidence.getAuthorizationDetail(decisionId);
+  }
+
   async listQuotes(query?: QuoteQuery): Promise<readonly Quote[]> {
     return this.#operationalEvidence.listQuotes(query);
   }
@@ -1977,6 +1989,18 @@ export class ProductApiClient {
 
   async getExecutionRunReservation(runId: string): Promise<Reservation | undefined> {
     return this.#operationalEvidence.getExecutionRunReservation(runId);
+  }
+
+  async listUsageRecords(query?: UsageQuery): Promise<readonly UsageInspectionRecord[]> {
+    return this.#operationalEvidence.listUsageRecords(query);
+  }
+
+  async getUsageRecord(usageId: string): Promise<UsageInspectionRecord | undefined> {
+    return this.#operationalEvidence.getUsageRecord(usageId);
+  }
+
+  async getExecutionRunUsage(runId: string): Promise<readonly UsageInspectionRecord[]> {
+    return this.#operationalEvidence.getExecutionRunUsage(runId);
   }
 
   async listMeteringRecords(query?: MeteringQuery): Promise<readonly MeteringRecord[]> {
@@ -2009,6 +2033,68 @@ export class ProductApiClient {
 
   async getExecutionRunSettlement(runId: string): Promise<Settlement | undefined> {
     return this.#operationalEvidence.getExecutionRunSettlement(runId);
+  }
+
+  async authorizeEconomicOperation(input: {
+    decisionId: string;
+    economicOperationId: string;
+    idempotencyKey: string;
+    authorizationEffect: "allowed" | "denied";
+    decisionCode: EconomicAuthorizationDecisionCode;
+    reasons: readonly string[];
+    governanceReferences?: readonly string[];
+    entitlementReferences?: readonly string[];
+    limitReferences?: readonly string[];
+    requestedAmount?: bigint | number | string;
+    effectiveAmount?: bigint | number | string;
+    unit?: string;
+    quoteId?: string;
+    reservationId?: string;
+    executionRunId?: string;
+    workloadId?: string;
+    actor?: string;
+    auditCorrelation: string;
+    createdAt?: number;
+    evaluatedAt?: number;
+  }) {
+    if (!this.#economicService) {
+      throw new Error("economic service unavailable");
+    }
+    return this.#economicService.authorize(input);
+  }
+
+  async reserveEconomicCapacity(input: {
+    reservationId: string;
+    quoteId: string;
+    idempotencyKey: string;
+    expiresAt: number;
+    authorizationDecisionId?: string;
+    operationId?: string;
+    decisionCode?: EconomicAuthorizationDecisionCode;
+    decisionReason?: string;
+    executionRunId?: string;
+    workloadId?: string;
+    actor?: string;
+    correlationId?: string;
+    createdAt?: number;
+  }) {
+    if (!this.#economicService) {
+      throw new Error("economic service unavailable");
+    }
+    return this.#economicService.reserve(input);
+  }
+
+  async releaseEconomicReservation(input: {
+    reservationId: string;
+    reason: string;
+    actor?: string;
+    correlationId?: string;
+    releasedAt?: number;
+  }) {
+    if (!this.#economicService) {
+      throw new Error("economic service unavailable");
+    }
+    return this.#economicService.release(input);
   }
 
   async createAgentQuote(agentId: string): Promise<{ ok: boolean; operation: string; entityType: string; entityId: string; status: string; message: string }> {

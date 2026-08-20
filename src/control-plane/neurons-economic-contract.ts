@@ -3,6 +3,16 @@ import type { AuditService } from "./audit-service.js";
 
 export type BillingResponsibilityMode = "axodus-managed" | "byok" | "byos";
 export type EconomicRecordStatus = "quoted" | "reserved" | "authorized" | "metered" | "settled" | "released" | "failed";
+export type EconomicAuthorizationDecisionEffect = "allowed" | "denied";
+export type EconomicAuthorizationDecisionCode =
+  | "ALLOWED"
+  | "DENIED_BY_GOVERNANCE"
+  | "DENIED_BY_ENTITLEMENT"
+  | "DENIED_BY_LIMIT"
+  | "INVALID_ECONOMIC_REQUEST"
+  | "PRICE_REFERENCE_UNAVAILABLE"
+  | "DEPENDENCY_UNAVAILABLE"
+  | "DUPLICATE_REQUEST";
 
 export type UsageDimension =
   | "llm.inference"
@@ -82,8 +92,40 @@ export interface UsageReservation {
   readonly expiresAt: number;
   readonly status: "reserved" | "released" | "settled";
   readonly idempotencyKey: string;
+  readonly authorizationDecisionId?: string;
+  readonly operationId?: string;
+  readonly decisionCode?: EconomicAuthorizationDecisionCode;
+  readonly decisionReason?: string;
+  readonly releasedAt?: number;
+  readonly updatedAt?: number;
+  readonly executionRunId?: string;
   readonly tenantId?: string;
   readonly workloadId?: string;
+}
+
+export interface EconomicAuthorizationDecision {
+  readonly decisionId: string;
+  readonly tenantId?: string;
+  readonly actor?: string;
+  readonly economicOperationId: string;
+  readonly authorizationEffect: EconomicAuthorizationDecisionEffect;
+  readonly decisionCode: EconomicAuthorizationDecisionCode;
+  readonly reasons: readonly string[];
+  readonly governanceReferences: readonly string[];
+  readonly entitlementReferences: readonly string[];
+  readonly limitReferences: readonly string[];
+  readonly requestedAmount?: string;
+  readonly effectiveAmount?: string;
+  readonly unit?: string;
+  readonly quoteId?: string;
+  readonly reservationId?: string;
+  readonly executionRunId?: string;
+  readonly workloadId?: string;
+  readonly idempotencyKey: string;
+  readonly auditCorrelation: string;
+  readonly createdAt: number;
+  readonly evaluatedAt: number;
+  readonly status: EconomicRecordStatus;
 }
 
 export interface UsageRecord {
@@ -151,6 +193,10 @@ export interface EconomicStateStore {
   getQuote(quoteId: string): UsageQuote | undefined;
   listQuotes(): readonly UsageQuote[];
   saveQuote(quote: UsageQuote): UsageQuote;
+  getAuthorization(decisionId: string): EconomicAuthorizationDecision | undefined;
+  listAuthorizations(): readonly EconomicAuthorizationDecision[];
+  findAuthorizationByIdempotency(idempotencyKey: string, tenantId?: string): EconomicAuthorizationDecision | undefined;
+  saveAuthorization(decision: EconomicAuthorizationDecision): EconomicAuthorizationDecision;
   getReservation(reservationId: string): UsageReservation | undefined;
   listReservations(): readonly UsageReservation[];
   findReservationByIdempotency(idempotencyKey: string, quoteId?: string, tenantId?: string): UsageReservation | undefined;
@@ -210,6 +256,7 @@ export class InMemoryEconomicStateStore implements EconomicStateStore {
     multiInstance: "not_applicable",
   };
   readonly #quotes = new Map<string, UsageQuote>();
+  readonly #authorizations = new Map<string, EconomicAuthorizationDecision>();
   readonly #reservations = new Map<string, UsageReservation>();
   readonly #usage = new Map<string, UsageRecord>();
   readonly #settlements = new Map<string, Settlement>();
@@ -218,6 +265,12 @@ export class InMemoryEconomicStateStore implements EconomicStateStore {
   getQuote(quoteId: string): UsageQuote | undefined { return this.#quotes.get(quoteId); }
   listQuotes(): readonly UsageQuote[] { return [...this.#quotes.values()]; }
   saveQuote(quote: UsageQuote): UsageQuote { this.#quotes.set(quote.quoteId, quote); return quote; }
+  getAuthorization(decisionId: string): EconomicAuthorizationDecision | undefined { return this.#authorizations.get(decisionId); }
+  listAuthorizations(): readonly EconomicAuthorizationDecision[] { return [...this.#authorizations.values()]; }
+  findAuthorizationByIdempotency(idempotencyKey: string, tenantId?: string): EconomicAuthorizationDecision | undefined {
+    return this.listAuthorizations().find((item) => item.idempotencyKey === idempotencyKey && (tenantId === undefined || item.tenantId === tenantId));
+  }
+  saveAuthorization(decision: EconomicAuthorizationDecision): EconomicAuthorizationDecision { this.#authorizations.set(decision.decisionId, decision); return decision; }
   getReservation(reservationId: string): UsageReservation | undefined { return this.#reservations.get(reservationId); }
   listReservations(): readonly UsageReservation[] { return [...this.#reservations.values()]; }
   findReservationByIdempotency(idempotencyKey: string, quoteId?: string, tenantId?: string): UsageReservation | undefined {
@@ -312,6 +365,15 @@ export class EconomicService {
   get stateStoreDescriptor(): EconomicAdapterDescriptor { return this.#store.descriptor; }
   get settlementProviderDescriptor(): EconomicAdapterDescriptor { return this.#settlementProvider.descriptor; }
 
+  getAuthorization(decisionId: string): EconomicAuthorizationDecision | undefined {
+    const decision = this.#store.getAuthorization(decisionId);
+    return decision ? this.#assertVisible(decision) : undefined;
+  }
+
+  listAuthorizations(): readonly EconomicAuthorizationDecision[] {
+    return this.#store.listAuthorizations().filter((record) => this.#isVisible(record));
+  }
+
   quote(input: {
     quoteId: string;
     account: EconomicAccount;
@@ -348,12 +410,99 @@ export class EconomicService {
     return this.#store.saveQuote(quote);
   }
 
-  reserve(input: { reservationId: string; quoteId: string; idempotencyKey: string; expiresAt: number }): UsageReservation {
+  authorize(input: {
+    decisionId: string;
+    economicOperationId: string;
+    idempotencyKey: string;
+    authorizationEffect: EconomicAuthorizationDecisionEffect;
+    decisionCode: EconomicAuthorizationDecisionCode;
+    reasons: readonly string[];
+    governanceReferences?: readonly string[];
+    entitlementReferences?: readonly string[];
+    limitReferences?: readonly string[];
+    requestedAmount?: bigint | number | string;
+    effectiveAmount?: bigint | number | string;
+    unit?: string;
+    quoteId?: string;
+    reservationId?: string;
+    executionRunId?: string;
+    workloadId?: string;
+    actor?: string;
+    auditCorrelation: string;
+    createdAt?: number;
+    evaluatedAt?: number;
+  }): EconomicAuthorizationDecision {
+    const existing = this.#store.findAuthorizationByIdempotency(input.idempotencyKey, this.#tenantId);
+    if (existing) {
+      if (existing.economicOperationId !== input.economicOperationId || existing.quoteId !== input.quoteId) {
+        throw new EconomicIdempotencyConflictError();
+      }
+      return this.#assertVisible(existing);
+    }
+    const decision: EconomicAuthorizationDecision = {
+      decisionId: input.decisionId,
+      economicOperationId: input.economicOperationId,
+      authorizationEffect: input.authorizationEffect,
+      decisionCode: input.decisionCode,
+      reasons: [...input.reasons],
+      governanceReferences: [...(input.governanceReferences ?? [])],
+      entitlementReferences: [...(input.entitlementReferences ?? [])],
+      limitReferences: [...(input.limitReferences ?? [])],
+      ...(input.requestedAmount !== undefined ? { requestedAmount: String(input.requestedAmount) } : {}),
+      ...(input.effectiveAmount !== undefined ? { effectiveAmount: String(input.effectiveAmount) } : {}),
+      ...(input.unit ? { unit: input.unit } : {}),
+      ...(input.quoteId ? { quoteId: input.quoteId } : {}),
+      ...(input.reservationId ? { reservationId: input.reservationId } : {}),
+      ...(input.executionRunId ? { executionRunId: input.executionRunId } : {}),
+      ...(input.workloadId ? { workloadId: input.workloadId } : {}),
+      idempotencyKey: input.idempotencyKey,
+      auditCorrelation: input.auditCorrelation,
+      createdAt: input.createdAt ?? Date.now(),
+      evaluatedAt: input.evaluatedAt ?? Date.now(),
+      status: input.authorizationEffect === "allowed" ? "authorized" : "failed",
+      ...(this.#tenantId ? { tenantId: this.#tenantId } : {}),
+      ...(input.actor ? { actor: input.actor } : {}),
+    };
+    this.#store.saveAuthorization(decision);
+    this.#auditService?.recordEvent({
+      eventType: input.authorizationEffect === "allowed" ? "economic.authorized" : "economic.authorization_denied",
+      correlationId: input.auditCorrelation,
+      tenantId: decision.tenantId,
+      actor: input.actor,
+      decision: input.authorizationEffect === "allowed" ? "allowed" : "denied",
+      result: input.authorizationEffect === "allowed" ? "success" : "failure",
+      timestamp: decision.evaluatedAt,
+      metadata: {
+        decisionId: decision.decisionId,
+        economicOperationId: decision.economicOperationId,
+        decisionCode: decision.decisionCode,
+        reasons: decision.reasons,
+        ...(decision.quoteId ? { quoteId: decision.quoteId } : {}),
+        ...(decision.reservationId ? { reservationId: decision.reservationId } : {}),
+        ...(decision.requestedAmount ? { requestedAmount: decision.requestedAmount } : {}),
+        ...(decision.effectiveAmount ? { effectiveAmount: decision.effectiveAmount } : {}),
+        ...(decision.unit ? { unit: decision.unit } : {}),
+      },
+    });
+    return this.#assertVisible(decision);
+  }
+
+  reserve(input: { reservationId: string; quoteId: string; idempotencyKey: string; expiresAt: number; authorizationDecisionId?: string; operationId?: string; decisionCode?: EconomicAuthorizationDecisionCode; decisionReason?: string; executionRunId?: string; workloadId?: string; actor?: string; correlationId?: string; createdAt?: number }): UsageReservation {
     const quote = this.#requireQuote(input.quoteId);
     const existingForKey = this.#store.findReservationByIdempotency(input.idempotencyKey, undefined, this.#tenantId);
     if (existingForKey) {
       if (existingForKey.quoteId !== input.quoteId) throw new EconomicIdempotencyConflictError();
       return this.#assertVisible(existingForKey);
+    }
+    if (input.authorizationDecisionId) {
+      const authorization = this.getAuthorization(input.authorizationDecisionId);
+      if (!authorization) throw new AcsError("authorization decision not found", "ACS_ECONOMIC_AUTHORIZATION_NOT_FOUND");
+      if (authorization.authorizationEffect !== "allowed") {
+        throw new AcsError("economic authorization was denied", "ACS_ECONOMIC_AUTHORIZATION_DENIED");
+      }
+      if (authorization.quoteId && authorization.quoteId !== quote.quoteId) {
+        throw new EconomicIdempotencyConflictError();
+      }
     }
     const reservation: UsageReservation = {
       reservationId: input.reservationId,
@@ -364,13 +513,37 @@ export class EconomicService {
       expiresAt: input.expiresAt,
       status: "reserved",
       idempotencyKey: input.idempotencyKey,
-      ...(quote.tenantId ? { tenantId: quote.tenantId } : {}),
+      ...(input.authorizationDecisionId ? { authorizationDecisionId: input.authorizationDecisionId } : {}),
+      ...(input.operationId ? { operationId: input.operationId } : {}),
+      ...(input.decisionCode ? { decisionCode: input.decisionCode } : {}),
+      ...(input.decisionReason ? { decisionReason: input.decisionReason } : {}),
+      ...(input.executionRunId ? { executionRunId: input.executionRunId } : {}),
+      ...(input.workloadId ? { workloadId: input.workloadId } : {}),
+      ...(this.#tenantId || quote.tenantId ? { tenantId: this.#tenantId ?? quote.tenantId } : {}),
       ...(quote.workloadId ? { workloadId: quote.workloadId } : {}),
+      updatedAt: input.createdAt ?? Date.now(),
     };
-    return this.#store.saveReservation(reservation);
+    const saved = this.#store.saveReservation(reservation);
+    this.#auditService?.recordEvent({
+      eventType: "economic.reserved",
+      correlationId: input.correlationId ?? input.idempotencyKey,
+      tenantId: saved.tenantId,
+      actor: input.actor,
+      decision: "allowed",
+      result: "success",
+      timestamp: saved.updatedAt ?? Date.now(),
+      metadata: {
+        reservationId: saved.reservationId,
+        quoteId: saved.quoteId,
+        ...(saved.authorizationDecisionId ? { authorizationDecisionId: saved.authorizationDecisionId } : {}),
+        ...(saved.operationId ? { operationId: saved.operationId } : {}),
+        ...(saved.decisionCode ? { decisionCode: saved.decisionCode } : {}),
+      },
+    });
+    return saved;
   }
 
-  authorize(input: { reservationId: string; planId: string }): { reservationId: string; planId: string; authorized: boolean } {
+  authorizeReservation(input: { reservationId: string; planId: string }): { reservationId: string; planId: string; authorized: boolean } {
     const reservation = this.#requireReservation(input.reservationId);
     if (reservation.status !== "reserved") throw new AcsError("reservation is not active", "ACS_ECONOMIC_RESERVATION_INACTIVE");
     return { reservationId: reservation.reservationId, planId: input.planId, authorized: true };
@@ -427,11 +600,32 @@ export class EconomicService {
     return this.#requireSettlement(providerRecord.settlement.settlementId);
   }
 
-  release(input: { reservationId: string; reason: string }): UsageReservation {
+  release(input: { reservationId: string; reason: string; actor?: string; correlationId?: string; releasedAt?: number }): UsageReservation {
     const reservation = this.#requireReservation(input.reservationId);
     if (reservation.status !== "reserved") return reservation;
-    const released = { ...reservation, status: "released" as const, remaining: new NeuronsAmount(0n) };
-    return this.#store.saveReservation(released);
+    const released = {
+      ...reservation,
+      status: "released" as const,
+      remaining: new NeuronsAmount(0n),
+      decisionReason: input.reason,
+      releasedAt: input.releasedAt ?? Date.now(),
+      updatedAt: input.releasedAt ?? Date.now(),
+    };
+    const saved = this.#store.saveReservation(released);
+    this.#auditService?.recordEvent({
+      eventType: "economic.released",
+      correlationId: input.correlationId ?? input.reservationId,
+      tenantId: saved.tenantId,
+      actor: input.actor,
+      decision: "allowed",
+      result: "success",
+      timestamp: saved.releasedAt ?? Date.now(),
+      metadata: {
+        reservationId: saved.reservationId,
+        reason: input.reason,
+      },
+    });
+    return saved;
   }
 
   receipt(runId: string): EconomicReceipt {
@@ -446,7 +640,13 @@ export class EconomicService {
 
   listQuotes(): readonly UsageQuote[] { return this.#store.listQuotes().filter((record) => this.#isVisible(record)); }
   listReservations(): readonly UsageReservation[] { return this.#store.listReservations().filter((record) => this.#isVisible(record)); }
+  getExecutionRunReservation(executionRunId: string): UsageReservation | undefined {
+    return this.listReservations().find((reservation) => reservation.executionRunId === executionRunId);
+  }
   listSettlements(): readonly Settlement[] { return this.#store.listSettlements().filter((record) => this.#isVisible(record)); }
+  getExecutionRunSettlement(executionRunId: string): Settlement | undefined {
+    return this.listSettlements().find((settlement) => settlement.runId === executionRunId);
+  }
   listReceipts(): readonly EconomicReceipt[] { return this.#store.listReceipts().filter((record) => this.#isVisible(record)); }
 
   async reconcile(): Promise<{ readonly inspected: number; readonly repaired: number }> {

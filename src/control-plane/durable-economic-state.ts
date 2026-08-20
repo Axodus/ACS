@@ -6,6 +6,7 @@ import {
   EconomicPersistenceError,
   NeuronsAmount,
   type EconomicAdapterDescriptor,
+  type EconomicAuthorizationDecision,
   type EconomicReceipt,
   type EconomicStateStore,
   type Settlement,
@@ -17,7 +18,7 @@ import {
   type UsageReservation,
 } from "./neurons-economic-contract.js";
 
-type RecordKind = "quote" | "reservation" | "usage" | "settlement" | "receipt";
+type RecordKind = "quote" | "authorization" | "reservation" | "usage" | "settlement" | "receipt";
 
 interface EconomicRow {
   readonly payload_json: string;
@@ -71,6 +72,34 @@ function decodeQuote(payload: string): UsageQuote {
     expiresAt: numberValue(record, "expiresAt"),
     ...(optionalString(record, "tenantId") ? { tenantId: optionalString(record, "tenantId") } : {}),
     ...(optionalString(record, "workloadId") ? { workloadId: optionalString(record, "workloadId") } : {}),
+  };
+}
+
+function decodeAuthorization(payload: string): EconomicAuthorizationDecision {
+  const record = parseObject(payload);
+  return {
+    decisionId: stringValue(record, "decisionId"),
+    ...(optionalString(record, "tenantId") ? { tenantId: optionalString(record, "tenantId") } : {}),
+    ...(optionalString(record, "actor") ? { actor: optionalString(record, "actor") } : {}),
+    economicOperationId: stringValue(record, "economicOperationId"),
+    authorizationEffect: stringValue(record, "authorizationEffect") as EconomicAuthorizationDecision["authorizationEffect"],
+    decisionCode: stringValue(record, "decisionCode") as EconomicAuthorizationDecision["decisionCode"],
+    reasons: Array.isArray(record.reasons) ? record.reasons.filter((item): item is string => typeof item === "string") : [],
+    governanceReferences: Array.isArray(record.governanceReferences) ? record.governanceReferences.filter((item): item is string => typeof item === "string") : [],
+    entitlementReferences: Array.isArray(record.entitlementReferences) ? record.entitlementReferences.filter((item): item is string => typeof item === "string") : [],
+    limitReferences: Array.isArray(record.limitReferences) ? record.limitReferences.filter((item): item is string => typeof item === "string") : [],
+    ...(optionalString(record, "requestedAmount") ? { requestedAmount: optionalString(record, "requestedAmount") } : {}),
+    ...(optionalString(record, "effectiveAmount") ? { effectiveAmount: optionalString(record, "effectiveAmount") } : {}),
+    ...(optionalString(record, "unit") ? { unit: optionalString(record, "unit") } : {}),
+    ...(optionalString(record, "quoteId") ? { quoteId: optionalString(record, "quoteId") } : {}),
+    ...(optionalString(record, "reservationId") ? { reservationId: optionalString(record, "reservationId") } : {}),
+    ...(optionalString(record, "executionRunId") ? { executionRunId: optionalString(record, "executionRunId") } : {}),
+    ...(optionalString(record, "workloadId") ? { workloadId: optionalString(record, "workloadId") } : {}),
+    idempotencyKey: stringValue(record, "idempotencyKey"),
+    auditCorrelation: stringValue(record, "auditCorrelation"),
+    createdAt: numberValue(record, "createdAt"),
+    evaluatedAt: numberValue(record, "evaluatedAt"),
+    status: stringValue(record, "status") as EconomicAuthorizationDecision["status"],
   };
 }
 
@@ -139,8 +168,9 @@ function decodeReceipt(payload: string): EconomicReceipt {
   };
 }
 
-function idFor(kind: RecordKind, value: UsageQuote | UsageReservation | UsageRecord | Settlement | EconomicReceipt): string {
+function idFor(kind: RecordKind, value: UsageQuote | EconomicAuthorizationDecision | UsageReservation | UsageRecord | Settlement | EconomicReceipt): string {
   if (kind === "quote") return (value as UsageQuote).quoteId;
+  if (kind === "authorization") return (value as EconomicAuthorizationDecision).decisionId;
   if (kind === "reservation") return (value as UsageReservation).reservationId;
   if (kind === "usage") return (value as UsageRecord).recordId;
   if (kind === "settlement") return (value as Settlement).settlementId;
@@ -183,6 +213,13 @@ export class SqliteEconomicStateStore implements EconomicStateStore {
   getQuote(quoteId: string): UsageQuote | undefined { return this.#get("quote", quoteId, decodeQuote); }
   listQuotes(): readonly UsageQuote[] { return this.#list("quote", decodeQuote); }
   saveQuote(quote: UsageQuote): UsageQuote { this.#save("quote", quote); return quote; }
+  getAuthorization(decisionId: string): EconomicAuthorizationDecision | undefined { return this.#get("authorization", decisionId, decodeAuthorization); }
+  listAuthorizations(): readonly EconomicAuthorizationDecision[] { return this.#list("authorization", decodeAuthorization); }
+  findAuthorizationByIdempotency(idempotencyKey: string, tenantId?: string): EconomicAuthorizationDecision | undefined {
+    return this.listAuthorizations().find((record) => record.idempotencyKey === idempotencyKey
+      && (tenantId === undefined || record.tenantId === tenantId));
+  }
+  saveAuthorization(decision: EconomicAuthorizationDecision): EconomicAuthorizationDecision { this.#save("authorization", decision); return decision; }
   getReservation(reservationId: string): UsageReservation | undefined { return this.#get("reservation", reservationId, decodeReservation); }
   listReservations(): readonly UsageReservation[] { return this.#list("reservation", decodeReservation); }
   findReservationByIdempotency(idempotencyKey: string, quoteId?: string, tenantId?: string): UsageReservation | undefined {
@@ -246,14 +283,20 @@ export class SqliteEconomicStateStore implements EconomicStateStore {
     }
   }
 
-  #save(kind: RecordKind, value: UsageQuote | UsageReservation | UsageRecord | Settlement | EconomicReceipt): void {
+  #save(kind: RecordKind, value: UsageQuote | EconomicAuthorizationDecision | UsageReservation | UsageRecord | Settlement | EconomicReceipt): void {
     const tenantId = value.tenantId ?? "";
-    const idempotencyKey = kind === "reservation" || kind === "settlement"
+    const idempotencyKey = kind === "authorization" || kind === "reservation" || kind === "settlement"
       ? (value as UsageReservation | Settlement).idempotencyKey
       : null;
-    const runId = kind === "usage" || kind === "settlement" || kind === "receipt"
-      ? (value as UsageRecord | Settlement | EconomicReceipt).runId
-      : null;
+    const runId = kind === "authorization"
+      ? (value as EconomicAuthorizationDecision).executionRunId ?? null
+      : kind === "usage"
+        ? (value as UsageRecord).runId
+        : kind === "settlement"
+          ? (value as Settlement).runId
+          : kind === "receipt"
+            ? (value as EconomicReceipt).runId
+            : null;
     try {
       this.#database.prepare(`
         INSERT INTO economic_records (kind, id, tenant_id, idempotency_key, run_id, payload_json)

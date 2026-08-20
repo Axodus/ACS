@@ -273,6 +273,32 @@ test("Milestone E: operational evidence and economics surfaces", async () => {
     assert.equal(receipts.status, 200);
     assert.ok(Array.isArray(receipts.body.data));
 
+    const usage = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/economics/usage", headers: {} },
+      "/api/v1/economics/usage",
+      context,
+      { correlationId: "test_usage" },
+    );
+    assert.equal(usage.status, 200);
+    assert.ok(Array.isArray(usage.body.data));
+
+    const usageDetail = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/economics/usage/usage_missing", headers: {} },
+      "/api/v1/economics/usage/usage_missing",
+      context,
+      { correlationId: "test_usage_detail" },
+    );
+    assert.equal(usageDetail.status, 404);
+
+    const executionRunUsage = await routeProductApiRequest(
+      { method: "GET", url: "/api/v1/execution-runs/run_missing/economics/usage", headers: {} },
+      "/api/v1/execution-runs/run_missing/economics/usage",
+      context,
+      { correlationId: "test_execution_run_usage" },
+    );
+    assert.equal(executionRunUsage.status, 200);
+    assert.ok(Array.isArray(executionRunUsage.body.data));
+
     // Economic audit
     const econAudit = await routeProductApiRequest(
       { method: "GET", url: "/api/v1/economics/audit", headers: {} },
@@ -296,7 +322,7 @@ test("Milestone E: operational evidence and economics surfaces", async () => {
     // Guardrail: no secrets leaked in any response
     const allResponses = [
       events, logs, audit, evidence, diagnostics,
-      economics, quotes, reservations, metering, settlements, receipts,
+      economics, quotes, reservations, metering, settlements, receipts, usage, usageDetail, executionRunUsage,
     ];
     for (const resp of allResponses) {
       const serialized = JSON.stringify(resp.body);

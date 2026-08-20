@@ -25,7 +25,10 @@ export type TenantGovernanceEnforcementOperation =
   | "agent.create"
   | "agent.configure"
   | "deployment.create"
-  | "execution.start";
+  | "execution.start"
+  | "economic.authorize"
+  | "economic.reserve"
+  | "economic.release";
 
 export interface TenantGovernanceEnforcementRequirement {
   readonly governedAction: GovernedAction;

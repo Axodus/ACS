@@ -10,6 +10,7 @@ import {
 import type { ControlPlaneContext } from "../control-plane-context.js";
 import { ProductApiClient } from "../../control-plane/product-api-client.js";
 import { enforceTenantGovernanceMutation, type TenantGovernanceEnforcementDecision } from "../tenant-governance-enforcer.js";
+import type { EconomicAuthorizationDecisionCode } from "../../control-plane/neurons-economic-contract.js";
 import type {
   AgentCreateInput,
   AgentCreateRevisionInput,
@@ -1567,6 +1568,210 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // GET /api/v1/economics/authorizations and GET /api/v1/economics/authorizations/:decisionId
+    if (apiPath === "economics/authorizations" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["executionRunId", "quoteId", "limit"]);
+      const query: { executionRunId?: string; quoteId?: string; limit?: number } = {};
+      const executionRunIdParam = url.searchParams.get("executionRunId");
+      if (executionRunIdParam) query.executionRunId = executionRunIdParam;
+      const quoteIdParam = url.searchParams.get("quoteId");
+      if (quoteIdParam) query.quoteId = quoteIdParam;
+      const limitParam = url.searchParams.get("limit");
+      if (limitParam) query.limit = parseInt(limitParam, 10);
+      const decisions = await api.listAuthorizations();
+      const filtered = decisions.filter((decision) => {
+        if (query.executionRunId && decision.executionRunId !== query.executionRunId) return false;
+        if (query.quoteId && decision.quoteId !== query.quoteId) return false;
+        return true;
+      });
+      return { status: 200, body: ok(query.limit ? filtered.slice(0, query.limit) : filtered, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "authorizations" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const decisionId = readPathSegment(segments, 4, "decisionId");
+      const decision = await api.getAuthorizationDetail(decisionId);
+      if (!decision) {
+        return fail(`authorization decision not found: ${decisionId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(decision, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "authorizations" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/authorizations") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // POST /api/v1/economics/authorizations
+    if (apiPath === "economics/authorizations" && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const requestData = parseEconomicAuthorizationRequest(body);
+      const effectiveQuote = requestData.quoteId ? await api.getQuoteDetail(requestData.quoteId) : undefined;
+      if (requestData.quoteId && !effectiveQuote) {
+        const decision = await api.authorizeEconomicOperation({
+          decisionId: requestData.decisionId,
+          economicOperationId: requestData.economicOperationId,
+          idempotencyKey: requestData.idempotencyKey,
+          authorizationEffect: "denied",
+          decisionCode: "PRICE_REFERENCE_UNAVAILABLE",
+          reasons: ["quote reference unavailable"],
+          quoteId: requestData.quoteId,
+          executionRunId: requestData.executionRunId,
+          workloadId: requestData.workloadId,
+          actor: options.auth?.actorId,
+          auditCorrelation: options.correlationId ?? requestData.idempotencyKey,
+          createdAt: requestData.createdAt,
+          evaluatedAt: requestData.evaluatedAt,
+        });
+        return fail("quote reference unavailable", 503, "dependency_unavailable", options.correlationId, { decision }, routeMeta, "PRICE_REFERENCE_UNAVAILABLE", {
+          retryable: true,
+          severity: "warning",
+          guardrails: ["economic_authorization", "pricing_provenance"],
+        });
+      }
+      const requestedAmount = requestData.requestedAmount ?? effectiveQuote?.amount;
+      const requestedAmountForGovernance = typeof requestData.requestedAmount === "number" ? requestData.requestedAmount : undefined;
+      const requestedUnit = requestData.unit ?? effectiveQuote?.unit ?? "NEURONS";
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        actor: options.auth?.actorId,
+        operation: "economic.authorize",
+        requirement: {
+          governedAction: "economic.authorize",
+          ...(requestData.entitlementKey ? { entitlementKey: requestData.entitlementKey } : {}),
+          ...(requestData.limitKey ? { limitKey: requestData.limitKey } : {}),
+          ...(requestedAmountForGovernance !== undefined ? { requestedAmount: requestedAmountForGovernance } : {}),
+          ...(requestData.usage !== undefined ? { usage: requestData.usage } : {}),
+        },
+      });
+      const decision = await api.authorizeEconomicOperation({
+        decisionId: requestData.decisionId,
+        economicOperationId: requestData.economicOperationId,
+        idempotencyKey: requestData.idempotencyKey,
+        authorizationEffect: enforcement.allowed ? "allowed" : "denied",
+        decisionCode: enforcement.allowed ? "ALLOWED" : enforcement.deniedLayer === "authority"
+          ? "DENIED_BY_GOVERNANCE"
+          : enforcement.deniedLayer === "governance"
+            ? "DENIED_BY_GOVERNANCE"
+            : enforcement.deniedLayer === "entitlement"
+              ? "DENIED_BY_ENTITLEMENT"
+              : enforcement.deniedLayer === "limit" || enforcement.deniedLayer === "system_hard_limit"
+                ? "DENIED_BY_LIMIT"
+                : "INVALID_ECONOMIC_REQUEST",
+        reasons: [enforcement.reason],
+        governanceReferences: enforcement.governanceDecision ? [enforcement.governanceDecision.basis] : [],
+        entitlementReferences: enforcement.entitlementDecision ? [enforcement.entitlementDecision.entitlementKey] : [],
+        limitReferences: enforcement.limitDecision ? [enforcement.limitDecision.limitKey] : [],
+        ...(requestedAmount !== undefined ? { requestedAmount } : {}),
+        ...(effectiveQuote ? { effectiveAmount: effectiveQuote.amount, quoteId: effectiveQuote.quoteId } : {}),
+        unit: requestedUnit,
+        executionRunId: requestData.executionRunId,
+        workloadId: requestData.workloadId,
+        actor: options.auth?.actorId,
+        auditCorrelation: options.correlationId ?? requestData.idempotencyKey,
+        createdAt: requestData.createdAt,
+        evaluatedAt: requestData.evaluatedAt,
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
+      return { status: 201, body: ok(decision, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "economics/authorizations") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
+    }
+
+    // POST /api/v1/economics/reservations
+    if (apiPath === "economics/reservations" && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const requestData = parseEconomicReservationRequest(body);
+      const quote = await api.getQuoteDetail(requestData.quoteId);
+      if (!quote) {
+        return fail(`quote not found: ${requestData.quoteId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      const authorization = requestData.authorizationDecisionId ? await api.getAuthorizationDetail(requestData.authorizationDecisionId) : undefined;
+      if (requestData.authorizationDecisionId && !authorization) {
+        return fail(`authorization decision not found: ${requestData.authorizationDecisionId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      if (authorization && authorization.authorizationEffect !== "allowed") {
+        return fail("economic authorization was denied", 403, "economic_authorization_denied", options.correlationId, { authorization }, routeMeta, "ECONOMIC_AUTHORIZATION_DENIED", {
+          retryable: false,
+          severity: "warning",
+        });
+      }
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        actor: options.auth?.actorId,
+        operation: "economic.reserve",
+        requirement: {
+          governedAction: "economic.reserve",
+          ...(requestData.entitlementKey ? { entitlementKey: requestData.entitlementKey } : {}),
+          ...(requestData.limitKey ? { limitKey: requestData.limitKey } : {}),
+          ...(typeof requestData.requestedAmount === "number" ? { requestedAmount: requestData.requestedAmount } : {}),
+          ...(requestData.usage !== undefined ? { usage: requestData.usage } : {}),
+        },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
+      const reservation = await api.reserveEconomicCapacity({
+        reservationId: requestData.reservationId,
+        quoteId: quote.quoteId,
+        idempotencyKey: requestData.idempotencyKey,
+        expiresAt: requestData.expiresAt ?? quote.expiresAt,
+        ...(authorization ? { authorizationDecisionId: authorization.decisionId } : {}),
+        operationId: requestData.economicOperationId,
+        decisionCode: authorization?.decisionCode as EconomicAuthorizationDecisionCode | undefined,
+        decisionReason: authorization?.reasons[0],
+        executionRunId: requestData.executionRunId,
+        workloadId: requestData.workloadId,
+        actor: options.auth?.actorId,
+        correlationId: options.correlationId ?? requestData.idempotencyKey,
+        createdAt: requestData.createdAt,
+      });
+      return { status: 201, body: ok(reservation, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "economics/reservations") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
+    }
+
+    // POST /api/v1/economics/reservations/:reservationId/release
+    if (segments[2] === "economics" && segments[3] === "reservations" && segments[4] && segments[5] === "release" && segments.length === 6 && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const reservationId = readPathSegment(segments, 4, "reservationId");
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const reason = readOptionalString(body.reason, "reason") ?? "operator_release";
+      const idempotencyKey = readOptionalString(body.idempotencyKey, "idempotencyKey") ?? `economic.release:${reservationId}`;
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        actor: options.auth?.actorId,
+        operation: "economic.release",
+        requirement: { governedAction: "economic.release" },
+      });
+      if (!enforcement.allowed) {
+        return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      }
+      const released = await api.releaseEconomicReservation({
+        reservationId,
+        reason,
+        actor: options.auth?.actorId,
+        correlationId: options.correlationId ?? idempotencyKey,
+        releasedAt: typeof body.releasedAt === "number" ? body.releasedAt : undefined,
+      });
+      return { status: 200, body: ok({ ...released, idempotencyKey }, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "reservations" && segments[4] && segments[5] === "release" && segments.length === 6) {
+      return methodNotAllowed(options.correlationId, routeMeta, "POST");
+    }
+
     // Entity-scoped quotes
     if (segments[2] === "agents" && segments[3] && segments[4] === "economics" && segments[5] === "quotes" && segments.length === 6 && request.method === "GET") {
       assertAllowedQueryParams(url, []);
@@ -1678,12 +1883,41 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    // GET /api/v1/economics/usage and GET /api/v1/economics/usage/:usageId
+    if (apiPath === "economics/usage" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["usageId", "agentId", "deploymentId", "runtimeId", "executionRunId", "limit"]);
+      const query = buildUsageQuery(url);
+      const usageRecords = await api.listUsageRecords(query);
+      return { status: 200, body: ok(usageRecords, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "usage" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const usageId = readPathSegment(segments, 4, "usageId");
+      const record = await api.getUsageRecord(usageId);
+      if (!record) {
+        return fail("usage record not found: " + usageId, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(record, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "usage" && segments.length === 5) {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+    if (apiPath === "economics/usage") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
     // Entity-scoped metering and settlement
     if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments[5] === "metering" && segments.length === 6 && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       const runId = readPathSegment(segments, 3, "runId");
       const records = await api.getExecutionRunMetering(runId);
       return { status: 200, body: ok(records, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments[5] === "usage" && segments.length === 6 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runId = readPathSegment(segments, 3, "runId");
+      const usageRecords = await api.getExecutionRunUsage(runId);
+      return { status: 200, body: ok(usageRecords, [], options.correlationId, routeMeta) };
     }
     if (segments[2] === "execution-runs" && segments[3] && segments[4] === "economics" && segments[5] === "settlement" && segments.length === 6 && request.method === "GET") {
       assertAllowedQueryParams(url, []);
@@ -1912,6 +2146,25 @@ function buildMeteringQuery(url: URL) {
   return buildEconomicQuery(url);
 }
 
+function buildUsageQuery(url: URL) {
+  const query: {
+    usageId?: string;
+    agentId?: string;
+    deploymentId?: string;
+    runtimeId?: string;
+    executionRunId?: string;
+    limit?: number;
+  } = {};
+  const p = url.searchParams;
+  if (p.has("usageId")) query.usageId = p.get("usageId")!;
+  if (p.has("agentId")) query.agentId = p.get("agentId")!;
+  if (p.has("deploymentId")) query.deploymentId = p.get("deploymentId")!;
+  if (p.has("runtimeId")) query.runtimeId = p.get("runtimeId")!;
+  if (p.has("executionRunId")) query.executionRunId = p.get("executionRunId")!;
+  if (p.has("limit")) query.limit = parseInt(p.get("limit")!, 10);
+  return query;
+}
+
 const AGENT_STATUS_VALUES: readonly GovernedAgentStatus[] = ["draft", "active", "disabled", "archived"];
 const AGENT_SORT_VALUES = ["name", "updatedAt", "status"] as const;
 
@@ -1984,6 +2237,110 @@ function parseAgentDuplicateInput(body: unknown): AgentDuplicateInput {
   const name = readOptionalString(record.name, "name");
   const actor = readOptionalString(record.actor, "actor");
   return { newAgentId, ...(name ? { name } : {}), ...(actor ? { actor } : {}) };
+}
+
+interface EconomicAuthorizationRequest {
+  readonly decisionId: string;
+  readonly economicOperationId: string;
+  readonly idempotencyKey: string;
+  readonly quoteId?: string;
+  readonly requestedAmount?: bigint | number | string;
+  readonly unit?: string;
+  readonly entitlementKey?: string;
+  readonly limitKey?: string;
+  readonly usage?: number;
+  readonly executionRunId?: string;
+  readonly workloadId?: string;
+  readonly createdAt?: number;
+  readonly evaluatedAt?: number;
+}
+
+interface EconomicReservationRequest {
+  readonly reservationId: string;
+  readonly economicOperationId: string;
+  readonly quoteId: string;
+  readonly authorizationDecisionId: string;
+  readonly idempotencyKey: string;
+  readonly requestedAmount?: bigint | number | string;
+  readonly entitlementKey?: string;
+  readonly limitKey?: string;
+  readonly usage?: number;
+  readonly executionRunId?: string;
+  readonly workloadId?: string;
+  readonly expiresAt?: number;
+  readonly createdAt?: number;
+}
+
+function parseEconomicAuthorizationRequest(body: unknown): EconomicAuthorizationRequest {
+  const record = readBodyRecord(body);
+  const decisionId = readOptionalString(record.decisionId, "decisionId") ?? randomUUID();
+  const economicOperationId = readOptionalString(record.economicOperationId, "economicOperationId")
+    ?? (() => { throw new AcsHttpValidationError("economicOperationId is required"); })();
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey")
+    ?? (() => { throw new AcsHttpValidationError("idempotencyKey is required"); })();
+  return {
+    decisionId,
+    economicOperationId,
+    idempotencyKey,
+    ...(typeof record.quoteId === "string" && record.quoteId.trim() ? { quoteId: record.quoteId.trim() } : {}),
+    ...(record.requestedAmount !== undefined ? { requestedAmount: readEconomicAmount(record.requestedAmount, "requestedAmount") } : {}),
+    ...(typeof record.unit === "string" && record.unit.trim() ? { unit: record.unit.trim() } : {}),
+    ...(typeof record.entitlementKey === "string" && record.entitlementKey.trim() ? { entitlementKey: record.entitlementKey.trim() } : {}),
+    ...(typeof record.limitKey === "string" && record.limitKey.trim() ? { limitKey: record.limitKey.trim() } : {}),
+    ...(record.usage !== undefined ? { usage: readEconomicUsage(record.usage, "usage") } : {}),
+    ...(typeof record.executionRunId === "string" && record.executionRunId.trim() ? { executionRunId: record.executionRunId.trim() } : {}),
+    ...(typeof record.workloadId === "string" && record.workloadId.trim() ? { workloadId: record.workloadId.trim() } : {}),
+    ...(typeof record.createdAt === "number" && Number.isFinite(record.createdAt) ? { createdAt: record.createdAt } : {}),
+    ...(typeof record.evaluatedAt === "number" && Number.isFinite(record.evaluatedAt) ? { evaluatedAt: record.evaluatedAt } : {}),
+  };
+}
+
+function parseEconomicReservationRequest(body: unknown): EconomicReservationRequest {
+  const record = readBodyRecord(body);
+  const reservationId = readOptionalString(record.reservationId, "reservationId") ?? randomUUID();
+  const economicOperationId = readOptionalString(record.economicOperationId, "economicOperationId")
+    ?? (() => { throw new AcsHttpValidationError("economicOperationId is required"); })();
+  const quoteId = readOptionalString(record.quoteId, "quoteId")
+    ?? (() => { throw new AcsHttpValidationError("quoteId is required"); })();
+  const authorizationDecisionId = readOptionalString(record.authorizationDecisionId, "authorizationDecisionId")
+    ?? (() => { throw new AcsHttpValidationError("authorizationDecisionId is required"); })();
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey")
+    ?? (() => { throw new AcsHttpValidationError("idempotencyKey is required"); })();
+  return {
+    reservationId,
+    economicOperationId,
+    quoteId,
+    authorizationDecisionId,
+    idempotencyKey,
+    ...(record.requestedAmount !== undefined ? { requestedAmount: readEconomicAmount(record.requestedAmount, "requestedAmount") } : {}),
+    ...(typeof record.entitlementKey === "string" && record.entitlementKey.trim() ? { entitlementKey: record.entitlementKey.trim() } : {}),
+    ...(typeof record.limitKey === "string" && record.limitKey.trim() ? { limitKey: record.limitKey.trim() } : {}),
+    ...(record.usage !== undefined ? { usage: readEconomicUsage(record.usage, "usage") } : {}),
+    ...(typeof record.executionRunId === "string" && record.executionRunId.trim() ? { executionRunId: record.executionRunId.trim() } : {}),
+    ...(typeof record.workloadId === "string" && record.workloadId.trim() ? { workloadId: record.workloadId.trim() } : {}),
+    ...(typeof record.expiresAt === "number" && Number.isFinite(record.expiresAt) ? { expiresAt: record.expiresAt } : {}),
+    ...(typeof record.createdAt === "number" && Number.isFinite(record.createdAt) ? { createdAt: record.createdAt } : {}),
+  };
+}
+
+function readEconomicAmount(value: unknown, name: string): bigint | number | string {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new AcsHttpValidationError(`${name} must be a finite number`);
+    }
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+  throw new AcsHttpValidationError(`${name} must be a number or non-empty string`);
+}
+
+function readEconomicUsage(value: unknown, name: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new AcsHttpValidationError(`${name} must be a non-negative finite number`);
+  }
+  return value;
 }
 
 function readBodyRecord(body: unknown): Record<string, unknown> {

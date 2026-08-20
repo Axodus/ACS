@@ -1,5 +1,5 @@
 import type { AuditEvent, AuditQueryFilter } from "./audit-service.js";
-import type { EconomicService, UsageQuote, UsageReservation, UsageRecord, EconomicReceipt } from "./neurons-economic-contract.js";
+import type { EconomicAuthorizationDecision, EconomicService, UsageQuote, UsageReservation, UsageRecord, EconomicReceipt, Settlement as EconomicSettlement } from "./neurons-economic-contract.js";
 
 import type { DeploymentRecord } from "./deployment-service.js";
 import type { RuntimeInstanceRecord, ExecutionRunRecord } from "./runtime-lifecycle-service.js";
@@ -218,6 +218,35 @@ export interface Reservation {
   readonly guardrails: EvidenceGuardrails;
 }
 
+export type AuthorizationDecisionStatus = "allowed" | "denied";
+
+export interface AuthorizationDecision {
+  readonly decisionId: string;
+  readonly economicOperationId: string;
+  readonly tenantId?: string;
+  readonly actor?: string;
+  readonly authorizationEffect: AuthorizationDecisionStatus;
+  readonly decisionCode: string;
+  readonly reasons: readonly string[];
+  readonly governanceReferences: readonly string[];
+  readonly entitlementReferences: readonly string[];
+  readonly limitReferences: readonly string[];
+  readonly requestedAmount?: string;
+  readonly effectiveAmount?: string;
+  readonly unit?: string;
+  readonly quoteId?: string;
+  readonly reservationId?: string;
+  readonly executionRunId?: string;
+  readonly workloadId?: string;
+  readonly idempotencyKey: string;
+  readonly auditCorrelation: string;
+  readonly status: string;
+  readonly createdAt: number;
+  readonly evaluatedAt: number;
+  readonly availableActions: readonly AvailableAction[];
+  readonly guardrails: EvidenceGuardrails;
+}
+
 export interface PolicyLimit {
   readonly dimension: string;
   readonly limit: string;
@@ -250,6 +279,38 @@ export interface MeteringRecord {
   readonly status: MeteringStatus;
   readonly createdAt: number;
   readonly evidenceRefs: readonly string[];
+  readonly guardrails: EvidenceGuardrails;
+}
+
+export type UsageObservationState = "observed" | "recorded" | "unknown" | "unavailable";
+export type UsageSettlementState = "pending_settlement" | "settled" | "rejected" | "duplicate" | "unknown" | "unavailable" | "not_applicable";
+export type UsageReadModelStatus = "recorded" | "pending_settlement" | "settled" | "rejected" | "duplicate" | "unknown" | "unavailable";
+
+export interface UsageInspectionRecord {
+  readonly usageId: string;
+  readonly executionRunId: string;
+  readonly runtimeId?: string;
+  readonly agentId?: string;
+  readonly deploymentId?: string;
+  readonly tenantId?: string;
+  readonly workloadId?: string;
+  readonly authorizationDecisionId?: string;
+  readonly reservationId?: string;
+  readonly settlementId?: string;
+  readonly quoteId?: string;
+  readonly measurementSource: string;
+  readonly dimension: string;
+  readonly quantity: string;
+  readonly unit: string;
+  readonly observedAt: number;
+  readonly recordedAt: number;
+  readonly measurementState: UsageObservationState;
+  readonly settlementState: UsageSettlementState;
+  readonly status: UsageReadModelStatus;
+  readonly pricingState: "available" | "unavailable" | "not_applicable";
+  readonly pricingProvenance?: string;
+  readonly evidenceRefs: readonly string[];
+  readonly availableActions: readonly AvailableAction[];
   readonly guardrails: EvidenceGuardrails;
 }
 
@@ -367,6 +428,15 @@ export interface EvidenceQuery {
 }
 
 export interface EconomicQuery {
+  readonly agentId?: string;
+  readonly deploymentId?: string;
+  readonly runtimeId?: string;
+  readonly executionRunId?: string;
+  readonly limit?: number;
+}
+
+export interface UsageQuery {
+  readonly usageId?: string;
   readonly agentId?: string;
   readonly deploymentId?: string;
   readonly runtimeId?: string;
@@ -756,39 +826,72 @@ export class OperationalEvidenceService {
     return this.getEconomicSummary({ executionRunId: runId });
   }
 
+  // --- Authorization ---
+
+  async listAuthorizations(): Promise<readonly AuthorizationDecision[]> {
+    if (!this.#economicService) {
+      return [];
+    }
+    return this.#economicService.listAuthorizations().map((decision) => this.#toAuthorizationDecision(decision));
+  }
+
+  async getAuthorizationDetail(decisionId: string): Promise<AuthorizationDecision | undefined> {
+    const decision = this.#economicService?.getAuthorization(decisionId);
+    return decision ? this.#toAuthorizationDecision(decision) : undefined;
+  }
+
   // --- Quote & Reservation ---
 
   async listQuotes(query?: QuoteQuery): Promise<readonly Quote[]> {
     if (!this.#economicService) {
       return [];
     }
-    // EconomicService stores quotes internally but does not expose a list API
-    // in this milestone. Return empty — quote data is not yet available
-    // without a governed contract.
-    return [];
+    const quotes = this.#economicService.listQuotes().map((quote) => this.#toQuote(quote));
+    return this.#filterQuotes(quotes, query);
   }
 
   async getQuoteDetail(quoteId: string): Promise<Quote | undefined> {
-    return undefined;
+    const quote = this.#economicService?.listQuotes().find((item) => item.quoteId === quoteId);
+    return quote ? this.#toQuote(quote) : undefined;
   }
 
   async listReservations(query?: ReservationQuery): Promise<readonly Reservation[]> {
     if (!this.#economicService) {
       return [];
     }
-    return [];
+    const reservations = this.#economicService.listReservations().map((reservation) => this.#toReservation(reservation));
+    return this.#filterReservations(reservations, query);
   }
 
   async getReservationDetail(reservationId: string): Promise<Reservation | undefined> {
-    return undefined;
+    const reservation = this.#economicService?.listReservations().find((item) => item.reservationId === reservationId);
+    return reservation ? this.#toReservation(reservation) : undefined;
   }
 
   async listAgentQuotes(agentId: string): Promise<readonly Quote[]> {
-    return [];
+    return (await this.listQuotes({ agentId })).filter((quote) => quote.agentId === agentId);
   }
 
   async getExecutionRunReservation(runId: string): Promise<Reservation | undefined> {
-    return undefined;
+    const reservation = this.#economicService?.getExecutionRunReservation(runId);
+    return reservation ? this.#toReservation(reservation) : undefined;
+  }
+
+  async listUsageRecords(query?: UsageQuery): Promise<readonly UsageInspectionRecord[]> {
+    if (!this.#economicService) {
+      return [];
+    }
+    const records = this.#economicService.listUsage().map((record) => this.#toUsageInspectionRecord(record));
+    return this.#filterUsage(records, query);
+  }
+
+  async getUsageRecord(usageId: string): Promise<UsageInspectionRecord | undefined> {
+    const records = await this.listUsageRecords({ usageId, limit: 1 });
+    return records.find((record) => record.usageId === usageId);
+  }
+
+  async getExecutionRunUsage(runId: string): Promise<readonly UsageInspectionRecord[]> {
+    return this.listUsageRecords({ executionRunId: runId });
   }
 
   async createAgentQuote(agentId: string, input: unknown): Promise<OperationResult> {
@@ -848,22 +951,26 @@ export class OperationalEvidenceService {
     if (!this.#economicService) {
       return [];
     }
-    return [];
+    const settlements = this.#economicService.listSettlements().map((settlement) => this.#toSettlement(settlement));
+    return this.#filterSettlements(settlements, query);
   }
 
   async getSettlementDetail(settlementId: string): Promise<Settlement | undefined> {
-    return undefined;
+    const settlement = this.#economicService?.listSettlements().find((item) => item.settlementId === settlementId);
+    return settlement ? this.#toSettlement(settlement) : undefined;
   }
 
   async listReceipts(query?: ReceiptQuery): Promise<readonly Receipt[]> {
     if (!this.#economicService) {
       return [];
     }
-    return [];
+    const receipts = this.#economicService.listReceipts().map((receipt) => this.#toReceipt(receipt));
+    return this.#filterReceipts(receipts, query);
   }
 
   async getReceiptDetail(receiptId: string): Promise<Receipt | undefined> {
-    return undefined;
+    const receipt = this.#economicService?.listReceipts().find((item) => item.receiptId === receiptId);
+    return receipt ? this.#toReceipt(receipt) : undefined;
   }
 
   async getExecutionRunMetering(runId: string): Promise<readonly MeteringRecord[]> {
@@ -871,7 +978,8 @@ export class OperationalEvidenceService {
   }
 
   async getExecutionRunSettlement(runId: string): Promise<Settlement | undefined> {
-    return undefined;
+    const settlement = this.#economicService?.getExecutionRunSettlement(runId);
+    return settlement ? this.#toSettlement(settlement) : undefined;
   }
 
   // --- Economic audit ---
@@ -1103,6 +1211,259 @@ export class OperationalEvidenceService {
   #evidenceTitleFromEvent(event: AuditEvent): string {
     if (event.metadata?.message) return event.metadata.message as string;
     return event.eventType;
+  }
+
+  #toAuthorizationDecision(decision: EconomicAuthorizationDecision): AuthorizationDecision {
+    return {
+      decisionId: decision.decisionId,
+      economicOperationId: decision.economicOperationId,
+      ...(decision.tenantId ? { tenantId: decision.tenantId } : {}),
+      ...(decision.actor ? { actor: decision.actor } : {}),
+      authorizationEffect: decision.authorizationEffect,
+      decisionCode: decision.decisionCode,
+      reasons: [...decision.reasons],
+      governanceReferences: [...decision.governanceReferences],
+      entitlementReferences: [...decision.entitlementReferences],
+      limitReferences: [...decision.limitReferences],
+      ...(decision.requestedAmount ? { requestedAmount: decision.requestedAmount } : {}),
+      ...(decision.effectiveAmount ? { effectiveAmount: decision.effectiveAmount } : {}),
+      ...(decision.unit ? { unit: decision.unit } : {}),
+      ...(decision.quoteId ? { quoteId: decision.quoteId } : {}),
+      ...(decision.reservationId ? { reservationId: decision.reservationId } : {}),
+      ...(decision.executionRunId ? { executionRunId: decision.executionRunId } : {}),
+      ...(decision.workloadId ? { workloadId: decision.workloadId } : {}),
+      idempotencyKey: decision.idempotencyKey,
+      auditCorrelation: decision.auditCorrelation,
+      status: decision.status,
+      createdAt: decision.createdAt,
+      evaluatedAt: decision.evaluatedAt,
+      availableActions: decision.authorizationEffect === "allowed"
+        ? [
+          { action: "reserve_quote", label: "Reserve economic capacity", available: true },
+          { action: "refresh", label: "Refresh evidence", available: true },
+        ]
+        : [{ action: "refresh", label: "Refresh evidence", available: true }],
+      guardrails: MUTATING_GUARDRAILS,
+    };
+  }
+
+  #toQuote(quote: UsageQuote): Quote {
+    const total = quote.total.toJSON();
+    return {
+      quoteId: quote.quoteId,
+      ...(quote.accountId ? { agentId: quote.accountId } : {}),
+      deploymentPlanId: quote.planId,
+      amount: total,
+      unit: "neurons",
+      status: "active",
+      expiresAt: quote.expiresAt,
+      policyLimits: Object.entries(quote.estimatedByDimension).map(([dimension, limit]) => ({ dimension, limit, unit: "neurons" })),
+      eligibility: {
+        eligible: true,
+        reason: "authoritative economic quote is available",
+        ready: true,
+        blockerCount: 0,
+        warningCount: 0,
+      },
+      warnings: [],
+      evidenceRefs: [quote.quoteId, quote.policyId],
+      availableActions: [
+        { action: "reserve_quote", label: "Reserve economic capacity", available: true },
+        { action: "refresh", label: "Refresh evidence", available: true },
+      ],
+      createdAt: quote.expiresAt,
+      guardrails: NO_SECRET_GUARDRAILS,
+    };
+  }
+
+  #toReservation(reservation: UsageReservation): Reservation {
+    return {
+      reservationId: reservation.reservationId,
+      quoteId: reservation.quoteId,
+      ...(reservation.accountId ? { agentId: reservation.accountId } : {}),
+      ...(reservation.executionRunId ? { executionRunId: reservation.executionRunId } : {}),
+      amount: reservation.reserved.toJSON(),
+      unit: "neurons",
+      status: reservation.status,
+      expiresAt: reservation.expiresAt,
+      ...(reservation.decisionReason ? { failureReason: reservation.decisionReason } : {}),
+      evidenceRefs: [
+        reservation.reservationId,
+        ...(reservation.authorizationDecisionId ? [reservation.authorizationDecisionId] : []),
+      ],
+      availableActions: reservation.status === "reserved"
+        ? [
+          { action: "cancel_reservation", label: "Release reservation", available: true },
+          { action: "refresh", label: "Refresh evidence", available: true },
+        ]
+        : [{ action: "refresh", label: "Refresh evidence", available: true }],
+      createdAt: reservation.updatedAt ?? reservation.releasedAt ?? reservation.expiresAt,
+      guardrails: MUTATING_GUARDRAILS,
+    };
+  }
+
+  #toSettlement(settlement: EconomicSettlement & { readonly createdAt?: number; readonly completedAt?: number }): Settlement {
+    const createdAt = settlement.createdAt ?? settlement.completedAt ?? Date.now();
+    return {
+      settlementId: settlement.settlementId,
+      meterId: settlement.reservationId,
+      ...(settlement.runId ? { executionRunId: settlement.runId } : {}),
+      amount: settlement.totalCharged.toJSON(),
+      unit: "neurons",
+      status: settlement.status,
+      ...(settlement.status === "failed" ? { failureReason: "settlement unavailable" } : {}),
+      ...(settlement.status === "settled" ? { receiptId: "receipt_" + settlement.settlementId } : {}),
+      createdAt,
+      ...(settlement.completedAt ? { completedAt: settlement.completedAt } : {}),
+      evidenceRefs: [settlement.settlementId, settlement.reservationId],
+      availableActions: [{ action: "refresh", label: "Refresh evidence", available: true }],
+      guardrails: NO_SECRET_GUARDRAILS,
+    };
+  }
+
+  #toReceipt(receipt: EconomicReceipt): Receipt {
+    return {
+      receiptId: receipt.receiptId,
+      ...(receipt.settlementId ? { settlementId: receipt.settlementId } : {}),
+      ...(receipt.runId ? { executionRunId: receipt.runId } : {}),
+      amount: receipt.totalCharged.toJSON(),
+      unit: "neurons",
+      status: receipt.status === "settled" ? "issued" : receipt.status === "failed" ? "failed" : "pending",
+      issuedAt: Date.now(),
+      summary: "Receipt for " + receipt.quoteId,
+      evidenceRefs: [receipt.receiptId, receipt.quoteId, receipt.reservationId],
+      guardrails: NO_SECRET_GUARDRAILS,
+    };
+  }
+
+  #toUsageInspectionRecord(record: UsageRecord): UsageInspectionRecord {
+    const reservation = this.#economicService?.listReservations().find((item) => item.executionRunId === record.runId);
+    const authorization = this.#economicService?.listAuthorizations().find((item) => item.executionRunId === record.runId);
+    const settlement = this.#economicService?.listSettlements().find((item) => item.runId === record.runId);
+    const quote = reservation
+      ? this.#economicService?.listQuotes().find((item) => item.quoteId === reservation.quoteId)
+      : authorization?.quoteId
+        ? this.#economicService?.listQuotes().find((item) => item.quoteId === authorization.quoteId)
+        : undefined;
+    const recordedAt = typeof record.metadata?.recordedAt === "number"
+      ? record.metadata.recordedAt
+      : record.observedAt;
+    const measurementState: UsageObservationState = typeof record.metadata?.recordedAt === "number"
+      ? "recorded"
+      : "observed";
+    const settlementState: UsageSettlementState = settlement
+      ? settlement.status === "settled"
+        ? "settled"
+        : settlement.status === "failed"
+          ? "rejected"
+          : settlement.status === "released"
+            ? "rejected"
+            : "pending_settlement"
+      : reservation
+        ? "pending_settlement"
+        : authorization
+          ? "pending_settlement"
+          : "unknown";
+    const status: UsageReadModelStatus =
+      typeof record.metadata?.duplicateOf === "string" || record.metadata?.idempotencyReplay === true
+        ? "duplicate"
+        : settlementState === "settled"
+          ? "settled"
+          : settlementState === "rejected"
+            ? "rejected"
+            : settlementState === "pending_settlement"
+              ? "pending_settlement"
+              : measurementState === "recorded"
+                ? "recorded"
+                : "unknown";
+    const pricingProvenance = quote
+      ? `${quote.quoteId} • ${quote.policyId}#${quote.policyRevision}`
+      : authorization?.quoteId
+        ? `quote:${authorization.quoteId}`
+        : undefined;
+    const executionRun = this.#runtimeService?.listExecutionRuns().find((run) => run.runId === record.runId);
+    return {
+      usageId: record.recordId,
+      executionRunId: record.runId,
+      ...(executionRun?.runtimeInstanceId ? { runtimeId: executionRun.runtimeInstanceId } : {}),
+      ...(executionRun?.agentId ? { agentId: executionRun.agentId } : {}),
+      ...(executionRun?.deploymentId ? { deploymentId: executionRun.deploymentId } : {}),
+      ...(record.workloadId ? { workloadId: record.workloadId } : {}),
+      ...(reservation ? { reservationId: reservation.reservationId } : {}),
+      ...(authorization ? { authorizationDecisionId: authorization.decisionId } : {}),
+      ...(settlement ? { settlementId: settlement.settlementId } : {}),
+      ...(quote ? { quoteId: quote.quoteId } : {}),
+      ...(record.tenantId ? { tenantId: record.tenantId } : {}),
+      measurementSource: record.source,
+      dimension: record.dimension,
+      quantity: record.quantity.toString(),
+      unit: record.unit,
+      observedAt: record.observedAt,
+      recordedAt,
+      measurementState,
+      settlementState,
+      status,
+      pricingState: quote || authorization ? "available" : "unavailable",
+      ...(pricingProvenance ? { pricingProvenance } : {}),
+      evidenceRefs: [
+        record.recordId,
+        record.runId,
+        ...(authorization ? [authorization.decisionId] : []),
+        ...(reservation ? [reservation.reservationId] : []),
+        ...(settlement ? [settlement.settlementId] : []),
+      ],
+      availableActions: settlementState === "settled"
+        ? [{ action: "refresh", label: "Refresh evidence", available: true }]
+        : [
+          { action: "recheck", label: "Recheck readiness", available: true },
+          { action: "refresh", label: "Refresh evidence", available: true },
+        ],
+      guardrails: NO_SECRET_GUARDRAILS,
+    };
+  }
+
+  #filterQuotes(quotes: readonly Quote[], query?: QuoteQuery): readonly Quote[] {
+    return quotes.filter((quote) => {
+      if (query?.agentId && quote.agentId !== query.agentId) return false;
+      if (query?.executionRunId && !quote.evidenceRefs.includes(query.executionRunId)) return false;
+      return true;
+    });
+  }
+
+  #filterReservations(reservations: readonly Reservation[], query?: ReservationQuery): readonly Reservation[] {
+    return reservations.filter((reservation) => {
+      if (query?.agentId && reservation.agentId !== query.agentId) return false;
+      if (query?.executionRunId && reservation.executionRunId !== query.executionRunId) return false;
+      return true;
+    });
+  }
+
+  #filterSettlements(settlements: readonly Settlement[], query?: SettlementQuery): readonly Settlement[] {
+    return settlements.filter((settlement) => {
+      if (query?.settlementId && settlement.settlementId !== query.settlementId) return false;
+      if (query?.meterId && settlement.meterId !== query.meterId) return false;
+      if (query?.executionRunId && settlement.executionRunId !== query.executionRunId) return false;
+      return true;
+    });
+  }
+
+  #filterReceipts(receipts: readonly Receipt[], query?: ReceiptQuery): readonly Receipt[] {
+    return receipts.filter((receipt) => {
+      if (query?.settlementId && receipt.settlementId !== query.settlementId) return false;
+      if (query?.executionRunId && receipt.executionRunId !== query.executionRunId) return false;
+      return true;
+    });
+  }
+
+  #filterUsage(records: readonly UsageInspectionRecord[], query?: UsageQuery): readonly UsageInspectionRecord[] {
+    return records.filter((record) => {
+      if (query?.usageId && record.usageId !== query.usageId) return false;
+      if (query?.agentId && record.agentId !== query.agentId) return false;
+      if (query?.deploymentId && record.deploymentId !== query.deploymentId) return false;
+      if (query?.runtimeId && record.runtimeId !== query.runtimeId) return false;
+      if (query?.executionRunId && record.executionRunId !== query.executionRunId) return false;
+      return true;
+    }).slice(0, query?.limit ?? Number.POSITIVE_INFINITY);
   }
 }
 

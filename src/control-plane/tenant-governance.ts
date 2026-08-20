@@ -13,7 +13,10 @@ export type GovernedAction =
   | "deployment.start"
   | "tool.install"
   | "plugin.install"
-  | "execution.start";
+  | "execution.start"
+  | "economic.authorize"
+  | "economic.reserve"
+  | "economic.release";
 
 export type TenantGovernanceAdministrativeAction =
   | "governance.read"
@@ -276,6 +279,9 @@ const GOVERNED_ACTIONS = new Set<GovernedAction>([
   "tool.install",
   "plugin.install",
   "execution.start",
+  "economic.authorize",
+  "economic.reserve",
+  "economic.release",
 ]);
 
 const GOVERNANCE_EFFECTS = new Set<GovernanceEffect>(["allow", "deny"]);
