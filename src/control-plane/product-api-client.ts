@@ -48,6 +48,9 @@ import type {
   ReconciliationQuery,
   FinancialException,
   FinancialExceptionQuery,
+  FinancialRemediation,
+  FinancialRemediationAction,
+  FinancialRemediationQuery,
   Reservation,
   ReservationQuery,
   Settlement,
@@ -2067,6 +2070,27 @@ export class ProductApiClient {
     input?: { actor?: string; justification?: string },
   ): Promise<FinancialException> {
     return this.#operationalEvidence.transitionFinancialException(exceptionId, action, input);
+  }
+
+  async listFinancialRemediations(query?: FinancialRemediationQuery): Promise<readonly FinancialRemediation[]> {
+    return this.#operationalEvidence.listFinancialRemediations(query);
+  }
+
+  async getFinancialRemediation(remediationId: string): Promise<FinancialRemediation | undefined> {
+    return this.#operationalEvidence.getFinancialRemediation(remediationId);
+  }
+
+  async requestFinancialRemediation(input: {
+    exceptionId: string;
+    action: FinancialRemediationAction;
+    idempotencyKey: string;
+    actor?: string;
+    reason?: string;
+    authorized?: boolean;
+    governanceReferences?: readonly string[];
+    auditCorrelation?: string;
+  }): Promise<FinancialRemediation> {
+    return this.#operationalEvidence.requestFinancialRemediation(input);
   }
 
   async getExecutionRunMetering(runId: string): Promise<readonly MeteringRecord[]> {

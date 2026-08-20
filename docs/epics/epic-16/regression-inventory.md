@@ -110,3 +110,11 @@ Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
 - valid operator UI: .design/app-standalone
 - EPIC-16 UI changes under /static: FORBIDDEN
 - standalone local Playwright against http://127.0.0.1:3000/operations/overview PASS
+
+## AEES-16-04 S04 remediation regressions
+
+- EPIC-16 UI changes under `/static` remain forbidden; canonical operator UI is `.design/app-standalone`.
+- Remediation must not introduce credits, debits, refunds, invoices, tax, ledger postings or unrestricted settlement edits.
+- Unsupported remediation actions remain `UNSUPPORTED / REQUIRES_FUTURE_POLICY`.
+- Replay of the same remediation idempotency key must not duplicate economic effects.
+- Failed or unauthorized remediation must preserve original exception/mismatch evidence.

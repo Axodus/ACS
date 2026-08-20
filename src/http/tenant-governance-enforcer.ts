@@ -28,7 +28,8 @@ export type TenantGovernanceEnforcementOperation =
   | "execution.start"
   | "economic.authorize"
   | "economic.reserve"
-  | "economic.release";
+  | "economic.release"
+  | "economic.remediate";
 
 export interface TenantGovernanceEnforcementRequirement {
   readonly governedAction: GovernedAction;

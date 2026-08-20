@@ -16,7 +16,8 @@ export type GovernedAction =
   | "execution.start"
   | "economic.authorize"
   | "economic.reserve"
-  | "economic.release";
+  | "economic.release"
+  | "economic.remediate";
 
 export type TenantGovernanceAdministrativeAction =
   | "governance.read"
@@ -282,6 +283,7 @@ const GOVERNED_ACTIONS = new Set<GovernedAction>([
   "economic.authorize",
   "economic.reserve",
   "economic.release",
+  "economic.remediate",
 ]);
 
 const GOVERNANCE_EFFECTS = new Set<GovernanceEffect>(["allow", "deny"]);

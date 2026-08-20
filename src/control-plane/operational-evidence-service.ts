@@ -471,6 +471,58 @@ export interface FinancialExceptionQuery {
   readonly limit?: number;
 }
 
+export type FinancialRemediationAction =
+  | "RETRY_RECONCILIATION"
+  | "REEVALUATE_MISMATCH"
+  | "MARK_NO_ACTION"
+  | "RETRY_SETTLEMENT"
+  | "REFRESH_PROVIDER_EVIDENCE"
+  | "RESOLVE_WITH_EVIDENCE";
+
+export type FinancialRemediationStatus =
+  | "requested"
+  | "authorized"
+  | "executing"
+  | "succeeded"
+  | "failed"
+  | "rejected"
+  | "unsupported";
+
+export interface FinancialRemediation {
+  readonly remediationId: string;
+  readonly tenantId?: string;
+  readonly exceptionId: string;
+  readonly mismatchId: string;
+  readonly reconciliationId: string;
+  readonly requestedAction: FinancialRemediationAction;
+  readonly actor?: string;
+  readonly reason?: string;
+  readonly governanceReferences: readonly string[];
+  readonly authorizationOutcome: "allowed" | "denied" | "unsupported";
+  readonly idempotencyKey: string;
+  readonly status: FinancialRemediationStatus;
+  readonly requestedAt: number;
+  readonly startedAt?: number;
+  readonly completedAt?: number;
+  readonly outcome?: string;
+  readonly failureClassification?: string;
+  readonly resultingExceptionStatus?: FinancialExceptionStatus;
+  readonly evidenceRefs: readonly string[];
+  readonly auditCorrelation: string;
+  readonly availableActions: readonly AvailableAction[];
+  readonly guardrails: EvidenceGuardrails;
+}
+
+export interface FinancialRemediationQuery {
+  readonly remediationId?: string;
+  readonly exceptionId?: string;
+  readonly mismatchId?: string;
+  readonly tenantId?: string;
+  readonly status?: FinancialRemediationStatus;
+  readonly limit?: number;
+}
+
+
 // --- Available actions & operation results ---
 
 export type AvailableActionName =
@@ -486,7 +538,8 @@ export type AvailableActionName =
   | "remediate_exception"
   | "resolve_exception"
   | "reject_exception"
-  | "close_exception";
+  | "close_exception"
+  | "request_remediation";
 
 export interface AvailableAction {
   readonly action: AvailableActionName;
@@ -665,6 +718,8 @@ export class OperationalEvidenceService {
   readonly #runtimeService: OperationalEvidenceServiceOptions["runtimeService"];
   readonly #agentService: OperationalEvidenceServiceOptions["agentService"];
   readonly #exceptions = new Map<string, FinancialException>();
+  readonly #remediations = new Map<string, FinancialRemediation>();
+  readonly #remediationsByIdempotency = new Map<string, string>();
 
   constructor(options: OperationalEvidenceServiceOptions = {}) {
     this.#auditService = options.auditService;
@@ -1207,6 +1262,188 @@ export class OperationalEvidenceService {
     return updated;
   }
 
+  async listFinancialRemediations(query?: FinancialRemediationQuery): Promise<readonly FinancialRemediation[]> {
+    return this.#filterFinancialRemediations([...this.#remediations.values()], query);
+  }
+
+  async getFinancialRemediation(remediationId: string): Promise<FinancialRemediation | undefined> {
+    return this.#remediations.get(remediationId);
+  }
+
+  async requestFinancialRemediation(input: {
+    exceptionId: string;
+    action: FinancialRemediationAction;
+    idempotencyKey: string;
+    actor?: string;
+    reason?: string;
+    authorized?: boolean;
+    governanceReferences?: readonly string[];
+    auditCorrelation?: string;
+  }): Promise<FinancialRemediation> {
+    const now = Date.now();
+    const exception = this.#exceptions.get(input.exceptionId);
+    if (!exception) {
+      throw new Error("financial exception not found: " + input.exceptionId);
+    }
+    const existingId = this.#remediationsByIdempotency.get(input.idempotencyKey);
+    if (existingId) {
+      const existing = this.#remediations.get(existingId);
+      if (!existing) throw new Error("financial remediation not found: " + existingId);
+      if (existing.exceptionId !== input.exceptionId || existing.requestedAction !== input.action) {
+        throw new Error("financial remediation idempotency conflict: " + input.idempotencyKey);
+      }
+      return existing;
+    }
+    if (exception.status === "closed") {
+      throw new Error("financial exception is closed: " + input.exceptionId);
+    }
+    if (exception.status !== "remediation_pending" && exception.status !== "under_review") {
+      throw new Error("invalid financial exception state for remediation: " + exception.status);
+    }
+    const authorized = input.authorized !== false;
+    const remediationId = "rem_" + input.idempotencyKey;
+    const base: FinancialRemediation = {
+      remediationId,
+      ...(exception.tenantId ? { tenantId: exception.tenantId } : {}),
+      exceptionId: exception.exceptionId,
+      mismatchId: exception.mismatchId,
+      reconciliationId: exception.reconciliationId,
+      requestedAction: input.action,
+      ...(input.actor ? { actor: input.actor } : {}),
+      ...(input.reason ? { reason: input.reason } : {}),
+      governanceReferences: input.governanceReferences ?? [],
+      authorizationOutcome: authorized ? "allowed" : "denied",
+      idempotencyKey: input.idempotencyKey,
+      status: authorized ? "requested" : "rejected",
+      requestedAt: now,
+      evidenceRefs: exception.evidenceRefs,
+      auditCorrelation: input.auditCorrelation ?? input.idempotencyKey,
+      availableActions: [{ action: "refresh", label: "Refresh evidence", available: true }],
+      guardrails: exception.guardrails,
+    };
+    if (!authorized) {
+      const rejected: FinancialRemediation = {
+        ...base,
+        completedAt: now,
+        outcome: "unauthorized remediation",
+        failureClassification: "unauthorized",
+        resultingExceptionStatus: exception.status,
+      };
+      this.#remediations.set(remediationId, rejected);
+      this.#remediationsByIdempotency.set(input.idempotencyKey, remediationId);
+      return rejected;
+    }
+    if (!this.#isSupportedRemediationAction(input.action)) {
+      const unsupported: FinancialRemediation = {
+        ...base,
+        authorizationOutcome: "unsupported",
+        status: "unsupported",
+        completedAt: now,
+        outcome: "UNSUPPORTED / REQUIRES_FUTURE_POLICY",
+        failureClassification: "unsupported_action",
+        resultingExceptionStatus: exception.status,
+      };
+      this.#remediations.set(remediationId, unsupported);
+      this.#remediationsByIdempotency.set(input.idempotencyKey, remediationId);
+      return unsupported;
+    }
+    const executing: FinancialRemediation = {
+      ...base,
+      status: "executing",
+      startedAt: now,
+    };
+    const completed = await this.#executeFinancialRemediation(executing, exception);
+    this.#remediations.set(remediationId, completed);
+    this.#remediationsByIdempotency.set(input.idempotencyKey, remediationId);
+    return completed;
+  }
+
+  async #executeFinancialRemediation(remediation: FinancialRemediation, exception: FinancialException): Promise<FinancialRemediation> {
+    const now = Date.now();
+    const originalEvidence = [...exception.evidenceRefs];
+    if (exception.status === "under_review") {
+      await this.transitionFinancialException(exception.exceptionId, "remediate", { actor: remediation.actor, justification: remediation.reason });
+    }
+    try {
+      if (remediation.requestedAction === "RETRY_RECONCILIATION" && this.#economicService) {
+        await this.#economicService.reconcile();
+      }
+      const mismatch = await this.getReconciliationMismatch(exception.mismatchId);
+      const current = this.#exceptions.get(exception.exceptionId) ?? exception;
+      if (remediation.requestedAction === "MARK_NO_ACTION") {
+        if (!remediation.reason) {
+          throw new Error("no-action remediation requires a reason");
+        }
+        const rejected = current.status === "rejected" ? current : await this.transitionFinancialException(current.exceptionId, "reject", { actor: remediation.actor, justification: remediation.reason });
+        const preserved = this.#exceptions.get(rejected.exceptionId)!;
+        this.#exceptions.set(preserved.exceptionId, { ...preserved, evidenceRefs: [...new Set([...originalEvidence, ...preserved.evidenceRefs, remediation.remediationId])] });
+        return {
+          ...remediation,
+          status: "succeeded",
+          completedAt: now,
+          outcome: "marked no action with justification",
+          resultingExceptionStatus: "rejected",
+          evidenceRefs: [...new Set([...originalEvidence, ...preserved.evidenceRefs, remediation.remediationId])],
+        };
+      }
+      if (!mismatch) {
+        const resolved = current.status === "resolved" || current.status === "rejected" || current.status === "closed"
+          ? current
+          : await this.transitionFinancialException(current.exceptionId, "resolve", { actor: remediation.actor, justification: remediation.reason ?? "mismatch no longer proven" });
+        const preserved = this.#exceptions.get(resolved.exceptionId)!;
+        this.#exceptions.set(preserved.exceptionId, { ...preserved, evidenceRefs: [...new Set([...originalEvidence, ...preserved.evidenceRefs, remediation.remediationId])] });
+        return {
+          ...remediation,
+          status: "succeeded",
+          completedAt: now,
+          outcome: "mismatch no longer proven after reevaluation",
+          resultingExceptionStatus: preserved.status,
+          evidenceRefs: [...new Set([...originalEvidence, ...preserved.evidenceRefs, remediation.remediationId])],
+        };
+      }
+      const preserved = this.#exceptions.get(current.exceptionId)!;
+      this.#exceptions.set(preserved.exceptionId, { ...preserved, evidenceRefs: [...new Set([...originalEvidence, ...mismatch.evidenceRefs, remediation.remediationId])] });
+      return {
+        ...remediation,
+        status: "succeeded",
+        completedAt: now,
+        outcome: "mismatch remains after reevaluation",
+        resultingExceptionStatus: preserved.status,
+        evidenceRefs: [...new Set([...originalEvidence, ...mismatch.evidenceRefs, remediation.remediationId])],
+      };
+    } catch (error) {
+      const current = this.#exceptions.get(exception.exceptionId) ?? exception;
+      const message = error instanceof Error ? error.message : "financial remediation failed";
+      this.#exceptions.set(current.exceptionId, { ...current, evidenceRefs: [...new Set([...originalEvidence, ...current.evidenceRefs])] });
+      return {
+        ...remediation,
+        status: "failed",
+        completedAt: Date.now(),
+        outcome: message,
+        failureClassification: "execution_failure",
+        resultingExceptionStatus: current.status,
+        evidenceRefs: [...new Set([...originalEvidence, ...current.evidenceRefs])],
+      };
+    }
+  }
+
+  #isSupportedRemediationAction(action: FinancialRemediationAction): boolean {
+    return action === "RETRY_RECONCILIATION" || action === "REEVALUATE_MISMATCH" || action === "MARK_NO_ACTION";
+  }
+
+  #filterFinancialRemediations(items: readonly FinancialRemediation[], query?: FinancialRemediationQuery): readonly FinancialRemediation[] {
+    const filtered = items.filter((item) => {
+      if (query?.remediationId && item.remediationId !== query.remediationId) return false;
+      if (query?.exceptionId && item.exceptionId !== query.exceptionId) return false;
+      if (query?.mismatchId && item.mismatchId !== query.mismatchId) return false;
+      if (query?.tenantId && item.tenantId !== query.tenantId) return false;
+      if (query?.status && item.status !== query.status) return false;
+      return true;
+    });
+    const limit = query?.limit && query.limit > 0 ? query.limit : filtered.length;
+    return filtered.slice(0, limit);
+  }
+
   // --- Economic audit ---
 
   async listEconomicAudit(): Promise<readonly AuditEntry[]> {
@@ -1728,6 +1965,7 @@ export class OperationalEvidenceService {
     }
     if (status === "remediation_pending") {
       return [
+        { action: "request_remediation", label: "Request governed remediation", available: true },
         { action: "resolve_exception", label: "Resolve exception", available: true },
         { action: "reject_exception", label: "Reject exception", available: true },
         refresh,

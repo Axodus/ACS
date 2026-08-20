@@ -2035,6 +2035,57 @@ export async function routeProductApiRequest(
         throw error;
       }
     }
+    if (segments[2] === "economics" && segments[3] === "exceptions" && segments[4] && segments[5] === "remediations" && segments.length === 6 && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const exceptionId = readPathSegment(segments, 4, "exceptionId");
+      const body = readBodyRecord(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const action = readOptionalString(body.action, "action");
+      const idempotencyKey = readOptionalString(body.idempotencyKey, "idempotencyKey");
+      if (!action || !idempotencyKey) {
+        throw new AcsHttpValidationError("action and idempotencyKey are required");
+      }
+      const allowedActions = ["RETRY_RECONCILIATION", "REEVALUATE_MISMATCH", "MARK_NO_ACTION", "RETRY_SETTLEMENT", "REFRESH_PROVIDER_EVIDENCE", "RESOLVE_WITH_EVIDENCE"];
+      if (!allowedActions.includes(action)) {
+        return fail("unsupported financial remediation action: " + action, 405, "unsupported_action", options.correlationId, { action }, routeMeta, "unsupported_action", { retryable: false, severity: "warning" });
+      }
+      const reason = readOptionalString(body.reason, "reason");
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        actor: options.auth?.actorId,
+        operation: "economic.remediate",
+        requirement: { governedAction: "economic.remediate" },
+      });
+      try {
+        const remediation = await api.requestFinancialRemediation({
+          exceptionId,
+          action: action as "RETRY_RECONCILIATION" | "REEVALUATE_MISMATCH" | "MARK_NO_ACTION" | "RETRY_SETTLEMENT" | "REFRESH_PROVIDER_EVIDENCE" | "RESOLVE_WITH_EVIDENCE",
+          idempotencyKey,
+          actor: options.auth?.actorId,
+          ...(reason ? { reason } : {}),
+          authorized: enforcement.allowed,
+          governanceReferences: enforcement.governanceDecision ? [enforcement.governanceDecision.basis] : [],
+          auditCorrelation: options.correlationId ?? idempotencyKey,
+        });
+        if (!enforcement.allowed) {
+          return fail(enforcement.reason, 403, "forbidden", options.correlationId, { remediation }, routeMeta, "unauthorized_financial_remediation", { retryable: false, severity: "warning" });
+        }
+        return { status: 200, body: ok(remediation, [], options.correlationId, routeMeta) };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "unable to request financial remediation";
+        if (message.startsWith("financial exception not found")) {
+          return fail(message, 404, "not_found", options.correlationId, { exceptionId }, routeMeta);
+        }
+        if (message.startsWith("financial remediation idempotency conflict")) {
+          return fail(message, 409, "conflict", options.correlationId, { exceptionId, idempotencyKey }, routeMeta, "financial_remediation_idempotency_conflict", { retryable: false, severity: "warning" });
+        }
+        if (message.startsWith("invalid financial exception state") || message.startsWith("financial exception is closed") || message.includes("requires a reason")) {
+          return fail(message, 409, "conflict", options.correlationId, { exceptionId, action }, routeMeta, "invalid_financial_remediation_state", { retryable: false, severity: "warning" });
+        }
+        throw error;
+      }
+    }
     if (segments[2] === "economics" && segments[3] === "exceptions" && segments.length === 6 && request.method === "POST") {
       assertAllowedQueryParams(url, []);
       const exceptionId = readPathSegment(segments, 4, "exceptionId");
@@ -2081,6 +2132,36 @@ export async function routeProductApiRequest(
     }
     if (apiPath === "economics/exceptions") {
       return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
+    }
+
+    // GET /api/v1/economics/remediations and GET /api/v1/economics/remediations/:remediationId
+    if (apiPath === "economics/remediations" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["remediationId", "exceptionId", "mismatchId", "status", "limit"]);
+      const query: { remediationId?: string; exceptionId?: string; mismatchId?: string; status?: "requested" | "authorized" | "executing" | "succeeded" | "failed" | "rejected" | "unsupported"; limit?: number } = {};
+      const remediationIdParam = url.searchParams.get("remediationId");
+      if (remediationIdParam) query.remediationId = remediationIdParam;
+      const exceptionIdParam = url.searchParams.get("exceptionId");
+      if (exceptionIdParam) query.exceptionId = exceptionIdParam;
+      const mismatchIdParam = url.searchParams.get("mismatchId");
+      if (mismatchIdParam) query.mismatchId = mismatchIdParam;
+      const statusParam = url.searchParams.get("status");
+      if (statusParam) query.status = statusParam as NonNullable<typeof query.status>;
+      const limitParam = url.searchParams.get("limit");
+      if (limitParam) query.limit = parseInt(limitParam, 10);
+      const items = await api.listFinancialRemediations(query);
+      return { status: 200, body: ok(items, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "economics" && segments[3] === "remediations" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const remediationId = readPathSegment(segments, 4, "remediationId");
+      const item = await api.getFinancialRemediation(remediationId);
+      if (!item) {
+        return fail("financial remediation not found: " + remediationId, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      return { status: 200, body: ok(item, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "economics/remediations") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
     // Entity-scoped metering and settlement

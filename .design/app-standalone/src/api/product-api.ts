@@ -1710,6 +1710,27 @@ export type FinancialException = {
   evidenceRefs?: string[];
 };
 
+export type FinancialRemediation = {
+  remediationId: string;
+  tenantId?: string;
+  exceptionId: string;
+  mismatchId: string;
+  reconciliationId: string;
+  requestedAction: string;
+  actor?: string;
+  reason?: string;
+  authorizationOutcome: string;
+  idempotencyKey: string;
+  status: string;
+  requestedAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  outcome?: string;
+  failureClassification?: string;
+  resultingExceptionStatus?: string;
+  evidenceRefs?: string[];
+};
+
 export type CompositionActionName =
   | "assignRole"
   | "adoptRole"
@@ -2625,6 +2646,15 @@ export const productApi = {
     return request<FinancialException>(`/economics/exceptions/${encodeURIComponent(exceptionId)}/${action}`, {
       method: "POST",
       body: JSON.stringify(justification ? { justification } : {}),
+    });
+  },
+  async listFinancialRemediations() {
+    return request<FinancialRemediation[]>("/economics/remediations?limit=8");
+  },
+  async requestFinancialRemediation(exceptionId: string, action: string, idempotencyKey: string, reason?: string) {
+    return request<FinancialRemediation>(`/economics/exceptions/${encodeURIComponent(exceptionId)}/remediations`, {
+      method: "POST",
+      body: JSON.stringify({ action, idempotencyKey, ...(reason ? { reason } : {}) }),
     });
   },
   async listWorkers() {

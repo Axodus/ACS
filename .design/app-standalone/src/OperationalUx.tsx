@@ -12,6 +12,7 @@ import {
   type ReconciliationBacklogItem,
   type ReconciliationMismatch,
   type FinancialException,
+  type FinancialRemediation,
 } from "./api/product-api";
 
 type Loadable<T> = { data: T | null; loading: boolean; error: string | null };
@@ -247,13 +248,14 @@ function formatEconomicValue(value: unknown, unit?: string): string {
 
 function OperationsEconomicEvidence() {
   const loader = useCallback(async () => {
-    const [usage, settlements, receipts, reconciliation, mismatches, exceptions] = await Promise.allSettled([
+    const [usage, settlements, receipts, reconciliation, mismatches, exceptions, remediations] = await Promise.allSettled([
       productApi.listUsageRecords(),
       productApi.listSettlements(),
       productApi.listReceipts(),
       productApi.listReconciliationBacklog(),
       productApi.listReconciliationMismatches(),
       productApi.listFinancialExceptions(),
+      productApi.listFinancialRemediations(),
     ]);
     return {
       usage: usage.status === "fulfilled" ? usage.value : null,
@@ -268,6 +270,8 @@ function OperationsEconomicEvidence() {
       mismatchError: mismatches.status === "rejected" ? errorMessage(mismatches.reason) : null,
       exceptions: exceptions.status === "fulfilled" ? exceptions.value : null,
       exceptionError: exceptions.status === "rejected" ? errorMessage(exceptions.reason) : null,
+      remediations: remediations.status === "fulfilled" ? remediations.value : null,
+      remediationError: remediations.status === "rejected" ? errorMessage(remediations.reason) : null,
     };
   }, []);
   const resource = usePolling(loader, 8_000);
@@ -279,6 +283,7 @@ function OperationsEconomicEvidence() {
       <article className="ops-panel"><div className="ops-panel-head"><div><h2>Settlements</h2><p>Operational settlement records</p></div><StatusPill value={data?.settlementError ? "UNAVAILABLE" : data?.settlements?.length ? `${data.settlements.length} items` : "EMPTY"} /></div>{data?.settlementError ? <StateMessage loading={false} error={data.settlementError} /> : data?.settlements?.length ? <ul className="ops-list">{data.settlements.map((item: Settlement) => <li key={item.settlementId}><b>{item.settlementId}</b><span>{item.status} · {formatEconomicValue(item.amount, item.unit)}</span><small>{item.executionRunId ?? "run unavailable"}{item.receiptId ? ` · receipt ${item.receiptId}` : ""}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No settlements yet. Settlement history appears only after governed economic completion." />}</article>
       <article className="ops-panel"><div className="ops-panel-head"><div><h2>Mismatches</h2><p>Explicit reconciliation mismatches only when evidence proves them</p></div><StatusPill value={data?.mismatchError ? "UNAVAILABLE" : data?.mismatches?.length ? `${data.mismatches.length} items` : "EMPTY"} /></div>{data?.mismatchError ? <StateMessage loading={false} error={data.mismatchError} /> : data?.mismatches?.length ? <ul className="ops-list">{data.mismatches.map((item: ReconciliationMismatch) => <li key={item.mismatchId}><b>{item.mismatchId}</b><span>{item.classification} · {item.severity}</span><small>{item.reconciliationId}{item.observedStatus ? ` · observed ${item.observedStatus}` : ""}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No mismatches. Matched evidence does not produce fabricated discrepancy counts." />}</article>
       <article className="ops-panel"><div className="ops-panel-head"><div><h2>Exceptions</h2><p>Governed financial exceptions opened only from proven mismatches</p></div><StatusPill value={data?.exceptionError ? "UNAVAILABLE" : data?.exceptions?.length ? `${data.exceptions.length} items` : "EMPTY"} /></div>{data?.exceptionError ? <StateMessage loading={false} error={data.exceptionError} /> : data?.exceptions?.length ? <ul className="ops-list">{data.exceptions.map((item: FinancialException) => <li key={item.exceptionId}><b>{item.exceptionId}</b><span>{item.status} · {item.category}</span><small>{item.mismatchId}{item.settlementId ? ` · settlement ${item.settlementId}` : ""}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No financial exceptions. Exceptions appear only after a proven mismatch is opened; empty is truthful, not a fabricated count." />}</article>
+      <article className="ops-panel"><div className="ops-panel-head"><div><h2>Remediation</h2><p>Governed exception remediation only; unsupported financial mutations stay explicit</p></div><StatusPill value={data?.remediationError ? "UNAVAILABLE" : data?.remediations?.length ? `${data.remediations.length} items` : "EMPTY"} /></div>{data?.remediationError ? <StateMessage loading={false} error={data.remediationError} /> : data?.remediations?.length ? <ul className="ops-list">{data.remediations.map((item: FinancialRemediation) => <li key={item.remediationId}><b>{item.remediationId}</b><span>{item.status} · {item.requestedAction}</span><small>{item.exceptionId}{item.outcome ? ` · ${item.outcome}` : ""}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No remediations. Actions appear only after a governed request against a proven exception; empty is truthful." />}</article>
       <article className="ops-panel"><div className="ops-panel-head"><div><h2>Reconciliation</h2><p>Tenant-scoped settlement evidence backlog</p></div><StatusPill value={data?.reconciliationError ? "UNAVAILABLE" : data?.reconciliation?.length ? `${data.reconciliation.length} items` : "EMPTY"} /></div>{data?.reconciliationError ? <StateMessage loading={false} error={data.reconciliationError} /> : data?.reconciliation?.length ? <ul className="ops-list">{data.reconciliation.map((item: ReconciliationBacklogItem) => <li key={item.reconciliationId}><b>{item.reconciliationId}</b><span>{item.state}{item.mismatch ? " · mismatch" : ""}</span><small>{item.settlementId ?? "settlement unavailable"}{item.mismatchClass ? ` · ${item.mismatchClass}` : ""}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No reconciliation items. Matched or pending economic evidence will appear here without fabricated mismatch counts." />}</article>
       <article className="ops-panel"><div className="ops-panel-head"><div><h2>Receipts</h2><p>Operational receipts only, not invoices or payment receipts</p></div><StatusPill value={data?.receiptError ? "UNAVAILABLE" : data?.receipts?.length ? `${data.receipts.length} items` : "EMPTY"} /></div>{data?.receiptError ? <StateMessage loading={false} error={data.receiptError} /> : data?.receipts?.length ? <ul className="ops-list">{data.receipts.map((item: Receipt) => <li key={item.receiptId}><b>{item.receiptId}</b><span>{item.status} · {formatEconomicValue(item.amount, item.unit)}</span><small>{item.summary}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No receipts yet. Receipts stay truthful and empty until settlement authoritatively issues one." />}</article>
     </div>}
