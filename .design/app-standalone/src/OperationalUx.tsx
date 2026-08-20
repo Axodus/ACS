@@ -6,6 +6,9 @@ import {
   type RuntimeJobStatus,
   type RuntimeStateEvent,
   type WorkerDiagnostic,
+  type UsageInspectionRecord,
+  type Settlement,
+  type Receipt,
 } from "./api/product-api";
 
 type Loadable<T> = { data: T | null; loading: boolean; error: string | null };
@@ -230,7 +233,41 @@ export function OperationsStatusPage() {
     <PageHeader eyebrow="SYSTEM" title="Operations" description="Liveness, workload readiness, dependencies, worker capacity, recovery and external telemetry." actions={<button className="secondary" type="button" onClick={resource.refresh}>Run checks</button>} />
     {resource.error && <StateMessage loading={false} error={resource.error} />}
     {resource.loading && !status ? <StateMessage loading error={null} /> : status ? <OperationsStatus status={status} /> : null}
+    <OperationsEconomicEvidence />
   </>;
+}
+
+function formatEconomicValue(value: unknown, unit?: string): string {
+  if (value === undefined || value === null || value === "") return "unavailable";
+  return unit ? `${value} ${unit}` : String(value);
+}
+
+function OperationsEconomicEvidence() {
+  const loader = useCallback(async () => {
+    const [usage, settlements, receipts] = await Promise.allSettled([
+      productApi.listUsageRecords(),
+      productApi.listSettlements(),
+      productApi.listReceipts(),
+    ]);
+    return {
+      usage: usage.status === "fulfilled" ? usage.value : null,
+      usageError: usage.status === "rejected" ? errorMessage(usage.reason) : null,
+      settlements: settlements.status === "fulfilled" ? settlements.value : null,
+      settlementError: settlements.status === "rejected" ? errorMessage(settlements.reason) : null,
+      receipts: receipts.status === "fulfilled" ? receipts.value : null,
+      receiptError: receipts.status === "rejected" ? errorMessage(receipts.reason) : null,
+    };
+  }, []);
+  const resource = usePolling(loader, 8_000);
+  const data = resource.data;
+  return <section className="ops-panel wide" aria-label="Economic operations">
+    <div className="ops-panel-head"><div><h2>Economic operations</h2><p>Authoritative usage, settlement and operational receipt evidence from the Product API. Missing values stay unavailable.</p></div><button className="secondary" type="button" onClick={resource.refresh}>Refresh economics</button></div>
+    {resource.loading && !data ? <StateMessage loading error={null} /> : <div className="ops-card-grid">
+      <article className="ops-panel"><div className="ops-panel-head"><div><h2>Usage</h2><p>Recorded execution usage</p></div><StatusPill value={data?.usageError ? "UNAVAILABLE" : data?.usage?.length ? `${data.usage.length} items` : "EMPTY"} /></div>{data?.usageError ? <StateMessage loading={false} error={data.usageError} /> : data?.usage?.length ? <ul className="ops-list">{data.usage.map((item: UsageInspectionRecord) => <li key={item.usageId}><b>{item.usageId}</b><span>{item.status} · {item.quantity} {item.unit}</span><small>{item.executionRunId} · settlement {item.settlementState}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No usage recorded. The operator surface shows truthful emptiness until usage is recorded by execution." />}</article>
+      <article className="ops-panel"><div className="ops-panel-head"><div><h2>Settlements</h2><p>Operational settlement records</p></div><StatusPill value={data?.settlementError ? "UNAVAILABLE" : data?.settlements?.length ? `${data.settlements.length} items` : "EMPTY"} /></div>{data?.settlementError ? <StateMessage loading={false} error={data.settlementError} /> : data?.settlements?.length ? <ul className="ops-list">{data.settlements.map((item: Settlement) => <li key={item.settlementId}><b>{item.settlementId}</b><span>{item.status} · {formatEconomicValue(item.amount, item.unit)}</span><small>{item.executionRunId ?? "run unavailable"}{item.receiptId ? ` · receipt ${item.receiptId}` : ""}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No settlements yet. Settlement history appears only after governed economic completion." />}</article>
+      <article className="ops-panel"><div className="ops-panel-head"><div><h2>Receipts</h2><p>Operational receipts only, not invoices or payment receipts</p></div><StatusPill value={data?.receiptError ? "UNAVAILABLE" : data?.receipts?.length ? `${data.receipts.length} items` : "EMPTY"} /></div>{data?.receiptError ? <StateMessage loading={false} error={data.receiptError} /> : data?.receipts?.length ? <ul className="ops-list">{data.receipts.map((item: Receipt) => <li key={item.receiptId}><b>{item.receiptId}</b><span>{item.status} · {formatEconomicValue(item.amount, item.unit)}</span><small>{item.summary}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No receipts yet. Receipts stay truthful and empty until settlement authoritatively issues one." />}</article>
+    </div>}
+  </section>;
 }
 
 export function CredentialsPage() {

@@ -26,6 +26,9 @@ Browser acceptance for EPIC-16 is local-first: Vite + Playwright certify the
 implementation before commit/push. Vercel exact-SHA verification is a secondary
 deployment gate, not the primary mechanism for testing unpublished code.
 
+Canonical operator UI for EPIC-16 is `.design/app-standalone`.
+EPIC-16 UI changes under `/static` are forbidden.
+
 Functional execution is authorized only after S00 records:
 
 ```text

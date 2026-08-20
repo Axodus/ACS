@@ -158,6 +158,34 @@ Required evidence categories:
 - classification: local implementation acceptance PASS; Vercel exact-SHA
   verification remains outstanding
 
+## AEES-16-03 / HOTFIX-02 — Correct Operations Surface Boundary
+
+The previous local PASS against http://127.0.0.1:5173 is INVALIDATED.
+Reason: WRONG APPLICATION BOUNDARY. That evidence certified unauthorized
+/static implementation, not .design/app-standalone.
+
+Valid local product acceptance:
+
+- app: .design/app-standalone
+- base URL: http://127.0.0.1:3000
+- route: /operations/overview
+- matrix: desktop, tablet, mobile x light, dark
+- manifest: /tmp/acs-aees-16-03-standalone/manifest.json
+- screenshots: /tmp/acs-aees-16-03-standalone/screenshots/
+- result: PASS
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- request failures: 0
+- no-fake-data: PASS
+- Usage: PRESENT
+- Settlements: PRESENT
+- Receipts: PRESENT
+
+Canonical operator UI for EPIC-16: .design/app-standalone
+EPIC-16 UI changes under /static: FORBIDDEN
+
 ## Closure gate
 
 EPIC-16 cannot close with an unresolved P0/P1 financial-truth or authorization UX defect. P2/P3 visual deviations require explicit disposition and must not weaken the 9005e3a hierarchy or accessibility.

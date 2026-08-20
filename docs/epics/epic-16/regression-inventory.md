@@ -103,3 +103,10 @@ Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
 - Usage, Settlements and Receipts are present without fabricated financial history
 - prior remote FAILs against older or mismatched deployments remain chronology
   evidence, not local product defects
+
+## AEES-16-03 / HOTFIX-02
+
+- previous local /static acceptance is INVALIDATED — WRONG APPLICATION BOUNDARY
+- valid operator UI: .design/app-standalone
+- EPIC-16 UI changes under /static: FORBIDDEN
+- standalone local Playwright against http://127.0.0.1:3000/operations/overview PASS

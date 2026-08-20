@@ -1611,6 +1611,31 @@ export type Receipt = {
   guardrails?: ProductApiOperationalGuardrails;
 };
 
+export type UsageInspectionRecord = {
+  usageId: string;
+  executionRunId: string;
+  runtimeId?: string;
+  agentId?: string;
+  deploymentId?: string;
+  tenantId?: string;
+  authorizationDecisionId?: string;
+  reservationId?: string;
+  settlementId?: string;
+  quoteId?: string;
+  measurementSource: string;
+  dimension: string;
+  quantity: string;
+  unit: string;
+  observedAt: number;
+  recordedAt: number;
+  measurementState: string;
+  settlementState: string;
+  status: string;
+  pricingState: string;
+  pricingProvenance?: string;
+  evidenceRefs?: string[];
+};
+
 export type CompositionActionName =
   | "assignRole"
   | "adoptRole"
@@ -2503,6 +2528,9 @@ export const productApi = {
   },
   async listReceipts() {
     return request<Receipt[]>("/economics/receipts");
+  },
+  async listUsageRecords() {
+    return request<UsageInspectionRecord[]>("/economics/usage?limit=8");
   },
   async listWorkers() {
     return request<WorkerSummary[]>("/workers");
