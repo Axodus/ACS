@@ -1,6 +1,0 @@
-.env
-node_modules/
-acs-agent-control-system-website.zip
-
-#Ignore vscode AI rules
-.github/instructions/codacy.instructions.md
