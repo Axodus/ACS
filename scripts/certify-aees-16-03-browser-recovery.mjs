@@ -136,13 +136,19 @@ async function runBrowserAcceptance(playwright, url) {
         });
 
         await page.goto(url + route, { waitUntil: "domcontentloaded", timeout: 30000 });
-        await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => undefined);
+        await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => undefined);
+        await page.getByRole("heading", { name: "Dashboard Overview" }).waitFor({ timeout: 4000 }).catch(() => undefined);
+        await page.getByRole("heading", { name: "Usage" }).waitFor({ timeout: 4000 }).catch(() => undefined);
+        await page.getByRole("heading", { name: "Settlements" }).waitFor({ timeout: 2000 }).catch(() => undefined);
+        await page.getByRole("heading", { name: "Receipts" }).waitFor({ timeout: 2000 }).catch(() => undefined);
         const state = await page.evaluate(() => {
           const text = document.body ? document.body.innerText || "" : "";
+          const headings = [...document.querySelectorAll("h1, h2, h3")].map((node) => (node.textContent || "").trim());
           const buttons = [...document.querySelectorAll("button")];
           const fields = [...document.querySelectorAll("input, select, textarea")];
           return {
             text,
+            headings,
             overflow: document.documentElement.scrollWidth > window.innerWidth || (document.body ? document.body.scrollWidth > window.innerWidth : false),
             unlabeledButtons: buttons.filter((node) => !node.textContent.trim() && !node.getAttribute("aria-label") && !node.getAttribute("title")).length,
             unlabeledInputs: fields.filter((node) => !node.getAttribute("aria-label") && !node.getAttribute("aria-labelledby") && !node.closest("label")).length,
@@ -172,9 +178,9 @@ async function runBrowserAcceptance(playwright, url) {
           historicalTexts: historicalTexts.filter((needle) => String(state.text).includes(needle)),
           syntheticMarkers: syntheticMarkers.filter((needle) => String(state.text).toLowerCase().includes(needle)),
           tokenInStorage: /bearer|eyJ[a-zA-Z0-9_-]+/.test(String(state.storage)),
-          usageSurfaceVisible: /\busage\b/i.test(String(state.text)),
-          settlementSurfaceVisible: /\bsettlement/i.test(String(state.text)),
-          receiptSurfaceVisible: /\breceipt/i.test(String(state.text)),
+          usageSurfaceVisible: (state.headings || []).includes("Usage") || /\busage\b/i.test(String(state.text)),
+          settlementSurfaceVisible: (state.headings || []).includes("Settlements") || /\bsettlements?\b/i.test(String(state.text)),
+          receiptSurfaceVisible: (state.headings || []).includes("Receipts") || /\breceipts?\b/i.test(String(state.text)),
           fabricatedHistory: /(usage history|settlement history|settlement volume|trend|last 30 days|customers)/i.test(String(state.text)),
         });
 
