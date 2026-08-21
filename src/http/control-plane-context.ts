@@ -6,6 +6,7 @@ import { EngineService } from "../engines/engine-service.js";
 import { createOpenClawEngineFromManifest } from "../engines/openclaw-bootstrap.js";
 import { HttpProductionTargetEngine } from "../engines/http-production-target-engine.js";
 import { ExecutionTargetService } from "../targets/execution-target-service.js";
+import { resolveEnvironmentTopology } from "../control-plane/environment-topology.js";
 import { AgentService, type AgentRepository } from "../control-plane/agent-service.js";
 import { SqliteAgentRepository } from "../control-plane/durable-agent-state.js";
 import { CompositionResourceService } from "../control-plane/composition-resources.js";
@@ -341,8 +342,8 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     }),
     roots,
   };
-  const adapterProfile = options.adapterProfile
-    ?? (process.env.ACS_ENVIRONMENT === "production" ? "production" : "development");
+  const environmentTopology = resolveEnvironmentTopology(process.env);
+  const adapterProfile = options.adapterProfile ?? environmentTopology.adapterProfile;
   const deploymentEngine = options.deploymentEngine ?? process.env.ACS_DEPLOYMENT_ENGINE ?? "openclaw";
   if (deploymentEngine !== "openclaw" && deploymentEngine !== "production-http") {
     throw new Error("ACS_DEPLOYMENT_ENGINE must be openclaw or production-http");
@@ -739,11 +740,11 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     runners: runnerRegistry,
     engines: engineRegistry,
   });
-  const configuredRuntimeMode = options.runtimeMode ?? process.env.ACS_DISPATCH_MODE;
+  const configuredRuntimeMode = options.runtimeMode ?? process.env.ACS_DISPATCH_MODE ?? environmentTopology.dispatchMode;
   if (configuredRuntimeMode !== undefined && configuredRuntimeMode !== "local" && configuredRuntimeMode !== "remote") {
     throw new WorkerIdentityConfigurationError("ACS_DISPATCH_MODE must be local or remote");
   }
-  const runtimeMode = configuredRuntimeMode ?? (adapterProfile === "production" ? "remote" : "local");
+  const runtimeMode = configuredRuntimeMode;
   const runtimeStatePath = options.runtimeStatePath
     ?? process.env.ACS_RUNTIME_DATABASE_PATH
     ?? join(roots.stateRoot, "control-plane", "runtime.sqlite");

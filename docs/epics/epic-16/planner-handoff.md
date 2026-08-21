@@ -12,6 +12,31 @@ Plan implementation for **Production Financial Operations** against normative pa
 4. Preserve the `9005e3a` Dashboard/UX baseline and truthful no-fake-data behavior.
 5. Keep MH03/global HA outside EPIC-16.
 
+## Supported environment topology
+
+EPIC-16 supports exactly three environment identities:
+
+- LOCAL;
+- DEVELOPMENT;
+- PRODUCTION.
+
+Canonical environment variables:
+
+- `ACS_ENVIRONMENT`;
+- `ACS_DISPATCH_MODE`;
+- `ACS_OPENCLAW_WORKER_MODE`;
+- `ACS_OPENCLAW_TRANSPORT`.
+
+OpenClaw Worker terminology is canonical:
+
+- OpenClaw Worker — Local;
+- OpenClaw Worker — Cloud;
+- OpenClaw Worker — Remote VM.
+
+Browser-facing `VITE_*` values may use localhost only in LOCAL. DEVELOPMENT and
+PRODUCTION must use public HTTPS origins; `.railway.internal` is server-side
+only.
+
 ## Mandatory pre-execution sprint
 
 Before any EPIC-16 product implementation, execute:
@@ -22,9 +47,10 @@ See `milestones/E16-M1-S00.md` and complete `execution-readiness.md` from reposi
 
 S00 is documentation/discovery only. Product code, Product API behavior, persistence schema and UI behavior must remain unchanged.
 
-Browser acceptance for EPIC-16 is local-first: Vite + Playwright certify the
-implementation before commit/push. Vercel exact-SHA verification is a secondary
-deployment gate, not the primary mechanism for testing unpublished code.
+Browser acceptance for EPIC-16 is local-first for unpublished code: Vite +
+Playwright certify the implementation before commit/push. Vercel exact-SHA
+verification is a secondary deployment gate, not the primary mechanism for
+testing unpublished code.
 
 Canonical operator UI for EPIC-16 is `.design/app-standalone`.
 EPIC-16 UI changes under `/static` are forbidden.

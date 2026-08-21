@@ -33,6 +33,15 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - preserve truthful empty/zero states;
 - do not fabricate financial histories.
 
+## Runtime topology guardrails
+
+- LOCAL may use localhost in browser-facing `VITE_*` values;
+- DEVELOPMENT browser-facing `VITE_*` values must use a public Railway HTTPS origin;
+- `.railway.internal` is server-side only and must not be emitted to the browser;
+- production browser-facing values must use production HTTPS origins;
+- OpenClaw Worker terminology is canonical across docs, diagnostics and readiness;
+- product HTTP boot must remain independent from worker availability.
+
 ## Required regression suites
 
 For affected areas, run and report:
@@ -87,8 +96,9 @@ Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
 - preserve AEES-16-02 authorization and reservation semantics while usage and
   settlement projections are added;
 - keep Tenant isolation, idempotency and shared-state behavior authoritative;
-- browser acceptance remains remote-first and must record any environment
-  limitation separately from product failure.
+- browser acceptance is local-first for unpublished code; deployment fidelity is
+  secondary and must record any environment limitation separately from product
+  failure.
 
 ## AEES-16-03 / ACCEPTANCE-RECOVERY-01
 

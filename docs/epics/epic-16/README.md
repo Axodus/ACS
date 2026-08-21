@@ -11,6 +11,30 @@ EPIC-16 makes ACS execution economics operationally governable in production by 
 
 The EPIC does not redefine ACS as a billing, accounting, tax, banking or payment-processing system.
 
+## Runtime topology
+
+EPIC-16 recognizes exactly three supported environments:
+
+| Concern | LOCAL | DEVELOPMENT | PRODUCTION |
+|---|---|---|---|
+| UI | `.design/app-standalone` on Vite localhost | Vercel `acs-app` | production web service |
+| Product API | `http://127.0.0.1:8788` | Railway public HTTPS origin | production API origin |
+| browser API origin | localhost only | public Railway HTTPS only | production HTTPS only |
+| dispatch | `local` | `remote` | `remote` |
+| OpenClaw Worker | Local | Cloud | Remote VM |
+| worker transport | `stdio` | `https` | `https` |
+| Python worker during HTTP boot | no | no | no |
+| `*.railway.internal` in browser-facing values | no | no | no |
+| `VITE_*` localhost values | allowed | forbidden | forbidden |
+
+Canonical terminology:
+
+- OpenClaw Worker — Local
+- OpenClaw Worker — Cloud
+- OpenClaw Worker — Remote VM
+
+`ACS_ENVIRONMENT` and `VITE_ACS_ENVIRONMENT` must be explicit and must not be inferred from `NODE_ENV`.
+
 ## Why now
 
 ACS already has durable/shared economic primitives: quote, reserve, authorize, record usage, settle, release, receipt and reconcile. The remaining gap is operational: an authorized operator cannot yet understand, control, diagnose and remediate the financial effects of execution through a coherent supported surface.

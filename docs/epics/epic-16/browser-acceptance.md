@@ -60,6 +60,10 @@ PRIMARY — implementation acceptance:
 - certifies the working tree before commit/push;
 - proves Usage, Settlements, Receipts and no-fake-data on the implementation under test.
 
+The implementation acceptance target may also be an explicit
+`AEES_BROWSER_BASE_URL` when that URL already points at the implementation
+under test.
+
 SECONDARY — deployment verification:
 
 - Vercel exact-SHA deployment;
@@ -73,10 +77,19 @@ FALLBACK:
 
 Canonical target order for S05 product acceptance:
 
-1. explicit AEES_BROWSER_BASE_URL when it already points at the implementation under test;
-2. local Vite URL, typically http://127.0.0.1:5173, when the local server is reachable;
+1. explicit `AEES_BROWSER_BASE_URL` when it already points at the implementation under test;
+2. local Vite URL, typically `http://127.0.0.1:5173`, when the standalone app is reachable;
 3. Vercel exact-SHA deployment only as deployment verification, or as fallback when local
    Vite/Chromium cannot run.
+
+Browser-facing environment rules:
+
+- LOCAL may use localhost origins in `VITE_*` values;
+- DEVELOPMENT browser values must use a public Railway HTTPS origin such as
+  `https://acs-axodus.up.railway.app/api/v1`;
+- PRODUCTION browser values must use production HTTPS origins;
+- `.railway.internal` values are server-side only and must not appear in
+  browser-facing `VITE_*` configuration.
 
 A remote FAIL against a SHA that does not yet contain the implementation is historical
 chronology evidence, not a product defect.

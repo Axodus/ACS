@@ -7,6 +7,13 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.local.example
+!.env.development.example
+!.env.production.example
+!.design/app-standalone/.env.example
+!.design/app-standalone/.env.local.example
+!.design/app-standalone/.env.development.example
+!.design/app-standalone/.env.production.example
 
 
 #Ignore vscode AI rules
