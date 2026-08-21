@@ -37,6 +37,25 @@ Browser-facing `VITE_*` values may use localhost only in LOCAL. DEVELOPMENT and
 PRODUCTION must use public HTTPS origins; `.railway.internal` is server-side
 only.
 
+Canonical versioned env templates:
+
+- root: `.env.example`, `.env.local.example`, `.env.development.example`,
+  `.env.production.example`;
+- standalone: `.design/app-standalone/.env.example`,
+  `.design/app-standalone/.env.local.example`,
+  `.design/app-standalone/.env.development.example`,
+  `.design/app-standalone/.env.production.example`.
+
+Canonical runtime env files:
+
+- root: `.env.local`, `.env.development`, `.env.production`;
+- standalone: `.design/app-standalone/.env.local`,
+  `.design/app-standalone/.env.development`,
+  `.design/app-standalone/.env.production`.
+
+`.env.develop` is not a canonical file name and should not be introduced in
+new EPIC-16 wiring.
+
 ## Mandatory pre-execution sprint
 
 Before any EPIC-16 product implementation, execute:

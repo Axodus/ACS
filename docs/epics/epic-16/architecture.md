@@ -105,3 +105,28 @@ Every mutation must emit correlated structured logs/traces/metrics and audit evi
 ## 10. Topology boundary
 
 EPIC-16 acceptance runs within the certified post-15.5 bounded topology. It must not claim physical multi-host, provider HA or global production certification. New financial state must nevertheless remain compatible with shared-state/multi-process operation.
+
+## 11. Environment topology baseline
+
+EPIC-16 recognizes exactly three supported environment identities:
+
+| Concern | LOCAL | DEVELOPMENT | PRODUCTION |
+|---|---|---|---|
+| UI | Vite localhost | Vercel / `acs-app` | Production web service |
+| Product API | localhost:8788 | Railway public HTTPS origin | Production API service |
+| Browser API origin | localhost only | public Railway HTTPS origin | production HTTPS origin |
+| Dispatch | local | remote | remote |
+| OpenClaw Worker | OpenClaw Worker — Local | OpenClaw Worker — Cloud | OpenClaw Worker — Remote VM |
+| Worker transport | stdio / local transport | HTTPS | HTTPS / private service network |
+| Python required for API boot | no | no | no |
+| Persistence | local/dev | shared development | durable production |
+| `.railway.internal` in browser-facing `VITE_*` | forbidden | forbidden | forbidden |
+
+Canonical environment variables:
+
+- `ACS_ENVIRONMENT`;
+- `ACS_DISPATCH_MODE`;
+- `ACS_OPENCLAW_WORKER_MODE`;
+- `ACS_OPENCLAW_TRANSPORT`.
+
+Browser-facing `VITE_*` values may use localhost only in LOCAL. DEVELOPMENT and PRODUCTION must use public HTTPS origins. `exquisite-enjoyment.railway.internal` is a server-side worker/service address only and must never be emitted to the browser.

@@ -41,6 +41,15 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - production browser-facing values must use production HTTPS origins;
 - OpenClaw Worker terminology is canonical across docs, diagnostics and readiness;
 - product HTTP boot must remain independent from worker availability.
+- canonical environment identities are LOCAL, DEVELOPMENT and PRODUCTION only;
+- canonical worker modes are `local`, `cloud`, `remote` and `disabled`;
+- canonical runtime variables are `ACS_ENVIRONMENT`, `ACS_DISPATCH_MODE`,
+  `ACS_OPENCLAW_WORKER_MODE` and `ACS_OPENCLAW_TRANSPORT`;
+- `.env.development` is the canonical development root env file; browser-facing
+  development origins must use `https://acs-axodus.up.railway.app/api/v1` or
+  another public Railway HTTPS origin approved by the deployment baseline;
+- `.env.develop` is not a canonical environment identity and should not be used
+  in new docs or runtime wiring.
 
 ## Required regression suites
 

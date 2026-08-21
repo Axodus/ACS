@@ -123,3 +123,27 @@ Financial Dashboard data must distinguish current aggregate truth from historica
 ## 13. Decision-gated contracts
 
 No contract for legal invoices, payment capture, banking rails, tax, accounting journals or unrestricted manual financial adjustments may be introduced without explicit normative approval.
+
+## 14. Environment topology contract
+
+EPIC-16 supports exactly three environment identities:
+
+| Concern | LOCAL | DEVELOPMENT | PRODUCTION |
+|---|---|---|---|
+| UI | Vite localhost | Vercel / `acs-app` | Production web service |
+| Product API | localhost:8788 | Railway public HTTPS origin | Production API service |
+| Browser API origin | localhost only | public Railway HTTPS origin | production HTTPS origin |
+| Dispatch | local | remote | remote |
+| OpenClaw Worker | OpenClaw Worker — Local | OpenClaw Worker — Cloud | OpenClaw Worker — Remote VM |
+| Worker transport | stdio / local transport | HTTPS | HTTPS / private service network |
+| Python required for API boot | no | no | no |
+| `.railway.internal` in browser-facing `VITE_*` | forbidden | forbidden | forbidden |
+
+Canonical environment variables:
+
+- `ACS_ENVIRONMENT`;
+- `ACS_DISPATCH_MODE`;
+- `ACS_OPENCLAW_WORKER_MODE`;
+- `ACS_OPENCLAW_TRANSPORT`.
+
+Browser-facing `VITE_*` values may use localhost only in LOCAL. DEVELOPMENT and PRODUCTION must use public HTTPS origins. `exquisite-enjoyment.railway.internal` is a server-side worker/service address only and must never be emitted to the browser.
