@@ -147,3 +147,7 @@ Canonical environment variables:
 - `ACS_OPENCLAW_TRANSPORT`.
 
 Browser-facing `VITE_*` values may use localhost only in LOCAL. DEVELOPMENT and PRODUCTION must use public HTTPS origins. `exquisite-enjoyment.railway.internal` is a server-side worker/service address only and must never be emitted to the browser.
+
+Railway ↔ Vercel integration may share server-side environment variables and secrets for hosted deployments, but it does not create a browser-facing proxy to the Railway Product API. `VITE_ACS_API_BASE_URL` remains a build-time browser-visible value and must resolve to a public browser-reachable API origin.
+
+Railway Public API (`https://backboard.railway.com/graphql/v2`) is infrastructure automation only. It may validate Railway deployment metadata and service domains server-side, but it is not the ACS runtime API and must not be used for product economics, usage, settlement, reconciliation or remediation calls. Railway project/workspace tokens are server-side credentials only and must not be exposed through `VITE_*`.
