@@ -48,6 +48,7 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - `.env.development` is the canonical development root env file; browser-facing
   development origins must use `https://acs-axodus.up.railway.app/api/v1` or
   another public Railway HTTPS origin approved by the deployment baseline;
+- hosted DEVELOPMENT must map Railway `PORT` to `ACS_HTTP_PORT` for the Product API runtime;
 - `.env.develop` is not a canonical environment identity and should not be used
   in new docs or runtime wiring.
 

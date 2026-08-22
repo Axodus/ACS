@@ -4,6 +4,14 @@
 
 Browser acceptance proves that financial operations are usable through supported Control Plane surfaces and remain faithful to the accepted `9005e3a` UX/dashboard baseline.
 
+Browser topology for EPIC-16:
+
+- LOCAL may use localhost browser and API origins;
+- DEVELOPMENT uses the public Railway HTTPS API origin
+  `https://acs-axodus.up.railway.app/api/v1`;
+- PRODUCTION uses production HTTPS origins;
+- private Railway DNS names are server-side only and must never appear in browser-facing configuration.
+
 ## Required coverage
 
 For every new or changed EPIC-16 route, test:

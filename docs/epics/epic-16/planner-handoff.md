@@ -37,6 +37,10 @@ Browser-facing `VITE_*` values may use localhost only in LOCAL. DEVELOPMENT and
 PRODUCTION must use public HTTPS origins; `.railway.internal` is server-side
 only.
 
+In hosted DEVELOPMENT, Railway must map its injected `PORT` to `ACS_HTTP_PORT` for
+the Product API runtime. The standalone app development origin is
+https://acs-axodus.up.railway.app/api/v1.
+
 Canonical versioned env templates:
 
 - root: `.env.example`, `.env.local.example`, `.env.development.example`,

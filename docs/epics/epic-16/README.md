@@ -18,8 +18,8 @@ EPIC-16 recognizes exactly three supported environments:
 | Concern | LOCAL | DEVELOPMENT | PRODUCTION |
 |---|---|---|---|
 | UI | `.design/app-standalone` on Vite localhost | Vercel `acs-app` | production web service |
-| Product API | `http://127.0.0.1:8788` | Railway public HTTPS origin | production API origin |
-| browser API origin | localhost only | public Railway HTTPS only | production HTTPS only |
+| Product API | `http://127.0.0.1:8788` | Railway public HTTPS API origin, for example `https://acs-axodus.up.railway.app/api/v1` | production API origin |
+| browser API origin | localhost only | `https://acs-axodus.up.railway.app/api/v1` | production HTTPS only |
 | dispatch | `local` | `remote` | `remote` |
 | OpenClaw Worker | Local | Cloud | Remote VM |
 | worker transport | `stdio` | `https` | `https` |
@@ -34,6 +34,8 @@ Canonical terminology:
 - OpenClaw Worker — Remote VM
 
 `ACS_ENVIRONMENT` and `VITE_ACS_ENVIRONMENT` must be explicit and must not be inferred from `NODE_ENV`.
+
+In hosted DEVELOPMENT, Railway must map its injected `PORT` to `ACS_HTTP_PORT` for the Product API runtime. The browser-facing `VITE_ACS_API_BASE_URL` must stay on the public Railway HTTPS origin and must never point at a private Railway DNS name.
 
 ## Why now
 

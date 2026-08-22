@@ -113,8 +113,8 @@ EPIC-16 recognizes exactly three supported environment identities:
 | Concern | LOCAL | DEVELOPMENT | PRODUCTION |
 |---|---|---|---|
 | UI | Vite localhost | Vercel / `acs-app` | Production web service |
-| Product API | localhost:8788 | Railway public HTTPS origin | Production API service |
-| Browser API origin | localhost only | public Railway HTTPS origin | production HTTPS origin |
+| Product API | localhost:8788 | Railway public HTTPS API origin, for example `https://acs-axodus.up.railway.app/api/v1` | Production API service |
+| Browser API origin | localhost only | `https://acs-axodus.up.railway.app/api/v1` | production HTTPS origin |
 | Dispatch | local | remote | remote |
 | OpenClaw Worker | OpenClaw Worker — Local | OpenClaw Worker — Cloud | OpenClaw Worker — Remote VM |
 | Worker transport | stdio / local transport | HTTPS | HTTPS / private service network |
@@ -130,6 +130,8 @@ Canonical environment variables:
 - `ACS_OPENCLAW_TRANSPORT`.
 
 Browser-facing `VITE_*` values may use localhost only in LOCAL. DEVELOPMENT and PRODUCTION must use public HTTPS origins. `exquisite-enjoyment.railway.internal` is a server-side worker/service address only and must never be emitted to the browser.
+
+In hosted DEVELOPMENT, Railway must map its injected `PORT` to `ACS_HTTP_PORT` for the Product API process. Browser-facing deployment values must stay public and HTTPS.
 
 Railway ↔ Vercel integration may synchronize server-side environment variables and secrets for hosted deployments, but it does not create an HTTP proxy between `acs-app` and the Railway Product API. The browser-visible `VITE_ACS_API_BASE_URL` remains a build-time input for the standalone app and must resolve to a public browser-reachable API origin. Private Railway DNS stays server-side only.
 
