@@ -179,6 +179,23 @@ Required evidence categories:
 - classification: local implementation acceptance PASS; Vercel exact-SHA
   verification remains outstanding
 
+## AEES-16-03 Vercel exact-SHA verification
+
+- deployment URL: https://acs-hixywhj62-axodus.vercel.app
+- route: /operations/overview
+- matrix: desktop, tablet, mobile x light, dark
+- manifest: /tmp/acs-aees-16-03-browser-recovery-final/manifest.json
+- screenshots: /tmp/acs-aees-16-03-browser-recovery-final/screenshots/
+- result: PASS
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- request failures: 0
+- no-fake-data on displayed content: PASS
+- usage/settlement/receipt surfaces: PRESENT
+- classification: exact-SHA deployment now matches the AEES-16-03 operator surfaces
+
 ## AEES-16-03 / HOTFIX-02 — Correct Operations Surface Boundary
 
 The previous local PASS against http://127.0.0.1:5173 is INVALIDATED.
@@ -201,6 +218,33 @@ Valid local product acceptance:
 - request failures: 0
 - no-fake-data: PASS
 - Usage: PRESENT
+
+## AEES-16-02 remote browser recovery
+
+- deployment URL: https://acs-hixywhj62-axodus.vercel.app/economics
+- manifest: /tmp/acs-aees-16-02-browser-recovery-remote/manifest.json
+- route: /economics
+- matrix: desktop, tablet, mobile x light, dark
+- result: PASS
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- request failures: 0
+- no-fake-data: PASS
+
+## AEES-16-04 remote deployment fidelity
+
+- deployment URL: https://acs-hixywhj62-axodus.vercel.app/operations/overview
+- route: /operations/overview
+- matrix: desktop, tablet, mobile x light, dark
+- result: PASS
+- reconciliation, mismatches, exceptions, settlements, usage and receipts: PRESENT
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- request failures: 0
 - Settlements: PRESENT
 - Receipts: PRESENT
 

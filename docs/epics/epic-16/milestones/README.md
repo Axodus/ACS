@@ -40,7 +40,7 @@ Integrate economic authorization with existing governance/entitlements/limits an
 ## AEES-16-02 — Economic Authorization & Reservations
 
 **Execution unit:** AEES-16-02
-**Status:** BLOCKED on browser acceptance evidence
+**Status:** COMPLETE
 
 This execution unit covers the governed authorization, reservation, operator
 integration and acceptance recovery work for E16-M2.

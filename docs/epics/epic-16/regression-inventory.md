@@ -95,8 +95,10 @@ Every regression affecting financial authority, Tenant isolation, idempotency, a
 - no-fake-data: PASS
 - manifest: `/tmp/acs-aees-16-01-browser-recovery/manifest.json`
 AEES-16-02 / Browser Acceptance Recovery
-Route: /operations/overview
-Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
+deployment URL: https://acs-hixywhj62-axodus.vercel.app/economics
+route: /economics
+manifest: /tmp/acs-aees-16-02-browser-recovery-remote/manifest.json
+result: PASS
 
 ## AEES-16-03 regression focus
 
@@ -116,6 +118,13 @@ Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
 - SHA da89456 produced accessibility/overflow/console/page/request PASS
 - usage, settlement and receipt operator surfaces were absent from the certified artifact
 - result remains FAIL until a SHA containing those surfaces is certified
+
+## AEES-16-03 / VERCEL-EXACT-SHA-01
+
+- remote Playwright ran against https://acs-hixywhj62-axodus.vercel.app/operations/overview
+- exact-SHA browser certification PASS
+- usage, settlement and receipt operator surfaces were present
+- result PASS
 
 ## AEES-16-03 local product acceptance
 
@@ -138,3 +147,4 @@ Manifest: /tmp/acs-aees-16-02-browser-recovery/manifest.json
 - Unsupported remediation actions remain `UNSUPPORTED / REQUIRES_FUTURE_POLICY`.
 - Replay of the same remediation idempotency key must not duplicate economic effects.
 - Failed or unauthorized remediation must preserve original exception/mismatch evidence.
+- remote deployment fidelity is verified on https://acs-hixywhj62-axodus.vercel.app/operations/overview

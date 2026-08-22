@@ -134,8 +134,8 @@ Run backend/app validation, Tenant isolation, shared-state regression if state a
 
 ## Next authorized execution unit
 
-E16-M2 remains formally blocked on browser acceptance evidence, but E16-M3 is
-authorized for execution planning and implementation.
+E16-M2 has cleared remote browser acceptance evidence, and E16-M3 remains the
+next authorized execution unit for execution planning and implementation.
 
 ### AEES-16-03 — Usage & Settlement Operations
 
@@ -192,12 +192,12 @@ Stop and request normative amendment if implementation requires:
 ## Definition of done for M1
 
 M1 is complete when an authorized operator can inspect authoritative execution-economic state and pricing provenance through Product API/Control Plane, Dashboard financial information is backed by those contracts, and all unavailable historical series remain explicitly truthful rather than synthetic.
-AEES-16-03 is the next authorized execution unit for EPIC-16 after AEES-16-01, while AEES-16-02 remains formally blocked on browser acceptance evidence.
+AEES-16-03 is the next authorized execution unit for EPIC-16 after AEES-16-01, while AEES-16-02 has now cleared remote browser acceptance evidence.
 Primary sprint order remains S01 through S05.
 
 ## AEES-16-04 current execution
 
 S01-S03 remain implemented. S04 adds governed remediation on the S03 exception lifecycle.
 Canonical UI remains `.design/app-standalone`. `/static` remains forbidden.
-E16-M3 remains independently blocked on acs-app deployment fidelity and is not mixed into this sprint.
+E16-M3 exact-SHA deployment fidelity is now verified on acs-app and is not mixed into this sprint.
 S05 remains the milestone acceptance unit.

@@ -6,5 +6,12 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 3000,
+    proxy: {
+      "/api/v1": {
+        target: "https://acs-axodus.up.railway.app",
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
 });

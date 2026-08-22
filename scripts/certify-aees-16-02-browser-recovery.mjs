@@ -9,8 +9,11 @@ const outputPath = process.argv[2] || "/tmp/acs-aees-16-02-browser-recovery/mani
 const evidenceRoot = outputPath.slice(0, outputPath.lastIndexOf("/"));
 const screenshotsDir = join(evidenceRoot, "screenshots");
 const { baseUrl, source: baseUrlSource } = resolveBrowserBaseUrl();
-const route = "/operations/overview";
+const route = "/economics";
+const browserEnginePreference = process.env.AEES_BROWSER_ENGINE || "chromium";
 const chromiumExecutablePath = process.env.AEES_BROWSER_EXECUTABLE_PATH || "/home/mzfshark/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome";
+const firefoxExecutablePath = process.env.AEES_BROWSER_EXECUTABLE_PATH || "/home/mzfshark/.cache/ms-playwright/firefox-1538/firefox/firefox";
+const browserExecutablePath = browserEnginePreference === "firefox" ? firefoxExecutablePath : chromiumExecutablePath;
 
 const manifest = {
   schemaVersion: 1,
@@ -24,8 +27,9 @@ const manifest = {
   viewports: ["desktop", "tablet", "mobile"],
   themes: ["light", "dark"],
   browserRuntime: "playwright-core",
-  browserEngineUsed: "chromium",
-  browserExecutablePath: chromiumExecutablePath,
+  browserEnginePreference,
+  browserEngineUsed: browserEnginePreference,
+  browserExecutablePath,
   result: "FAIL",
   failureClass: null,
   preflight: { status: "unverified" },
@@ -101,6 +105,13 @@ async function preflightExternalUrl(url) {
 }
 
 async function launchBrowser(playwright) {
+  if (browserEnginePreference === "firefox") {
+    return playwright.firefox.launch({
+      headless: true,
+      executablePath: firefoxExecutablePath,
+      args: ["-headless"],
+    });
+  }
   return playwright.chromium.launch({
     headless: true,
     executablePath: chromiumExecutablePath,
