@@ -91,7 +91,7 @@ Create durable reconciliation backlog, first-class financial exceptions and boun
 
 Define the canonical provider boundary, provider capability contract and readiness separation for production financial operations.
 
-**Current sprint state:** S01 PASS, S02 PASS, S03-S05 PENDING.
+**Current sprint state:** S01 PASS, S02 PASS, S03 PASS, S04-S05 PENDING.
 
 **Execution sequence after S00:**
 

@@ -73,6 +73,17 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - repeated diagnostics for the same configuration remain deterministic;
 - provider output must not contain secret/token values.
 
+## AEES-16-05 S03 degraded/outage regressions
+
+- HTTP readiness remains available while worker execution is blocked;
+- cloud/remote providers never silently fall back to local substitutes;
+- settlement outages block settlement while read models remain usable;
+- persistence outages block durable writes and do not claim production eligibility;
+- telemetry outages surface truthfully in readiness and reason codes;
+- provider recovery updates readiness without duplicating economic effect;
+- unavailable authority never renders a truthful-looking empty success;
+- repeated outage diagnostics remain deterministic.
+
 ## Required regression suites
 
 For affected areas, run and report:

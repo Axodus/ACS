@@ -204,4 +204,4 @@ S05 remains the milestone acceptance unit.
 
 ## AEES-16-05 current execution
 
-S01 defines the canonical provider boundary and capability contract. S02 now turns that contract into evidence-based diagnostics and readiness behavior without changing the boundary semantics. S03 remains the next gated sprint and must not start until S02 evidence is accepted.
+S01 defines the canonical provider boundary and capability contract. S02 turns that contract into evidence-based diagnostics and readiness behavior without changing the boundary semantics. S03 hardens degraded/outage semantics and is now complete; S04 remains the next gated sprint.
