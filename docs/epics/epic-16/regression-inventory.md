@@ -62,6 +62,17 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - HTTP readiness must remain distinguishable from execution readiness and financial-operation readiness;
 - provider diagnostics must not expose bearer tokens, passwords or provider credential values.
 
+## AEES-16-05 S02 diagnostics regressions
+
+- provider diagnostics are evidence-based and read-only;
+- configured provider state, reachability and readiness remain distinct;
+- unsupported capability surfaces as UNSUPPORTED rather than READY;
+- disabled or unreachable OpenClaw Worker does not collapse HTTP readiness;
+- settlement and persistence failures change financial or execution readiness truthfully;
+- production eligibility cannot be inferred from defaults alone;
+- repeated diagnostics for the same configuration remain deterministic;
+- provider output must not contain secret/token values.
+
 ## Required regression suites
 
 For affected areas, run and report:

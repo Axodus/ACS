@@ -190,7 +190,11 @@ function buildSettlementProvider(input: ProviderBoundaryInput, checkedAt: number
         "adapter=" + providerMode,
         "productionOriented=" + input.settlementProvider.productionOriented,
       ]),
-      capability("settlement.retry", "tenant", reachable, capabilityReadiness, reasonCode, ["adapter=" + providerMode]),
+      capability("settlement.retry", "tenant", false, "UNSUPPORTED", "CAPABILITY_UNSUPPORTED", [
+        "adapter=" + providerMode,
+        "capability=settlement.retry",
+        "supported=false",
+      ]),
       capability("settlement.receipt", "tenant", reachable, capabilityReadiness, reasonCode, ["adapter=" + providerMode]),
       capability("reconciliation.evidence", "tenant", reachable, capabilityReadiness, reasonCode, ["adapter=" + providerMode]),
     ],

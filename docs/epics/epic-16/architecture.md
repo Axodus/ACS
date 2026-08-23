@@ -140,6 +140,7 @@ Railway Public API is a platform-automation interface only (`https://backboard.r
 ## 12. Provider boundary
 
 EPIC-16 S01 establishes a single provider boundary model for operational truth. The boundary is diagnostic and read-only; it does not orchestrate provider failover or synthetic fallback.
+S02 makes that boundary evidence-based through the Product API read model, so HTTP readiness, execution readiness and financial-operation readiness remain distinct.
 
 The canonical provider set is limited to the provider boundaries already used by ACS runtime:
 

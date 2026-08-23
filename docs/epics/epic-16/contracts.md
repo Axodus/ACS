@@ -173,3 +173,27 @@ Readiness states are intentionally small: READY, DEGRADED, UNAVAILABLE, NOT_CONF
 No-silent-fallback is normative. If a configured cloud, remote or production provider is unavailable, the boundary must expose that fact rather than switching to local memory, filesystem, SQLite /tmp or mock behavior.
 
 Diagnostics must remain secret-safe. Credential presence may be reported; credential values must not be.
+
+## 16. Provider diagnostics contract
+
+The authoritative provider diagnostics projection is read-only and evidence-backed. It must derive from live configuration plus live provider evidence, not from stale defaults.
+
+The diagnostics read model must expose, where available:
+
+- providerId;
+- providerType;
+- providerMode;
+- environment;
+- configured;
+- reachable;
+- capabilities;
+- readiness;
+- productionEligible;
+- degraded;
+- reasonCode;
+- lastCheckedAt;
+- evidence/provenance.
+
+Readiness states remain the smallest meaningful set: READY, DEGRADED, UNAVAILABLE, NOT_CONFIGURED and UNSUPPORTED. HTTP readiness, execution readiness and financial-operation readiness remain separate and a healthy listener does not imply worker, settlement or persistence readiness.
+
+Diagnostics must never expose secrets, tokens or credential values.
