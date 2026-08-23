@@ -181,6 +181,8 @@ global ACS Account + ExternalIdentity
 
 The Account/identity store is process-local only in LOCAL. SIWX outside LOCAL requires shared PostgreSQL state; memory/filesystem fallback is prohibited. Shared-state schema v2 persists Accounts, unique external identities, hashed ACS sessions and single-use nonces.
 
+SIWX chain verification uses a backend-only RPC provider boundary. For the approved Alchemy DEVELOPMENT topology, one `ACS_ALCHEMY_API_KEY` derives the Base Sepolia and Ethereum Sepolia endpoints. Optional per-chain URL variables remain provider-neutral overrides. The API key and derived credential-bearing URLs must never enter browser configuration, diagnostics or evidence payloads.
+
 The Product API may remain HTTP-ready when the external SIWX verifier is not configured. In that state nonce creation remains safe, exchange fails closed, existing non-SIWX inspection behavior remains unaffected and ACS must not report wallet authentication as available.
 
 PRODUCTION remains not configured and not eligible until a production Reown project, domain allowlist, certified server-side verifier, shared session persistence, approved RPC verification path and security acceptance are evidenced.

@@ -215,6 +215,8 @@ Uniqueness is `provider + namespace + subject`. The subject is chain-agnostic; C
 
 `SiwxAuthenticatedArtifactVerifier` owns the selected official Reown/SIWX nonce/message/signature/session request shape. Only the verifier may derive `VerifiedWalletIdentity`. Client-provided connection state, address, chain, subject or timestamps are untrusted inputs.
 
+The approved DEVELOPMENT RPC configuration uses one server-only `ACS_ALCHEMY_API_KEY` to derive every currently supported SIWX verification endpoint: Base Sepolia and Ethereum Sepolia. `ACS_SIWX_BASE_SEPOLIA_RPC_URL` and `ACS_SIWX_ETHEREUM_SEPOLIA_RPC_URL` remain optional explicit overrides. Explicit configuration wins, but neither the API key nor credential-bearing RPC URLs may be projected to diagnostics or browser-visible configuration.
+
 ACS application sessions are opaque and server-controlled. The token secret has at least 256 bits of entropy; only its SHA-256 digest is persisted and compared in constant time. Sessions have explicit `expiresAt` and `revokedAt`, a fixed 15-minute TTL and no sliding expiration. Read models omit both the token digest and the upstream provider session identifier.
 
 `Account.status = suspended|disabled` invalidates use of existing ACS sessions immediately and rejects new SIWX exchange. The external wallet connection may remain alive. The safe state for a verified Account with no active membership is `NO_TENANT_MEMBERSHIP`.

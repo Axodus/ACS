@@ -126,6 +126,7 @@ import {
   type SiwxAuthenticatedArtifactVerifier,
 } from "./siwx-artifact.js";
 import { ViemSiwxArtifactVerifier } from "./viem-siwx-artifact-verifier.js";
+import { resolveSiwxRpcUrls } from "./siwx-rpc-configuration.js";
 
 export interface ControlPlaneContext {
   readonly engineRegistry: EngineRegistry;
@@ -752,10 +753,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     nonceTtlMs: options.siwxNonceTtlMs,
   });
   const siwxVerifierEnabled = options.siwxVerifierEnabled ?? process.env.ACS_SIWX_VERIFIER_ENABLED === "true";
-  const siwxRpcUrls = options.siwxRpcUrls ?? {
-    84532: process.env.ACS_SIWX_BASE_SEPOLIA_RPC_URL,
-    11155111: process.env.ACS_SIWX_ETHEREUM_SEPOLIA_RPC_URL,
-  };
+  const siwxRpcUrls = options.siwxRpcUrls ?? resolveSiwxRpcUrls(process.env);
   const siwxArtifactVerifier = options.siwxArtifactVerifier
     ?? (authMode === "siwx" && siwxVerifierEnabled
       ? new ViemSiwxArtifactVerifier({

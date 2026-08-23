@@ -3,6 +3,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
+const { resolveSiwxRpcUrls } = await import(
+  process.env.ACS_TEST_DIST_URL ?? new URL("../dist/index.js", import.meta.url).href
+);
 
 async function source(path) {
   return readFile(new URL(path, root), "utf8");
@@ -82,6 +85,41 @@ test("browser templates expose only the public Reown project identifier", async 
   const combined = templates.join("\n");
   assert.match(combined, /VITE_REOWN_PROJECT_ID=/);
   assert.doesNotMatch(combined, /VITE_(?:REOWN|ACS)_(?:SECRET|TOKEN|PRIVATE_KEY|PASSWORD)=/);
+  assert.doesNotMatch(combined, /ALCHEMY_API_KEY/);
+});
+
+test("one server-only Alchemy key derives every supported SIWX RPC deterministically", () => {
+  const environment = { ACS_ALCHEMY_API_KEY: "rotatable-dev-key" };
+  const first = resolveSiwxRpcUrls(environment);
+  const second = resolveSiwxRpcUrls(environment);
+
+  assert.deepEqual(first, second);
+  assert.deepEqual(first, {
+    84532: "https://base-sepolia.g.alchemy.com/v2/rotatable-dev-key",
+    11155111: "https://eth-sepolia.g.alchemy.com/v2/rotatable-dev-key",
+  });
+});
+
+test("explicit SIWX RPC configuration remains a provider-neutral per-chain override", () => {
+  const resolved = resolveSiwxRpcUrls({
+    ACS_ALCHEMY_API_KEY: "rotatable-dev-key",
+    ACS_SIWX_BASE_SEPOLIA_RPC_URL: "https://rpc.example.test/base",
+  });
+
+  assert.equal(resolved[84532], "https://rpc.example.test/base");
+  assert.equal(resolved[11155111], "https://eth-sepolia.g.alchemy.com/v2/rotatable-dev-key");
+});
+
+test("tracked templates declare the Alchemy key without embedding a credential", async () => {
+  const templates = await Promise.all([
+    source(".env.example"),
+    source(".env.local.example"),
+    source(".env.development.example"),
+    source(".env.production.example"),
+  ]);
+  const combined = templates.join("\n");
+  assert.match(combined, /ACS_ALCHEMY_API_KEY=/);
+  assert.doesNotMatch(combined, /\.g\.alchemy\.com\/v2\/alch_[A-Za-z0-9_-]+/);
 });
 
 test("canonical UI composes account providers and renders the bounded header control", async () => {

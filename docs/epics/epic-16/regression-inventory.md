@@ -125,6 +125,8 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - Product API identity read models omit token digests and upstream provider session identifiers;
 - an Account without active membership is `NO_TENANT_MEMBERSHIP` and governed financial routes remain forbidden;
 - an unconfigured verifier fails exchange closed with `SIWX_VERIFIER_NOT_CONFIGURED`;
+- one backend-only Alchemy key deterministically derives the Base Sepolia and Ethereum Sepolia verifier endpoints, while explicit per-chain URLs remain overrides;
+- Alchemy credentials remain absent from browser templates and tracked evidence;
 - browser wallet connection state never creates `trusted=true`;
 - shared-state schema retains the unique external-identity constraint and durable Account/session/nonce tables.
 

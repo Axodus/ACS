@@ -19,6 +19,7 @@ export * from "./http/auth.js";
 export * from "./http/siwx-session-auth.js";
 export * from "./http/siwx-artifact.js";
 export * from "./http/viem-siwx-artifact-verifier.js";
+export * from "./http/siwx-rpc-configuration.js";
 export * from "./http/rate-limit.js";
 export * from "./http/edge.js";
 export * from "./http/request-body.js";

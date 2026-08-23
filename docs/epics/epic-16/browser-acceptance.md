@@ -276,7 +276,7 @@ The acceptance above is historical evidence from the superseded closure at `a7c0
 - manifest: `/tmp/acs-s75-account-browser-evidence/manifest.json`;
 - screenshots: `/tmp/acs-s75-account-browser-evidence/screenshots/`;
 - authenticated SIWX journey: NOT RUN;
-- reason: no public Reown development project ID or matching backend verifier configuration is present locally or in Vercel `acs-app`;
+- reason: the Reown DEVELOPMENT project environment is provisioned, but its domain allowlist, Railway verifier/shared PostgreSQL configuration, post-configuration deployment and interactive signed-wallet exchange remain uncertified;
 - result: PASS for truthful unavailable-state UX; not sufficient for S05 closure.
 
 ## AEES-16-02 remote browser recovery
