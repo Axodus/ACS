@@ -83,6 +83,24 @@ Create durable reconciliation backlog, first-class financial exceptions and boun
 
 **Exit:** mismatches are actionable state; every remediation is authorized, idempotent and evidenced; arbitrary value editing remains absent.
 
+## AEES-16-05 — Provider Boundary & Capability Contract
+
+**Execution unit:** AEES-16-05
+**Status:** IN PROGRESS
+**Stories:** S01, S02, S03, S04, S05
+
+Define the canonical provider boundary, provider capability contract and readiness separation for production financial operations.
+
+**Execution sequence after S00:**
+
+1. AEES-16-05 / S01 — Provider Boundary & Capability Contract
+2. AEES-16-05 / S02 — Provider Diagnostics & Readiness
+3. AEES-16-05 / S03 — Degraded / Outage Semantics
+4. AEES-16-05 / S04 — Shared-State, Idempotency & Resilience Hardening
+5. AEES-16-05 / S05 — Acceptance & Milestone Closure
+
+**Exit:** provider identity, capability, eligibility and readiness are explicit; configured cloud/remote providers never silently fall back locally; diagnostics stay read-only and redacted.
+
 ## E16-M5 — Provider Boundary & Production Hardening
 
 **Stories:** S10, S13, S14

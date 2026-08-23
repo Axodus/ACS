@@ -2264,6 +2264,12 @@ export async function routeProductApiRequest(
       const status = await context.operationalDiagnostics.status({ force });
       return { status: 200, body: ok(status, [], options.correlationId, routeMeta) };
     }
+    if (apiPath === "system/providers" && request.method === "GET") {
+      assertAllowedQueryParams(url, ["force"]);
+      const force = url.searchParams.get("force") === "true";
+      const projection = await context.operationalDiagnostics.providerBoundary({ force });
+      return { status: 200, body: ok(projection, [], options.correlationId, routeMeta) };
+    }
     if (apiPath === "system/telemetry" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       const snapshot = await context.telemetry.snapshot();

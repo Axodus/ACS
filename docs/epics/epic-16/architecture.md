@@ -136,3 +136,19 @@ In hosted DEVELOPMENT, Railway must map its injected `PORT` to `ACS_HTTP_PORT` f
 Railway ↔ Vercel integration may synchronize server-side environment variables and secrets for hosted deployments, but it does not create an HTTP proxy between `acs-app` and the Railway Product API. The browser-visible `VITE_ACS_API_BASE_URL` remains a build-time input for the standalone app and must resolve to a public browser-reachable API origin. Private Railway DNS stays server-side only.
 
 Railway Public API is a platform-automation interface only (`https://backboard.railway.com/graphql/v2`). It may be used server-side or in CI to discover/manage Railway projects, services, deployments, domains and variables, but it is not the ACS Product API and must never be used for ACS economic/runtime operations. Railway access tokens remain server-side only and must not appear in `VITE_*`.
+
+## 12. Provider boundary
+
+EPIC-16 S01 establishes a single provider boundary model for operational truth. The boundary is diagnostic and read-only; it does not orchestrate provider failover or synthetic fallback.
+
+The canonical provider set is limited to the provider boundaries already used by ACS runtime:
+
+- OpenClaw Worker;
+- settlement provider;
+- shared-state / persistence provider;
+- secret provider;
+- telemetry / exporter provider.
+
+Each provider projection must expose provider identity, configured mode, supported capabilities, readiness, production eligibility, degradation reason and provenance. The Product API may project this truth through diagnostics/readiness endpoints, but it must not reveal credentials or introduce a competing readiness contract.
+
+HTTP readiness, execution readiness and financial-operation readiness are distinct. A healthy HTTP listener does not imply a reachable worker, durable persistence or production-eligible topology.

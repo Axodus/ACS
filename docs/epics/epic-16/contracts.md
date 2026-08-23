@@ -153,3 +153,23 @@ In hosted DEVELOPMENT, the Railway runtime must map its injected `PORT` to `ACS_
 Railway ↔ Vercel integration may share server-side environment variables and secrets for hosted deployments, but it does not create a browser-facing proxy to the Railway Product API. `VITE_ACS_API_BASE_URL` remains a build-time browser-visible value and must resolve to a public browser-reachable API origin.
 
 Railway Public API (`https://backboard.railway.com/graphql/v2`) is infrastructure automation only. It may validate Railway deployment metadata and service domains server-side, but it is not the ACS runtime API and must not be used for product economics, usage, settlement, reconciliation or remediation calls. Railway project/workspace tokens are server-side credentials only and must not be exposed through `VITE_*`.
+
+## 15. Provider capability contract
+
+ACS projects provider truth through a single read-only boundary contract. The contract must represent provider identity, provider type, provider mode, configured state, reachability, capabilities, readiness, production eligibility, degraded state, reason code and evidence/provenance.
+
+Canonical provider groups:
+
+- OpenClaw Worker;
+- settlement provider;
+- shared-state / persistence provider;
+- secret provider;
+- telemetry / exporter provider.
+
+Capability scope is explicit. Some capabilities are global, while others are tenant-scoped. The contract must not advertise unsupported capabilities or planned behavior as available.
+
+Readiness states are intentionally small: READY, DEGRADED, UNAVAILABLE, NOT_CONFIGURED and UNSUPPORTED. HTTP readiness, execution readiness, financial-operation readiness and production eligibility must remain separate dimensions.
+
+No-silent-fallback is normative. If a configured cloud, remote or production provider is unavailable, the boundary must expose that fact rather than switching to local memory, filesystem, SQLite /tmp or mock behavior.
+
+Diagnostics must remain secret-safe. Credential presence may be reported; credential values must not be.

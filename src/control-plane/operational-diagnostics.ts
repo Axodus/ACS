@@ -11,8 +11,10 @@ import type {
 } from "../workers/durable-runtime-state.js";
 import { isWorkerEligibleForRequirements } from "../workers/durable-runtime-state.js";
 import type { EconomicStateStore, SettlementProvider } from "./neurons-economic-contract.js";
+import { buildProviderBoundary, type ProviderBoundaryProjection } from "./provider-boundary.js";
 import type { OperationalTelemetryProvider, TelemetryExporterHealth } from "./operational-telemetry.js";
 import type { SharedStateHealth } from "./shared-state/contracts.js";
+import type { EnvironmentTopology } from "./environment-topology.js";
 import type { ManagedProviderComposition, ManagedProviderName, ManagedProviderReasonCode } from "./managed-provider-composition.js";
 
 export type OperationalReadinessState = "READY" | "DEGRADED" | "BLOCKED" | "UNKNOWN";
@@ -123,12 +125,14 @@ export interface OperationalStatus {
     readonly lastScanAt?: number;
     readonly lastErrorAt?: number;
   };
+  readonly providerBoundary: ProviderBoundaryProjection;
   readonly telemetry: TelemetryExporterHealth;
   readonly updatedAt: number;
 }
 
 export interface OperationalDiagnosticsOptions {
   readonly profile: "development" | "production";
+  readonly environmentTopology: EnvironmentTopology;
   readonly identityValidator: HttpIdentityValidator;
   readonly edgePolicy: HttpEdgePolicy;
   readonly secretStore: SecretStore;
@@ -137,10 +141,17 @@ export interface OperationalDiagnosticsOptions {
   readonly administrativeState: { readonly mode: "memory" | "filesystem"; readonly durability: "process_local" | "single_node_durable" };
   readonly administrativeStateHealth?: () => { readonly configured: boolean; readonly reachable: boolean };
   readonly runtimeMode: "local" | "remote";
+  readonly localWorkerConfigured: boolean;
   readonly runtimeCoordinator: DurableRuntimeCoordinator | null;
   readonly recoveryCoordinator: RuntimeRecoveryCoordinator | null;
   readonly telemetry: OperationalTelemetryProvider;
   readonly sharedStateHealth?: () => Promise<SharedStateHealth>;
+  readonly runtimeStatePath?: string;
+  readonly administrativeStatePath?: string;
+  readonly secretCatalogPath?: string;
+  readonly economicStatePath?: string;
+  readonly settlementStatePath?: string;
+  readonly rateLimitDatabasePath?: string;
   readonly managedProviderComposition?: ManagedProviderComposition;
   readonly checkTimeoutMs?: number;
   readonly cacheTtlMs?: number;
@@ -166,6 +177,11 @@ export class OperationalDiagnosticsService {
   async publicReadiness(): Promise<OperationalStatus["readiness"]> {
     const status = await this.status();
     return status.readiness;
+  }
+
+  async providerBoundary(options: { readonly force?: boolean } = {}): Promise<ProviderBoundaryProjection> {
+    const status = await this.status(options);
+    return status.providerBoundary;
   }
 
   async status(options: { readonly force?: boolean } = {}): Promise<OperationalStatus> {
@@ -271,6 +287,13 @@ export class OperationalDiagnosticsService {
           })
         : Promise.resolve(undefined),
     ]);
+    const secretHealth = await this.#options.secretStore.health().catch(() => ({
+      reachable: false,
+      provider: this.#options.secretStore.descriptor.provider,
+    }));
+    const sharedStateHealth = this.#options.sharedStateHealth
+      ? await this.#options.sharedStateHealth().catch(() => undefined)
+      : undefined;
     const managedProviderHealth = this.#options.managedProviderComposition
       ? await this.#options.managedProviderComposition.health().catch(() => undefined)
       : undefined;
@@ -322,6 +345,30 @@ export class OperationalDiagnosticsService {
         entries: jobs.slice(-100),
       },
       recovery,
+      providerBoundary: buildProviderBoundary({
+        environmentTopology: this.#options.environmentTopology,
+        profile: this.#options.profile,
+        runtimeMode: this.#options.runtimeMode,
+        localWorkerConfigured: this.#options.localWorkerConfigured,
+        checkedAt: now,
+        runtimeCoordinatorHealth: this.#options.runtimeCoordinator?.health(),
+        sharedStateHealth,
+        secretStore: this.#options.secretStore,
+        secretHealth,
+        economicStore: this.#options.economicStore.descriptor,
+        settlementProvider: this.#options.settlementProvider.descriptor,
+        settlementHealth: { reachable: settlement.reachable },
+        administrativeState: this.#options.administrativeState,
+        telemetryHealth,
+        persistencePaths: {
+          administrativeStatePath: this.#options.administrativeStatePath,
+          economicStatePath: this.#options.economicStatePath,
+          settlementStatePath: this.#options.settlementStatePath,
+          secretCatalogPath: this.#options.secretCatalogPath,
+          runtimeStatePath: this.#options.runtimeStatePath,
+          rateLimitDatabasePath: this.#options.rateLimitDatabasePath,
+        },
+      }),
       telemetry: telemetryHealth,
       updatedAt: now,
     };

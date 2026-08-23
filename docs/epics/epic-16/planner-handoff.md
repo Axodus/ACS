@@ -201,3 +201,7 @@ S01-S03 remain implemented. S04 adds governed remediation on the S03 exception l
 Canonical UI remains `.design/app-standalone`. `/static` remains forbidden.
 E16-M3 exact-SHA deployment fidelity is now verified on acs-app and is not mixed into this sprint.
 S05 remains the milestone acceptance unit.
+
+## AEES-16-05 current execution
+
+S01 defines the canonical provider boundary and capability contract. S02 is the next sprint after S01 and must turn the contract into diagnostics and readiness behavior without changing the boundary semantics.

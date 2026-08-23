@@ -52,6 +52,16 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - `.env.develop` is not a canonical environment identity and should not be used
   in new docs or runtime wiring.
 
+## Provider boundary regressions
+
+- provider identity, capability and eligibility must remain explicit in diagnostics;
+- LOCAL may use local providers, but DEVELOPMENT and PRODUCTION must reflect the configured topology truthfully;
+- cloud/remote provider unavailability must not fall back to local substitutes;
+- memory secrets and /tmp persistence are not production eligible;
+- disabled exporters must remain visible as disabled or degraded rather than silently treated as healthy;
+- HTTP readiness must remain distinguishable from execution readiness and financial-operation readiness;
+- provider diagnostics must not expose bearer tokens, passwords or provider credential values.
+
 ## Required regression suites
 
 For affected areas, run and report:

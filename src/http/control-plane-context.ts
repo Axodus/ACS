@@ -141,6 +141,7 @@ export interface ControlPlaneContext {
   readonly runtimeCoordinator: DurableRuntimeCoordinator | null;
   readonly runtimeRecoveryCoordinator: RuntimeRecoveryCoordinator | null;
   readonly workerIdentityValidator: WorkerServiceIdentityValidator;
+  readonly environmentTopology: ReturnType<typeof resolveEnvironmentTopology>;
   readonly runtimeMode: "local" | "remote";
   readonly identityValidator: HttpIdentityValidator;
   readonly rateLimiter: RateLimiter;
@@ -882,6 +883,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
 
   const operationalDiagnostics = new OperationalDiagnosticsService({
     profile: adapterProfile,
+    environmentTopology,
     identityValidator,
     edgePolicy,
     secretStore,
@@ -894,9 +896,16 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       ? () => durableAdministrativeState.health()
       : () => ({ configured: false, reachable: false }),
     runtimeMode,
+    localWorkerConfigured: options.startLocalWorker === true,
     runtimeCoordinator,
     recoveryCoordinator: runtimeRecoveryCoordinator,
     telemetry,
+    runtimeStatePath,
+    administrativeStatePath: durableAdministrativeState ? administrativeStatePath : undefined,
+    secretCatalogPath: useDurableSecretCatalog ? secretCatalogPath : undefined,
+    economicStatePath: useDurableEconomicState ? economicStatePath : undefined,
+    settlementStatePath: useDurableEconomicState ? economicStatePath : undefined,
+    rateLimitDatabasePath: rateLimitProvider === "sqlite" ? rateLimitDatabasePath : undefined,
     checkTimeoutMs: options.dependencyCheckTimeoutMs,
     cacheTtlMs: options.dependencyCacheTtlMs,
   });
@@ -927,6 +936,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     runtimeCoordinator,
     runtimeRecoveryCoordinator,
     workerIdentityValidator,
+    environmentTopology,
     runtimeMode,
     identityValidator,
     rateLimiter,
