@@ -43,10 +43,24 @@ test("unconfigured AppKit does not eagerly load wallet runtime dependencies", as
   const boundary = await source(".design/app-standalone/src/auth/reown-appkit.tsx");
   const control = await source(".design/app-standalone/src/auth/AccountControl.tsx");
   assert.match(boundary, /lazy\(async \(\) =>/);
+  assert.match(boundary, /await import\("\.\/reown-browser-polyfill"\)/);
   assert.match(boundary, /import\("\.\/reown-appkit-runtime"\)/);
+  assert.ok(boundary.indexOf('import("./reown-browser-polyfill")') < boundary.indexOf('import("./reown-appkit-runtime")'));
   assert.doesNotMatch(boundary, /from "@reown\//);
   assert.match(control, /import\("\.\/ConfiguredAccountControl"\)/);
   assert.doesNotMatch(control, /from "@reown\//);
+});
+
+test("configured AppKit loads required browser polyfills before wallet dependencies", async () => {
+  const packageJson = JSON.parse(await source(".design/app-standalone/package.json"));
+  const polyfill = await source(".design/app-standalone/src/auth/reown-browser-polyfill.ts");
+  assert.equal(packageJson.dependencies.buffer, "6.0.3");
+  assert.equal(packageJson.dependencies.process, "0.11.10");
+  assert.match(polyfill, /import \{ Buffer \} from "buffer"/);
+  assert.match(polyfill, /import process from "process"/);
+  assert.match(polyfill, /browserGlobal\.global \?\?= globalThis/);
+  assert.match(polyfill, /browserGlobal\.Buffer \?\?= Buffer/);
+  assert.match(polyfill, /browserGlobal\.process \?\?= process/);
 });
 
 test("ACS application session is typed, short-lived locally, and isolated from Reown storage", async () => {

@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { reownAppKitState } from "./reown-appkit-config";
 
 const ConfiguredReownAppKitProvider = lazy(async () => {
+  await import("./reown-browser-polyfill");
   const runtime = await import("./reown-appkit-runtime");
   return { default: runtime.ConfiguredReownAppKitProvider };
 });
