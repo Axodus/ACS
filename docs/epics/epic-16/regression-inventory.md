@@ -84,6 +84,20 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - unavailable authority never renders a truthful-looking empty success;
 - repeated outage diagnostics remain deterministic.
 
+## AEES-16-05 S04 shared-state/idempotency regressions
+
+- identical idempotent replay returns the same authoritative result;
+- conflicting replay is rejected;
+- shared-state reload preserves settlement and receipt identity;
+- settlement duplicate prevention remains authoritative across restarts;
+- receipt evidence is preserved across reload;
+- reconciliation replay remains deterministic;
+- exception duplicate prevention and remediation replay are idempotent;
+- transport failure does not fake completion;
+- provider recovery does not duplicate action;
+- process-local fallback is rejected where shared state is required;
+- tenant isolation remains preserved throughout.
+
 ## Required regression suites
 
 For affected areas, run and report:
