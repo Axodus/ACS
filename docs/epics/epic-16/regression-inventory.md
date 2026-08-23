@@ -98,6 +98,13 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - process-local fallback is rejected where shared state is required;
 - tenant isolation remains preserved throughout.
 
+## AEES-16-05 S05 acceptance regressions
+
+- local browser acceptance passes on .design/app-standalone with no overflow, console errors, page errors or request failures;
+- browser evidence uses the standalone local preview manifest at /tmp/acs-epic14-browser-evidence/manifest.json;
+- remote Vercel fidelity is PASS on the documented deployment URL;
+- do not claim remote deployment PASS without live browser evidence from the deployment URL.
+
 ## Required regression suites
 
 For affected areas, run and report:

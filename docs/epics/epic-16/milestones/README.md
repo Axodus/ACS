@@ -86,12 +86,12 @@ Create durable reconciliation backlog, first-class financial exceptions and boun
 ## AEES-16-05 — Provider Boundary & Capability Contract
 
 **Execution unit:** AEES-16-05
-**Status:** IN PROGRESS
+**Status:** COMPLETE
 **Stories:** S01, S02, S03, S04, S05
 
 Define the canonical provider boundary, provider capability contract and readiness separation for production financial operations.
 
-**Current sprint state:** S01 PASS, S02 PASS, S03 PASS, S04 PASS, S05 PENDING.
+**Current sprint state:** S01 PASS, S02 PASS, S03 PASS, S04 PASS, S05 PASS.
 
 **Execution sequence after S00:**
 

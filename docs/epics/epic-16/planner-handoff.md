@@ -204,4 +204,4 @@ S05 remains the milestone acceptance unit.
 
 ## AEES-16-05 current execution
 
-S01 defines the canonical provider boundary and capability contract. S02 turns that contract into evidence-based diagnostics and readiness behavior without changing the boundary semantics. S03 hardens degraded/outage semantics and S04 hardens shared-state, idempotency and resilience; S05 remains the next gated sprint.
+S01 defines the canonical provider boundary and capability contract. S02 turns that contract into evidence-based diagnostics and readiness behavior without changing the boundary semantics. S03 hardens degraded/outage semantics and S04 hardens shared-state, idempotency and resilience. S05 is complete: browser acceptance passed for the standalone app and the documented Vercel deployment.

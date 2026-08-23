@@ -219,6 +219,26 @@ Valid local product acceptance:
 - no-fake-data: PASS
 - Usage: PRESENT
 
+## AEES-16-05 local product acceptance
+
+- app: .design/app-standalone
+- base URL: http://127.0.0.1:45927
+- route matrix: /, /readiness, /system, /system/operational-reliability, /agents, /composition, /operational-execution, /operational-evidence, /economics, /runtime, /logs, /audit, /settings
+- viewports: 1440x900, 1280x800, 768x1024, 390x844
+- manifest: /tmp/acs-epic14-browser-evidence/manifest.json
+- result: PASS
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- request failures: 0
+- no-fake-data: PASS
+
+## AEES-16-05 remote development fidelity
+
+- target deployment: https://acs-hixywhj62-axodus.vercel.app/operations/overview
+- validation result: PASS
+
 ## AEES-16-02 remote browser recovery
 
 - deployment URL: https://acs-hixywhj62-axodus.vercel.app/economics
