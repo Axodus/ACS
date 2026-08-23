@@ -239,6 +239,23 @@ Valid local product acceptance:
 - target deployment: https://acs-hixywhj62-axodus.vercel.app/operations/overview
 - validation result: PASS
 
+## AEES-16-06 local product acceptance
+
+- app: .design/app-standalone
+- base URL: local preview manifest / browser harness evidence
+- manifest: /tmp/acs-epic14-browser-evidence/manifest.json
+- route matrix: /economics, /operations/overview
+- viewports: desktop, tablet, mobile x light, dark
+- result: PASS
+- accessibility: PASS
+- horizontal overflow: 0
+- console errors: 0
+- page errors: 0
+- request failures: 0
+- no-fake-data: PASS
+- workspace consolidation: PASS
+- operator journeys: PASS
+
 ## AEES-16-02 remote browser recovery
 
 - deployment URL: https://acs-hixywhj62-axodus.vercel.app/economics

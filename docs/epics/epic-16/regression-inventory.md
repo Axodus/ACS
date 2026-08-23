@@ -105,6 +105,14 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - remote Vercel fidelity is PASS on the documented deployment URL;
 - do not claim remote deployment PASS without live browser evidence from the deployment URL.
 
+## AEES-16-06 acceptance regressions
+
+- /economics and /operations/overview remain the canonical consolidated financial operator surfaces;
+- light/dark and desktop/tablet/mobile acceptance remains truthful and accessible;
+- no fake pricing, authorization, reservation, usage, settlement, receipt, reconciliation, mismatch, exception, remediation, provider readiness or production eligibility;
+- browser evidence must stay attached to the standalone app and must not reintroduce /static acceptance claims;
+- final closure must preserve Delivered / Production-eligible / Development-only / Unsupported / Deferred separation.
+
 ## Required regression suites
 
 For affected areas, run and report:

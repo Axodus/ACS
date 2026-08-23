@@ -1,6 +1,6 @@
 # EPIC-16 — Production Financial Operations
 
-**Status:** PLANNED / IMPLEMENTATION NOT YET STARTED  
+**Status:** COMPLETE  
 **Normative baseline:** `9005e3a2167d7984f8f129eea4987c3a73f59e1f`  
 **Mission decision:** `docs/epics/BR-02_EPIC-16_Mission_Decision.md` — APPROVE  
 **Planning boundary:** `docs/epics/EPIC-16-17_Post-15.5_Boundary_Review.md`
@@ -90,7 +90,7 @@ Every financial operator workflow must expose authoritative state, enforce Tenan
 | E16-M3 — Usage & Settlement Operations | operator-safe usage inspection, settlement lifecycle and failure semantics |
 | E16-M4 — Reconciliation & Financial Exceptions | mismatch backlog, exception model and governed remediation |
 | E16-M5 — Provider Boundary & Production Hardening | provider diagnostics/certification boundary, topology honesty, telemetry and resilience |
-| E16-M6 — Operator UX & Acceptance | end-to-end Control Plane journeys, browser acceptance, regression evidence and closure readiness |
+| E16-M6 — Operator UX & Acceptance | end-to-end Control Plane journeys, browser acceptance, regression evidence and EPIC closure |
 
 ## Required reading order
 

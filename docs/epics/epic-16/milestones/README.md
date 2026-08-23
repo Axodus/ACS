@@ -119,6 +119,26 @@ Complete the financial operations workspace and certify browser/regression behav
 
 **Exit:** core financial operator journeys pass technical and browser acceptance across supported viewports/themes; closure evidence is complete.
 
+## AEES-16-06 — Operator UX & Final Acceptance
+
+**Execution unit:** AEES-16-06
+**Status:** COMPLETE
+**Stories:** S01, S02, S03, S04, S05
+
+Consolidate the delivered financial operations surfaces into one coherent operator workspace and certify EPIC-16 end-to-end without introducing new financial semantics.
+
+**Current sprint state:** S01 PASS, S02 PASS, S03 PASS, S04 PASS, S05 PASS.
+
+**Execution sequence after E16-M5:**
+
+1. AEES-16-06 / S01 — Financial Operations Workspace Consolidation
+2. AEES-16-06 / S02 — End-to-End Operator Journeys
+3. AEES-16-06 / S03 — Responsive / Accessibility / Theme Acceptance
+4. AEES-16-06 / S04 — Regression & No-Fake-Data Certification
+5. AEES-16-06 / S05 — EPIC-16 Closure & Final Evidence
+
+**Exit:** financial operations navigation, browser acceptance and regression evidence are complete; EPIC-16 closes with truthful Delivered / Production-eligible / Development-only / Unsupported / Deferred separation.
+
 ## Sequencing rules
 
 - S00 precedes all EPIC-16 functional execution.
