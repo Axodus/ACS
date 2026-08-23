@@ -14,13 +14,22 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"tests/**/*.test.mjs\"",
     "test:browser": "node tools/browser-acceptance.mjs",
-    "test:browser:aees-f": "node tools/aees-f-browser-acceptance.mjs"
+    "test:browser:aees-f": "node tools/aees-f-browser-acceptance.mjs",
+    "test:browser:s75": "node tools/s75-account-browser-acceptance.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@reown/appkit": "^1.8.23",
+    "@reown/appkit-adapter-wagmi": "^1.8.23",
+    "@reown/appkit-siwx": "^1.8.23",
+    "@tanstack/react-query": "^5.101.4",
+    "@wagmi/connectors": "6.2.0",
+    "@wagmi/core": "2.22.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.0.0"
+    "react-router-dom": "^7.0.0",
+    "viem": "^2.55.19",
+    "wagmi": "2.19.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

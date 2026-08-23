@@ -1,8 +1,8 @@
 import { createPublicKey, verify, type JsonWebKey } from "node:crypto";
 
-export type AcsAuthMode = "disabled" | "mock" | "required" | "development" | "oidc";
+export type AcsAuthMode = "disabled" | "mock" | "required" | "development" | "oidc" | "siwx";
 export type AcsAuthActorType = "system" | "agent" | "tenant-admin" | "user" | "governance";
-export type AuthenticationMethod = "development_headers" | "oidc_bearer";
+export type AuthenticationMethod = "development_headers" | "oidc_bearer" | "siwx_session";
 
 export interface AuthenticatedPrincipal {
   readonly principalId: string;
@@ -49,15 +49,20 @@ export type HttpAuthenticationFailureCode =
   | "missing_subject"
   | "unsupported_algorithm"
   | "unknown_signing_key"
-  | "identity_provider_unavailable";
+  | "identity_provider_unavailable"
+  | "revoked_token"
+  | "account_suspended"
+  | "account_disabled";
 
 export class HttpAuthenticationError extends Error {
   readonly code: HttpAuthenticationFailureCode;
+  readonly status: 401 | 403;
 
-  constructor(code: HttpAuthenticationFailureCode, message: string) {
+  constructor(code: HttpAuthenticationFailureCode, message: string, status: 401 | 403 = 401) {
     super(message);
     this.name = "HttpAuthenticationError";
     this.code = code;
+    this.status = status;
   }
 }
 
@@ -69,7 +74,7 @@ export class HttpIdentityConfigurationError extends Error {
 }
 
 export interface HttpIdentityValidatorDescriptor {
-  readonly mode: "development" | "oidc";
+  readonly mode: "development" | "oidc" | "siwx";
   readonly provider: string;
   readonly productionOriented: boolean;
   readonly issuer?: string;
@@ -409,7 +414,7 @@ export function parseMockAuthContext(headers: Readonly<Record<string, string | u
 }
 
 function parseAuthMode(value: string | undefined): AcsAuthMode {
-  if (value === "mock" || value === "required" || value === "development" || value === "oidc") return value;
+  if (value === "mock" || value === "required" || value === "development" || value === "oidc" || value === "siwx") return value;
   return "disabled";
 }
 

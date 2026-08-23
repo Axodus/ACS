@@ -114,6 +114,18 @@ import {
   type OperationalTelemetryProvider,
 } from "../control-plane/operational-telemetry.js";
 import { OperationalDiagnosticsService } from "../control-plane/operational-diagnostics.js";
+import {
+  AccountIdentityService,
+  InMemoryAccountIdentityStore,
+  type AccountIdentityStore,
+} from "../control-plane/account-identity.js";
+import { LazyPostgresAccountIdentityStore } from "../control-plane/shared-state/lazy-postgres-account-identity-store.js";
+import { SiwxSessionIdentityValidator } from "./siwx-session-auth.js";
+import {
+  UnavailableSiwxArtifactVerifier,
+  type SiwxAuthenticatedArtifactVerifier,
+} from "./siwx-artifact.js";
+import { ViemSiwxArtifactVerifier } from "./viem-siwx-artifact-verifier.js";
 
 export interface ControlPlaneContext {
   readonly engineRegistry: EngineRegistry;
@@ -130,6 +142,8 @@ export interface ControlPlaneContext {
   readonly tenantService: TenantLifecycleService;
   readonly tenantMembershipService: TenantMembershipService;
   readonly tenantGovernanceService: TenantGovernanceService;
+  readonly accountIdentity: AccountIdentityService;
+  readonly siwxArtifactVerifier: SiwxAuthenticatedArtifactVerifier;
   readonly providerService: ModelProviderService;
   readonly runnerService: AgentRunnerService;
   readonly credentials: CredentialConnectionRegistry;
@@ -270,7 +284,16 @@ export interface ControlPlaneContextOptions {
   readonly useDurableEconomicState?: boolean;
   readonly economicStatePath?: string;
   readonly identityValidator?: HttpIdentityValidator;
-  readonly authMode?: "development" | "oidc";
+  readonly authMode?: "development" | "oidc" | "siwx";
+  readonly accountIdentityStore?: AccountIdentityStore;
+  readonly accountIdentityService?: AccountIdentityService;
+  readonly siwxArtifactVerifier?: SiwxAuthenticatedArtifactVerifier;
+  readonly siwxVerifierEnabled?: boolean;
+  readonly siwxAllowedOrigins?: readonly string[];
+  readonly siwxRpcUrls?: Readonly<Record<number, string | undefined>>;
+  readonly siwxRpcTimeoutMs?: number;
+  readonly accountSessionTtlMs?: number;
+  readonly siwxNonceTtlMs?: number;
   readonly oidcIssuer?: string;
   readonly oidcAudience?: string;
   readonly oidcJwksUri?: string;
@@ -709,8 +732,47 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       "production mode requires durable economic state and settlement providers; in-memory fallback is disabled",
     );
   }
-  const authMode = options.authMode
-    ?? (process.env.ACS_AUTH_MODE === "oidc" ? "oidc" : "development");
+  const configuredAuthMode = options.authMode ?? process.env.ACS_AUTH_MODE;
+  if (configuredAuthMode !== undefined
+    && configuredAuthMode !== "development"
+    && configuredAuthMode !== "oidc"
+    && configuredAuthMode !== "siwx") {
+    throw new HttpIdentityConfigurationError("ACS_AUTH_MODE must be development, oidc, or siwx");
+  }
+  const authMode = configuredAuthMode ?? "development";
+  const accountIdentity = options.accountIdentityService ?? new AccountIdentityService({
+    store: options.accountIdentityStore ?? (authMode === "siwx" && environmentTopology.environment !== "local"
+      ? new LazyPostgresAccountIdentityStore({
+          connectionString: process.env.ACS_SHARED_DATABASE_URL
+            ?? (() => { throw new HttpIdentityConfigurationError("ACS_SHARED_DATABASE_URL is required for SIWX outside LOCAL"); })(),
+          tls: process.env.ACS_SHARED_DATABASE_TLS !== "false",
+        })
+      : new InMemoryAccountIdentityStore()),
+    sessionTtlMs: options.accountSessionTtlMs,
+    nonceTtlMs: options.siwxNonceTtlMs,
+  });
+  const siwxVerifierEnabled = options.siwxVerifierEnabled ?? process.env.ACS_SIWX_VERIFIER_ENABLED === "true";
+  const siwxRpcUrls = options.siwxRpcUrls ?? {
+    84532: process.env.ACS_SIWX_BASE_SEPOLIA_RPC_URL,
+    11155111: process.env.ACS_SIWX_ETHEREUM_SEPOLIA_RPC_URL,
+  };
+  const siwxArtifactVerifier = options.siwxArtifactVerifier
+    ?? (authMode === "siwx" && siwxVerifierEnabled
+      ? new ViemSiwxArtifactVerifier({
+          accountIdentity,
+          allowedOrigins: options.siwxAllowedOrigins ?? splitEnvironmentList(process.env.ACS_SIWX_ALLOWED_ORIGINS) ?? [],
+          chains: [
+            ...(siwxRpcUrls[84532]
+              ? [{ chainId: 84532, name: "Base Sepolia", rpcUrl: siwxRpcUrls[84532] }]
+              : []),
+            ...(siwxRpcUrls[11155111]
+              ? [{ chainId: 11155111, name: "Ethereum Sepolia", rpcUrl: siwxRpcUrls[11155111] }]
+              : []),
+          ],
+          rpcTimeoutMs: options.siwxRpcTimeoutMs ?? readPositiveEnvironmentInteger("ACS_SIWX_RPC_TIMEOUT_MS"),
+          productionOriented: false,
+        })
+      : new UnavailableSiwxArtifactVerifier());
   const identityValidator = options.identityValidator ?? (authMode === "oidc"
     ? new OidcJwtIdentityValidator({
         issuer: options.oidcIssuer ?? process.env.ACS_OIDC_ISSUER ?? "",
@@ -721,7 +783,9 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
         platformAdminClaim: options.oidcPlatformAdminClaim ?? process.env.ACS_OIDC_PLATFORM_ADMIN_CLAIM,
         platformAdminValue: options.oidcPlatformAdminValue ?? process.env.ACS_OIDC_PLATFORM_ADMIN_VALUE,
       })
-    : new DevelopmentHeaderIdentityValidator());
+    : authMode === "siwx"
+      ? new SiwxSessionIdentityValidator(accountIdentity)
+      : new DevelopmentHeaderIdentityValidator());
   if (adapterProfile === "production" && !identityValidator.descriptor.productionOriented) {
     throw new HttpIdentityConfigurationError(
       "production mode requires a production-oriented HTTP identity validator; disabled/mock/development fallback is prohibited",
@@ -925,6 +989,8 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
     tenantService,
     tenantMembershipService,
     tenantGovernanceService,
+    accountIdentity,
+    siwxArtifactVerifier,
     providerService: new ModelProviderService(modelProviderRegistry),
     runnerService: new AgentRunnerService(runnerRegistry),
     credentials,
@@ -1018,6 +1084,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       sqliteSettlementProvider?.close();
       sqliteSecretCatalog?.close();
       rateLimiter.close?.();
+      await accountIdentity.store.close?.();
       runtimeCoordinator?.close();
       deploymentService.close();
       sqliteAgentRepository?.close();

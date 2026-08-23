@@ -64,7 +64,7 @@ test("Dashboard styles include responsive customer grids and semantic severities
   assert.match(cssSource, /\.cockpit-attention/);
   assert.match(cssSource, /\.financial-bars/);
   assert.match(cssSource, /\.quick-access\.visual/);
-  assert.match(cssSource, /\.finding-severity-error \{ color: var\(--red\); \}/);
-  assert.match(cssSource, /\.finding-severity-warning \{ color: var\(--amber\); \}/);
+  assert.match(cssSource, /\.finding-severity-error\s*\{\s*color:\s*var\(--red\);\s*\}/);
+  assert.match(cssSource, /\.finding-severity-warning\s*\{\s*color:\s*var\(--amber\);\s*\}/);
   assert.match(cssSource, /@media \(max-width: 430px\)/);
 });

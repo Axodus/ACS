@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 1;
+export const SHARED_STATE_SCHEMA_VERSION = 2;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -189,6 +189,54 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
         consumed BIGINT NOT NULL,
         PRIMARY KEY (policy_id, key_hash, window_start)
       )`,
+    ],
+  },
+  {
+    version: 2,
+    name: "account_identity_and_siwx_sessions",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_accounts (
+        account_id TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+      )`,
+      `CREATE TABLE IF NOT EXISTS acs_external_identities (
+        identity_id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES acs_accounts(account_id),
+        provider TEXT NOT NULL,
+        namespace TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        UNIQUE (provider, namespace, subject)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_external_identity_account_idx
+        ON acs_external_identities (account_id, identity_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_auth_sessions (
+        session_id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES acs_accounts(account_id),
+        identity_id TEXT NOT NULL REFERENCES acs_external_identities(identity_id),
+        provider_session_id TEXT NOT NULL,
+        token_digest TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ,
+        last_seen_at TIMESTAMPTZ,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_auth_session_provider_idx
+        ON acs_auth_sessions (provider_session_id, revoked_at)`,
+      `CREATE INDEX IF NOT EXISTS acs_auth_session_expiry_idx
+        ON acs_auth_sessions (expires_at, revoked_at)`,
+      `CREATE TABLE IF NOT EXISTS acs_siwx_nonces (
+        nonce_digest TEXT PRIMARY KEY,
+        expires_at TIMESTAMPTZ NOT NULL,
+        consumed_at TIMESTAMPTZ,
+        payload JSONB NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_siwx_nonce_expiry_idx
+        ON acs_siwx_nonces (expires_at, consumed_at)`,
     ],
   },
 ];

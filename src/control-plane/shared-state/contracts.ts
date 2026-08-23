@@ -25,6 +25,7 @@ import type {
 } from "../../workers/durable-runtime-state.js";
 import type { WorkerCapability, WorkerEligibilityRequirements } from "../../workers/worker-types.js";
 import type { TraceContext } from "../operational-telemetry.js";
+import type { AccountIdentityStore } from "../account-identity.js";
 
 export type SharedStateTopology = "shared_network_database";
 
@@ -238,6 +239,7 @@ export interface AsyncRateLimitRepository {
 }
 
 export interface SharedAuthoritativeStateSession {
+  readonly accountIdentity: AccountIdentityStore;
   readonly tenants: AsyncTenantRepository;
   readonly memberships: AsyncTenantMembershipRepository;
   readonly governance: AsyncTenantGovernanceRepository;

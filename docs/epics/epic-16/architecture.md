@@ -153,3 +153,34 @@ The canonical provider set is limited to the provider boundaries already used by
 Each provider projection must expose provider identity, configured mode, supported capabilities, readiness, production eligibility, degradation reason and provenance. The Product API may project this truth through diagnostics/readiness endpoints, but it must not reveal credentials or introduce a competing readiness contract.
 
 HTTP readiness, execution readiness and financial-operation readiness are distinct. A healthy HTTP listener does not imply a reachable worker, durable persistence or production-eligible topology.
+
+## 13. Account and identity boundary
+
+```text
+Reown AppKit wallet connection
+        |
+        v
+official SIWX message/signature
+        |
+        v
+Product API SiwxAuthenticatedArtifactVerifier
+        |
+        v
+VerifiedWalletIdentity
+        |
+        v
+global ACS Account + ExternalIdentity
+        |
+        +--> opaque ACS application session
+        |
+        +--> separate TenantMembership lookup
+                  |
+                  v
+             role/governance/economic authority
+```
+
+The Account/identity store is process-local only in LOCAL. SIWX outside LOCAL requires shared PostgreSQL state; memory/filesystem fallback is prohibited. Shared-state schema v2 persists Accounts, unique external identities, hashed ACS sessions and single-use nonces.
+
+The Product API may remain HTTP-ready when the external SIWX verifier is not configured. In that state nonce creation remains safe, exchange fails closed, existing non-SIWX inspection behavior remains unaffected and ACS must not report wallet authentication as available.
+
+PRODUCTION remains not configured and not eligible until a production Reown project, domain allowlist, certified server-side verifier, shared session persistence, approved RPC verification path and security acceptance are evidenced.

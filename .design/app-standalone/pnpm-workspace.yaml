@@ -3,3 +3,6 @@ allowBuilds:
   sharp: set this to true or false
   unrs-resolver: set this to true or false
   workerd: set this to true or false
+overrides:
+  "@wagmi/connectors": 6.2.0
+  "@wagmi/core": 2.22.1

@@ -208,4 +208,8 @@ S01 defines the canonical provider boundary and capability contract. S02 turns t
 
 ## AEES-16-06 current execution
 
-S01 consolidates the delivered financial workspace, S02 certifies the operator journeys, S03 locks the responsive/accessibility/theme matrix, S04 closes the regression and no-fake-data baseline, and S05 finalizes EPIC-16 closure evidence without adding new financial semantics.
+The historical closure at `a7c07f6` is superseded. EPIC-16 is reopened and not complete.
+
+S01 is PASS and defines the ACS Account/identity boundary, shared PostgreSQL schema v2, Product API read/exchange endpoints and fixed server-side session invariants. S02 implementation is PASS: the Product API independently verifies the selected SIWX message/signature with `viem`, and the canonical standalone integrates Reown AppKit with required SIWX and typed ACS application sessions. The checked runtime and Vercel `acs-app` have no Reown/SIWX environment configuration, so the live state remains `NOT_CONFIGURED` and exchange fails closed. S03 contract journeys pass through S74 and the existing financial regressions, but the interactive wallet journey has not run. S04 passes the complete desktop/tablet/mobile x light/dark matrix for the truthful `NOT_CONFIGURED` state; the authenticated matrix remains pending. S05 re-closes the EPIC only after real development configuration and signed-wallet evidence.
+
+Wallet connection, SIWX authentication, Account, Tenant membership, role and economic authorization are distinct. The UI state for a verified Account without membership is `NO_TENANT_MEMBERSHIP`.

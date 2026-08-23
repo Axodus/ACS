@@ -256,6 +256,29 @@ Valid local product acceptance:
 - workspace consolidation: PASS
 - operator journeys: PASS
 
+The acceptance above is historical evidence from the superseded closure at `a7c07f6`. It does not certify the Accounts/SIWX amendment.
+
+## AEES-16-06 Accounts/SIWX amendment — truthful NOT_CONFIGURED acceptance
+
+- checked at: August 23, 2026;
+- app: `.design/app-standalone`;
+- base URL: `http://127.0.0.1:3000`;
+- routes: `/`, `/economics`, `/operations/overview`;
+- matrix: desktop/light, desktop/dark, tablet/light, tablet/dark, mobile/light, mobile/dark;
+- checks: 18/18 PASS;
+- account state: `NOT_CONFIGURED` / `REOWN_DISABLED`;
+- account control visible and disabled: PASS;
+- structural accessibility baseline: PASS;
+- horizontal overflow: 0;
+- console errors: 0;
+- page errors: 0;
+- request failures: 0;
+- manifest: `/tmp/acs-s75-account-browser-evidence/manifest.json`;
+- screenshots: `/tmp/acs-s75-account-browser-evidence/screenshots/`;
+- authenticated SIWX journey: NOT RUN;
+- reason: no public Reown development project ID or matching backend verifier configuration is present locally or in Vercel `acs-app`;
+- result: PASS for truthful unavailable-state UX; not sufficient for S05 closure.
+
 ## AEES-16-02 remote browser recovery
 
 - deployment URL: https://acs-hixywhj62-axodus.vercel.app/economics

@@ -77,9 +77,17 @@ async function withDurableFixture(callback) {
   try {
     return await callback({ root, storePath, providerPath, store, provider, service });
   } finally {
-    store.close();
-    provider.close();
+    closeIfOpen(store);
+    closeIfOpen(provider);
     await rm(root, { recursive: true, force: true });
+  }
+}
+
+function closeIfOpen(database) {
+  try {
+    database.close();
+  } catch (error) {
+    if (error?.code !== "ERR_INVALID_STATE") throw error;
   }
 }
 
@@ -254,6 +262,12 @@ test("provider crash window is repaired once and does not fake completion", asyn
 test("exception replay and remediation replay are deterministic", async () => {
   await withDurableFixture(async ({ service }) => {
     const { reservation } = seedLifecycle(service, "exception", "tenant-alpha", false);
+    await service.settle({
+      settlementId: "settlement-exception",
+      reservationId: reservation.reservationId,
+      runId: "run-exception",
+      idempotencyKey: "settlement-key-exception",
+    });
     const evidence = new OperationalEvidenceService({ economicService: service });
     const mismatch = (await evidence.listReconciliationMismatches())[0];
     assert.ok(mismatch);

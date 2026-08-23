@@ -52,7 +52,7 @@ test("SH02 PostgreSQL transactions rollback and CAS is single-winner", {
       profile: "shared",
       localAuthorityFallback: false,
       networkIoCapable: true,
-      schemaVersion: 1,
+      schemaVersion: 2,
       topology: "shared_network_database",
     });
     const now = Date.now();

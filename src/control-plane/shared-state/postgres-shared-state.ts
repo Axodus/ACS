@@ -45,6 +45,19 @@ import {
 import type { WorkerCapability, WorkerEligibilityRequirements } from "../../workers/worker-types.js";
 import type { TraceContext } from "../operational-telemetry.js";
 import {
+  AccountDisabledError,
+  AccountNotFoundError,
+  AccountSuspendedError,
+  InvalidAcsSessionError,
+  InvalidWalletIdentityError,
+  type AccountIdentityStore,
+  type AcsAccount,
+  type AcsAuthSession,
+  type ExternalIdentity,
+  type SiwxNonceRecord,
+  type VerifiedWalletIdentity,
+} from "../account-identity.js";
+import {
   RepositoryTimeoutError,
   RepositoryUnavailableError,
   RevisionConflictError,
@@ -157,6 +170,201 @@ async function currentRevision(
   );
   const row = result.rows[0];
   return row ? Number(row[revisionColumn]) : undefined;
+}
+
+async function withDatabaseTransaction<T>(db: Queryable, operation: string, fn: (transaction: Queryable) => Promise<T>): Promise<T> {
+  if (!(db instanceof Pool)) return fn(db);
+  const client = await db.connect();
+  try {
+    await query(client, operation + ":begin", "BEGIN");
+    const result = await fn(client);
+    await query(client, operation + ":commit", "COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+class PostgresAccountIdentityStore implements AccountIdentityStore {
+  readonly descriptor = {
+    adapter: "postgres-shared-account-identity",
+    productionOriented: true,
+    durability: "shared_durable",
+    multiInstance: "shared_database",
+  } as const;
+
+  constructor(private readonly db: Queryable) {}
+
+  async resolveOrCreateVerifiedIdentity(input: {
+    readonly identity: VerifiedWalletIdentity;
+    readonly accountId: string;
+    readonly identityId: string;
+  }): Promise<{ readonly account: AcsAccount; readonly identity: ExternalIdentity; readonly created: boolean }> {
+    return this.#resolveOrCreateVerifiedIdentity(input, true);
+  }
+
+  async #resolveOrCreateVerifiedIdentity(input: {
+    readonly identity: VerifiedWalletIdentity;
+    readonly accountId: string;
+    readonly identityId: string;
+  }, retryOnConflict: boolean): Promise<{ readonly account: AcsAccount; readonly identity: ExternalIdentity; readonly created: boolean }> {
+    try {
+      return await withDatabaseTransaction(this.db, "resolve account identity", async (db) => {
+        const existingResult = await query<PayloadRow>(db, "find external identity", `
+          SELECT payload FROM acs_external_identities
+          WHERE provider = $1 AND namespace = $2 AND subject = $3
+          FOR UPDATE
+        `, [input.identity.provider, input.identity.namespace, input.identity.providerSubject]);
+        const existing = existingResult.rows[0] ? decode<ExternalIdentity>(existingResult.rows[0].payload) : undefined;
+        if (existing) {
+          const accountResult = await query<PayloadRow>(db, "get account for identity", "SELECT payload FROM acs_accounts WHERE account_id = $1 FOR UPDATE", [existing.accountId]);
+          if (!accountResult.rows[0]) throw new AccountNotFoundError(existing.accountId);
+          const account = decode<AcsAccount>(accountResult.rows[0].payload);
+          if (account.status === "suspended") throw new AccountSuspendedError(account.accountId);
+          if (account.status === "disabled") throw new AccountDisabledError(account.accountId);
+          const nextIdentity: ExternalIdentity = {
+            ...existing,
+            caip10: input.identity.caip10,
+            verifiedAt: input.identity.verifiedAt,
+            lastAuthenticatedAt: input.identity.verifiedAt,
+          };
+          const nextAccount: AcsAccount = {
+            ...account,
+            updatedAt: input.identity.verifiedAt,
+            lastAuthenticatedAt: input.identity.verifiedAt,
+          };
+          await query(db, "update external identity", `
+            UPDATE acs_external_identities SET payload = $2::jsonb, updated_at = clock_timestamp()
+            WHERE identity_id = $1
+          `, [existing.identityId, serialize(nextIdentity)]);
+          await query(db, "update authenticated account", `
+            UPDATE acs_accounts SET status = $2, payload = $3::jsonb, updated_at = clock_timestamp()
+            WHERE account_id = $1
+          `, [nextAccount.accountId, nextAccount.status, serialize(nextAccount)]);
+          return { account: nextAccount, identity: nextIdentity, created: false };
+        }
+
+        const account: AcsAccount = {
+          accountId: input.accountId,
+          status: "active",
+          createdAt: input.identity.verifiedAt,
+          updatedAt: input.identity.verifiedAt,
+          lastAuthenticatedAt: input.identity.verifiedAt,
+        };
+        const identity: ExternalIdentity = {
+          identityId: input.identityId,
+          accountId: input.accountId,
+          provider: input.identity.provider,
+          identityType: "wallet",
+          namespace: input.identity.namespace,
+          subject: input.identity.providerSubject,
+          normalizedAddress: input.identity.normalizedAddress,
+          caip10: input.identity.caip10,
+          verificationState: "verified",
+          verifiedAt: input.identity.verifiedAt,
+          lastAuthenticatedAt: input.identity.verifiedAt,
+        };
+        await query(db, "create account", `
+          INSERT INTO acs_accounts (account_id, status, payload) VALUES ($1, $2, $3::jsonb)
+        `, [account.accountId, account.status, serialize(account)]);
+        await query(db, "create external identity", `
+          INSERT INTO acs_external_identities (identity_id, account_id, provider, namespace, subject, payload)
+          VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+        `, [identity.identityId, identity.accountId, identity.provider, identity.namespace, identity.subject, serialize(identity)]);
+        return { account, identity, created: true };
+      });
+    } catch (error) {
+      const nestedCode = errorCode((error as { readonly cause?: unknown }).cause ?? error);
+      if (retryOnConflict && nestedCode === "23505") return this.#resolveOrCreateVerifiedIdentity(input, false);
+      throw error;
+    }
+  }
+
+  async getAccount(accountId: string): Promise<AcsAccount | undefined> {
+    const result = await query<PayloadRow>(this.db, "get account", "SELECT payload FROM acs_accounts WHERE account_id = $1", [accountId]);
+    return result.rows[0] ? decode<AcsAccount>(result.rows[0].payload) : undefined;
+  }
+
+  async saveAccount(account: AcsAccount): Promise<AcsAccount> {
+    const result = await query(this.db, "save account", `
+      UPDATE acs_accounts SET status = $2, payload = $3::jsonb, updated_at = clock_timestamp()
+      WHERE account_id = $1
+    `, [account.accountId, account.status, serialize(account)]);
+    if (!changed(result)) throw new AccountNotFoundError(account.accountId);
+    return account;
+  }
+
+  async getIdentity(identityId: string): Promise<ExternalIdentity | undefined> {
+    const result = await query<PayloadRow>(this.db, "get external identity", "SELECT payload FROM acs_external_identities WHERE identity_id = $1", [identityId]);
+    return result.rows[0] ? decode<ExternalIdentity>(result.rows[0].payload) : undefined;
+  }
+
+  async createSession(session: AcsAuthSession): Promise<AcsAuthSession> {
+    try {
+      await query(this.db, "create ACS auth session", `
+        INSERT INTO acs_auth_sessions
+          (session_id, account_id, identity_id, provider_session_id, token_digest, expires_at, payload)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+      `, [session.sessionId, session.accountId, session.identityId, session.providerSessionId, session.tokenDigest, new Date(session.expiresAt), serialize(session)]);
+      return session;
+    } catch (error) {
+      if (errorCode((error as { readonly cause?: unknown }).cause ?? error) === "23505") {
+        throw new InvalidAcsSessionError("session identity already exists");
+      }
+      throw error;
+    }
+  }
+
+  async getSession(sessionId: string): Promise<AcsAuthSession | undefined> {
+    const result = await query<PayloadRow>(this.db, "get ACS auth session", "SELECT payload FROM acs_auth_sessions WHERE session_id = $1", [sessionId]);
+    return result.rows[0] ? decode<AcsAuthSession>(result.rows[0].payload) : undefined;
+  }
+
+  async saveSession(session: AcsAuthSession): Promise<AcsAuthSession> {
+    const result = await query(this.db, "save ACS auth session", `
+      UPDATE acs_auth_sessions
+      SET revoked_at = $2, last_seen_at = $3, payload = $4::jsonb, updated_at = clock_timestamp()
+      WHERE session_id = $1
+    `, [
+      session.sessionId,
+      session.revokedAt === undefined ? null : new Date(session.revokedAt),
+      session.lastSeenAt === undefined ? null : new Date(session.lastSeenAt),
+      serialize(session),
+    ]);
+    if (!changed(result)) throw new InvalidAcsSessionError("session not found");
+    return session;
+  }
+
+  async revokeSessionsByProviderSessionId(providerSessionId: string, revokedAt: number): Promise<number> {
+    const result = await query(this.db, "revoke provider ACS sessions", `
+      UPDATE acs_auth_sessions
+      SET revoked_at = $2,
+          payload = jsonb_set(payload, '{revokedAt}', to_jsonb($3::bigint), true),
+          updated_at = clock_timestamp()
+      WHERE provider_session_id = $1 AND revoked_at IS NULL
+    `, [providerSessionId, new Date(revokedAt), revokedAt]);
+    return result.rowCount ?? 0;
+  }
+
+  async createNonce(record: SiwxNonceRecord): Promise<SiwxNonceRecord> {
+    await query(this.db, "create SIWX nonce", `
+      INSERT INTO acs_siwx_nonces (nonce_digest, expires_at, payload)
+      VALUES ($1, $2, $3::jsonb)
+    `, [record.nonceDigest, new Date(record.expiresAt), serialize(record)]);
+    return record;
+  }
+
+  async consumeNonce(nonceDigest: string, consumedAt: number): Promise<boolean> {
+    const result = await query(this.db, "consume SIWX nonce", `
+      UPDATE acs_siwx_nonces
+      SET consumed_at = $2, payload = jsonb_set(payload, '{consumedAt}', to_jsonb($3::bigint), true)
+      WHERE nonce_digest = $1 AND consumed_at IS NULL AND expires_at > $2
+    `, [nonceDigest, new Date(consumedAt), consumedAt]);
+    return changed(result);
+  }
 }
 
 class PostgresTenantRepository implements AsyncTenantRepository {
@@ -1095,6 +1303,7 @@ class PostgresRateLimitRepository implements AsyncRateLimitRepository {
 }
 
 class PostgresSharedStateSession implements SharedAuthoritativeStateSession {
+  readonly accountIdentity: AccountIdentityStore;
   readonly tenants: AsyncTenantRepository;
   readonly memberships: AsyncTenantMembershipRepository;
   readonly governance: AsyncTenantGovernanceRepository;
@@ -1107,6 +1316,7 @@ class PostgresSharedStateSession implements SharedAuthoritativeStateSession {
   readonly rateLimits: AsyncRateLimitRepository;
 
   constructor(db: Queryable) {
+    this.accountIdentity = new PostgresAccountIdentityStore(db);
     this.tenants = new PostgresTenantRepository(db);
     this.memberships = new PostgresMembershipRepository(db);
     this.governance = new PostgresGovernanceRepository(db);
@@ -1138,6 +1348,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
     multiInstance: "shared_database",
     topology: "shared_network_database",
   };
+  readonly accountIdentity: AccountIdentityStore;
   readonly tenants: AsyncTenantRepository;
   readonly memberships: AsyncTenantMembershipRepository;
   readonly governance: AsyncTenantGovernanceRepository;
@@ -1171,6 +1382,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       this.#lastPoolErrorAt = Date.now();
     });
     const session = new PostgresSharedStateSession(this.#pool);
+    this.accountIdentity = session.accountIdentity;
     this.tenants = session.tenants;
     this.memberships = {
       create: (membership) => this.withTransaction("create membership", (tx) => tx.memberships.create(membership)),

@@ -1,12 +1,7 @@
 import { resolveStandaloneApiBaseUrl } from "./environment.js";
+import { getAcsAccessToken } from "../auth/acs-session-store";
 
 const API_BASE_URL = resolveStandaloneApiBaseUrl(import.meta.env, typeof window !== "undefined" ? window.location : undefined);
-
-declare global {
-  interface Window {
-    __ACS_AUTH__?: { readonly accessToken?: string };
-  }
-}
 
 export type ProductApiHealth = {
   service: string;
@@ -2461,6 +2456,61 @@ export const productApiConfig = {
   tenantAdministrationUrl: import.meta.env.VITE_ACS_TENANT_ADMIN_URL ?? "/admin/tenants",
 };
 
+export type AcsAccountReadModel = {
+  accountId: string;
+  status: "active" | "suspended" | "disabled";
+  createdAt: number;
+  updatedAt: number;
+  lastAuthenticatedAt?: number;
+};
+
+export type AcsExternalIdentityReadModel = {
+  identityId: string;
+  accountId: string;
+  provider: "reown_siwx";
+  identityType: "wallet";
+  namespace: "eip155";
+  subject: string;
+  normalizedAddress: string;
+  caip10: string;
+  verificationState: "verified";
+  verifiedAt: number;
+  lastAuthenticatedAt: number;
+};
+
+export type AcsMembershipReadModel = {
+  tenantId: string;
+  principalId: string;
+  role: "tenant_owner" | "tenant_admin" | "operator" | "auditor";
+  status: "active" | "suspended" | "removed";
+  createdAt: number;
+  updatedAt: number;
+  revision: number;
+};
+
+export type AcsAuthSessionReadModel = {
+  sessionId: string;
+  accountId: string;
+  identityId: string;
+  createdAt: number;
+  expiresAt: number;
+  revokedAt?: number;
+  lastSeenAt?: number;
+};
+
+export type AcsAccountProjection = {
+  account: AcsAccountReadModel;
+  externalIdentity: AcsExternalIdentityReadModel;
+  memberships: AcsMembershipReadModel[];
+  membershipState: "ACTIVE_TENANT_MEMBERSHIP" | "NO_TENANT_MEMBERSHIP";
+};
+
+export type AcsSiwxExchangeResult = AcsAccountProjection & {
+  accessToken: string;
+  session: AcsAuthSessionReadModel;
+  accountCreated: boolean;
+};
+
 export function normalizeApiError(payload: unknown, status: number): ProductApiError {
   const error =
     payload && typeof payload === "object"
@@ -2481,8 +2531,8 @@ export function normalizeApiError(payload: unknown, status: number): ProductApiE
   };
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const accessToken = typeof window !== "undefined" ? window.__ACS_AUTH__?.accessToken : undefined;
+async function request<T>(path: string, options: RequestInit = {}, authentication: "include" | "omit" = "include"): Promise<T> {
+  const accessToken = authentication === "include" ? getAcsAccessToken() : undefined;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
@@ -2502,6 +2552,33 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const productApi = {
+  async createSiwxNonce() {
+    return request<{ nonce: string; expiresAt: number }>("/auth/siwx/nonce", { method: "POST" }, "omit");
+  },
+
+  async exchangeSiwxArtifact(artifact: { readonly message: string; readonly signature: string }) {
+    return request<AcsSiwxExchangeResult>("/auth/siwx/exchange", {
+      method: "POST",
+      body: JSON.stringify(artifact),
+    }, "omit");
+  },
+
+  async getAuthSession() {
+    return request<{
+      account: AcsAccountReadModel;
+      externalIdentity: AcsExternalIdentityReadModel;
+      session: AcsAuthSessionReadModel;
+    }>("/auth/session");
+  },
+
+  async revokeAuthSession() {
+    return request<{ revoked: true }>("/auth/session", { method: "DELETE" });
+  },
+
+  async getMyAccount() {
+    return request<AcsAccountProjection>("/accounts/me");
+  },
+
   async health() {
     return request<ProductApiHealth>("/health");
   },

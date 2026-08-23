@@ -197,3 +197,24 @@ The diagnostics read model must expose, where available:
 Readiness states remain the smallest meaningful set: READY, DEGRADED, UNAVAILABLE, NOT_CONFIGURED and UNSUPPORTED. HTTP readiness, execution readiness and financial-operation readiness remain separate and a healthy listener does not imply worker, settlement or persistence readiness.
 
 Diagnostics must never expose secrets, tokens or credential values.
+
+## 17. Account and wallet identity contract
+
+Wallet connection, SIWX authentication, ACS Account, Tenant membership, role and economic authorization are separate authorities. A verified wallet identity resolves or creates a global ACS Account. It does not create Tenant membership, grant a role, set `platformAdmin`, add scopes or authorize an economic operation.
+
+Canonical EVM identity fields are:
+
+```text
+provider = reown_siwx
+namespace = eip155
+subject = reown_siwx:eip155:<normalizedAddress>
+caip10 = eip155:<chainId>:<normalizedAddress>
+```
+
+Uniqueness is `provider + namespace + subject`. The subject is chain-agnostic; CAIP-10 preserves the chain actually proven by the latest successful verification.
+
+`SiwxAuthenticatedArtifactVerifier` owns the selected official Reown/SIWX nonce/message/signature/session request shape. Only the verifier may derive `VerifiedWalletIdentity`. Client-provided connection state, address, chain, subject or timestamps are untrusted inputs.
+
+ACS application sessions are opaque and server-controlled. The token secret has at least 256 bits of entropy; only its SHA-256 digest is persisted and compared in constant time. Sessions have explicit `expiresAt` and `revokedAt`, a fixed 15-minute TTL and no sliding expiration. Read models omit both the token digest and the upstream provider session identifier.
+
+`Account.status = suspended|disabled` invalidates use of existing ACS sessions immediately and rejects new SIWX exchange. The external wallet connection may remain alive. The safe state for a verified Account with no active membership is `NO_TENANT_MEMBERSHIP`.

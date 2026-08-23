@@ -215,7 +215,7 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
       if (error instanceof HttpAuthenticationError) {
         const result = fail(
           error.message,
-          401,
+          error.status,
           "authentication_failed",
           correlationId,
           { category: error.code },
@@ -226,7 +226,7 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
         writeJson(response, result.status, result.body, {
           ...edgeHeaders,
           ...rateLimitHeaders(networkDecision),
-          "www-authenticate": "Bearer",
+          ...(error.status === 401 ? { "www-authenticate": "Bearer" } : {}),
         });
         return;
       }
@@ -261,7 +261,12 @@ export function createAcsHttpHandler(context: ControlPlaneContext) {
 
 function isPublicRoute(requestUrl: string): boolean {
   const path = new URL(requestUrl, "http://localhost").pathname.replace(/\/+$/, "") || "/";
-  return path === "/api/v1/health" || path === "/api/v1/ready" || path === "/acs/health" || path === "/acs/version";
+  return path === "/api/v1/health"
+    || path === "/api/v1/ready"
+    || path === "/api/v1/auth/siwx/nonce"
+    || path === "/api/v1/auth/siwx/exchange"
+    || path === "/acs/health"
+    || path === "/acs/version";
 }
 
 function isWorkerServiceRoute(requestUrl: string): boolean {

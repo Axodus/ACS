@@ -56,6 +56,17 @@ import {
 } from "../../workers/durable-runtime-state.js";
 import type { CredentialConnection, CredentialConnectionType } from "../../intelligence/credential-connection.js";
 import { SecretInputError, SecretNotFoundError, SecretProviderUnavailableError, SecretRevokedError, SecretTenantMismatchError } from "../../intelligence/secret-store.js";
+import {
+  AccountDisabledError,
+  AccountSuspendedError,
+  ExpiredAcsSessionError,
+  InvalidAcsSessionError,
+  InvalidSiwxNonceError,
+  RevokedAcsSessionError,
+  type AcsAuthSession,
+  type AcsAuthSessionReadModel,
+} from "../../control-plane/account-identity.js";
+import { SiwxArtifactVerificationError } from "../siwx-artifact.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -69,7 +80,10 @@ export async function routeProductApiRequest(
 ) {
   const url = new URL(requestUrl, "http://localhost");
   const path = url.pathname.replace(/\/+$/, "") || "/";
-  const publicRoute = path === "/api/v1/health" || path === "/api/v1/ready";
+  const publicRoute = path === "/api/v1/health"
+    || path === "/api/v1/ready"
+    || path === "/api/v1/auth/siwx/nonce"
+    || path === "/api/v1/auth/siwx/exchange";
   if (!options.auth && context.identityValidator.descriptor.mode === "development") {
     options = { ...options, auth: await context.identityValidator.authenticate({}) };
   } else if (!options.auth && !publicRoute) {
@@ -81,7 +95,7 @@ export async function routeProductApiRequest(
       options = { ...options, auth: await context.identityValidator.authenticate(headers) };
     } catch (error) {
       if (error instanceof HttpAuthenticationError) {
-        return fail(error.message, 401, "authentication_failed", options.correlationId, { category: error.code }, undefined, error.code, {
+        return fail(error.message, error.status, "authentication_failed", options.correlationId, { category: error.code }, undefined, error.code, {
           retryable: error.code === "identity_provider_unavailable",
           severity: "warning",
         });
@@ -135,8 +149,10 @@ export async function routeProductApiRequest(
   }
 
   const apiPath = segments.slice(2).join("/");
+  const accountIdentityRoute = apiPath === "auth/session" || apiPath === "accounts/me";
+  const publicSiwxRoute = apiPath === "auth/siwx/nonce" || apiPath === "auth/siwx/exchange";
 
-  if (apiPath !== "health" && apiPath !== "ready" && !apiPath.startsWith("admin/tenants")) {
+  if (apiPath !== "health" && apiPath !== "ready" && !publicSiwxRoute && !apiPath.startsWith("admin/tenants")) {
     const auth = options.auth;
     if (!auth?.authenticated || !auth.trusted || !auth.actorId) {
       return fail("authenticated principal is required", 401, "authentication_failed", options.correlationId, undefined, routeMeta, "missing_credentials", {
@@ -150,7 +166,7 @@ export async function routeProductApiRequest(
         severity: "warning",
       });
     }
-    if (!apiPath.startsWith("system/") && !auth.platformAdmin) {
+    if (!accountIdentityRoute && !apiPath.startsWith("system/") && !auth.platformAdmin) {
       const tenantId = context.isolation.scope.tenantId;
       if (auth.tenantId && auth.tenantId !== tenantId) {
         return fail("tenant scope mismatch", 403, "forbidden", options.correlationId, { tenantId }, routeMeta, "cross_tenant_scope", {
@@ -199,6 +215,84 @@ export async function routeProductApiRequest(
       return { status: readiness.status === "BLOCKED" ? 503 : 200, body: ok(readiness, [], options.correlationId, routeMeta) };
     }
     if (apiPath === "ready") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    // The nonce contains no authority. It exists only to make the later
+    // server-side SIWX proof single-use and time bounded.
+    if (apiPath === "auth/siwx/nonce" && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const nonce = await context.accountIdentity.createNonce();
+      return { status: 201, body: ok(nonce, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "auth/siwx/nonce") {
+      return methodNotAllowed(options.correlationId, routeMeta, "POST");
+    }
+
+    // The verifier owns parsing of the selected official Reown/SIWX request
+    // structure. No address, chain, subject or timestamp supplied by the
+    // browser is trusted until the Product API independently verifies it.
+    if (apiPath === "auth/siwx/exchange" && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const artifact = await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes);
+      const verifiedIdentity = await context.siwxArtifactVerifier.verify(artifact);
+      const exchanged = await context.accountIdentity.exchangeVerifiedIdentity(verifiedIdentity);
+      const memberships = context.tenantMembershipRepository.list()
+        .filter((membership) => membership.principalId === exchanged.account.accountId);
+      return {
+        status: 201,
+        body: ok({
+          ...exchanged,
+          memberships,
+          membershipState: memberships.some((membership) => membership.status === "active")
+            ? "ACTIVE_TENANT_MEMBERSHIP"
+            : "NO_TENANT_MEMBERSHIP",
+        }, [], options.correlationId, routeMeta),
+      };
+    }
+    if (apiPath === "auth/siwx/exchange") {
+      return methodNotAllowed(options.correlationId, routeMeta, "POST");
+    }
+
+    if (apiPath === "auth/session" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const authenticated = await context.accountIdentity.authenticateSessionToken(readBearerToken(request));
+      return {
+        status: 200,
+        body: ok({
+          account: authenticated.account,
+          externalIdentity: authenticated.identity,
+          session: safeSession(authenticated.session),
+        }, [], options.correlationId, routeMeta),
+      };
+    }
+    if (apiPath === "auth/session" && request.method === "DELETE") {
+      assertAllowedQueryParams(url, []);
+      await context.accountIdentity.revokeSession(readBearerToken(request));
+      return { status: 200, body: ok({ revoked: true }, [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "auth/session") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET, DELETE");
+    }
+
+    if (apiPath === "accounts/me" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const authenticated = await context.accountIdentity.authenticateSessionToken(readBearerToken(request));
+      const memberships = context.tenantMembershipRepository.list()
+        .filter((membership) => membership.principalId === authenticated.account.accountId);
+      return {
+        status: 200,
+        body: ok({
+          account: authenticated.account,
+          externalIdentity: authenticated.identity,
+          memberships,
+          membershipState: memberships.some((membership) => membership.status === "active")
+            ? "ACTIVE_TENANT_MEMBERSHIP"
+            : "NO_TENANT_MEMBERSHIP",
+        }, [], options.correlationId, routeMeta),
+      };
+    }
+    if (apiPath === "accounts/me") {
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
@@ -2844,7 +2938,52 @@ function recordSecretMutation(
   });
 }
 
+function readBearerToken(request: IncomingMessage): string {
+  const raw = Array.isArray(request.headers.authorization)
+    ? request.headers.authorization[0]
+    : request.headers.authorization;
+  const match = /^Bearer\s+([^\s]+)$/i.exec(raw?.trim() ?? "");
+  if (!match?.[1]) throw new InvalidAcsSessionError("ACS session credential is required");
+  return match[1];
+}
+
+function safeSession(session: AcsAuthSession): AcsAuthSessionReadModel {
+  const { tokenDigest: _tokenDigest, providerSessionId: _providerSessionId, ...safe } = session;
+  return safe;
+}
+
 function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined, meta: AcsHttpEnvelopeMeta) {
+  if (error instanceof SiwxArtifactVerificationError) {
+    const status = error.code === "SIWX_VERIFIER_NOT_CONFIGURED" || error.code === "SIWX_PROVIDER_UNAVAILABLE"
+      ? 503
+      : error.code === "SIWX_DOMAIN_NOT_ALLOWED" || error.code === "SIWX_CHAIN_UNSUPPORTED"
+        ? 403
+        : error.code === "SIWX_SIGNATURE_INVALID" || error.code === "SIWX_ARTIFACT_EXPIRED"
+          ? 401
+          : 400;
+    return fail(error.message, status, "authentication_failed", correlationId, { category: error.code }, meta, error.code, {
+      retryable: status === 503,
+      severity: status === 503 ? "error" : "warning",
+    });
+  }
+  if (error instanceof InvalidSiwxNonceError) {
+    return fail(error.message, 401, "authentication_failed", correlationId, undefined, meta, error.code, {
+      retryable: false,
+      severity: "warning",
+    });
+  }
+  if (error instanceof AccountSuspendedError || error instanceof AccountDisabledError) {
+    return fail(error.message, 403, "forbidden", correlationId, undefined, meta, error.code, {
+      retryable: false,
+      severity: "warning",
+    });
+  }
+  if (error instanceof InvalidAcsSessionError || error instanceof ExpiredAcsSessionError || error instanceof RevokedAcsSessionError) {
+    return fail(error.message, 401, "authentication_failed", correlationId, undefined, meta, error.code, {
+      retryable: false,
+      severity: "warning",
+    });
+  }
   if (error instanceof PayloadTooLargeError) {
     return fail(error.message, 413, "payload_too_large", correlationId, { maxBodyBytes: error.limit }, meta, "edge_payload_limit", {
       retryable: false,

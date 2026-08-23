@@ -111,33 +111,34 @@ Harden provider/dependency diagnostics, shared-state behavior, audit correlation
 
 **Exit:** provider ambiguity/outage cannot create false success; shared-state and fail-closed tests pass; topology claim remains bounded.
 
-## E16-M6 — Operator UX & Acceptance
+## E16-M6 — Operator UX, Accounts & Acceptance
 
 **Stories:** S11, S12, S15
 
-Complete the financial operations workspace and certify browser/regression behavior.
+Introduce the ACS Account/identity boundary, integrate Reown AppKit/SIWX and certify the consolidated financial workspace without weakening Tenant or economic authority.
 
-**Exit:** core financial operator journeys pass technical and browser acceptance across supported viewports/themes; closure evidence is complete.
+**Exit:** Account authentication remains distinct from Tenant/role/economic authority; core operator journeys pass technical and browser acceptance across supported viewports/themes; closure evidence is complete.
 
-## AEES-16-06 — Operator UX & Final Acceptance
+## AEES-16-06 — Operator UX, Accounts & Final Acceptance
 
 **Execution unit:** AEES-16-06
-**Status:** COMPLETE
+**Status:** IN PROGRESS
+**Historical closure:** `a7c07f6` — SUPERSEDED
 **Stories:** S01, S02, S03, S04, S05
 
-Consolidate the delivered financial operations surfaces into one coherent operator workspace and certify EPIC-16 end-to-end without introducing new financial semantics.
+Define the canonical ACS Account/identity boundary, integrate Reown AppKit with server-verified SIWX, consolidate the delivered financial operations surfaces and recertify EPIC-16 without introducing new financial semantics.
 
-**Current sprint state:** S01 PASS, S02 PASS, S03 PASS, S04 PASS, S05 PASS.
+**Current sprint state:** S01 PASS; S02 implementation PASS with live environment NOT_CONFIGURED; S03 contract journeys PASS with interactive wallet journey not run; S04 NOT_CONFIGURED browser matrix PASS with authenticated matrix pending; S05 PENDING.
 
 **Execution sequence after E16-M5:**
 
-1. AEES-16-06 / S01 — Financial Operations Workspace Consolidation
-2. AEES-16-06 / S02 — End-to-End Operator Journeys
-3. AEES-16-06 / S03 — Responsive / Accessibility / Theme Acceptance
-4. AEES-16-06 / S04 — Regression & No-Fake-Data Certification
+1. AEES-16-06 / S01 — Account & Identity Boundary
+2. AEES-16-06 / S02 — Reown AppKit / SIWX Integration
+3. AEES-16-06 / S03 — Financial Operations Workspace & Operator Journeys
+4. AEES-16-06 / S04 — Responsive / Accessibility / Regression Certification
 5. AEES-16-06 / S05 — EPIC-16 Closure & Final Evidence
 
-**Exit:** financial operations navigation, browser acceptance and regression evidence are complete; EPIC-16 closes with truthful Delivered / Production-eligible / Development-only / Unsupported / Deferred separation.
+**Exit:** wallet connection, SIWX authentication, ACS Account, Tenant membership, role and economic authorization remain distinct; browser/regression evidence is complete; EPIC-16 closes with truthful Delivered / Production-eligible / Development-only / Unsupported / Deferred separation.
 
 ## Sequencing rules
 

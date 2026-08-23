@@ -113,9 +113,27 @@ EPIC-16 extends a mature operational platform. Regression acceptance must prove 
 - browser evidence must stay attached to the standalone app and must not reintroduce /static acceptance claims;
 - final closure must preserve Delivered / Production-eligible / Development-only / Unsupported / Deferred separation.
 
+## AEES-16-06 S01 Account/identity regressions
+
+- identity uniqueness remains `provider + namespace + subject`;
+- Base Sepolia and Ethereum Sepolia resolve the same chain-agnostic Account subject while CAIP-10 records the verified chain;
+- wallet verification creates no Tenant membership, role, scope, platform authority or economic authority;
+- ACS session secrets remain at least 256 bits and only SHA-256 digests are persisted;
+- digest comparison remains constant-time and session TTL remains a fixed 15 minutes without sliding extension;
+- SIWX nonces remain single-use and time-bounded;
+- suspended/disabled Accounts reject existing sessions and new exchange immediately;
+- Product API identity read models omit token digests and upstream provider session identifiers;
+- an Account without active membership is `NO_TENANT_MEMBERSHIP` and governed financial routes remain forbidden;
+- an unconfigured verifier fails exchange closed with `SIWX_VERIFIER_NOT_CONFIGURED`;
+- browser wallet connection state never creates `trusted=true`;
+- shared-state schema retains the unique external-identity constraint and durable Account/session/nonce tables.
+
 ## Required regression suites
 
 For affected areas, run and report:
+
+- `tests/s74-epic-16-6-account-identity-boundary.test.mjs` — Account, identity, session, suspension and server-side SIWX proof;
+- `tests/s75-epic-16-6-reown-appkit-siwx.test.mjs` — canonical AppKit composition, authority separation, environment safety and final browser matrix;
 
 - backend typecheck/build/tests;
 - app typecheck/lint/build/tests;

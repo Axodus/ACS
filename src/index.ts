@@ -16,6 +16,9 @@ export * from "./http/routes/acs-routes.js";
 export * from "./http/routes/product-api-routes.js";
 export * from "./http/validation.js";
 export * from "./http/auth.js";
+export * from "./http/siwx-session-auth.js";
+export * from "./http/siwx-artifact.js";
+export * from "./http/viem-siwx-artifact-verifier.js";
 export * from "./http/rate-limit.js";
 export * from "./http/edge.js";
 export * from "./http/request-body.js";
@@ -139,6 +142,7 @@ export * from "./control-plane/audit-service.js";
 export * from "./control-plane/durable-administrative-state.js";
 export * from "./control-plane/operational-telemetry.js";
 export * from "./control-plane/operational-diagnostics.js";
+export * from "./control-plane/account-identity.js";
 export * from "./control-plane/provider-boundary.js";
 export * from "./control-plane/managed-provider-composition.js";
 export * from "./control-plane/shared-state/contracts.js";
@@ -148,6 +152,7 @@ export * from "./control-plane/shared-state/shared-authority-service.js";
 export * from "./control-plane/shared-state/shared-control-plane-context.js";
 export * from "./control-plane/shared-state/shared-rate-limiter.js";
 export * from "./control-plane/shared-state/shared-secret-metadata-store.js";
+export * from "./control-plane/shared-state/lazy-postgres-account-identity-store.js";
 
 export * from "./control-plane/epic-11-acceptance.js";
 

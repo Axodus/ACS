@@ -102,6 +102,7 @@ import {
   type SettlementReconciliationBoundaryReport,
   type FinancialAuditBoundaryReport,
 } from "./api/product-api";
+import { AccountControl } from "./auth/AccountControl";
 import { AgentOperationsPanel, CredentialsPage, ExecutionDetailPage, ExecutionsPage, OperationsStatusPage, WorkerDetailPage, WorkersPage } from "./OperationalUx";
 import "./operational.css";
 
@@ -483,8 +484,8 @@ function TimelineList({ items, limit }: { items: TimelineItem[]; limit?: number 
   const visible = limit !== undefined ? items.slice(0, limit) : items;
   if (visible.length === 0) return <div className="state-line empty">No records available from the Product API.</div>;
   return <div className="timeline">
-    {visible.map(item => (
-      <article className="timeline-row" key={item.id}>
+    {visible.map((item, index) => (
+      <article className="timeline-row" key={`${item.id}-${index}`}>
         <div className="timeline-row-top"><b>{item.title}</b>{item.tone ? <StateBadge label={item.tone === "good" ? "normal" : item.tone === "warn" ? "attention" : "informational"} dimension="Presentation" /> : null}</div>
         {item.meta && <small>{item.meta}</small>}
         {item.detail && <p>{item.detail}</p>}
@@ -5346,7 +5347,7 @@ export default function App() {
         <header className="topbar">
           <button className="menu" type="button" aria-label="Open navigation" onClick={() => setMobile(true)}>☰</button>
           <nav className="crumb" aria-label="Breadcrumb"><Link to="/">ACS</Link><i>/</i><Link to={domainDef.to}>{domain}</Link>{entityLabel && <><i>/</i><b>{entityLabel}</b></>}{!entityLabel && <><i>/</i><b>{title}</b></>}</nav>
-          <div className="top-actions"><Status status={connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Checking Product API" : "Product API unavailable"} /><button className="command" type="button" onClick={() => setPalette(true)}>⌕ <span>Search ACS...</span><kbd>⌘ K</kbd></button><button className="icon-btn" type="button" aria-label="Toggle theme" onClick={() => setDark(!dark)}>{dark ? "☼" : "◐"}</button></div>
+          <div className="top-actions"><Status status={connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Checking Product API" : "Product API unavailable"} /><AccountControl dark={dark} /><button className="command" type="button" onClick={() => setPalette(true)}>⌕ <span>Search ACS...</span><kbd>⌘ K</kbd></button><button className="icon-btn" type="button" aria-label="Toggle theme" onClick={() => setDark(!dark)}>{dark ? "☼" : "◐"}</button></div>
         </header>
         {connectivity.status === "loading" && <div className="global-state loading-state" role="status">Connecting to Product API boundary...</div>}
         {connectivity.status === "error" && <div className="global-state error-state" role="alert"><span>Product API unavailable: {connectivity.error}</span><button className="secondary" onClick={() => void checkProductApi()}>Retry</button></div>}

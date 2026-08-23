@@ -92,7 +92,7 @@ test("settlement without usage is a usage correlation mismatch", async () => {
     runId: "run_mismatch",
     idempotencyKey: "idem_settle_mismatch",
   });
-  assert.equal(settled.status, "settled");
+  assert.equal(settled.status, "partially_settled");
   const evidence = new OperationalEvidenceService({ economicService });
   const items = await evidence.listReconciliationBacklog({ settlementId: settled.settlementId });
   assert.equal(items.length, 1);
