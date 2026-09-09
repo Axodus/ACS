@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-23
 
+## ACS v2 Architecture Discovery
+
+The controlled ACS v2 discovery backlog is maintained in
+`docs/architecture/acs-v2/implementation-backlog.md`. It is a planning
+backlog, not an implementation authorization. The historical task list below
+remains the record for the completed L4 Readiness cycle.
+
 ## ACS-EPIC-01 Active Tasks
 
 ### Sprint 01 - Current State, Boundaries and Instruction Normalization

@@ -2,6 +2,34 @@
 
 # Active Decisions
 
+## ACS v2 Terminology and Provider-Independent Discovery
+
+Decision:
+For new architecture and planning documentation, ACS means **Agent
+Coordination System**. Historical expansions such as *Autonomous Coordination
+System* and *Access Control System* remain readable aliases only. This
+documentation decision does not rename technical identifiers or change
+compatibility contracts.
+
+ACS v2 will be evaluated as an evolutionary, provider-independent architecture:
+ACS retains canonical agent identity, workforce/workflow definitions,
+execution planning, and institutional evidence; Core retains shared protocol
+semantics; Governance retains authority and policy decisions; product and
+Documentation owners retain their domain knowledge. External systems are
+capability candidates behind ACS-owned adapters, not canonical owners by
+default.
+
+No provider adoption, integration, runtime migration, authority grant, or
+production activation is decided by this entry.
+
+Status:
+`DOCUMENTATION_TERMINOLOGY_CONFIRMED / DISCOVERY_ONLY`
+
+Reference:
+`docs/architecture/acs-v2/README.md`
+
+---
+
 ## Tenant-Aware Consumption Model
 
 Decision:

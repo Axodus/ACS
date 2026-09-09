@@ -9,6 +9,20 @@ The orchestration layer coordinates:
 - inference execution
 - provider coordination
 
+## Current and proposed scope
+
+The implemented ACS orchestration baseline includes deterministic local
+workflow sequencing, provider-capability matching, receipts, telemetry, and
+explicit policy boundaries. It is not yet a canonical workforce model with
+revisioned workforce identities, DAG branches and joins, provider-neutral
+checkpoints, or cross-provider replay semantics.
+
+Those capabilities are proposed for discovery in
+[`docs/architecture/acs-v2/`](../docs/architecture/acs-v2/). The proposed
+`IOrchestrator`-like boundary is an evaluation target, not an implemented
+provider interface or authorization to integrate Eigent, CAMEL, Agenta, Codex,
+OpenClaw, or any other external system.
+
 Orchestration is operational infrastructure.
 
 ---

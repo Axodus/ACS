@@ -1,7 +1,25 @@
 # ACS Architecture
 
-Planning reset:
-ACS is currently scoped as a tenant-aware Autonomous Coordination System with Core, Service, and Product consumption levels. Trading Ignition is one mapped ACS Product/Service use case.
+## Current architecture reference
+
+For new cross-nucleus architecture planning, ACS means **Agent Coordination
+System**. The controlled source for the proposed v2 direction is
+[`docs/architecture/acs-v2/`](../docs/architecture/acs-v2/). It distinguishes
+verified repository facts, historical documentation, proposed design,
+hypotheses, and pending decisions.
+
+This file preserves the historical tenant-aware *Autonomous Coordination
+System* planning baseline and implemented control-plane context. It does not,
+by itself, establish a workforce/DAG runtime, provider adoption, production
+readiness, or authority expansion.
+
+`Organization` is the user-facing label for a scoped tenant. Current backend
+and protocol compatibility fields remain `tenant`, `TenantId`, and `tenantId`.
+
+Historical planning reset:
+ACS was scoped as a tenant-aware Autonomous Coordination System with Core,
+Service, and Product consumption levels. Trading Ignition is one mapped ACS
+Product/Service use case.
 
 The first architectural authorities are:
 - `ACS_CONSUMPTION_MODEL.md`

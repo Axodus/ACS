@@ -1,6 +1,6 @@
 # ACS Blocker Register
 
-Last updated: 2026-06-23
+Last updated: 2026-09-09
 
 ## ACS-BLOCKER-001 - Execution Authority Not Approved
 
@@ -41,11 +41,18 @@ Status: RESOLVED IN `ACS-REQ-12`
 Description:
 `ACS-REQ-12` fixed the literal-type inference error at `src/consumer-contract.ts:314` and the additional validation defects exposed after compilation resumed. Fresh `npm run build`, `npm test`, and `npm run check` runs pass.
 
+Historical-evidence note (2026-09-09):
+This resolution describes the ACS-REQ-12 validation cycle. It is not a claim
+that the later current worktree has a green full suite. Current suite health is
+tracked separately by `ACS-BLOCKER-014`.
+
 Impact:
 Current-cycle local build, test, and check health is confirmed.
 
 Resolution path:
-Keep `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md` as the current-cycle evidence. Re-open this blocker if later changes break build, tests, or check.
+Keep `.instructions/reports/ACS_LOCAL_VALIDATION_REPORT.md` as historical
+ACS-REQ-12 evidence. Use `ACS-BLOCKER-014` for the current full-suite repair
+path.
 
 ## ACS-BLOCKER-004 - Dedicated Permission State Model Missing
 
@@ -196,6 +203,32 @@ ACS cannot enter an L4 Consolidated assessment or be promoted. Current state rem
 
 Resolution path:
 Do not open `ACS-GOV-03` automatically. Revisit this blocker only when a formal L4 Consolidated assessment is intentionally requested. Do not combine future review with implementation, promotion or authority expansion.
+
+## ACS-BLOCKER-014 - Fresh Full Runtime Suite Is Not Green
+
+Severity: HIGH
+
+Status: OPEN
+
+Description:
+The 2026-09-09 ACS v2 documentation cycle reran `npm run check` outside the
+restricted sandbox. TypeScript compilation passed, but the suite completed with
+`680` tests, `673` passing, `5` failing, and `2` skipped. The failures affect
+operational evidence HTTP behavior, observability/rate limiting, a production
+target child-process path, a missing public export used by an economic test,
+and usage/reservation correlation.
+
+Impact:
+The ACS v2 documentation baseline remains usable as planning evidence, but ACS
+cannot claim fresh full-suite health or use this run as implementation
+readiness evidence.
+
+Resolution path:
+Open a separately scoped diagnostic request. Reproduce each failure in
+isolation, determine whether it is product regression, test-harness drift, or
+environment/configuration coupling, then rerun the complete suite. Do not alter
+runtime code, public exports, rate limits, or production-target behavior as part
+of this documentation-only request.
 
 ## Current No-Go Areas
 

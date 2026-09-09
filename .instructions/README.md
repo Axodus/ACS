@@ -1,10 +1,30 @@
-# ACS - Autonomous Coordination System
+# ACS - Agent Coordination System
+
+> **Terminology note:** `Agent Coordination System` is the canonical expansion
+> for new ACS architecture work. `Autonomous Coordination System` is a
+> historical label retained to make older records readable. Technical
+> compatibility identifiers such as `tenantId` are not renamed by this note.
+
+## Current architectural planning note
+
+The current cross-nucleus architecture package is
+[`docs/architecture/acs-v2/`](../docs/architecture/acs-v2/). It is the source
+for proposed workforce, provider, evidence, and migration direction. This
+legacy operational guide remains useful for historical control-plane and
+Trading Ignition context, but it must not be read as an adoption decision for
+Agenta, Eigent, CAMEL, Codex, OpenClaw, or any other provider.
+
+The package is `PLANNING / DISCOVERY` only. It does not alter ACS maturity,
+execution authority, production status, credentials, wallet/signing,
+treasury, trading, settlement, payouts, or on-chain boundaries.
 
 # Purpose
 
 ACS is the tenant-aware operational intelligence layer of the Axodus ecosystem.
 
-The current planning reset makes ACS Tenant-Aware Core the first MVP target. Trading Ignition remains an important Product/Service use case, not the entire ACS identity.
+The historical planning reset made ACS Tenant-Aware Core the first MVP target.
+Trading Ignition remains an important Product/Service use case, not the entire
+ACS identity.
 
 ACS coordinates:
 - user readiness

@@ -1,6 +1,6 @@
 # ACS Validation
 
-Last updated: 2026-06-22
+Last updated: 2026-09-09
 
 ## Known Commands
 
@@ -109,12 +109,45 @@ Documentation/register-safe evidence commands used in `ACS-CLOSE-01`:
 - `git diff -- .instructions`
 - `git status --short`
 
-## Current-Cycle Validation Status
+## ACS v2 Documentation-Cycle Validation - 2026-09-09
 
 Status:
+- `DOCUMENTATION_VALIDATED / FULL_SUITE_BLOCKED`
+
+Results:
+- `git diff --check`: PASS.
+- ACS v2 required-file and relative-link validation: PASS for eight documents
+  with zero broken relative links.
+- TypeScript build executed by `npm run check`: PASS.
+- Full `npm run check` outside the restricted sandbox: FAIL with `680` tests,
+  `673` passing, `5` failing, and `2` skipped.
+
+Current failing tests:
+- `tests/s27-operational-evidence.test.mjs`
+- `tests/s54-epic-15-5-observability-incident-acceptance.test.mjs`
+- `tests/s57-epic-15-5-production-target-process-acceptance.test.mjs`
+- `tests/s62-epic-16-2-economic-authorization-reservations.test.mjs`
+- `tests/s63-epic-16-3-usage-settlement.test.mjs`
+
+Interpretation:
+- the ACS v2 documentation baseline is structurally valid;
+- the documentation-only changes do not authorize a runtime or provider
+  integration;
+- the current repository must not be represented as having a fresh all-green
+  runtime suite;
+- failure diagnosis and any source/test correction require a separately scoped
+  implementation request.
+
+Evidence:
+- `.instructions/reports/ACS_V2_ARCHITECTURE_DISCOVERY_BASELINE_2026-09-09.md`
+- `.instructions/BLOCKER_REGISTER.md` (`ACS-BLOCKER-014`)
+
+## Historical ACS-REQ-12 Validation Status - 2026-06-22
+
+Historical status:
 - `PASS_CURRENT_CYCLE_LOCAL_VALIDATION`
 
-Result:
+Historical result:
 - Node `v24.14.1` and npm `11.11.0` are available.
 - `npm run build`: PASS.
 - `npm test`: PASS.
@@ -122,7 +155,7 @@ Result:
 - no tests were skipped or removed.
 - loopback HTTP and CLI child-process tests were executed outside the restricted sandbox after sandbox-only `EPERM` diagnostics.
 
-Current-cycle validation evidence:
+Historical ACS-REQ-12 validation evidence:
 - baseline report created
 - instruction files normalized
 - authority boundary matrix created
@@ -153,13 +186,13 @@ Historical evidence only:
 Constraint:
 - historical evidence must not be treated as current-cycle proof
 
-## Current Validation Limits
+## Historical Validation Limits
 
 - smoke commands were not part of ACS-REQ-12 and were not executed
 - no markdown checker command was found in the repository
 - local validation success is not an L4 consolidation assessment or production-readiness approval
 
-## Validation Interpretation
+## Historical Validation Interpretation
 
 Current validation status means:
 - readiness, permission, operational gate, read-only consumer contract, AxodusAPP preview, Business/Marketplace alignment, and focused boundary enforcement test implementations are complete at source/documentation level

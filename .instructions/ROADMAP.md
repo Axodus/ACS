@@ -11,6 +11,25 @@ Boundary:
 - roadmap progress must not be interpreted as execution authority
 - ACS remains local/mock, read-only where applicable, and non-production
 
+## Parallel Documentation Track - ACS v2 Architecture Discovery
+
+Status:
+- `PLANNING / DISCOVERY`
+
+Scope:
+- preserve and audit the existing ACS control plane;
+- define proposed agent, workforce, workflow, evidence, and provider boundaries;
+- reconcile ACS terminology with Core and root coordination records;
+- evaluate Agenta, Eigent, CAMEL, Codex, and OpenClaw only through
+  evidence-gated discovery and reversible future spikes.
+
+Source:
+- `docs/architecture/acs-v2/README.md`
+
+This parallel documentation track does not reopen `ACS-GOV-03`, change the
+portfolio priority, change L4 Readiness, authorize implementation, or alter
+execution and production boundaries.
+
 ## Sprint 01 - Current State, Boundaries and Instruction Normalization
 
 Status:

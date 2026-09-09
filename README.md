@@ -1,10 +1,31 @@
 # ACS Core
 
-ACS Core is the initial runtime package for Axodus Cognitive Systems.
+ACS Core is an initial runtime and control-plane package for the Axodus **Agent
+Coordination System (ACS)**.
 
-Current planning reset:
+## Architecture terminology and discovery
 
-- ACS is the tenant-aware Autonomous Coordination System for Core, Service, and Product consumption.
+For new ACS architecture documentation, **ACS** means **Agent Coordination
+System**. Earlier materials may use *Autonomous Coordination System*, *Access
+Control System*, or *Axodus Cognitive Systems*. Those are historical labels;
+they do not rename existing package names, APIs, database fields, or other
+technical identifiers.
+
+`Organization` is the preferred label in user-facing and operational
+documentation for the scoped entity that owns a workload. Existing `tenant`,
+`TenantId`, and `tenantId` identifiers remain compatibility terms in current
+technical contracts.
+
+The [ACS v2 Architecture Discovery](docs/architecture/acs-v2/README.md)
+package records the proposed multi-agent architecture, evidence rules,
+provider evaluation, migration path, and unimplemented backlog. It is a
+planning artifact: it does not adopt Agenta, Eigent, CAMEL, Codex, OpenClaw, or
+any other provider, and it does not authorize runtime, production, financial,
+or authority changes.
+
+Historical planning reset:
+
+- ACS was documented as the tenant-aware Autonomous Coordination System for Core, Service, and Product consumption.
 - Trading Ignition is a mapped ACS Product/Service use case, not the entire ACS identity.
 - Operational States, the ACS Policy Matrix, and What ACS Is Not are mandatory before new product features.
 - ACS must not custody funds, withdraw funds, promise profit, or activate strategies outside policy.

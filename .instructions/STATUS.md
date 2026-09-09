@@ -1,6 +1,34 @@
 # ACS Status
 
-Last updated: 2026-06-23
+Last updated: 2026-09-09
+
+## ACS v2 Discovery Record - 2026-09-09
+
+Status: `PLANNING / DISCOVERY`
+
+The architecture discovery package at `docs/architecture/acs-v2/` documents a
+proposed evolution from the current ACS control plane toward a
+provider-independent multi-agent coordination model. It records verified local
+facts, historical documentation drift, proposed contracts, provider hypotheses,
+and an unimplemented backlog.
+
+This record does **not** change the current `L4_READINESS` classification,
+`D3+` evidence level, governance-track pause, execution-gated status,
+non-production status, or no-mutation-authority boundary. It does not adopt or
+integrate Agenta, Eigent, CAMEL, Codex, OpenClaw, or another provider.
+
+Terminology for new architecture documents is `Agent Coordination System`.
+`Organization` is the surface label for a scoped tenant; current backend and
+protocol identifiers remain unchanged for compatibility.
+
+Validation note:
+- the eight-document ACS v2 package passes required-file, relative-link, and
+  diff checks;
+- the TypeScript build passes;
+- the fresh full ACS check has five failing tests out of 680 and is tracked as
+  `ACS-BLOCKER-014`;
+- this planning track therefore remains documentation-validated but does not
+  provide fresh all-green runtime evidence.
 
 ## Current Request State
 
