@@ -1,9 +1,9 @@
 # ACS v2 Architecture Discovery
 
-**Status:** `PLANNING / DISCOVERY`  
-**Date:** 2026-09-09  
-**Owner:** ACS  
-**Affected consumers:** Core, Governance, BBA-Agency, Axodus product nuclei  
+**Status:** `PLANNING / DISCOVERY`
+**Date:** 2026-09-09
+**Owner:** ACS
+**Affected consumers:** Core, Governance, BBA-Agency, Axodus product nuclei
 **Implementation authorization:** none
 
 ## Purpose
@@ -86,6 +86,7 @@ for compatibility.
 | [Decision matrix](decision-matrix.md) | Weighted comparison framework for candidate management and orchestration approaches. |
 | [Migration plan](migration-plan.md) | Incremental discovery, PoC, adapter, and migration gates. |
 | [Implementation backlog](implementation-backlog.md) | Ordered EPICs and tasks that remain unimplemented until separately authorized. |
+| [REQ-02 extraction audit](req-02/README.md) | Completed planning audit: source extraction, capability comparison, unified-core blueprint, licensing, ADR proposals, and implementation backlog. |
 
 ## Existing foundations to preserve
 
