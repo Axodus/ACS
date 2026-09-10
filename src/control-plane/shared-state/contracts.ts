@@ -26,6 +26,9 @@ import type {
 import type { WorkerCapability, WorkerEligibilityRequirements } from "../../workers/worker-types.js";
 import type { TraceContext } from "../operational-telemetry.js";
 import type { AccountIdentityStore } from "../account-identity.js";
+import type {
+  AsyncNativeCoreRepository,
+} from "./native-core-durable.js";
 
 export type SharedStateTopology = "shared_network_database";
 
@@ -154,7 +157,7 @@ export interface AsyncSecretMetadataRepository {
   save(metadata: SecretMetadata, expectedVersion: number): Promise<SecretMetadata>;
 }
 
-export type SharedEconomicRecordKind = "quote" | "reservation" | "usage" | "settlement" | "receipt";
+export type SharedEconomicRecordKind = "quote" | "reservation" | "usage" | "settlement" | "receipt" | "native_usage" | "native_cost";
 
 export interface SharedEconomicRecord<T = unknown> {
   readonly kind: SharedEconomicRecordKind;
@@ -250,6 +253,7 @@ export interface SharedAuthoritativeStateSession {
   readonly economics: AsyncEconomicRepository;
   readonly runtime: AsyncRuntimeRepository;
   readonly rateLimits: AsyncRateLimitRepository;
+  readonly nativeCore: AsyncNativeCoreRepository;
 }
 
 export interface SharedAuthoritativeState extends SharedAuthoritativeStateSession {

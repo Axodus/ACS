@@ -154,6 +154,7 @@ export * from "./control-plane/shared-state/shared-control-plane-context.js";
 export * from "./control-plane/shared-state/shared-rate-limiter.js";
 export * from "./control-plane/shared-state/shared-secret-metadata-store.js";
 export * from "./control-plane/shared-state/lazy-postgres-account-identity-store.js";
+export * from "./control-plane/shared-state/native-core-durable.js";
 
 export * from "./control-plane/epic-11-acceptance.js";
 

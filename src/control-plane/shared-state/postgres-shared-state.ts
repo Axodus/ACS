@@ -81,6 +81,10 @@ import {
   type SharedStateHealth,
 } from "./contracts.js";
 import {
+  PostgresNativeCoreRepository,
+  type AsyncNativeCoreRepository,
+} from "./native-core-durable.js";
+import {
   SHARED_STATE_MIGRATIONS,
   SHARED_STATE_SCHEMA_VERSION,
 } from "./migrations.js";
@@ -605,13 +609,13 @@ class PostgresAgentRepository implements AsyncAgentRepository {
   }
 
   async get(agentId: string): Promise<AgentRevision> {
-    const result = await query<PayloadRow>(this.db, "get agent", "SELECT payload FROM acs_agents WHERE agent_id = $1", [agentId]);
+    const result = await query<PayloadRow>(this.db, "get agent", "SELECT payload FROM acs_agents WHERE agent_id = $1 AND record_kind = 'legacy'", [agentId]);
     if (!result.rows[0]) throw new NotFoundError("agent", agentId);
     return decode<AgentRevision>(result.rows[0].payload);
   }
 
   async list(): Promise<readonly AgentRevision[]> {
-    const result = await query<PayloadRow>(this.db, "list agents", "SELECT payload FROM acs_agents ORDER BY agent_id");
+    const result = await query<PayloadRow>(this.db, "list agents", "SELECT payload FROM acs_agents WHERE record_kind = 'legacy' ORDER BY agent_id");
     return result.rows.map((row) => decode<AgentRevision>(row.payload));
   }
 
@@ -619,7 +623,7 @@ class PostgresAgentRepository implements AsyncAgentRepository {
     const result = await query(this.db, "save agent", `
       WITH updated AS (
         UPDATE acs_agents SET revision = $2, payload = $3::jsonb, updated_at = clock_timestamp()
-        WHERE agent_id = $1 AND revision = $4 RETURNING agent_id
+        WHERE agent_id = $1 AND record_kind = 'legacy' AND revision = $4 RETURNING agent_id
       )
       INSERT INTO acs_agent_history (agent_id, revision, payload)
       SELECT $1, $2, $3::jsonb FROM updated
@@ -635,13 +639,13 @@ class PostgresAgentRepository implements AsyncAgentRepository {
   }
 
   async history(agentId: string): Promise<readonly AgentRevision[]> {
-    const result = await query<PayloadRow>(this.db, "agent history", "SELECT payload FROM acs_agent_history WHERE agent_id = $1 ORDER BY revision", [agentId]);
+    const result = await query<PayloadRow>(this.db, "agent history", "SELECT payload FROM acs_agent_history WHERE agent_id = $1 AND record_kind = 'legacy' ORDER BY revision", [agentId]);
     return result.rows.map((row) => decode<AgentRevision>(row.payload));
   }
 
   async remove(agentId: string, expectedRevision: number): Promise<AgentRevision> {
     const existing = await this.get(agentId);
-    const result = await query(this.db, "remove agent", "DELETE FROM acs_agents WHERE agent_id = $1 AND revision = $2", [agentId, expectedRevision]);
+    const result = await query(this.db, "remove agent", "DELETE FROM acs_agents WHERE agent_id = $1 AND record_kind = 'legacy' AND revision = $2", [agentId, expectedRevision]);
     if (!changed(result)) throw new RevisionConflictError(`agent:${agentId}`, expectedRevision);
     return existing;
   }
@@ -1314,6 +1318,7 @@ class PostgresSharedStateSession implements SharedAuthoritativeStateSession {
   readonly economics: AsyncEconomicRepository;
   readonly runtime: AsyncRuntimeRepository;
   readonly rateLimits: AsyncRateLimitRepository;
+  readonly nativeCore: AsyncNativeCoreRepository;
 
   constructor(db: Queryable) {
     this.accountIdentity = new PostgresAccountIdentityStore(db);
@@ -1327,6 +1332,7 @@ class PostgresSharedStateSession implements SharedAuthoritativeStateSession {
     this.economics = new PostgresEconomicRepository(db);
     this.runtime = new PostgresRuntimeRepository(db);
     this.rateLimits = new PostgresRateLimitRepository(db);
+    this.nativeCore = new PostgresNativeCoreRepository(db);
   }
 }
 
@@ -1359,6 +1365,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
   readonly economics: AsyncEconomicRepository;
   readonly runtime: AsyncRuntimeRepository;
   readonly rateLimits: AsyncRateLimitRepository;
+  readonly nativeCore: AsyncNativeCoreRepository;
   readonly #pool: Pool;
   #lastPoolErrorAt: number | undefined;
 
@@ -1431,6 +1438,29 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       listEvents: (filter) => session.runtime.listEvents(filter),
     };
     this.rateLimits = session.rateLimits;
+    this.nativeCore = {
+      advanceAgentLineage: (input) => this.withTransaction(
+        "advance native agent lineage",
+        (tx) => tx.nativeCore.advanceAgentLineage(input),
+      ),
+      getAgentLineage: (agentId) => session.nativeCore.getAgentLineage(agentId),
+      getEvent: (eventId) => session.nativeCore.getEvent(eventId),
+      replayEvents: (input) => session.nativeCore.replayEvents(input),
+      listOutbox: (input) => session.nativeCore.listOutbox(input),
+      claimNextOutbox: (input) => this.withTransaction("claim native outbox", (tx) => tx.nativeCore.claimNextOutbox(input)),
+      acknowledgeOutbox: (input) => this.withTransaction("acknowledge native outbox", (tx) => tx.nativeCore.acknowledgeOutbox(input)),
+      retryOutbox: (input) => this.withTransaction("retry native outbox", (tx) => tx.nativeCore.retryOutbox(input)),
+      recordFencedCheckpoint: (input) => this.withTransaction(
+        "record native fenced checkpoint",
+        (tx) => tx.nativeCore.recordFencedCheckpoint(input),
+      ),
+      getCheckpoint: (checkpointId) => session.nativeCore.getCheckpoint(checkpointId),
+      recordEvidence: (record) => this.withTransaction("record native evidence", (tx) => tx.nativeCore.recordEvidence(record)),
+      listEvidence: (input) => session.nativeCore.listEvidence(input),
+      recordAccounting: (input) => this.withTransaction("record native accounting", (tx) => tx.nativeCore.recordAccounting(input)),
+      listUsage: (runId) => session.nativeCore.listUsage(runId),
+      listCosts: (usageId) => session.nativeCore.listCosts(usageId),
+    };
   }
 
   async migrate(): Promise<number> {

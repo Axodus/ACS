@@ -30,6 +30,17 @@ TypeScript type exists.
 | REQ-03 `PARTIAL` Workforce | No implementation in IMP-01 | Workforce membership and coordination are not inferred or completed. | Scope review and absence of Workforce/Product API changes. | `git diff --check`; implementation remains outside native-core. |
 | REQ-03 `PARTIAL` Product API | No implementation in IMP-01 | Existing Product API compatibility remains untouched; no v2 command surface is invented. | Scope review and repository build. | `git diff --check`; no Product API files changed. |
 
+## REQ-04 durable completion extension (IMP-01B)
+
+| Contract | Implementation | Invariant | Tests | Evidence |
+| --- | --- | --- | --- | --- |
+| REQ-04 Agent lineage and revision semantics | `src/control-plane/shared-state/native-core-durable.ts` `advanceAgentLineage`, `getAgentLineage`; migration v3 in `migrations.ts` | Native Agent head advances only from the expected revision; immutable revisions are append-only; fingerprint, predecessor, contiguous history, and head must agree. | `tests/acs-v2-imp-01b.test.mjs` validates command construction and contains a PostgreSQL create/revision/CAS/restart scenario. | Code and focused non-PostgreSQL checks pass. Durable execution is pending `ACS_SH_DATABASE_URL`; no PostgreSQL result is claimed. |
+| REQ-04 event ownership and outbox | `acs_native_events`, `acs_native_outbox`, `appendEvent`, outbox lease/ack/retry methods | State command, canonical event, outbox, and durable idempotency commit through one shared PostgreSQL transaction; Event remains distinct from Audit, Evidence, and runtime events. | IMP-01B migration assertions; PostgreSQL event/outbox retry/ack/replay scenario. | Additive-schema and command validation pass. Transactional PostgreSQL failure/recovery evidence is pending. |
+| REQ-04 generic durable idempotency | `acs_native_idempotency`, `idempotent` | Scope/key/request hash bind one succeeded command result; a conflicting request is explicit and duplicate mutation is avoided. | IMP-01B command boundary and PostgreSQL replay scenario. | PostgreSQL execution pending; existing runtime/economic specialized idempotency remains preserved. |
+| REQ-04 fencing and checkpoints | `recordFencedCheckpoint`, `assertRuntimeOwnership`, `acs_native_checkpoints` | Native checkpoint/event/outbox writes require the existing durable assignment, lease, worker instance, service principal, and fencing token. | Existing `tests/s49-epic-15-5-durable-runtime-state.test.mjs`; PostgreSQL native checkpoint path is ready for database execution. | Existing runtime test passes. Native PostgreSQL fence execution is pending. |
+| REQ-04 evidence and accounting durability | `acs_native_evidence`; native usage/cost rows in `acs_economic_records` | Evidence references Event and subject without collapsing semantic types; usage/cost remain ACS-owned and idempotent. | IMP-01B PostgreSQL evidence/accounting and list/restart scenario. | Native durable execution pending PostgreSQL; no economic-policy redesign. |
+| REQ-04 replay / projection boundary | `replayEvents` | Replay reads canonical events ordered by stream/sequence and has no executor, provider, tool, webhook, or financial dispatch path. Projection rebuild is not introduced. | Code inspection plus IMP-01B replay scenario. | Side-effect isolation is structural; durable replay execution is pending PostgreSQL. Projection gate is NOT APPLICABLE. |
+
 ## Reused runtime evidence
 
 The native layer is intentionally tested separately from the repository-wide
@@ -43,3 +54,13 @@ The 2026-09-09 baseline recorded `673 / 680` passing, `5` failing, and `2`
 skipped. `ACS-BLOCKER-014` remains open. IMP-01's focused suite cannot be used
 to reclassify those failures or to claim repository-wide readiness.
 
+On 2026-09-10, the full suite recorded `681 / 690` passing, `6` failing, and
+`3` skipped. The five documented `ACS-BLOCKER-014` failures remain. The sixth
+failure is `s43` default SQLite runtime-path initialization; it passes with an
+isolated runtime database path and is recorded separately in IMP-01B rather
+than being attributed to the durable PostgreSQL change.
+
+A later sandboxed rerun produced `81 / 113` passing and `32` failures after
+multiple independent files could not open the shared default SQLite runtime
+path. That result is an environment-concurrency failure and is not comparable
+to the elevated repository baseline above.

@@ -408,8 +408,8 @@ test("suspension produces HTTP 403 while the wallet may remain connected", async
   }
 });
 
-test("shared-state schema v2 persists Account identity, sessions and nonce uniqueness", () => {
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 2);
+test("shared-state current schema retains v2 Account identity, sessions and nonce uniqueness", () => {
+  assert.ok(SHARED_STATE_SCHEMA_VERSION >= 2);
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 2);
   assert.ok(migration);
   const sql = migration.statements.join("\n");

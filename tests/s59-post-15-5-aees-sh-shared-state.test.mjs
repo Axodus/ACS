@@ -5,6 +5,7 @@ const distRoot = process.env.ACS_TEST_DIST_ROOT ?? "../dist";
 const {
   PostgresSharedAuthoritativeState,
   RevisionConflictError,
+  SHARED_STATE_SCHEMA_VERSION,
   createSharedControlPlaneContext,
   sharedStateOptionsFromEnvironment,
 } = await import(`${distRoot}/index.js`);
@@ -52,7 +53,7 @@ test("SH02 PostgreSQL transactions rollback and CAS is single-winner", {
       profile: "shared",
       localAuthorityFallback: false,
       networkIoCapable: true,
-      schemaVersion: 2,
+      schemaVersion: SHARED_STATE_SCHEMA_VERSION,
       topology: "shared_network_database",
     });
     const now = Date.now();

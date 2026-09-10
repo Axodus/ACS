@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 2;
+export const SHARED_STATE_SCHEMA_VERSION = 3;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -237,6 +237,120 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
       )`,
       `CREATE INDEX IF NOT EXISTS acs_siwx_nonce_expiry_idx
         ON acs_siwx_nonces (expires_at, consumed_at)`,
+    ],
+  },
+  {
+    version: 3,
+    name: "native_core_durable_lineage_events_and_outbox",
+    statements: [
+      `ALTER TABLE acs_agents ADD COLUMN IF NOT EXISTS record_kind TEXT NOT NULL DEFAULT 'legacy'`,
+      `ALTER TABLE acs_agents ADD COLUMN IF NOT EXISTS native_fingerprint TEXT`,
+      `ALTER TABLE acs_agents ADD CONSTRAINT acs_agents_record_kind_check
+        CHECK (record_kind IN ('legacy', 'native_v2'))`,
+      `ALTER TABLE acs_agents ADD CONSTRAINT acs_agents_native_head_check
+        CHECK (record_kind <> 'native_v2' OR native_fingerprint IS NOT NULL)`,
+      `ALTER TABLE acs_agent_history ADD COLUMN IF NOT EXISTS record_kind TEXT NOT NULL DEFAULT 'legacy'`,
+      `ALTER TABLE acs_agent_history ADD COLUMN IF NOT EXISTS native_fingerprint TEXT`,
+      `ALTER TABLE acs_agent_history ADD COLUMN IF NOT EXISTS supersedes_revision INTEGER`,
+      `ALTER TABLE acs_agent_history ADD COLUMN IF NOT EXISTS created_by TEXT`,
+      `ALTER TABLE acs_agent_history ADD COLUMN IF NOT EXISTS committed_at TIMESTAMPTZ`,
+      `ALTER TABLE acs_agent_history ADD COLUMN IF NOT EXISTS change_reason TEXT`,
+      `ALTER TABLE acs_agent_history ADD COLUMN IF NOT EXISTS correlation_id TEXT`,
+      `ALTER TABLE acs_agent_history ADD COLUMN IF NOT EXISTS event_id TEXT`,
+      `ALTER TABLE acs_agent_history ADD CONSTRAINT acs_agent_history_record_kind_check
+        CHECK (record_kind IN ('legacy', 'native_v2'))`,
+      `ALTER TABLE acs_agent_history ADD CONSTRAINT acs_agent_history_native_lineage_check
+        CHECK (record_kind <> 'native_v2' OR (
+          native_fingerprint IS NOT NULL
+          AND created_by IS NOT NULL
+          AND committed_at IS NOT NULL
+          AND change_reason IS NOT NULL
+          AND correlation_id IS NOT NULL
+          AND event_id IS NOT NULL
+        ))`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS acs_native_agent_fingerprint_idx
+        ON acs_agent_history (agent_id, native_fingerprint)
+        WHERE record_kind = 'native_v2' AND native_fingerprint IS NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS acs_native_agent_history_idx
+        ON acs_agent_history (agent_id, revision)
+        WHERE record_kind = 'native_v2'`,
+      `CREATE TABLE IF NOT EXISTS acs_native_events (
+        event_id TEXT PRIMARY KEY,
+        stream_scope TEXT NOT NULL,
+        sequence BIGINT NOT NULL CHECK (sequence > 0),
+        event_type TEXT NOT NULL,
+        schema_version TEXT NOT NULL,
+        occurred_at TIMESTAMPTZ NOT NULL,
+        organization_id TEXT NOT NULL,
+        product_domain TEXT NOT NULL,
+        tenant_id TEXT,
+        agent_id TEXT,
+        run_id TEXT,
+        task_id TEXT,
+        attempt INTEGER,
+        correlation_id TEXT NOT NULL,
+        causation_id TEXT,
+        idempotency_key TEXT,
+        actor JSONB NOT NULL,
+        source TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        UNIQUE (stream_scope, sequence)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_native_event_correlation_idx ON acs_native_events (correlation_id, occurred_at)`,
+      `CREATE INDEX IF NOT EXISTS acs_native_event_agent_idx ON acs_native_events (agent_id, sequence) WHERE agent_id IS NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS acs_native_event_run_idx ON acs_native_events (run_id, sequence) WHERE run_id IS NOT NULL`,
+      `CREATE TABLE IF NOT EXISTS acs_native_outbox (
+        outbox_id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL REFERENCES acs_native_events(event_id),
+        delivery_kind TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'leased', 'delivered', 'retryable', 'dead_lettered')),
+        available_at TIMESTAMPTZ NOT NULL,
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+        lease_owner TEXT,
+        lease_expires_at TIMESTAMPTZ,
+        delivered_at TIMESTAMPTZ,
+        last_failure TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        UNIQUE (event_id, delivery_kind)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_native_outbox_recovery_idx
+        ON acs_native_outbox (status, available_at, outbox_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_native_idempotency (
+        scope TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL,
+        request_hash TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status = 'succeeded'),
+        result JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        completed_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (scope, idempotency_key)
+      )`,
+      `CREATE TABLE IF NOT EXISTS acs_native_checkpoints (
+        checkpoint_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        task_id TEXT,
+        attempt INTEGER NOT NULL CHECK (attempt > 0),
+        assignment_id TEXT NOT NULL REFERENCES acs_runtime_assignments(assignment_id),
+        lease_id TEXT NOT NULL,
+        fencing_token BIGINT NOT NULL,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_native_checkpoint_run_idx ON acs_native_checkpoints (run_id, attempt, checkpoint_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_native_evidence (
+        evidence_id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL REFERENCES acs_native_events(event_id),
+        subject_kind TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        run_id TEXT,
+        task_id TEXT,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_native_evidence_event_idx ON acs_native_evidence (event_id, evidence_id)`,
+      `CREATE INDEX IF NOT EXISTS acs_native_evidence_subject_idx ON acs_native_evidence (subject_kind, subject_id, evidence_id)`,
     ],
   },
 ];
