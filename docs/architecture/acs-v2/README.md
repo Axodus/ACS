@@ -89,6 +89,7 @@ for compatibility.
 | [REQ-02 extraction audit](req-02/README.md) | Completed planning audit: source extraction, capability comparison, unified-core blueprint, licensing, ADR proposals, and implementation backlog. |
 | [REQ-03 native contract freeze](req-03/README.md) | ACS-owned contract semantics, state/event model, migration matrix, dependency-ordered backlog, adapter boundaries, ADRs, and implementation gate. |
 | [REQ-04 durable persistence and event ownership freeze](req-04/README.md) | Evidence-driven durable Agent lineage, canonical event/outbox, idempotency, replay, recovery, fencing, migration, and IMP-01B acceptance gates. |
+| [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md) | PostgreSQL execution evidence for IMP-01B; currently PARTIAL because native idempotency and fencing conflicts are wrapped as generic transaction failures at the public boundary. |
 
 ## Existing foundations to preserve
 
@@ -131,6 +132,7 @@ separate implementation and governance authorization.
 7. [Implementation backlog](implementation-backlog.md)
 8. [REQ-03 native contract freeze](req-03/README.md)
 9. [REQ-04 durable persistence and event ownership freeze](req-04/README.md)
+10. [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md)
 
 ## Non-goals
 
