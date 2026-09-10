@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:local": "vite --mode local",
+    "dev:local": "VITE_ACS_ENVIRONMENT=local VITE_ACS_API_BASE_URL=http://127.0.0.1:8788/api/v1 vite --mode localdev",
+    "dev:develop": "VITE_ACS_ENVIRONMENT=development VITE_ACS_API_BASE_URL=https://acs-axodus.up.railway.app/api/v1 vite --mode development",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ignore-pattern dist",
