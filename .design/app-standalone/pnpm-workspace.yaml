@@ -1,7 +1,12 @@
 allowBuilds:
+  '@reown/appkit': true
+  bufferutil: true
   esbuild: true
+  keccak: true
+  secp256k1: true
   sharp: set this to true or false
   unrs-resolver: set this to true or false
+  utf-8-validate: true
   workerd: set this to true or false
 overrides:
   "@wagmi/connectors": 6.2.0
