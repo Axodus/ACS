@@ -87,6 +87,8 @@ for compatibility.
 | [Migration plan](migration-plan.md) | Incremental discovery, PoC, adapter, and migration gates. |
 | [Implementation backlog](implementation-backlog.md) | Ordered EPICs and tasks that remain unimplemented until separately authorized. |
 | [REQ-02 extraction audit](req-02/README.md) | Completed planning audit: source extraction, capability comparison, unified-core blueprint, licensing, ADR proposals, and implementation backlog. |
+| [REQ-03 native contract freeze](req-03/README.md) | ACS-owned contract semantics, state/event model, migration matrix, dependency-ordered backlog, adapter boundaries, ADRs, and implementation gate. |
+| [REQ-04 durable persistence and event ownership freeze](req-04/README.md) | Evidence-driven durable Agent lineage, canonical event/outbox, idempotency, replay, recovery, fencing, migration, and IMP-01B acceptance gates. |
 
 ## Existing foundations to preserve
 
@@ -127,6 +129,8 @@ separate implementation and governance authorization.
 5. [Decision matrix](decision-matrix.md)
 6. [Migration plan](migration-plan.md)
 7. [Implementation backlog](implementation-backlog.md)
+8. [REQ-03 native contract freeze](req-03/README.md)
+9. [REQ-04 durable persistence and event ownership freeze](req-04/README.md)
 
 ## Non-goals
 

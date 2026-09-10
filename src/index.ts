@@ -158,3 +158,5 @@ export * from "./control-plane/shared-state/lazy-postgres-account-identity-store
 export * from "./control-plane/epic-11-acceptance.js";
 
 export * from "./control-plane/product-api-client.js";
+
+export * from "./native-core/index.js";
