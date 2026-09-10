@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const distRoot = process.env.ACS_TEST_DIST_ROOT ?? "../dist";
+const distRoot = process.env.ACS_TEST_DIST_ROOT ?? resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
 const { HttpProductionTargetEngine } = await import(`${distRoot}/engines/http-production-target-engine.js`);
 const entrypoint = `${distRoot}/engines/production-target-server.js`;
 

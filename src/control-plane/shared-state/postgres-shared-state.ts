@@ -81,6 +81,8 @@ import {
   type SharedStateHealth,
 } from "./contracts.js";
 import {
+  NativeFencingError,
+  NativeIdempotencyConflictError,
   PostgresNativeCoreRepository,
   type AsyncNativeCoreRepository,
 } from "./native-core-durable.js";
@@ -132,6 +134,8 @@ function mapRepositoryError(operation: string, error: unknown): Error {
     || error instanceof RuntimeStaleOwnerError
     || error instanceof RuntimeStateConflictError
     || error instanceof RuntimeWorkerIdentityError
+    || error instanceof NativeIdempotencyConflictError
+    || error instanceof NativeFencingError
     || error instanceof AcsError
     || error instanceof AgentRevisionConflictError
     || error instanceof DeploymentRevisionConflictError

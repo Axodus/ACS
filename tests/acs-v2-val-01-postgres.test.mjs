@@ -158,8 +158,10 @@ test("VAL-01 PostgreSQL durable acceptance", { skip: process.env.ACS_SH_DATABASE
     assert.equal((await state.nativeCore.advanceAgentLineage(create)).outbox.outboxId, created.outbox.outboxId);
     await assert.rejects(
       () => state.nativeCore.advanceAgentLineage({ ...create, idempotency: { ...create.idempotency, request_hash: "f".repeat(64) } }),
-      (error) => error?.code === "ACS_REPOSITORY_TRANSACTION_FAILED" && error.cause instanceof NativeIdempotencyConflictError,
+      (error) => error instanceof NativeIdempotencyConflictError
+        && error.code === "ACS_NATIVE_IDEMPOTENCY_CONFLICT",
     );
+    assert.equal((await state.nativeCore.getAgentLineage(agentId)).revisions.length, 1);
     const pendingAfterRestart = (await state.nativeCore.listOutbox({ status: "pending" })).find((row) => row.outboxId === created.outbox.outboxId);
     assert.ok(pendingAfterRestart);
     const leased = await state.nativeCore.claimNextOutbox({ dispatcherId: `dispatcher-${suffix}`, leaseTtlMs: 1, at: Date.now() });
@@ -231,13 +233,28 @@ test("VAL-01 PostgreSQL durable acceptance", { skip: process.env.ACS_SH_DATABASE
     const secondClaim = await state.runtime.claimNext({ ...workerB, at: runtimeAt + 31, leaseTtlMs: 100 });
     assert.ok(secondClaim);
     assert.equal(secondClaim.assignment.fencingToken, first.claim.assignment.fencingToken + 1);
+    const staleCheckpoint = createCheckpointV2({ ...checkpoint, checkpoint_id: `checkpoint-stale-${suffix}`, created_at: runtimeAt + 32 });
+    const staleEvent = event({ eventId: `event-checkpoint-stale-${suffix}`, eventType: "runtime.checkpoint.recorded", timestamp: runtimeAt + 32, sequence: 2, runId: first.job.jobId, attempt: first.claim.assignment.attempt, correlationId: `corr-checkpoint-stale-${suffix}`, idempotencyKey: `checkpoint-stale-${suffix}` });
     await assert.rejects(
       () => state.nativeCore.recordFencedCheckpoint({
-        ownership: { ...firstOwnership, at: runtimeAt + 32 }, checkpoint: createCheckpointV2({ ...checkpoint, checkpoint_id: `checkpoint-stale-${suffix}`, created_at: runtimeAt + 32 }),
+        ownership: { ...firstOwnership, at: runtimeAt + 32 }, checkpoint: staleCheckpoint,
         idempotency: { key: `checkpoint-stale-${suffix}`, scope: `run:${first.job.jobId}`, request_hash: "d".repeat(64) },
-        event: event({ eventId: `event-checkpoint-stale-${suffix}`, eventType: "runtime.checkpoint.recorded", timestamp: runtimeAt + 32, sequence: 2, runId: first.job.jobId, attempt: first.claim.assignment.attempt, correlationId: `corr-checkpoint-stale-${suffix}`, idempotencyKey: `checkpoint-stale-${suffix}` }),
+        event: staleEvent,
       }),
-      (error) => error?.code === "ACS_REPOSITORY_TRANSACTION_FAILED" && error.cause instanceof NativeFencingError,
+      (error) => error instanceof NativeFencingError
+        && error.code === "ACS_NATIVE_FENCING_REJECTED",
+    );
+    assert.equal(await state.nativeCore.getCheckpoint(staleCheckpoint.checkpoint_id), undefined);
+    assert.equal(await state.nativeCore.getEvent(staleEvent.event_id), undefined);
+    assert.equal((await state.nativeCore.listOutbox()).some((row) => row.eventId === staleEvent.event_id), false);
+
+    await assert.rejects(
+      () => state.withTransaction("VAL-01 injected unexpected repository failure", async () => {
+        throw new Error("VAL-01 unexpected repository failure");
+      }),
+      (error) => error?.code === "ACS_REPOSITORY_TRANSACTION_FAILED"
+        && error.cause instanceof Error
+        && error.cause.message === "VAL-01 unexpected repository failure",
     );
   } finally {
     await Promise.all([state.close(), second.close()]);

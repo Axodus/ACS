@@ -1996,9 +1996,11 @@ export class OperationalEvidenceService {
   }
 
   #toUsageInspectionRecord(record: UsageRecord): UsageInspectionRecord {
-    const reservation = this.#economicService?.listReservations().find((item) => item.executionRunId === record.runId);
-    const authorization = this.#economicService?.listAuthorizations().find((item) => item.executionRunId === record.runId);
     const settlement = this.#economicService?.listSettlements().find((item) => item.runId === record.runId);
+    const reservation = this.#economicService?.listReservations().find(
+      (item) => item.executionRunId === record.runId || item.reservationId === settlement?.reservationId,
+    );
+    const authorization = this.#economicService?.listAuthorizations().find((item) => item.executionRunId === record.runId);
     const quote = reservation
       ? this.#economicService?.listQuotes().find((item) => item.quoteId === reservation.quoteId)
       : authorization?.quoteId

@@ -2,9 +2,11 @@
 
 ## Status
 
-`PARTIAL`
+`PASS`
 
-The durable PostgreSQL state is correct for the tested commit, rollback, reconstruction, recovery, duplicate, and concurrency paths. Two public error mapping failures prevent the frozen REQ-04 contracts from closing.
+Previous VAL-01 result: `FAIL` for the two public error-surface gates. IMP-01C fix validation: `PASS`. Current disposition: `PASS`.
+
+The durable PostgreSQL state remains correct for the tested commit, rollback, reconstruction, recovery, duplicate, and concurrency paths. The public durable API now preserves the two frozen REQ-04 domain outcomes directly.
 
 ## Acceptance matrix
 
@@ -21,15 +23,16 @@ The durable PostgreSQL state is correct for the tested commit, rollback, reconst
 | Pending outbox recovery | PASS | VAL-01 PostgreSQL test | Pending row survived client recreation, was leased, marked retryable, recreated client, reclaimed, and acknowledged. |
 | At-least-once / duplicate delivery | PASS | IMP-01B and VAL-01 outbox retry/reclaim flow | Retry changes delivery state without changing canonical Event. No exactly-once external claim is made. |
 | Durable idempotency effects | PASS | VAL-01 PostgreSQL test | Same key/hash returned prior result after restart; Usage/Cost count remained one. |
-| Durable idempotency conflict surface | FAIL | VAL-01 PostgreSQL test | Different request hash is rejected internally as `NativeIdempotencyConflictError`, but public API exposes generic `ACS_REPOSITORY_TRANSACTION_FAILED`. |
+| Durable idempotency conflict surface | PASS | VAL-01 PostgreSQL test after IMP-01C | Different request hash reaches the caller as `NativeIdempotencyConflictError` with `ACS_NATIVE_IDEMPOTENCY_CONFLICT`; it is not a generic transaction failure. Historical VAL-01 result was FAIL. |
 | Fenced checkpoint persistence | PASS | VAL-01 PostgreSQL test | Valid runtime ownership created checkpoint, Event, outbox, and durable checkpoint reconstruction. |
-| Stale-worker rejection surface | FAIL | VAL-01 PostgreSQL test | Recovered assignment advanced fencing token; stale write was rejected internally as `NativeFencingError`, but public API exposes generic `ACS_REPOSITORY_TRANSACTION_FAILED`. |
+| Stale-worker rejection surface | PASS | VAL-01 PostgreSQL test after IMP-01C | Recovered assignment rejects the stale write at the caller as `NativeFencingError` with `ACS_NATIVE_FENCING_REJECTED`; no stale checkpoint, Event, or outbox row is created. Historical VAL-01 result was FAIL. |
 | Runtime / checkpoint recovery | PASS | VAL-01 PostgreSQL test | Expired assignment requeued; next claimant received fencing token N+1; prior checkpoint remained durable. |
 | Evidence durability | PASS | IMP-01B and VAL-01 PostgreSQL tests | Event- and subject-linked Evidence survived client recreation and remained distinct from Events. |
 | Usage / Cost durability | PASS | IMP-01B and VAL-01 PostgreSQL tests | Native Usage and Cost survived client recreation with provider-neutral records. |
 | Usage / Cost duplicate safety | PASS | VAL-01 PostgreSQL test | Repeated accounting command after restart retained one Usage and one Cost record. |
 | Replay isolation | PASS | `replayEvents` implementation plus PostgreSQL replay | Replay reads `acs_native_events`; no provider, executor, tool, webhook, financial, or delivery call is present on that path. |
-| Security boundaries | PARTIAL | focused native validation; PostgreSQL catalog; VAL-01 fencing | Secret-like payload validation, foreign-key relations, legacy/native separation, and stale-write rejection hold. The two generic public errors weaken the required explicit conflict/rejection surface. |
+| Generic repository failure surface | PASS | VAL-01 deterministic injected unexpected transaction failure | An uncategorized `Error` is still surfaced as `TransactionFailedError` with `ACS_REPOSITORY_TRANSACTION_FAILED` and retained cause metadata. |
+| Security boundaries | PASS | focused native validation; PostgreSQL catalog; VAL-01 fencing | Secret-like payload validation, foreign-key relations, legacy/native separation, stale-write rejection, and canonical public error codes hold. No new infrastructure detail is surfaced. |
 | Projection rebuild | NOT APPLICABLE | REQ-04 | Frozen v1 exclusion; no projection framework was added. |
 
 ## PostgreSQL findings
@@ -38,13 +41,13 @@ The durable PostgreSQL state is correct for the tested commit, rollback, reconst
 
 The database reported `READ COMMITTED`. The accepted implementation supplements that level with advisory locks, row locks, compare-and-swap predicates, and unique constraints described in [environment.md](environment.md).
 
-## Failure detail
+## Historical failure detail and IMP-01C closure
 
 ### VAL-01-DEFECT-001 — native idempotency conflict loses public type
 
 **Invariant:** a same scope/key with a different request hash returns a deterministic idempotency conflict.
 
-**Observed:** `NativeIdempotencyConflictError` is the cause, but the public `state.nativeCore.advanceAgentLineage` call returns `TransactionFailedError` with code `ACS_REPOSITORY_TRANSACTION_FAILED`.
+**Previous VAL-01 observation:** `NativeIdempotencyConflictError` was the cause, but the public `state.nativeCore.advanceAgentLineage` call returned `TransactionFailedError` with code `ACS_REPOSITORY_TRANSACTION_FAILED`.
 
 **Affected location:** `mapRepositoryError` / `withTransaction` in `src/control-plane/shared-state/postgres-shared-state.ts`.
 
@@ -52,18 +55,18 @@ The database reported `READ COMMITTED`. The accepted implementation supplements 
 
 **Invariant:** a stale worker cannot author the checkpoint, Event, or outbox for a recovered assignment.
 
-**Observed:** the stale write made no canonical records and caused `NativeFencingError`, but the public call returns `TransactionFailedError` with code `ACS_REPOSITORY_TRANSACTION_FAILED`.
+**Previous VAL-01 observation:** the stale write made no canonical records and caused `NativeFencingError`, but the public call returned `TransactionFailedError` with code `ACS_REPOSITORY_TRANSACTION_FAILED`.
 
 **Affected location:** the same public error mapping boundary.
 
-The likely minimum fix scope is preserving these two typed native errors in `mapRepositoryError`; VAL-01 does not authorize that implementation change.
+**IMP-01C closure:** `mapRepositoryError` explicitly recognizes these two canonical native errors and rethrows them. The PostgreSQL caller-facing rerun verifies `ACS_NATIVE_IDEMPOTENCY_CONFLICT` and `ACS_NATIVE_FENCING_REJECTED` directly, while a controlled unknown transaction failure still produces `ACS_REPOSITORY_TRANSACTION_FAILED`.
 
 ## Regression classification
 
 | Observation | Classification |
 | --- | --- |
-| VAL-01-DEFECT-001 | NEW IMP-01B REGRESSION / acceptance defect |
-| VAL-01-DEFECT-002 | NEW IMP-01B REGRESSION / acceptance defect |
+| VAL-01-DEFECT-001 | CLOSED by IMP-01C PostgreSQL validation |
+| VAL-01-DEFECT-002 | CLOSED by IMP-01C PostgreSQL validation |
 | s27, s54, s57, s62, s63 | KNOWN ACS-BLOCKER-014; not fixed or reclassified |
 | s43 | KNOWN ENVIRONMENT CONDITION; broad suite uses isolated SQLite path |
 
@@ -96,8 +99,10 @@ observed.
 
 ## Recommendation
 
-`ACS-V2-IMP-01B`: `REMAIN PARTIAL`
+`ACS-V2-VAL-01`: `PROMOTE TO COMPLETE`
 
-`ACS-V2-IMP-01`: `REMAIN PARTIAL`
+`ACS-V2-IMP-01B`: `PROMOTE TO COMPLETE`
 
-The next recommended milestone is a narrowly authorized corrective validation for the public native error mapping, followed by a rerun of VAL-01. Do not start another ACS v2 milestone from this result alone.
+`ACS-V2-IMP-01`: `PROMOTE TO COMPLETE`
+
+The next recommended milestone remains separate review/remediation for `ACS-BLOCKER-014`. Do not begin it from this result alone.

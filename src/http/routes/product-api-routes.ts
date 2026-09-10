@@ -1262,7 +1262,7 @@ export async function routeProductApiRequest(
       }
       return { status: 200, body: ok(run, [], options.correlationId, routeMeta) };
     }
-    if (segments[2] === "execution-runs") {
+    if (segments[2] === "execution-runs" && request.method !== "GET") {
       return unsupportedExecutionMutation(options.correlationId, routeMeta, segments.join("/"));
     }
 
@@ -1658,8 +1658,8 @@ export async function routeProductApiRequest(
     if (segments[2] === "economics" && segments[3] === "reservations" && segments.length === 5) {
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
-    if (apiPath === "economics/reservations") {
-      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    if (apiPath === "economics/reservations" && request.method !== "POST") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
     }
 
     // GET /api/v1/economics/authorizations and GET /api/v1/economics/authorizations/:decisionId
@@ -1692,8 +1692,8 @@ export async function routeProductApiRequest(
     if (segments[2] === "economics" && segments[3] === "authorizations" && segments.length === 5) {
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
-    if (apiPath === "economics/authorizations") {
-      return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    if (apiPath === "economics/authorizations" && request.method !== "POST") {
+      return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
     }
 
     // POST /api/v1/economics/authorizations

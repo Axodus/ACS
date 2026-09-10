@@ -12,6 +12,7 @@ export * from "./execution-policy.js";
 export * from "./inspection.js";
 export * from "./emergency-stop.js";
 export * from "./http/server.js";
+export * from "./http/control-plane-context.js";
 export * from "./http/routes/acs-routes.js";
 export * from "./http/routes/product-api-routes.js";
 export * from "./http/validation.js";

@@ -181,9 +181,12 @@ export class HttpEdgePolicy {
 
   async consumeNetwork(request: IncomingMessage, requestUrl: string, timestamp = Date.now()): Promise<RateLimitDecision> {
     const routeClass = this.routeClass(requestUrl, request.method);
-    const base = routeClass === "runtime_worker" ? this.#policies.runtime_worker : this.#policies.public_health;
+    const base = this.#policies[routeClass];
     const networkPolicy: RateLimitPolicy = {
       ...base,
+      limit: routeClass === "public_health"
+        ? base.limit
+        : Math.max(base.limit, this.#policies.public_health.limit),
       policyId: "http.network." + routeClass,
       keyScope: "network",
       failClosed: routeClass !== "public_health",

@@ -28,6 +28,35 @@ Each command ran against a reset disposable database. A grouped rerun without re
 
 The focused IMP-01B and SH01–SH03 PostgreSQL tests passed. The VAL-01 test passed as a diagnostic acceptance record: it asserts the current wrapped public errors as well as the durable data outcomes, allowing the evidence to be retained while the acceptance matrix marks those public contract gates failed.
 
+## IMP-01C revalidation
+
+On 2026-09-10, IMP-01C used a new loopback-only disposable
+`postgres:17.6-alpine` container with database `acs_imp_01c` published on
+`127.0.0.1:55432`. The public URL and any connection details remain omitted.
+The schema was reset between independent commands.
+
+```text
+npm run build
+# PASS
+
+ACS_SH_DATABASE_URL=<redacted> ACS_TEST_DIST_ROOT=../dist \
+  node --test tests/acs-v2-imp-01b.test.mjs
+# PASS: 3 passed, 0 failed
+
+ACS_SH_DATABASE_URL=<redacted> ACS_TEST_DIST_ROOT=../dist \
+  node --test tests/s59-post-15-5-aees-sh-shared-state.test.mjs
+# PASS: 3 passed, 0 failed
+
+ACS_SH_DATABASE_URL=<redacted> ACS_TEST_DIST_ROOT=../dist \
+  node --test tests/acs-v2-val-01-postgres.test.mjs
+# PASS: 1 passed, 0 failed
+```
+
+The VAL-01 rerun verifies caller-visible
+`ACS_NATIVE_IDEMPOTENCY_CONFLICT` and `ACS_NATIVE_FENCING_REJECTED`, plus
+`ACS_REPOSITORY_TRANSACTION_FAILED` for a deterministic unexpected
+transaction exception. It does not alter the recorded historical failure.
+
 ## Transaction and concurrency mechanism
 
 The implementation used PostgreSQL `READ COMMITTED` isolation, transaction-scoped advisory locks for migrations, idempotency keys, and event streams, row locks for lineage/runtime/outbox state, `FOR UPDATE SKIP LOCKED` for outbox and job claiming, and unique indexes for lineage fingerprints, event stream sequence, idempotency, and event/outbox relations.
