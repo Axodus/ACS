@@ -89,6 +89,7 @@ for compatibility.
 | [REQ-02 extraction audit](req-02/README.md) | Completed planning audit: source extraction, capability comparison, unified-core blueprint, licensing, ADR proposals, and implementation backlog. |
 | [REQ-03 native contract freeze](req-03/README.md) | ACS-owned contract semantics, state/event model, migration matrix, dependency-ordered backlog, adapter boundaries, ADRs, and implementation gate. |
 | [REQ-04 durable persistence and event ownership freeze](req-04/README.md) | Evidence-driven durable Agent lineage, canonical event/outbox, idempotency, replay, recovery, fencing, migration, and IMP-01B acceptance gates. |
+| [REQ-05 Agent experience and application navigation audit](req-05/README.md) | Evidence-backed current UX audit, Agenta workflow reference, target Agent information architecture, lifecycle, screen inventory, API gaps, implementation plan, and decision record. |
 | [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md) | PostgreSQL execution evidence for IMP-01B; PASS after IMP-01C preserved canonical native idempotency and fencing errors at the public boundary. |
 | [IMP-01C typed durable error surface completion](imp-01c/README.md) | Selective public error propagation repair for canonical native idempotency conflicts and stale-fencing rejections, with PostgreSQL revalidation. |
 | [ACS-BLOCKER-014 remediation](blockers/acs-blocker-014/README.md) | Root-cause remediation and validation evidence for the five isolated repository regressions. |
@@ -134,8 +135,9 @@ separate implementation and governance authorization.
 7. [Implementation backlog](implementation-backlog.md)
 8. [REQ-03 native contract freeze](req-03/README.md)
 9. [REQ-04 durable persistence and event ownership freeze](req-04/README.md)
-10. [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md)
-11. [IMP-01C typed durable error surface completion](imp-01c/README.md)
+10. [REQ-05 Agent experience and application navigation audit](req-05/README.md)
+11. [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md)
+12. [IMP-01C typed durable error surface completion](imp-01c/README.md)
 
 ## Non-goals
 
