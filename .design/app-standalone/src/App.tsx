@@ -231,6 +231,10 @@ function apiErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "An unexpected API error occurred";
 }
 
+function isApiConflict(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && (error as { status?: unknown }).status === 409);
+}
+
 function statusTone(status: string): "good" | "warn" | "muted" {
   const normalized = status.trim().toLowerCase();
   if (/warning|attention|updating|degraded|failed|unavailable|blocked|partial|pending|restricted|unvalidated|incompatible|credential|required|error|expired|cancelled|released/.test(normalized)) return "warn";
@@ -1788,8 +1792,8 @@ function AgentConfigurationView() {
                 <div><dt>Current revision</dt><dd className="mono">r{detail.currentRevision.revision}</dd></div>
                 <div><dt>Composition</dt><dd>{detail.composition ? (detail.composition.ready ? "ready" : "attention") : "unavailable"}</dd></div>
               </dl>
-              <div className="panel-actions"><Link className="primary action-link" to={`/agents/${agentId}/edit`}>Open configuration editor</Link><Link className="secondary action-link" to={`/agents/${agentId}`}>View overview</Link></div>
-              <p className="panel-note">The editor remains on the existing route. Guided creation and configuration refinement are the next milestone, IMP-02B.</p>
+              <div className="panel-actions"><Link className="primary action-link" to={`/agents/${agentId}/edit`}>Open configuration</Link><Link className="secondary action-link" to={`/agents/${agentId}`}>View overview</Link></div>
+              <p className="panel-note">Configuration uses the same identity, functional, composition, and advanced hierarchy as Agent creation.</p>
             </>
             : <div className="state-line empty">Agent configuration is unavailable.</div>}
     </section>
@@ -1879,6 +1883,16 @@ function parseList(value: string): string[] {
   return value.split(",").map(item => item.trim()).filter(Boolean);
 }
 
+function AgentFormSection({ title, description, tier, open = false, children }: { title: string; description: string; tier: string; open?: boolean; children: ReactNode }) {
+  return <details className="disclosure agent-form-section" open={open}>
+    <summary>
+      <div><b>{title}</b><small>{description}</small></div>
+      <span className="disclosure-tier">{tier}</span>
+    </summary>
+    <div className="disclosure-body">{children}</div>
+  </details>;
+}
+
 function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string }) {
   const navigate = useNavigate();
   const [agentIdValue, setAgentIdValue] = useState("");
@@ -1899,6 +1913,7 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
   const [detail, setDetail] = useState<AgentDetail | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [revisionConflict, setRevisionConflict] = useState(false);
   const prefilled = useRef(false);
   const roles = useOperationalSummary<RoleSummary[]>(() => productApi.listRoles(), "Unable to load roles for Agent form", () => false);
   const profiles = useOperationalSummary<ProfileSummary[]>(() => productApi.listProfiles(), "Unable to load profiles for Agent form", () => false);
@@ -1907,6 +1922,7 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
   const tools = useOperationalSummary<ToolSummary[]>(() => productApi.listTools(), "Unable to load tools for Agent form", () => false);
   const providers = useOperationalSummary<ProviderSummary[]>(() => productApi.listProviders(), "Unable to load model providers for Agent form", () => false);
   const models = useOperationalSummary<ModelSummary[]>(() => productApi.listModels(), "Unable to load models for Agent form", () => false);
+  const providerConnections = useOperationalSummary<ProviderConnectionSummary[]>(() => productApi.listProviderConnections(), "Unable to load credential references for Agent form", () => false);
 
   useEffect(() => {
     if (mode !== "create" || modelProviderId || !providers.data?.length) return;
@@ -1985,6 +2001,7 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
   }
 
   async function handleSubmit() {
+    if (submitting) return;
     const validationError = validateForm();
     if (validationError) {
       setFormError(validationError);
@@ -1992,6 +2009,7 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
     }
     setSubmitting(true);
     setFormError(null);
+    setRevisionConflict(false);
     try {
       const definition = buildDefinition();
       if (mode === "create") {
@@ -2012,7 +2030,9 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
       }
       navigate(`/agents/${agentId}`);
     } catch (error) {
-      setFormError(apiErrorMessage(error));
+      const conflict = mode !== "create" && isApiConflict(error);
+      setRevisionConflict(conflict);
+      setFormError(conflict ? "This Agent changed after this configuration was loaded. Reload the current configuration before saving again." : apiErrorMessage(error));
       setSubmitting(false);
     }
   }
@@ -2024,46 +2044,87 @@ function AgentForm({ mode, agentId }: { mode: AgentFormMode; agentId?: string })
   </>;
 
   const backTarget = agentId ? `/agents/${agentId}` : "/agents";
-  const title = mode === "create" ? "Create Agent" : mode === "revision" ? "Create Revision" : "Edit Agent";
   const expectedRevision = detail?.currentRevision.revision ?? 1;
+  const selectedConnectionIds = parseList(credentialConnectionIds);
+  const connectionOptions = providerConnections.data ?? [];
+  const knownConnectionIds = new Set(connectionOptions.map(connection => connection.connectionId));
+  const unavailableConnectionIds = selectedConnectionIds.filter(connectionId => !knownConnectionIds.has(connectionId));
+  const modelConnectionOptions = modelProviderId ? connectionOptions.filter(connection => connection.providerId === modelProviderId) : connectionOptions;
   const toggleCsv = (current: string, value: string) => {
     const values = parseList(current);
     return values.includes(value) ? values.filter(item => item !== value).join(", ") : [...values, value].join(", ");
   };
+  const selectModelCredential = (connectionId: string) => {
+    setModelCredentialConnectionId(connectionId);
+    if (connectionId && !selectedConnectionIds.includes(connectionId)) setCredentialConnectionIds(toggleCsv(credentialConnectionIds, connectionId));
+  };
+  const formTitle = mode === "create" ? "Create Agent" : mode === "revision" ? "Create revision" : "Update configuration";
+  const formDescription = mode === "create"
+    ? "Define Agent identity first. Functional and technical composition choices remain available as you need them."
+    : "Update the next immutable Agent revision with the same grouped configuration used during creation.";
 
   return <>
-    <DomainHeader domain="Agents" title={title} description={mode === "create" ? "Create a governed agent from authoritative Product API catalogs." : "Update the governed agent definition."} />
+    <DomainHeader domain="Agents" title={formTitle} description={formDescription} />
     <Link className="back" to={backTarget}>← Back</Link>
     <div className="guardrail-banner compact" role="note"><span>Sandbox · Governed mutation</span></div>
     {mode === "revision" && <div className="info-banner">A new revision is created from this definition. The Product API validates references and governance; readiness is not recomputed in the UI.</div>}
-    <section className="panel form-panel">
-      <div className="panel-head"><div><h2>{mode === "create" ? "Definition" : "Definition update"}</h2><p>Client-side validation is minimal — the Product API performs the real validation</p></div></div>
-      <div className="form">
-        <label>Agent ID{mode !== "create" && <small>Read-only — definition.agentId must match the agent</small>}<input className="mono" value={agentIdValue} readOnly={mode !== "create"} onChange={e => setAgentIdValue(e.target.value)} placeholder="e.g. morpheus" /></label>
-        <label>Name<input value={name} onChange={e => setName(e.target.value)} placeholder="Agent display name" /></label>
-        <label>Status<select value={status} onChange={e => setStatus(e.target.value as GovernedAgentStatus)}><option value="draft">draft</option><option value="active">active</option><option value="disabled">disabled</option></select></label>
-        <label>Role<select value={roleId} onChange={e => setRoleId(e.target.value)}><option value="">No role selected</option>{roles.data?.map(role => <option value={role.roleId} key={role.roleId}>{role.name} — {role.roleId}</option>)}</select><small>{roles.loadError ?? "Options from the Product API role catalog."}</small></label>
-        <label>Profile<select value={profileId} onChange={e => setProfileId(e.target.value)}><option value="">No profile selected</option>{profiles.data?.map(profile => <option value={profile.profileId} key={profile.profileId}>{profile.name} — {profile.profileId}</option>)}</select><small>{profiles.loadError ?? "Options from the Product API profile catalog."}</small></label>
-        <fieldset className="catalog-selector"><legend>Capabilities</legend>{capabilities.data?.map(item => <label key={item.capabilityId}><input type="checkbox" checked={parseList(capabilityIds).includes(item.capabilityId)} onChange={() => setCapabilityIds(toggleCsv(capabilityIds, item.capabilityId))} /><span>{item.name}<small>{item.capabilityId}</small></span></label>)}{capabilities.loadError && <small>{capabilities.loadError}</small>}</fieldset>
-        <fieldset className="catalog-selector"><legend>Skills</legend>{skills.data?.map(item => <label key={item.skillId}><input type="checkbox" checked={parseList(skillIds).includes(item.skillId)} onChange={() => setSkillIds(toggleCsv(skillIds, item.skillId))} /><span>{item.name}<small>{item.skillId}</small></span></label>)}{skills.loadError && <small>{skills.loadError}</small>}</fieldset>
-        <fieldset className="catalog-selector"><legend>Tools</legend>{tools.data?.map(item => <label key={item.toolId}><input type="checkbox" checked={parseList(toolIds).includes(item.toolId)} onChange={() => setToolIds(toggleCsv(toolIds, item.toolId))} /><span>{item.name}<small>{item.toolId}</small></span></label>)}{tools.loadError && <small>{tools.loadError}</small>}</fieldset>
-        <label>Model provider<select value={modelProviderId} onChange={event => {
-          const nextProvider = event.target.value;
-          setModelProviderId(nextProvider);
-          const nextModel = models.data?.find(item => item.type === nextProvider && item.availability === "available")
-            ?? models.data?.find(item => item.type === nextProvider);
-          setModelId(nextModel ? nextModel.id.startsWith(`${nextProvider}/`) ? nextModel.id.slice(nextProvider.length + 1) : nextModel.id : "");
-        }}><option value="">No provider selected</option>{providers.data?.map(provider => <option value={provider.id} key={provider.id}>{provider.name} — {provider.id} ({provider.availability})</option>)}</select><small>{providers.loadError ?? "Provider catalog is authoritative; authentication material remains in Secret references."}</small></label>
-        <label>Model<select value={modelId} disabled={!modelProviderId} onChange={event => setModelId(event.target.value)}><option value="">No model selected</option>{models.data?.filter(model => model.type === modelProviderId).map(model => {
-          const value = model.id.startsWith(`${modelProviderId}/`) ? model.id.slice(modelProviderId.length + 1) : model.id;
-          return <option value={value} key={model.id}>{model.name} — {value} ({model.availability})</option>;
-        })}</select><small>{models.loadError ?? "Only models exposed by the selected Product API provider are listed."}</small></label>
-        <label>Model credential reference (optional)<input className="mono" value={modelCredentialConnectionId} onChange={event => setModelCredentialConnectionId(event.target.value)} placeholder="credential id already declared below" /><small>If set, the same id must also be present in Credential connections.</small></label>
-        <label>Credential connections<input className="mono" value={credentialConnectionIds} onChange={e => setCredentialConnectionIds(e.target.value)} placeholder="comma-separated ids" /></label>
-        <label>Runner preferences<input className="mono" value={runnerPreferences} onChange={e => setRunnerPreferences(e.target.value)} placeholder="comma-separated ids" /></label>
-        {mode !== "create" && <div className="form-note">Saving applies to revision <b className="mono">r{expectedRevision}</b> (expectedRevision guard).</div>}
-      </div>
+    <section className="panel form-panel agent-form-panel">
+      <div className="panel-head"><div><h2>Agent definition</h2><p>Required fields are limited to Agent ID and name. The Product API remains authoritative for catalog, governance, and composition validation.</p></div></div>
+      <div className="agent-form-flow" aria-label="Agent configuration flow"><span>Identity</span><ArrowRight size={14} /><span>Functional configuration</span><ArrowRight size={14} /><span>Technical composition</span><ArrowRight size={14} /><span>Review and create</span></div>
+      <AgentFormSection title="Identity" description="Establish the ACS-owned Agent identity. Provider, credential, and runtime choices do not belong here." tier="required" open>
+        <div className="form">
+          <label>Agent ID{mode !== "create" && <small>Read-only — this stable ACS identity cannot be changed by configuration.</small>}<input className="mono" value={agentIdValue} readOnly={mode !== "create"} onChange={e => setAgentIdValue(e.target.value)} placeholder="e.g. research-analyst" /></label>
+          <label>Name<input value={name} onChange={e => setName(e.target.value)} placeholder="Agent display name" /><small>The operator-facing name for this Agent.</small></label>
+        </div>
+        <p className="form-note">Purpose and description are not shown because the current Agent contract has no durable ACS-owned field for either value.</p>
+      </AgentFormSection>
+      <AgentFormSection title="Functional configuration" description="Choose current Agent-level behavior without exposing provider or credential mechanics first." tier="configuration" open={mode !== "create"}>
+        <div className="form">
+          <label>Initial lifecycle status<select value={status} onChange={e => setStatus(e.target.value as GovernedAgentStatus)}><option value="draft">draft</option><option value="active">active</option><option value="disabled">disabled</option></select><small>Draft is the default. Product API lifecycle and governance checks remain authoritative.</small></label>
+          <fieldset className="catalog-selector"><legend>Capabilities</legend>{capabilities.data?.map(item => <label key={item.capabilityId}><input type="checkbox" checked={parseList(capabilityIds).includes(item.capabilityId)} onChange={() => setCapabilityIds(toggleCsv(capabilityIds, item.capabilityId))} /><span>{item.name}<small>{item.capabilityId}</small></span></label>)}{capabilities.loadError && <small>{capabilities.loadError}</small>}{capabilities.data?.length === 0 && <small>No capabilities are currently available.</small>}</fieldset>
+        </div>
+      </AgentFormSection>
+      <AgentFormSection title="Technical composition" description="Optional runtime implementation choices. These configure how an Agent may run; they do not define the Agent." tier="technical">
+        <div className="form">
+          <label>Provider<select value={modelProviderId} onChange={event => {
+            const nextProvider = event.target.value;
+            setModelProviderId(nextProvider);
+            const nextModel = models.data?.find(item => item.type === nextProvider && item.availability === "available")
+              ?? models.data?.find(item => item.type === nextProvider);
+            setModelId(nextModel ? nextModel.id.startsWith(`${nextProvider}/`) ? nextModel.id.slice(nextProvider.length + 1) : nextModel.id : "");
+            setModelCredentialConnectionId("");
+          }}><option value="">No provider selected</option>{providers.data?.map(provider => <option value={provider.id} key={provider.id}>{provider.name} — {provider.availability}</option>)}</select><small>{providers.loadError ?? "Provider catalog is authoritative. Provider selection is technical composition, not Agent identity."}</small></label>
+          <label>Model<select value={modelId} disabled={!modelProviderId} onChange={event => setModelId(event.target.value)}><option value="">No model selected</option>{models.data?.filter(model => model.type === modelProviderId).map(model => {
+            const value = model.id.startsWith(`${modelProviderId}/`) ? model.id.slice(modelProviderId.length + 1) : model.id;
+            return <option value={value} key={model.id}>{model.name} — {value} ({model.availability})</option>;
+          })}</select><small>{models.loadError ?? "Only catalog models for the selected provider are shown."}</small></label>
+          <fieldset className="catalog-selector"><legend>Credential references</legend>{connectionOptions.map(connection => <label key={connection.connectionId}><input type="checkbox" checked={selectedConnectionIds.includes(connection.connectionId)} onChange={() => setCredentialConnectionIds(toggleCsv(credentialConnectionIds, connection.connectionId))} /><span>{connection.connectionId}<small>{connection.providerName} · {connection.availability}</small></span></label>)}{unavailableConnectionIds.map(connectionId => <label key={connectionId}><input type="checkbox" checked onChange={() => setCredentialConnectionIds(toggleCsv(credentialConnectionIds, connectionId))} /><span>{connectionId}<small>preserved unavailable reference</small></span></label>)}{providerConnections.loadError && <small>{providerConnections.loadError}</small>}{connectionOptions.length === 0 && !providerConnections.loadError && <small>No credential references are available. <Link to="/credentials">Manage credential references</Link></small>}</fieldset>
+          <label>Model credential reference (optional)<select value={modelCredentialConnectionId} onChange={event => selectModelCredential(event.target.value)}><option value="">No model credential selected</option>{modelCredentialConnectionId && !modelConnectionOptions.some(connection => connection.connectionId === modelCredentialConnectionId) && <option value={modelCredentialConnectionId}>{modelCredentialConnectionId} — preserved unavailable reference</option>}{modelConnectionOptions.map(connection => <option value={connection.connectionId} key={connection.connectionId}>{connection.connectionId} — {connection.availability}</option>)}</select><small>The chosen reference is added to the Agent credential connections. Secrets never appear in this form.</small></label>
+        </div>
+      </AgentFormSection>
+      <AgentFormSection title="Advanced" description="Low-frequency composition and diagnostic options. Required configuration is never hidden here." tier="advanced">
+        <div className="form">
+          <label>Role<select value={roleId} onChange={e => setRoleId(e.target.value)}><option value="">No role selected</option>{roles.data?.map(role => <option value={role.roleId} key={role.roleId}>{role.name} — {role.roleId}</option>)}</select><small>{roles.loadError ?? "Options from the Product API role catalog."}</small></label>
+          <label>Profile<select value={profileId} onChange={e => setProfileId(e.target.value)}><option value="">No profile selected</option>{profiles.data?.map(profile => <option value={profile.profileId} key={profile.profileId}>{profile.name} — {profile.profileId}</option>)}</select><small>{profiles.loadError ?? "Options from the Product API profile catalog."}</small></label>
+          <fieldset className="catalog-selector"><legend>Skills</legend>{skills.data?.map(item => <label key={item.skillId}><input type="checkbox" checked={parseList(skillIds).includes(item.skillId)} onChange={() => setSkillIds(toggleCsv(skillIds, item.skillId))} /><span>{item.name}<small>{item.skillId}</small></span></label>)}{skills.loadError && <small>{skills.loadError}</small>}</fieldset>
+          <fieldset className="catalog-selector"><legend>Tools</legend>{tools.data?.map(item => <label key={item.toolId}><input type="checkbox" checked={parseList(toolIds).includes(item.toolId)} onChange={() => setToolIds(toggleCsv(toolIds, item.toolId))} /><span>{item.name}<small>{item.toolId}</small></span></label>)}{tools.loadError && <small>{tools.loadError}</small>}</fieldset>
+          <label>Runner preferences<input className="mono" value={runnerPreferences} onChange={e => setRunnerPreferences(e.target.value)} placeholder="comma-separated runner preference ids" /><small>Existing low-level runner preference identifiers. Leave blank unless an operator has a known supported value.</small></label>
+        </div>
+      </AgentFormSection>
+      <AgentFormSection title={mode === "create" ? "Review and create" : "Review and save"} description="Confirm the current definition before the canonical Product API mutation." tier="review">
+        <dl className="config-list form-review-list">
+          <div><dt>Agent identity</dt><dd>{name.trim() || "Name required"} <code className="mono">{agentIdValue.trim() || "Agent ID required"}</code></dd></div>
+          <div><dt>Lifecycle status</dt><dd>{status}</dd></div>
+          <div><dt>Capabilities</dt><dd>{parseList(capabilityIds).length || "None selected"}</dd></div>
+          <div><dt>Technical composition</dt><dd>{modelProviderId && modelId ? `${modelProviderId} / ${modelId}` : "No provider/model selected"}</dd></div>
+          <div><dt>Credential references</dt><dd>{selectedConnectionIds.length ? `${selectedConnectionIds.length} selected` : "None selected"}</dd></div>
+          {mode !== "create" && <div><dt>Revision guard</dt><dd>Save uses expected revision <code className="mono">r{expectedRevision}</code>.</dd></div>}
+        </dl>
+        <p className="form-note">Form validation checks Agent ID and name. Server-side validation, authorization, governance, composition, and duplicate protection run when the definition is submitted. Validate configuration is available after the Agent exists.</p>
+        {mode !== "create" && <Link className="surface-link" to={`/agents/${agentId}/validate`}>Open current Validate surface →</Link>}
+      </AgentFormSection>
       {formError && <div className="error-banner" role="alert">{formError}</div>}
+      {revisionConflict && agentId && <div className="warning-banner" role="alert">The save was rejected to preserve immutable revision history. <Link to={`/agents/${agentId}/edit`}>Reload current configuration</Link></div>}
       <div className="form-actions">
         <button className="secondary" disabled={submitting} onClick={() => navigate(backTarget)}>Cancel</button>
         <button className="primary" disabled={submitting} onClick={() => void handleSubmit()}>{submitting ? "Saving..." : mode === "create" ? "Create agent" : mode === "revision" ? "Create revision" : "Save changes"}</button>

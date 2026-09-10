@@ -2531,6 +2531,41 @@ button.danger:disabled {
   max-width: 680px;
 }
 
+.agent-form-panel {
+  max-width: 860px;
+}
+
+.agent-form-flow {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 11px;
+  gap: 6px;
+  padding: 0 20px 16px;
+}
+
+.agent-form-flow span:first-child {
+  color: var(--lime);
+  font-weight: 700;
+}
+
+.agent-form-section {
+  border-top: 1px solid var(--border);
+}
+
+.agent-form-section .disclosure-body {
+  padding: 0 20px 18px;
+}
+
+.agent-form-section .form {
+  padding: 14px 0 0;
+}
+
+.form-review-list {
+  margin: 0 0 14px;
+}
+
 .form-panel .form {
   padding: 18px 20px;
 }
@@ -2650,6 +2685,15 @@ button.danger:disabled {
 
   .form-actions {
     flex-wrap: wrap;
+  }
+
+  .agent-form-flow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .agent-form-flow svg {
+    display: none;
   }
 }
 
