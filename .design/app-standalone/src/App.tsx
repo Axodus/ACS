@@ -134,7 +134,8 @@ type View =
   | "Governance & System"
   | "Settings";
 
-type Domain = "Dashboard" | "Agents" | "Executions" | "Workers" | "Financial Operations" | "Customers" | "Operations" | "Administration" | "Capabilities" | "Evidence" | "Economics" | "Governance" | "System";
+type PrimaryDomain = "Dashboard" | "Agents" | "Runs" | "Evidence" | "Usage & Cost" | "Runtime" | "Administration";
+type Domain = PrimaryDomain | "Executions" | "Workers" | "Financial Operations" | "Customers" | "Operations" | "Capabilities" | "Economics" | "Governance" | "System";
 
 type DomainChild = {
   readonly label: string;
@@ -145,7 +146,7 @@ type DomainChild = {
 };
 
 type DomainDef = {
-  readonly id: Domain;
+  readonly id: PrimaryDomain;
   readonly icon: string;
   readonly to: string;
   readonly description: string;
@@ -187,23 +188,22 @@ const viewPaths: Record<View, string> = {
 };
 
 const domainDefs: readonly DomainDef[] = [
-  { id: "Dashboard", icon: "⌂", to: "/", description: "Customer-facing operational health and activity.", children: [] },
-  { id: "Agents", icon: "◫", to: "/agents", description: "Governed agent identity, lifecycle, composition and secret references.", children: [{ label: "Inventory", to: "/agents" }, { label: "Create", to: "/agents/new" }, { label: "Secret references", to: "/credentials" }] },
-  { id: "Executions", icon: "▷", to: "/executions", description: "Execution activity, outcomes and governed planning.", children: [{ label: "Execution history", to: "/executions" }, { label: "Plan execution", to: "/operational-execution", kind: "compatibility" }] },
-  { id: "Workers", icon: "◇", to: "/workers", description: "Worker availability, capacity and execution support.", children: [{ label: "Worker inventory", to: "/workers" }] },
-  { id: "Financial Operations", icon: "$", to: "/economics", description: "Current operational economics and future governed financial operations.", children: [{ label: "Overview", to: "/economics" }, { label: "Reservations & settlement", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Billing boundary", to: "/system/billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Boundaries" }] },
-  { id: "Customers", icon: "◎", to: productApiConfig.tenantAdministrationUrl, description: "Tenant accounts, members, governance and activity.", children: [{ label: "Accounts / Tenants", to: productApiConfig.tenantAdministrationUrl, external: true }] },
-  { id: "Operations", icon: "⟡", to: "/operations", description: "Runtime, deployments, telemetry, incidents and operational evidence.", children: [{ label: "Operational status", to: "/operations" }, { label: "Operations overview", to: "/operations/overview", kind: "compatibility" }, { label: "Runtime", to: "/runtime" }, { label: "Deployments", to: "/operational-execution", kind: "compatibility" }, { label: "Telemetry & logs", to: "/logs" }, { label: "Incidents & evidence", to: "/operational-evidence" }, { label: "Audit", to: "/audit" }] },
-  { id: "Administration", icon: "⚙", to: "/administration", description: "Environment readiness, composition, certification and platform controls.", children: [{ label: "Overview", to: "/administration" }, { label: "Readiness evidence", to: "/readiness" }, { label: "Tenants", to: productApiConfig.tenantAdministrationUrl, external: true }, { label: "Identity & access", to: "/credentials" }, { label: "Governance", to: "/system" }, { label: "Providers", to: "/engines" }, { label: "Capabilities", to: "/composition" }, { label: "System reliability", to: "/system/operational-reliability" }, { label: "Settings", to: "/settings" }] },
+  { id: "Dashboard", icon: "⌂", to: "/", description: "Global attention, readiness and recent activity.", children: [] },
+  { id: "Agents", icon: "◫", to: "/agents", description: "Governed Agent identity, lifecycle, revisions and configuration.", children: [{ label: "All Agents", to: "/agents" }, { label: "Create Agent", to: "/agents/new" }, { label: "Credential references", to: "/credentials", kind: "compatibility" }] },
+  { id: "Runs", icon: "▷", to: "/executions", description: "Cross-Agent execution history and governed planning.", children: [{ label: "All Runs", to: "/executions" }, { label: "Execution planning", to: "/operational-execution", kind: "compatibility" }] },
+  { id: "Evidence", icon: "◌", to: "/operational-evidence", description: "Cross-Agent evidence, audit and operational activity.", children: [{ label: "Evidence", to: "/operational-evidence" }, { label: "Audit", to: "/audit" }, { label: "Logs", to: "/logs", kind: "compatibility" }] },
+  { id: "Usage & Cost", icon: "$", to: "/economics", description: "Operational usage and cost visibility with explicit financial boundaries.", children: [{ label: "Overview", to: "/economics" }, { label: "Reservations & settlement", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Boundary reports", to: "/system/billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Boundaries" }] },
+  { id: "Runtime", icon: "⟡", to: "/runtime", description: "Runtime, workers, deployments and operational support.", children: [{ label: "Runtime", to: "/runtime" }, { label: "Operations status", to: "/operations", kind: "compatibility" }, { label: "Deployments", to: "/operational-execution", kind: "compatibility" }, { label: "Workers", to: "/workers", kind: "compatibility" }, { label: "Diagnostics", to: "/logs", kind: "compatibility" }] },
+  { id: "Administration", icon: "⚙", to: "/administration", description: "Organization access, governance, catalogs, readiness and settings.", children: [{ label: "Overview", to: "/administration" }, { label: "Readiness", to: "/readiness" }, { label: "Organizations", to: productApiConfig.tenantAdministrationUrl, external: true }, { label: "Identity & access", to: "/credentials" }, { label: "Governance", to: "/system" }, { label: "Providers & catalogs", to: "/engines" }, { label: "Capabilities", to: "/composition" }, { label: "System reliability", to: "/system/operational-reliability" }, { label: "Settings", to: "/settings" }] },
 ];
 
-const domainByPath = (path: string): Domain => {
+const domainByPath = (path: string): PrimaryDomain => {
   if (path === "/") return "Dashboard";
   if (path.startsWith("/agents")) return "Agents";
-  if (path.startsWith("/executions")) return "Executions";
-  if (path.startsWith("/workers")) return "Workers";
-  if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Financial Operations";
-  if (path.startsWith("/operational-execution") || path.startsWith("/runtime") || path.startsWith("/operations") || path.startsWith("/operational-evidence") || path.startsWith("/logs") || path.startsWith("/audit")) return "Operations";
+  if (path.startsWith("/executions")) return "Runs";
+  if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Usage & Cost";
+  if (path.startsWith("/operational-evidence") || path.startsWith("/audit")) return "Evidence";
+  if (path.startsWith("/operational-execution") || path.startsWith("/runtime") || path.startsWith("/operations") || path.startsWith("/workers") || path.startsWith("/logs")) return "Runtime";
   return "Administration";
 };
 
@@ -549,7 +549,7 @@ function ContextTabs({ title, tabs }: {
   tabs: readonly { label: string; to: string; available?: boolean; note?: string }[];
 }) {
   const location = useLocation();
-  const active = tabs.find(tab => childActive(location.pathname, tab.to))?.to;
+  const active = [...tabs].sort((left, right) => right.to.length - left.to.length).find(tab => childActive(location.pathname, tab.to))?.to;
   return <div className="context-tabs-wrap">
     <div className="context-tabs-head"><strong>{title}</strong><small>Entity context</small></div>
     <nav className="context-tabs" aria-label={title}>
@@ -562,7 +562,7 @@ function ContextTabs({ title, tabs }: {
 
 function SidebarNavigation({ pathname, activeDomain, onNavigate }: {
   pathname: string;
-  activeDomain: Domain;
+  activeDomain: PrimaryDomain;
   onNavigate: () => void;
 }) {
   return <nav className="sidebar-navigation" aria-label="Control Plane navigation">
@@ -574,11 +574,9 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate }: {
         return acc;
       }, {});
       return <section className={`sidebar-domain ${expanded ? "expanded" : ""}`} key={domain.id}>
-        {domain.id === "Customers" ? <a className="domain-link" href={domain.to} onClick={onNavigate}>
-          <span>{domain.icon}</span>{domain.id}<i className="sidebar-chevron" aria-hidden="true">↗</i>
-        </a> : <Link className={`domain-link ${expanded ? "active" : ""}`} to={domain.to} onClick={onNavigate} aria-current={expanded ? "page" : undefined}>
+        <Link className={`domain-link ${expanded ? "active" : ""}`} to={domain.to} onClick={onNavigate} aria-current={expanded ? "page" : undefined}>
           <span>{domain.icon}</span>{domain.id}<i className="sidebar-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</i>
-        </Link>}
+        </Link>
         {expanded && <div className="sidebar-children">
           {Object.entries(groups).map(([group, children]) => <div className="sidebar-child-group" key={group || "root"}>
             {group && <span className="sidebar-group-label">{group}</span>}
@@ -594,13 +592,18 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate }: {
 
 function EntityContextNav({ pathname }: { pathname: string }) {
   if (pathname === "/agents/new") return null;
-  const agentMatch = pathname.match(/^\/agents\/([^/]+)(?:\/(composition|edit))?/);
+  const agentMatch = pathname.match(/^\/agents\/([^/]+)(?:\/[^/]+)?/);
   if (agentMatch) {
     const agentId = agentMatch[1];
     return <ContextTabs title={`Agent / ${agentId}`} tabs={[
       { label: "Overview", to: `/agents/${agentId}` },
-      { label: "Composition", to: `/agents/${agentId}/composition` },
-      { label: "Manage", to: `/agents/${agentId}/edit` },
+      { label: "Configuration", to: `/agents/${agentId}/configuration` },
+      { label: "Validate", to: `/agents/${agentId}/validate` },
+      { label: "Runs", to: `/agents/${agentId}/runs` },
+      { label: "Revisions", to: `/agents/${agentId}/revisions` },
+      { label: "Evidence", to: `/agents/${agentId}/evidence` },
+      { label: "Usage & Cost", to: `/agents/${agentId}/usage-cost` },
+      { label: "Advanced", to: `/agents/${agentId}/advanced` },
     ]} />;
   }
   const resourceMatch = pathname.match(/^\/(roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)/);
@@ -1558,11 +1561,6 @@ function AgentDetail() {
 
   return <>
     <DomainHeader domain="Agents" title={definition.name} description="Agent lifecycle, readiness and related evidence." entityLabel={`Agent: ${detail.agentId}`} />
-    <ContextTabs title={`Agent / ${definition.name}`} tabs={[
-      { label: "Overview", to: `/agents/${detail.agentId}` },
-      { label: "Composition", to: `/agents/${detail.agentId}/composition` },
-      { label: "Manage", to: `/agents/${detail.agentId}/edit` },
-    ]} />
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agent state...</div>}
@@ -1760,6 +1758,118 @@ function AgentDetail() {
         </div>
       </div>
     )}
+  </>;
+}
+
+function AgentLocalHeader({ agentId, title, description }: { agentId: string; title: string; description: string }) {
+  return <DomainHeader domain="Agents" title={title} description={description} entityLabel={`Agent: ${agentId}`} />;
+}
+
+function AgentConfigurationView() {
+  const { agentId } = useParams();
+  const surface = useAgentSurface(agentId ?? "");
+  if (!agentId) return <Navigate to="/agents" replace />;
+  const detail = surface.data?.detail;
+  return <>
+    <AgentLocalHeader agentId={agentId} title="Configuration" description="Current Agent definition and the existing governed editor." />
+    {surface.loadError && <div className="error-banner" role="alert">{surface.loadError}</div>}
+    {surface.stale && <div className="stale-banner" role="status">Showing a stale configuration snapshot. Refresh from Agent overview to recover live state.</div>}
+    <section className="panel">
+      <div className="panel-head"><div><h2>Configuration boundary</h2><p>ACS owns the Agent definition and revision lineage.</p></div><span className="tag">{detail ? `r${detail.currentRevision.revision}` : "loading"}</span></div>
+      {surface.loadState === "loading" && !detail
+        ? <div className="state-line">Loading current configuration...</div>
+        : surface.loadState === "error" && !detail
+          ? <div className="state-line error">Unable to load the current configuration.</div>
+          : detail
+            ? <>
+              <dl className="config-list">
+                <div><dt>Agent</dt><dd>{detail.agentDefinition.name} <code className="mono">{detail.agentId}</code></dd></div>
+                <div><dt>Status</dt><dd>{detail.agentDefinition.status}</dd></div>
+                <div><dt>Current revision</dt><dd className="mono">r{detail.currentRevision.revision}</dd></div>
+                <div><dt>Composition</dt><dd>{detail.composition ? (detail.composition.ready ? "ready" : "attention") : "unavailable"}</dd></div>
+              </dl>
+              <div className="panel-actions"><Link className="primary action-link" to={`/agents/${agentId}/edit`}>Open configuration editor</Link><Link className="secondary action-link" to={`/agents/${agentId}`}>View overview</Link></div>
+              <p className="panel-note">The editor remains on the existing route. Guided creation and configuration refinement are the next milestone, IMP-02B.</p>
+            </>
+            : <div className="state-line empty">Agent configuration is unavailable.</div>}
+    </section>
+  </>;
+}
+
+function AgentValidateView() {
+  const { agentId } = useParams();
+  const surface = useAgentSurface(agentId ?? "");
+  if (!agentId) return <Navigate to="/agents" replace />;
+  const detail = surface.data?.detail;
+  return <>
+    <AgentLocalHeader agentId={agentId} title="Validate" description="Composition and readiness validation for this Agent." />
+    {surface.loadError && <div className="error-banner" role="alert">{surface.loadError}</div>}
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Product API source of truth</span><span>No test or playground execution</span></div>
+    <div className="detail-grid">
+      <section className="panel">
+        <div className="panel-head"><div><h2>Composition validation</h2><p>Existing Agent composition and compatibility surface.</p></div><Badge tone={detail?.composition?.ready ? "good" : "warn"}>{detail?.composition ? (detail.composition.ready ? "ready" : "attention") : "unavailable"}</Badge></div>
+        <p className="panel-note">Validate means configuration, composition and readiness validation in this milestone.</p>
+        <Link className="primary action-link" to={`/agents/${agentId}/composition`}>Open composition validation</Link>
+      </section>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Readiness validation</h2><p>Current readiness summary from the Agent detail read model.</p></div><ReadinessBadge summary={detail?.readinessSummary ?? { state: "unavailable", blockerCount: 0, warningCount: 0 }} /></div>
+        {detail
+          ? <dl className="config-list"><div><dt>State</dt><dd>{detail.readinessSummary.state}</dd></div><div><dt>Blockers</dt><dd>{detail.readinessSummary.blockerCount}</dd></div><div><dt>Warnings</dt><dd>{detail.readinessSummary.warningCount}</dd></div></dl>
+          : <div className="state-line">Loading readiness...</div>}
+        <Link className="surface-link" to="/readiness">Open global readiness evidence →</Link>
+      </section>
+    </div>
+  </>;
+}
+
+function AgentRevisionsView() {
+  const { agentId } = useParams();
+  const surface = useAgentSurface(agentId ?? "");
+  if (!agentId) return <Navigate to="/agents" replace />;
+  return <>
+    <AgentLocalHeader agentId={agentId} title="Revisions" description="Immutable Agent revision lineage and current head." />
+    {surface.loadError && <div className="error-banner" role="alert">{surface.loadError}</div>}
+    <section className="panel">
+      <div className="panel-head"><div><h2>Revision history</h2><p>Revision records are read from the existing Agent API.</p></div><Link className="secondary action-link" to={`/agents/${agentId}`}>Open overview</Link></div>
+      {surface.loadState === "loading" && !surface.data
+        ? <div className="state-line">Loading revisions...</div>
+        : surface.data?.revisions.length
+          ? <div className="revision-list">{surface.data.revisions.map(revision => <div className={`revision-row ${revision.status === "current" ? "current" : ""}`} key={revision.revisionId}><div className="revision-main"><div className="revision-top"><b className="mono">r{revision.revisionNumber}</b><Badge tone={revision.status === "current" ? "good" : "muted"}>{revision.status}</Badge></div><small>Created <Time value={revision.createdAt} /></small>{revision.changeSummary && <small>{revision.changeSummary}</small>}</div><Link className="detail-link" to={`/agents/${agentId}`}>View</Link></div>)}</div>
+          : <div className="state-line empty">No revision history is available.</div>}
+      <p className="panel-note">Adopt and restore controls remain on the Agent overview so lifecycle consequences stay visible in one governed surface.</p>
+    </section>
+  </>;
+}
+
+function AgentScopedUnsupportedView({ title, description, canonicalPath, canonicalLabel, subject }: { title: string; description: string; canonicalPath: string; canonicalLabel: string; subject: string }) {
+  const { agentId } = useParams();
+  if (!agentId) return <Navigate to="/agents" replace />;
+  return <>
+    <AgentLocalHeader agentId={agentId} title={title} description={description} />
+    <section className="panel">
+      <div className="panel-head"><div><h2>Agent-scoped {subject}</h2><p>The current frontend client has no verified Agent-scoped aggregation for this surface.</p></div><Badge tone="muted">unavailable</Badge></div>
+      <div className="state-line empty">Agent-specific {subject.toLowerCase()} are not fabricated from global records. Use the canonical global view and correlate with Agent ID where the Product API provides that reference.</div>
+      <div className="panel-actions"><Link className="primary action-link" to={canonicalPath}>Open {canonicalLabel}</Link><Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Link></div>
+    </section>
+  </>;
+}
+
+function AgentAdvancedView() {
+  const { agentId } = useParams();
+  if (!agentId) return <Navigate to="/agents" replace />;
+  return <>
+    <AgentLocalHeader agentId={agentId} title="Advanced" description="Technical and diagnostic surfaces that explain Agent state." />
+    <section className="panel">
+      <div className="panel-head"><div><h2>Advanced surfaces</h2><p>Progressive disclosure keeps low-level detail contextual to this Agent.</p></div><Badge tone="muted">diagnostic</Badge></div>
+      <div className="cross-links">
+        <Link className="detail-link" to={`/agents/${agentId}/composition`}>Composition detail →</Link>
+        <Link className="detail-link" to={`/agents/${agentId}/validate`}>Readiness validation →</Link>
+        <Link className="detail-link" to="/operational-execution">Deployment and execution planning →</Link>
+        <Link className="detail-link" to="/runtime">Runtime support →</Link>
+        <Link className="detail-link" to="/audit">Audit records →</Link>
+      </div>
+      <p className="panel-note">Provider identifiers, credential references, runtime internals and diagnostics remain behind contextual or global governed surfaces.</p>
+    </section>
   </>;
 }
 
@@ -5367,9 +5477,49 @@ export default function App() {
             <Route path="/agents" element={<AgentInventory />} />
             <Route path="/agents/new" element={<AgentCreate />} />
             <Route path="/agents/:agentId/edit" element={<AgentEdit />} />
-            <Route path="/agents/:agentId" element={<AgentDetail />} />
             <Route path="/credentials" element={<CredentialsPage />} />
             <Route path="/agents/:agentId/composition" element={<AgentCompositionView />} />
+            <Route path="/agents/:agentId/configuration" element={<AgentConfigurationView />} />
+            <Route path="/agents/:agentId/validate" element={<AgentValidateView />} />
+            <Route
+              path="/agents/:agentId/runs"
+              element={
+                <AgentScopedUnsupportedView
+                  title="Runs"
+                  description="Runs associated with this Agent."
+                  canonicalPath="/executions"
+                  canonicalLabel="global Runs"
+                  subject="Runs"
+                />
+              }
+            />
+            <Route path="/agents/:agentId/revisions" element={<AgentRevisionsView />} />
+            <Route
+              path="/agents/:agentId/evidence"
+              element={
+                <AgentScopedUnsupportedView
+                  title="Evidence"
+                  description="Evidence associated with this Agent."
+                  canonicalPath="/operational-evidence"
+                  canonicalLabel="global Evidence"
+                  subject="Evidence"
+                />
+              }
+            />
+            <Route
+              path="/agents/:agentId/usage-cost"
+              element={
+                <AgentScopedUnsupportedView
+                  title="Usage & Cost"
+                  description="Usage and cost associated with this Agent."
+                  canonicalPath="/economics"
+                  canonicalLabel="global Usage & Cost"
+                  subject="Usage & Cost"
+                />
+              }
+            />
+            <Route path="/agents/:agentId/advanced" element={<AgentAdvancedView />} />
+            <Route path="/agents/:agentId" element={<AgentDetail />} />
             <Route path="/composition" element={<CompositionOverview />} />
             <Route path="/roles" element={<RoleCatalog />} />
             <Route path="/roles/:roleId" element={<RoleDetail />} />

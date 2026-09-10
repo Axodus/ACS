@@ -13,11 +13,14 @@ test("agent entity tabs contain only same-entity contexts", () => {
   const end = appSource.indexOf("/* ---------------------------------------------------------------------------", start);
   const entityNav = appSource.slice(start, end);
   assert.match(entityNav, /Overview/);
-  assert.match(entityNav, /Composition/);
-  assert.match(entityNav, /Manage/);
+  assert.match(entityNav, /Configuration/);
+  assert.match(entityNav, /Validate/);
+  assert.match(entityNav, /Runs/);
+  assert.match(entityNav, /Revisions/);
+  assert.match(entityNav, /Evidence/);
+  assert.match(entityNav, /Usage & Cost/);
+  assert.match(entityNav, /Advanced/);
   assert.doesNotMatch(entityNav, /label: "Operations"/);
-  assert.doesNotMatch(entityNav, /label: "Evidence"/);
-  assert.doesNotMatch(entityNav, /label: "Economics"/);
 });
 
 test("page-level DomainNav is removed", () => {

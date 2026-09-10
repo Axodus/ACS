@@ -90,6 +90,7 @@ for compatibility.
 | [REQ-03 native contract freeze](req-03/README.md) | ACS-owned contract semantics, state/event model, migration matrix, dependency-ordered backlog, adapter boundaries, ADRs, and implementation gate. |
 | [REQ-04 durable persistence and event ownership freeze](req-04/README.md) | Evidence-driven durable Agent lineage, canonical event/outbox, idempotency, replay, recovery, fencing, migration, and IMP-01B acceptance gates. |
 | [REQ-05 Agent experience and application navigation audit](req-05/README.md) | Evidence-backed current UX audit, Agenta workflow reference, target Agent information architecture, lifecycle, screen inventory, API gaps, implementation plan, and decision record. |
+| [IMP-02A Application Shell & Navigation](imp-02a/README.md) | `COMPLETE` — frontend-only implementation of the REQ-05 global shell, canonical navigation, Agent-local context, route compatibility, and explicit scoped-data limitations. |
 | [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md) | PostgreSQL execution evidence for IMP-01B; PASS after IMP-01C preserved canonical native idempotency and fencing errors at the public boundary. |
 | [IMP-01C typed durable error surface completion](imp-01c/README.md) | Selective public error propagation repair for canonical native idempotency conflicts and stale-fencing rejections, with PostgreSQL revalidation. |
 | [ACS-BLOCKER-014 remediation](blockers/acs-blocker-014/README.md) | Root-cause remediation and validation evidence for the five isolated repository regressions. |

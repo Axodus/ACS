@@ -49,8 +49,11 @@ test("Administration Overview preserves profile-aware readiness semantics", () =
 });
 
 test("navigation keeps supported customer and administration destinations reachable", () => {
-  for (const label of ["Dashboard", "Agents", "Executions", "Workers", "Financial Operations", "Customers", "Operations", "Administration"]) {
+  for (const label of ["Dashboard", "Agents", "Runs", "Evidence", "Usage & Cost", "Runtime", "Administration"]) {
     assert.match(appSource, new RegExp(`id: "${label.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}"`));
+  }
+  for (const legacyLabel of ["Executions", "Workers", "Financial Operations", "Customers", "Operations"]) {
+    assert.doesNotMatch(appSource, new RegExp(`id: "${legacyLabel.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}"`));
   }
   for (const path of ["/agents", "/executions", "/workers", "/economics", "/operations", "/administration", "/readiness", "/composition", "/system"]) {
     assert.match(appSource, new RegExp(`to: "${path.replaceAll("/", "\\/")}"`));
