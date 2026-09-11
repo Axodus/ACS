@@ -2790,6 +2790,39 @@ button.danger:disabled {
   align-items: flex-end;
 }
 
+.agent-operational-pagination {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.pagination-summary {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pagination-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.agent-economic-summary {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.agent-economic-summary h3 {
+  color: var(--text);
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+
 .catalog-badges {
   align-items: center;
   display: flex;

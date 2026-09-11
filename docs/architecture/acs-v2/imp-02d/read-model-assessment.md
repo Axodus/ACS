@@ -2,8 +2,13 @@
 
 ## READ MODEL REQUIRED: NO
 
-Usage & Cost can be implemented correctly with a small, deterministic set of existing Agent-scoped queries. Agent ownership is established by the route `agentId`, passed to the Product API, and enforced by its server-side query filtering. Returned records carry canonical correlation identifiers.
+IMP-02D1 repaired the narrow Product API compatibility gaps on existing Agent routes:
 
-Runs and Evidence cannot be rendered as complete Agent operational histories because their direct Agent-scoped endpoints are unbounded and do not expose pagination or a limit. The generic Evidence route additionally accepts but does not apply its `agentId` filter. This is not a cross-domain aggregation problem. The minimal future contract consideration is pagination or an explicit bounded retrieval parameter on the existing direct Agent endpoints, plus a compatibility repair for the generic Evidence filter; no read model is proposed by this IMP.
+- bounded, paginated Agent Runs;
+- bounded, paginated Agent Evidence;
+- correct generic Evidence `agentId` forwarding; and
+- correct Agent economics projection scope.
 
-The current implementation makes one Usage & Cost request. It contains no client joins across global collections and no authorization decision in the browser.
+R1 consumes only direct Agent-scoped Product API routes and the existing bounded Usage route. Each page needs one primary request; Usage & Cost has one independent, optional secondary projection request. The frontend does not need a cross-domain aggregator, global data fetch, client-side ownership join, new persistence, or accounting formula.
+
+The remaining limitation is semantic, not a read-model gap: the current scoped economics projection exposes zero-valued operational values that are not meaningful Agent cost totals. R1 withholds them instead of reinterpreting them.

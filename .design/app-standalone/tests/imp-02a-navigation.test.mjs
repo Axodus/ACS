@@ -51,14 +51,14 @@ test("Agent-local navigation exposes the frozen labels and direct targets", () =
   assert.match(entityNav, /pathname === "\/agents\/new"\) return null/);
 });
 
-test("Agent-local routes preserve compatibility and explicit unavailable states", () => {
+test("Agent-local routes preserve compatibility and their frozen direct targets", () => {
   assert.match(appSource, /path="\/agents\/:agentId\/edit" element={<AgentEdit \/>}/);
   assert.match(appSource, /path="\/agents\/:agentId\/composition" element={<AgentCompositionView \/>}/);
   for (const route of ["configuration", "validate", "runs", "revisions", "evidence", "usage-cost", "advanced"]) {
     assert.match(appSource, new RegExp(`path=\\"/agents/:agentId/${route}\\"`));
   }
-  assert.match(appSource, /does not provide a bounded, verified Agent-scoped query/);
-  assert.match(appSource, /Agent-specific \{subject\.toLowerCase\(\)\} are not fabricated/);
+  assert.match(appSource, /path="\/agents\/:agentId\/runs" element=\{<AgentRunsView \/>\}/);
+  assert.match(appSource, /path="\/agents\/:agentId\/evidence" element=\{<AgentEvidenceView \/>\}/);
 });
 
 test("longest Agent tab destination wins active-state matching", () => {

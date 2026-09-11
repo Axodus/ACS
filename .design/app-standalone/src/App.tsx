@@ -78,6 +78,7 @@ import {
   type EventRecord,
   type AuditEntry,
   type EconomicSummary,
+  type AgentOperationalEconomicSummary,
   type EvidenceRecord,
   type DiagnosticReport,
   type Quote,
@@ -1809,36 +1810,162 @@ function AgentRevisionsView() {
   </>;
 }
 
-function AgentScopedUnsupportedView({ title, description, canonicalPath, canonicalLabel, subject }: { title: string; description: string; canonicalPath: string; canonicalLabel: string; subject: string }) {
+const AGENT_OPERATIONAL_PAGE_LIMIT = 50;
+const AGENT_OPERATIONAL_MAX_OFFSET = 10_000;
+
+function readAgentOperationalOffset(value: string | null): number {
+  if (!value || !/^(0|[1-9][0-9]*)$/.test(value)) return 0;
+  const offset = Number(value);
+  return Number.isSafeInteger(offset) && offset <= AGENT_OPERATIONAL_MAX_OFFSET ? offset : 0;
+}
+
+function formatRunDuration(value: number | undefined): string {
+  if (value === undefined || value < 0) return "unavailable";
+  if (value < 1_000) return `${value} ms`;
+  if (value < 60_000) return `${(value / 1_000).toFixed(value % 1_000 === 0 ? 0 : 1)} s`;
+  const minutes = Math.floor(value / 60_000);
+  const seconds = Math.floor((value % 60_000) / 1_000);
+  return `${minutes}m ${seconds}s`;
+}
+
+function AgentOperationalPagination({ offset, returned, onPage }: { offset: number; returned: number; onPage: (offset: number) => void }) {
+  const firstRecord = offset + 1;
+  const lastRecord = offset + returned;
+  const nextAvailable = returned === AGENT_OPERATIONAL_PAGE_LIMIT && offset + AGENT_OPERATIONAL_PAGE_LIMIT <= AGENT_OPERATIONAL_MAX_OFFSET;
+
+  return <nav className="agent-operational-pagination" aria-label="Operational record pagination">
+    <span className="pagination-summary">
+      {returned > 0 ? `Showing records ${firstRecord}–${lastRecord}` : `Page starting at record ${firstRecord}`}
+    </span>
+    <div className="pagination-actions">
+      <button className="secondary" disabled={offset === 0} onClick={() => onPage(Math.max(0, offset - AGENT_OPERATIONAL_PAGE_LIMIT))}>Previous</button>
+      <button className="secondary" disabled={!nextAvailable} onClick={() => onPage(offset + AGENT_OPERATIONAL_PAGE_LIMIT)}>Next</button>
+    </div>
+  </nav>;
+}
+
+function AgentRunsView() {
   const { agentId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   if (!agentId) return <Navigate to="/agents" replace />;
+  const offset = readAgentOperationalOffset(searchParams.get("offset"));
+  const setOffset = (nextOffset: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextOffset === 0) next.delete("offset");
+    else next.set("offset", String(nextOffset));
+    setSearchParams(next);
+  };
+  return <AgentRunsContent key={`${agentId}:${offset}`} agentId={agentId} offset={offset} onPage={setOffset} />;
+}
+
+function AgentRunsContent({ agentId, offset, onPage }: { agentId: string; offset: number; onPage: (offset: number) => void }) {
+  const runs = useOperationalSummary<ExecutionRunSummary[]>(
+    () => productApi.listAgentExecutionRuns(agentId, { limit: AGENT_OPERATIONAL_PAGE_LIMIT, offset }),
+    "Unable to load Agent-scoped Runs from Product API",
+    () => false,
+  );
+
   return <>
-    <AgentLocalHeader agentId={agentId} title={title} description={description} />
+    <AgentLocalHeader agentId={agentId} title="Runs" description="Bounded execution history for this Agent." />
     <section className="panel">
-      <div className="panel-head"><div><h2>Agent-scoped {subject}</h2><p>The current Product API does not provide a bounded, verified Agent-scoped query for this surface.</p></div><Badge tone="muted">unavailable</Badge></div>
-      <div className="state-line empty">The Agent-specific endpoint is not used because it can return unbounded history. Agent-specific {subject.toLowerCase()} are not fabricated from global records.</div>
-      <div className="panel-actions"><Link className="primary action-link" to={canonicalPath}>Open {canonicalLabel}</Link><Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Link></div>
+      <div className="panel-head"><div><h2>Agent Runs</h2><p>Up to {AGENT_OPERATIONAL_PAGE_LIMIT} records in Product API order: started time descending, then Run ID descending.</p></div><button className="secondary" disabled={runs.loadState === "loading" || runs.loadState === "refreshing"} onClick={runs.refresh}>{runs.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button></div>
+      {runs.loadError && runs.data && <ErrorBanner error={runs.loadError} />}
+      {runs.loadState === "loading" && !runs.data
+        ? <div className="state-line">Loading Agent Runs...</div>
+        : runs.data?.length
+          ? <div className="catalog-list">{runs.data.map(run => <article className="catalog-row operational-record" key={run.runId}>
+            <div className="catalog-row-main">
+              <div className="operational-record-title"><b>Run</b><Badge tone={statusTone(run.status)}>{run.status}</Badge></div>
+              <small className="mono">{run.runId}</small>
+              <p>Started <Time value={run.startedAt} />{run.endedAt !== undefined ? <> · completed <Time value={run.endedAt} /></> : " · completion not recorded"}{run.durationMs !== undefined ? ` · duration ${formatRunDuration(run.durationMs)}` : ""}</p>
+              {(run.resultSummary || run.failureReason) && <small>{run.failureReason ?? run.resultSummary}</small>}
+            </div>
+            <div className="catalog-badges operational-correlation">
+              {run.runtimeId !== "unknown" && <span className="tag mono">Runtime {run.runtimeId}</span>}
+              {run.deploymentId !== "unknown" && <span className="tag mono">Deployment {run.deploymentId}</span>}
+            </div>
+          </article>)}</div>
+          : <PanelStateLine state={runs.loadState} error={runs.loadError} emptyMessage={offset === 0 ? "No Runs have been recorded for this Agent." : "No Runs were returned for this page. Use Previous to return to earlier records."} />}
+      {runs.data && (runs.data.length > 0 || offset > 0) && <AgentOperationalPagination offset={offset} returned={runs.data.length} onPage={onPage} />}
+      <p className="panel-note">Run execution revision provenance is not supplied by this query. The current Agent revision is not used as a historical substitute.</p>
+      <div className="panel-actions"><Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Link><Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Agent Evidence</Link><Link className="detail-link" to={`/agents/${agentId}/usage-cost`}>Open Usage & Cost</Link></div>
     </section>
   </>;
 }
 
-const AGENT_OPERATIONAL_PAGE_LIMIT = 50;
+function AgentEvidenceView() {
+  const { agentId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  if (!agentId) return <Navigate to="/agents" replace />;
+  const offset = readAgentOperationalOffset(searchParams.get("offset"));
+  const setOffset = (nextOffset: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextOffset === 0) next.delete("offset");
+    else next.set("offset", String(nextOffset));
+    setSearchParams(next);
+  };
+  return <AgentEvidenceContent key={`${agentId}:${offset}`} agentId={agentId} offset={offset} onPage={setOffset} />;
+}
+
+function AgentEvidenceContent({ agentId, offset, onPage }: { agentId: string; offset: number; onPage: (offset: number) => void }) {
+  const evidence = useOperationalSummary<EvidenceRecord[]>(
+    () => productApi.listAgentEvidence(agentId, { limit: AGENT_OPERATIONAL_PAGE_LIMIT, offset }),
+    "Unable to load Agent-scoped Evidence from Product API",
+    () => false,
+  );
+
+  return <>
+    <AgentLocalHeader agentId={agentId} title="Evidence" description="Bounded operational Evidence for this Agent." />
+    <section className="panel">
+      <div className="panel-head"><div><h2>Agent Evidence</h2><p>Up to {AGENT_OPERATIONAL_PAGE_LIMIT} Evidence records in Product API order: created time descending, then Evidence ID descending.</p></div><button className="secondary" disabled={evidence.loadState === "loading" || evidence.loadState === "refreshing"} onClick={evidence.refresh}>{evidence.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button></div>
+      {evidence.loadError && evidence.data && <ErrorBanner error={evidence.loadError} />}
+      {evidence.loadState === "loading" && !evidence.data
+        ? <div className="state-line">Loading Agent Evidence...</div>
+        : evidence.data?.length
+          ? <div className="catalog-list">{evidence.data.map(record => <article className="catalog-row operational-record" key={record.evidenceId}>
+            <div className="catalog-row-main">
+              <div className="operational-record-title"><b>{record.title}</b><Badge tone="muted">{record.kind}</Badge></div>
+              <small className="mono">{record.evidenceId}</small>
+              <p>{record.summary}</p>
+              <small>Source {record.source} · recorded <Time value={record.createdAt} /></small>
+            </div>
+            <div className="catalog-badges operational-correlation">
+              {record.entityRefs?.map(reference => <span className="tag mono" key={`${reference.entityType}:${reference.entityId}`}>{reference.entityType} {reference.entityId}</span>)}
+              {record.correlationId && <span className="tag mono">Correlation {record.correlationId}</span>}
+            </div>
+          </article>)}</div>
+          : <PanelStateLine state={evidence.loadState} error={evidence.loadError} emptyMessage={offset === 0 ? "No Evidence has been recorded for this Agent." : "No Evidence was returned for this page. Use Previous to return to earlier records."} />}
+      {evidence.data && (evidence.data.length > 0 || offset > 0) && <AgentOperationalPagination offset={offset} returned={evidence.data.length} onPage={onPage} />}
+      <p className="panel-note">Evidence is distinct from Events, Audit, and Runtime Events. Source, correlation, and entity references are shown only when supplied by the Product API; no provenance or integrity claim is synthesized.</p>
+      <div className="panel-actions"><Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Link><Link className="detail-link" to={`/agents/${agentId}/runs`}>Open Agent Runs</Link><Link className="detail-link" to={`/agents/${agentId}/usage-cost`}>Open Usage & Cost</Link></div>
+    </section>
+  </>;
+}
 
 function AgentUsageCostView() {
   const { agentId } = useParams();
+  if (!agentId) return <Navigate to="/agents" replace />;
+  return <AgentUsageCostContent key={agentId} agentId={agentId} />;
+}
+
+function AgentUsageCostContent({ agentId }: { agentId: string }) {
   const usage = useOperationalSummary<UsageInspectionRecord[]>(
     () => productApi.listUsageRecords({ agentId, limit: AGENT_OPERATIONAL_PAGE_LIMIT }),
     "Unable to load Agent-scoped usage records from Product API",
     () => false,
   );
-  if (!agentId) return <Navigate to="/agents" replace />;
+  const summary = useOperationalSummary<AgentOperationalEconomicSummary>(
+    () => productApi.getAgentOperationalEconomicSummary(agentId),
+    "Unable to load the Agent-scoped economic summary from Product API",
+    () => false,
+  );
 
   return <>
     <AgentLocalHeader agentId={agentId} title="Usage & Cost" description="Economic records canonically attributed to this Agent." />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Product API source of truth</span><span>No browser-side accounting</span><span>Missing values are unavailable, not zero</span></div>
     <section className="panel">
-      <div className="panel-head"><div><h2>Usage records</h2><p>Up to {AGENT_OPERATIONAL_PAGE_LIMIT} records returned by the Product API. Agent-scoped cost totals and a canonical ordering contract are unavailable.</p></div><button className="secondary" disabled={usage.loadState === "loading" || usage.loadState === "refreshing"} onClick={usage.refresh}>{usage.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button></div>
-      {usage.loadError && <div className="error-banner" role="alert">{usage.loadError}</div>}
+      <div className="panel-head"><div><h2>Usage records</h2><p>Up to {AGENT_OPERATIONAL_PAGE_LIMIT} server-scoped records. The Usage contract does not define pagination or ordering.</p></div><button className="secondary" disabled={usage.loadState === "loading" || usage.loadState === "refreshing"} onClick={() => { usage.refresh(); summary.refresh(); }}>{usage.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button></div>
+      {usage.loadError && usage.data && <ErrorBanner error={usage.loadError} />}
       {usage.loadState === "loading" && !usage.data
         ? <div className="state-line">Loading Agent usage records...</div>
         : usage.data?.length
@@ -1857,8 +1984,16 @@ function AgentUsageCostView() {
             </div>
           </article>)}</div>
           : <PanelStateLine state={usage.loadState} error={usage.loadError} emptyMessage="No Usage & Cost records have been recorded for this Agent." />}
+      <section className="agent-economic-summary" aria-labelledby="agent-economic-summary-title">
+        <h3 id="agent-economic-summary-title">Economic summary</h3>
+        {summary.loadState === "loading" && !summary.data
+          ? <div className="state-line">Loading the scoped economic summary...</div>
+          : summary.data
+            ? <div className="state-line">Agent-scoped operational summary checked <Time value={summary.data.checkedAt} />. Its zero-valued operational projections do not define a cost total, so no economic total is displayed.</div>
+            : <div className="state-line error" role="alert">{summary.loadError ?? "The scoped economic summary is unavailable. Usage records remain independently available."}</div>}
+      </section>
       <p className="panel-note">Usage correlation is reported by the Product API as Agent → Run → reservation → quote → settlement when those records exist. The UI does not derive cost totals from this bounded page, and partial or missing economic links are not converted into a complete cost claim.</p>
-      <div className="panel-actions"><Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Link><Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Evidence</Link></div>
+      <div className="panel-actions"><Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Link><Link className="detail-link" to={`/agents/${agentId}/runs`}>Open Agent Runs</Link><Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Agent Evidence</Link></div>
     </section>
   </>;
 }
@@ -5589,31 +5724,9 @@ export default function App() {
             <Route path="/agents/:agentId/composition" element={<AgentCompositionView />} />
             <Route path="/agents/:agentId/configuration" element={<AgentConfigurationView />} />
             <Route path="/agents/:agentId/validate" element={<AgentValidateView />} />
-            <Route
-              path="/agents/:agentId/runs"
-              element={
-                <AgentScopedUnsupportedView
-                  title="Runs"
-                  description="Runs associated with this Agent."
-                  canonicalPath="/executions"
-                  canonicalLabel="global Runs"
-                  subject="Runs"
-                />
-              }
-            />
+            <Route path="/agents/:agentId/runs" element={<AgentRunsView />} />
             <Route path="/agents/:agentId/revisions" element={<AgentRevisionsView />} />
-            <Route
-              path="/agents/:agentId/evidence"
-              element={
-                <AgentScopedUnsupportedView
-                  title="Evidence"
-                  description="Evidence associated with this Agent."
-                  canonicalPath="/operational-evidence"
-                  canonicalLabel="global Evidence"
-                  subject="Evidence"
-                />
-              }
-            />
+            <Route path="/agents/:agentId/evidence" element={<AgentEvidenceView />} />
             <Route
               path="/agents/:agentId/usage-cost"
               element={<AgentUsageCostView />}

@@ -42,7 +42,7 @@ test("technical bindings are secondary in Overview and rendered in Agent Advance
 });
 
 test("IMP-02C revision hierarchy distinguishes the canonical head from read-only history", () => {
-  const revisions = sectionBetween("function AgentRevisionsView()", "function AgentScopedUnsupportedView");
+  const revisions = sectionBetween("function AgentRevisionsView()", "const AGENT_OPERATIONAL_PAGE_LIMIT");
   assert.match(revisions, /sort\(\(left, right\) => right\.revisionNumber - left\.revisionNumber\)/);
   assert.match(revisions, /CURRENT/);
   assert.match(revisions, /HISTORICAL/);

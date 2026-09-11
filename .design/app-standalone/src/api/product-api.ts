@@ -1531,6 +1531,33 @@ export type EconomicSummary = {
   guardrails?: ProductApiOperationalGuardrails;
 };
 
+/**
+ * The Agent economics endpoint uses the same operational projection as the
+ * global Economics surface, but its entity collections use canonical domain
+ * identifiers rather than the legacy generic `entityId` shape above.
+ *
+ * These zero-valued projections establish scoped operational context only.
+ * They do not define an Agent cost total and must not be used for browser-side
+ * accounting.
+ */
+export type AgentOperationalEconomicSummary = {
+  checkedAt: number;
+  currency: string;
+  unit: string;
+  neuronsContext: "operational";
+  totalEstimated: string;
+  totalReserved: string;
+  totalMetered: string;
+  totalSettled: string;
+  agentConsumption: Array<{ agentId: string; estimated: string; metered: string; settled: string; unit: string }>;
+  deploymentConsumption: Array<{ deploymentId: string; agentId: string; metered: string; settled: string; unit: string }>;
+  runtimeConsumption: Array<{ runtimeId: string; deploymentId: string; metered: string; settled: string; unit: string }>;
+  executionRunConsumption: Array<{ runId: string; agentId: string; metered: string; settled: string; unit: string }>;
+  warnings: Array<{ code: string; severity: "info" | "warning" | "error"; message: string }>;
+  availableActions: AvailableAction[];
+  guardrails?: ProductApiOperationalGuardrails;
+};
+
 export type Quote = {
   quoteId: string;
   agentId: string;
@@ -2639,6 +2666,10 @@ export const productApi = {
   async listExecutionRuns() {
     return request<ExecutionRunSummary[]>("/execution-runs");
   },
+  async listAgentExecutionRuns(agentId: string, query: { limit: number; offset: number }) {
+    const params = new URLSearchParams({ limit: String(query.limit), offset: String(query.offset) });
+    return request<ExecutionRunSummary[]>(`/agents/${encodeURIComponent(agentId)}/execution-runs?${params.toString()}`);
+  },
   async getExecutionRunDetail(id: string) {
     return request<ExecutionRunSummary>(`/execution-runs/${id}`);
   },
@@ -2663,6 +2694,10 @@ export const productApi = {
   async listEvidence() {
     return request<EvidenceRecord[]>("/evidence");
   },
+  async listAgentEvidence(agentId: string, query: { limit: number; offset: number }) {
+    const params = new URLSearchParams({ limit: String(query.limit), offset: String(query.offset) });
+    return request<EvidenceRecord[]>(`/agents/${encodeURIComponent(agentId)}/evidence?${params.toString()}`);
+  },
   async getEvidenceDetail(evidenceId: string) {
     return request<EvidenceRecord>(`/evidence/${evidenceId}`);
   },
@@ -2674,6 +2709,9 @@ export const productApi = {
   },
   async getEconomicSummary() {
     return request<EconomicSummary>("/economics");
+  },
+  async getAgentOperationalEconomicSummary(agentId: string) {
+    return request<AgentOperationalEconomicSummary>(`/agents/${encodeURIComponent(agentId)}/economics`);
   },
   async listQuotes() {
     return request<Quote[]>("/economics/quotes");

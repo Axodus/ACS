@@ -1,18 +1,18 @@
 # IMP-02D Operational Contract Inventory
 
-| Domain | Existing Product API | Agent scope | Pagination / bound | IMP-02D decision |
+| Domain | Existing Product API | Agent scope | Pagination / bound | R1 decision |
 | --- | --- | --- | --- | --- |
-| Runs | `GET /agents/:agentId/execution-runs` | Direct server-side `agentId` | No query parameters, limit, or pagination | UNAVAILABLE — do not load unbounded history |
-| Execution Run detail | `GET /execution-runs/:runId` | Run ID only | Single record | Not linked as a new detail surface |
-| Tasks / Attempts | No Agent-scoped Product API route verified | Unavailable | N/A | Not rendered |
-| Evidence | `GET /agents/:agentId/evidence` | Direct server-side `agentId` | No query parameters, limit, or pagination | UNAVAILABLE — do not load unbounded history |
-| Generic Evidence filter | `GET /evidence?agentId=:agentId&limit=:limit` | `agentId` parameter is accepted but currently ignored by `buildEvidenceQuery` | `limit` supported but scope is unsafe | UNAVAILABLE — existing compatibility defect |
-| Evidence detail | `GET /evidence/:evidenceId` | Evidence ID only | Single record | No new detail route added |
-| Agent economics summary | `GET /agents/:agentId/economics` | Route accepts `agentId`, but `getEconomicSummary({ agentId })` does not apply it | No bounded Agent result | UNAVAILABLE — existing compatibility defect; do not render |
-| Usage records | `GET /economics/usage?agentId=:agentId&limit=:limit` | Direct server-side `agentId` | `limit` supported; current page requests 50 | USE |
-| Cost | No standalone Product API cost-record route verified | Unavailable | N/A | Not rendered; the scope-unsafe Agent economics summary cannot stand in for a canonical Agent cost total |
-| Quote | `GET /economics/quotes?agentId=:agentId&limit=:limit` | Route supports `agentId` | `limit` supported | Not separately rendered; referenced by Usage when supplied |
-| Reservation | `GET /economics/reservations?agentId=:agentId&limit=:limit` | Route supports `agentId` | `limit` supported | Not separately rendered; referenced by Usage when supplied |
-| Settlement | `GET /economics/settlements?executionRunId=:runId&limit=:limit` | Canonical Run query supported | `limit` supported | Not separately rendered; referenced by Usage when supplied |
+| Runs | `GET /agents/:agentId/execution-runs?limit=&offset=` | Direct route `agentId`; server filters before returning | Default 50, maximum 100, offset 0–10,000 | USE |
+| Run detail | `GET /execution-runs/:runId` | Run ID only | Single record | Not added as an Agent-local detail route |
+| Tasks / Attempts | No Agent-local Product API query verified | Unavailable | N/A | Not rendered |
+| Evidence | `GET /agents/:agentId/evidence?limit=&offset=` | Direct route `agentId`; server filters before returning | Default 50, maximum 100, offset 0–10,000 | USE |
+| Generic Evidence | `GET /evidence?agentId=:agentId&limit=:limit` | `agentId` forwarding repaired in IMP-02D1 | Existing generic limit behavior | Not used by Agent-local frontend |
+| Evidence detail | `GET /evidence/:evidenceId` | Evidence ID only | Single record | No new Agent-local detail route |
+| Usage | `GET /economics/usage?agentId=:agentId&limit=50` | Query `agentId`; server-scoped | Bounded to 50 by this view; no paging contract consumed | USE |
+| Agent economics projection | `GET /agents/:agentId/economics` | Direct route `agentId`; scope repaired in IMP-02D1 | Single scoped projection | Secondary semantics check; zero-valued projections are not shown as totals |
+| Cost | No standalone Agent cost-record route verified | Unavailable | N/A | No cost total or derived accounting shown |
+| Quote | Usage carries `quoteId`; Product API has quote queries | Canonical identifiers | N/A in Agent-local view | Identifier shown when supplied |
+| Reservation | Usage carries `reservationId` | Canonical identifiers | N/A in Agent-local view | Identifier shown when supplied |
+| Settlement | Usage carries `settlementId` | Canonical identifiers | N/A in Agent-local view | Identifier shown when supplied |
 
-The API service filters Usage by canonical `agentId`. The Agent-specific Run and Evidence projections are scoped but unbounded. The generic Evidence route currently fails to forward `agentId` into its internal query, and the Agent economics summary fails to apply its requested Agent filter; neither is used. The UI does not treat route state as an authorization boundary.
+Run ordering is `startedAt DESC, runId DESC`. Evidence ordering is `createdAt DESC, evidenceId DESC`. The frontend preserves both orders without re-sorting.
