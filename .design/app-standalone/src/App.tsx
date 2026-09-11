@@ -103,7 +103,7 @@ import {
   type FinancialAuditBoundaryReport,
 } from "./api/product-api";
 import { AccountControl } from "./auth/AccountControl";
-import { AgentOperationsPanel, CredentialsPage, ExecutionDetailPage, ExecutionsPage, OperationsStatusPage, WorkerDetailPage, WorkersPage } from "./OperationalUx";
+import { CredentialsPage, ExecutionDetailPage, ExecutionsPage, OperationsStatusPage, WorkerDetailPage, WorkersPage } from "./OperationalUx";
 import "./operational.css";
 
 type View =
@@ -1561,189 +1561,134 @@ function AgentDetail() {
 
   const definition = detail.agentDefinition;
   const lifecycle = detail.lifecycleState;
-  const composition = detail.composition;
+  const currentDetail = detail;
+  const revisions = [...data.revisions].sort((left, right) => right.revisionNumber - left.revisionNumber);
+  const recentHistoricalRevisions = revisions.filter(revision => revision.status !== "current").slice(0, 2);
+
+  function renderNextSafeAction() {
+    if (lifecycle.archived) {
+      const restore = currentDetail.availableActions.find(action => action.action === "restore");
+      return restore?.available
+        ? <button className="primary" disabled={submitting !== null} onClick={() => void handleActionClick(restore)}>Restore Agent</button>
+        : <Link className="primary action-link" to={`/agents/${currentDetail.agentId}/revisions`}>Review revision history</Link>;
+    }
+    if (currentDetail.readinessSummary.blockerCount > 0 || currentDetail.readinessSummary.state !== "ready") {
+      return <Link className="primary action-link" to={`/agents/${currentDetail.agentId}/validate`}>Validate configuration</Link>;
+    }
+    return <Link className="primary action-link" to={`/agents/${currentDetail.agentId}/configuration`}>Edit configuration</Link>;
+  }
 
   return <>
     <DomainHeader domain="Agents" title={definition.name} description="Agent lifecycle, readiness and related evidence." entityLabel={`Agent: ${detail.agentId}`} />
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agent state...</div>}
-    <header className="detail-head">
-      <div className="detail-id">
-        <span className={`avatar large ${lifecycle.archived ? "gray" : ""}`}>{definition.name.slice(0, 2).toUpperCase()}</span>
-        <div>
-          <div className="title-status"><h1>{definition.name}</h1><Status status={definition.status} /></div>
-          <p className="mono">{detail.agentId} · sandbox · current revision r{detail.currentRevision.revision}</p>
-        </div>
-      </div>
-      <div className="actions">
-        <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
-        <Link className="primary action-link" to={`/agents/${detail.agentId}/edit`}>Edit</Link>
-      </div>
-    </header>
     <AgentGuardrailBanner guardrails={detail.guardrails} />
-    <div className="detail-grid">
-      <section className="panel">
-        <div className="panel-head"><div><h2>AgentDefinition</h2><p>Identity and governed references</p></div></div>
+    <section className="overview-hero">
+      <div>
+        <p className="eyebrow">AGENT OVERVIEW</p>
+        <div className="title-status"><h2>{definition.name}</h2><Status status={lifecycle.status} /></div>
+        <p className="mono">{detail.agentId} · current revision r{detail.currentRevision.revision}</p>
+      </div>
+      <div className="overview-hero-actions">
+        <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
+      </div>
+    </section>
+    <div className="overview-grid">
+      <section className="panel overview-primary">
+        <div className="panel-head"><div><h2>Current state</h2><p>ACS-owned identity and lifecycle state</p></div><Status status={lifecycle.status} /></div>
         <dl className="config-list">
           <div><dt>Agent ID</dt><dd className="mono">{definition.agentId}</dd></div>
-          <div><dt>Name</dt><dd>{definition.name}</dd></div>
-          <div><dt>Status</dt><dd><Status status={definition.status} /></dd></div>
-          <div><dt>Role</dt><dd>{definition.roleId ? `${definition.roleId}${definition.roleRevision ? ` (r${definition.roleRevision})` : ""}` : "unassigned"}</dd></div>
-          <div><dt>Profile</dt><dd>{definition.profileId ? `${definition.profileId}${definition.profileRevision ? ` (r${definition.profileRevision})` : ""}` : "unassigned"}</dd></div>
-          <div><dt>Execution policy</dt><dd>{definition.executionPolicyId ?? "none"}</dd></div>
+          <div><dt>Lifecycle</dt><dd>{lifecycle.archived ? "Archived" : lifecycle.status}</dd></div>
+          <div><dt>Protected</dt><dd>{lifecycle.protected ? "Yes" : "No"}</dd></div>
+          {lifecycle.archivedAt !== undefined && <div><dt>Archived at</dt><dd><Time value={lifecycle.archivedAt} /></dd></div>}
+          {lifecycle.restoredAt !== undefined && <div><dt>Restored at</dt><dd><Time value={lifecycle.restoredAt} /></dd></div>}
         </dl>
-        <div className="panel-body">
-          <IdList label="Capabilities" ids={definition.capabilityIds} />
-          <IdList label="Skills" ids={definition.skillIds} />
-          <IdList label="Tools" ids={definition.toolIds} />
-          <IdList label="Credential connections" ids={definition.credentialConnectionIds} />
-          <IdList label="Runner preferences" ids={definition.runnerPreferences} />
-          {definition.modelStrategy && <div className="model-strategy"><b>Model strategy</b><code className="mono">{definition.modelStrategy.primary.providerId}/{definition.modelStrategy.primary.modelId}</code><small>fallbacks: {definition.modelStrategy.fallbacks.length}</small></div>}
-        </div>
       </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Current revision</h2><p>Adopted AgentRevision</p></div><span className="tag">r{detail.currentRevision.revision}</span></div>
+      <section className="panel overview-primary">
+        <div className="panel-head"><div><h2>Current revision</h2><p>Canonical immutable revision head</p></div><Badge tone="good">CURRENT r{detail.currentRevision.revision}</Badge></div>
         <dl className="config-list">
           <div><dt>Revision</dt><dd className="mono">r{detail.currentRevision.revision}</dd></div>
-          <div><dt>Fingerprint</dt><dd className="mono hash">{detail.currentRevision.fingerprint}</dd></div>
-          <div><dt>Created</dt><dd><Time value={detail.currentRevision.createdAt} /></dd></div>
           <div><dt>Updated</dt><dd><Time value={detail.currentRevision.updatedAt} /></dd></div>
-          <div><dt>Created by</dt><dd>{detail.currentRevision.createdBy ?? "unknown"}</dd></div>
+          <div><dt>Changed by</dt><dd>{detail.currentRevision.createdBy ?? "unknown"}</dd></div>
         </dl>
+        <div className="panel-actions"><Link className="secondary action-link" to={`/agents/${detail.agentId}/revisions`}>View revision history</Link><Link className="detail-link" to={`/agents/${detail.agentId}/configuration`}>Configuration</Link></div>
       </section>
-      <section className="panel wide">
-        <div className="panel-head"><div><h2>Composition summary</h2><p>Effective AgentComposition from the Product API</p></div>{composition && <Badge tone={composition.ready ? "good" : "warn"}>{composition.ready ? "ready" : "not ready"}</Badge>}</div>
-        {composition
-          ? <>
-            <p className="panel-note"><Link className="surface-link" to={`/agents/${detail.agentId}/composition`}>Open composition surface →</Link></p>
-            <dl className="config-list">
-              <div><dt>Fingerprint</dt><dd className="mono hash">{composition.fingerprint}</dd></div>
-              <div><dt>Materialization</dt><dd>{composition.materialization ? `${composition.materialization.artifactType} · ${composition.materialization.artifactFingerprint}` : "none"}</dd></div>
-            </dl>
-            <div className="composition-refs">
-              <div><b>Requested</b><span>role: {composition.requested.roleId ?? "—"}</span><span>profile: {composition.requested.profileId ?? "—"}</span><span>capabilities: {composition.requested.capabilityIds.length}</span><span>skills: {composition.requested.skillIds.length}</span><span>tools: {composition.requested.toolIds.length}</span></div>
-              <div><b>Effective</b><span>role: {composition.effective.roleId ?? "—"}{composition.effective.roleRevision ? ` (r${composition.effective.roleRevision})` : ""}</span><span>profile: {composition.effective.profileId ?? "—"}{composition.effective.profileRevision ? ` (r${composition.effective.profileRevision})` : ""}</span><span>capabilities: {composition.effective.capabilityIds.length}</span><span>skills: {composition.effective.skillIds.length}</span><span>tools: {composition.effective.toolIds.length}</span></div>
-            </div>
-            {composition.findings.length > 0 && <div className="finding-list">{composition.findings.map(finding => <div className={`finding-row ${finding.severity}`} key={`${finding.code}-${finding.message}`}><FindingSeverity severity={finding.severity} /><p>{finding.message}</p></div>)}</div>}
-          </>
-          : <div className="state-line empty">{detail.compositionUnavailableReason ?? "Composition unavailable."}</div>}
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Readiness summary</h2><p>From the Product API — never recomputed in the UI</p></div><ReadinessBadge summary={detail.readinessSummary} /></div>
+      <section className="panel overview-primary">
+        <div className="panel-head"><div><h2>Readiness</h2><p>Composition and configuration status</p></div><ReadinessBadge summary={detail.readinessSummary} /></div>
         <dl className="config-list">
           <div><dt>State</dt><dd>{detail.readinessSummary.state}</dd></div>
           <div><dt>Blockers</dt><dd>{detail.readinessSummary.blockerCount}</dd></div>
           <div><dt>Warnings</dt><dd>{detail.readinessSummary.warningCount}</dd></div>
         </dl>
+        <p className="panel-note">Detailed findings remain in Validate; this summary is not recomputed in the browser.</p>
+        <Link className="surface-link" to={`/agents/${detail.agentId}/validate`}>Open Validate →</Link>
       </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Deployment summary</h2><p>Sandbox deployment records</p></div><Badge tone={detail.deploymentSummary.state === "deployed" ? "good" : detail.deploymentSummary.state === "none" ? "muted" : "warn"}>{detail.deploymentSummary.state}</Badge></div>
+      <section className="panel overview-primary">
+        <div className="panel-head"><div><h2>Next safe action</h2><p>Selected from current lifecycle and readiness state</p></div></div>
+        {lifecycle.archived
+          ? <p className="panel-note">Archived Agents cannot be edited or receive revisions until restored.</p>
+          : detail.readinessSummary.blockerCount > 0 || detail.readinessSummary.state !== "ready"
+            ? <p className="panel-note">Review Product API readiness findings before changing operational context.</p>
+            : <p className="panel-note">Configuration changes create a new immutable revision and retain the current head until saved.</p>}
+        <div className="panel-actions">{renderNextSafeAction()}</div>
+      </section>
+      <section className="panel overview-secondary">
+        <div className="panel-head"><div><h2>Deployment and runtime context</h2><p>Related operational state; distinct from Agent lifecycle</p></div></div>
         <dl className="config-list">
-          <div><dt>State</dt><dd>{detail.deploymentSummary.state}</dd></div>
-          <div><dt>Records</dt><dd>{detail.deploymentSummary.count}</dd></div>
+          <div><dt>Deployment</dt><dd>{detail.deploymentSummary.state} · {detail.deploymentSummary.count} records</dd></div>
+          <div><dt>Runtime</dt><dd>{detail.runtimeSummary.state} · {detail.runtimeSummary.count} instances</dd></div>
         </dl>
-        <p className="panel-note">Use the governed prepare/deploy controls below. Deployment truth remains owned by the Product API.</p>
+        <p className="panel-note">Operational controls and execution history remain in their canonical global surfaces.</p>
       </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Runtime summary</h2><p>Runtime instance states</p></div><Badge tone={detail.runtimeSummary.state === "running" ? "good" : detail.runtimeSummary.state === "none" ? "muted" : "warn"}>{detail.runtimeSummary.state}</Badge></div>
-        <dl className="config-list">
-          <div><dt>State</dt><dd>{detail.runtimeSummary.state}</dd></div>
-          <div><dt>Instances</dt><dd>{detail.runtimeSummary.count}</dd></div>
-        </dl>
-        <p className="panel-note">Use the governed execution controls below, then follow the durable job in Executions.</p>
-      </section>
-      <AgentOperationsPanel agentId={detail.agentId} revision={detail.currentRevision.revision} composition={(composition ?? {}) as unknown as Record<string, unknown>} />
-      <section className="panel">
-        <div className="panel-head"><div><h2>Economic context</h2><p>Contextual only; canonical detail belongs to Economics</p></div><Badge tone="muted">{detail.economicSummary.state}</Badge></div>
-        <div className="state-line empty">{detail.economicSummary.message} Missing economic data is unavailable, not zero.</div>
-        <p className="panel-note"><Link className="surface-link" to="/economics">Open canonical Economics boundary →</Link></p>
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Related activity</h2><p>Cross-domain references preserve canonical ownership</p></div></div>
-        <div className="panel-body">
-          <CrossLinks links={[
-            { to: "/operational-execution", label: "View executions" },
-            { to: "/operational-evidence", label: "View evidence" },
-            { to: "/economics", label: "View economic activity" },
-          ]} />
-          <p className="panel-note">These open canonical domains. Agent-specific filtering is not invented unless the Product API supplies it.</p>
+      <section className="panel overview-secondary">
+        <div className="panel-head"><div><h2>Recent revision context</h2><p>Lineage remains immutable; historical revisions are not editable in place</p></div><Link className="detail-link" to={`/agents/${detail.agentId}/revisions`}>All revisions</Link></div>
+        <div className="overview-revision-summary">
+          <div><b className="mono">r{detail.currentRevision.revision}</b><Badge tone="good">CURRENT</Badge><small>Updated <Time value={detail.currentRevision.updatedAt} /></small></div>
+          {recentHistoricalRevisions.map(revision => <div key={revision.revisionId}>
+            <b className="mono">r{revision.revisionNumber}</b><Badge tone="muted">HISTORICAL</Badge>
+            <small>Created <Time value={revision.createdAt} /> · read-only record</small>
+            <span className="overview-revision-actions">{revision.availableActions.map(action => <button key={action.action} className="secondary" disabled={!action.available || submitting !== null} title={action.reason} onClick={() => void handleRevisionAction(action.action, revision)}>{action.action === "adopt" ? "Adopt" : "Restore"}</button>)}</span>
+          </div>)}
         </div>
       </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Audit summary</h2><p>Lifecycle-related audit events</p></div><Badge tone="muted">{detail.auditSummary.total} events</Badge></div>
-        <dl className="config-list">
-          <div><dt>Success</dt><dd>{detail.auditSummary.success}</dd></div>
-          <div><dt>Failure</dt><dd>{detail.auditSummary.failure}</dd></div>
-          <div><dt>Pending</dt><dd>{detail.auditSummary.pending}</dd></div>
-        </dl>
-        {detail.auditSummary.recent.length > 0 && <div className="audit-list">{detail.auditSummary.recent.map(event => <div className="audit-row" key={event.eventId}><div><b>{event.eventType}</b><small className="mono">{event.eventId}</small></div><span>{event.result ?? "—"}</span><small><Time value={event.timestamp} /></small></div>)}</div>}
-      </section>
-      <section className="panel">
-        <div className="panel-head"><div><h2>Lifecycle state</h2><p>Agent lifecycle status</p></div><Status status={lifecycle.status} /></div>
-        <dl className="config-list">
-          <div><dt>Current revision</dt><dd className="mono">r{lifecycle.currentRevision}</dd></div>
-          <div><dt>Archived</dt><dd>{lifecycle.archived ? "Yes" : "No"}</dd></div>
-          <div><dt>Protected</dt><dd>{lifecycle.protected ? "Yes — protected agents cannot be deleted" : "No"}</dd></div>
-          {lifecycle.archivedAt !== undefined && <div><dt>Archived at</dt><dd><Time value={lifecycle.archivedAt} /></dd></div>}
-          {lifecycle.restoredAt !== undefined && <div><dt>Restored at</dt><dd><Time value={lifecycle.restoredAt} /></dd></div>}
-        </dl>
-      </section>
-      <section className="panel wide" id="revisions">
-        <div className="panel-head"><div><h2>Revision history</h2><p>AgentRevision lifecycle records</p></div></div>
-        {data.revisions.length === 0
-          ? <div className="state-line empty">No revision history available.</div>
-          : <div className="revision-list">
-            {data.revisions.map(revision => (
-              <div className={`revision-row ${revision.status === "current" ? "current" : ""}`} key={revision.revisionId}>
-                <div className="revision-main">
-                  <div className="revision-top"><b className="mono">r{revision.revisionNumber}</b><Badge tone={revision.status === "current" ? "good" : "muted"}>{revision.status}</Badge>{revision.restoredFrom !== undefined && <span className="tag">restored from r{revision.restoredFrom}</span>}</div>
-                  <small>Created <Time value={revision.createdAt} />{revision.adoptedAt ? ` · Adopted ${new Date(revision.adoptedAt).toLocaleString()}` : ""}</small>
-                  {revision.changeSummary && <small>{revision.changeSummary}</small>}
-                  {revision.compositionHash && <code className="mono hash">{revision.compositionHash}</code>}
-                </div>
-                <div className="revision-actions">
-                  {revision.availableActions.map(action => (
-                    <button key={action.action} className="secondary" disabled={!action.available || submitting !== null} onClick={() => void handleRevisionAction(action.action, revision)} title={action.reason}>{action.action === "adopt" ? "Adopt" : "Restore"}</button>
-                  ))}
-                  {revision.availableActions[0]?.reason && <small className="action-reason">{revision.availableActions[0].reason}</small>}
-                </div>
-              </div>
-            ))}
-          </div>}
-      </section>
-      <section className="panel wide">
-        <div className="panel-head"><div><h2>Lifecycle actions</h2><p>Governed by the Product API — unsupported actions are never simulated</p></div></div>
-        <div className="action-grid">
-          {detail.availableActions.map(action => {
+      <section className="panel overview-secondary">
+        <div className="panel-head"><div><h2>Governed lifecycle actions</h2><p>Only existing Product API commands are exposed</p></div></div>
+        <div className="action-grid overview-action-grid">
+          {detail.availableActions.filter(action => ["duplicate", "archive", "restore", "delete"].includes(action.action)).map(action => {
             const destructive = action.action === "archive" || action.action === "delete";
             return <div className={`action-tile ${action.available ? "" : "disabled"} ${destructive ? "destructive" : ""}`} key={action.action}>
               <b>{action.label}</b>
               {action.reason && <small className="action-reason">{action.reason}</small>}
               {action.available
-                ? <button className={`secondary ${destructive ? "danger" : ""}`} disabled={submitting !== null} onClick={() => handleActionClick(action)}>{destructive ? `Confirm ${action.action}` : action.action === "adoptRevision" || action.action === "restoreRevision" ? "Open revision panel" : action.action === "update" ? "Edit agent" : action.action === "createRevision" ? "Create revision" : action.action === "duplicate" ? "Duplicate" : action.action === "restore" ? "Restore agent" : "Run"}</button>
+                ? <button className={`secondary ${destructive ? "danger" : ""}`} disabled={submitting !== null} onClick={() => handleActionClick(action)}>{destructive ? `Confirm ${action.action}` : action.action === "duplicate" ? "Duplicate" : "Restore Agent"}</button>
                 : <span className="unavailable">Unavailable</span>}
             </div>;
           })}
         </div>
-        {duplicateOpen && detail && (
-          <div className="duplicate-form">
-            <b>Duplicate {detail.agentId}</b>
-            <div className="form">
-              <label>New agent ID<input className="mono" value={duplicateAgentId} onChange={e => setDuplicateAgentId(e.target.value)} placeholder="e.g. morpheus-copy" /></label>
-              <label>Name (optional)<input value={duplicateName} onChange={e => setDuplicateName(e.target.value)} placeholder={definition.name} /></label>
-            </div>
-            {duplicateError && <div className="error-banner" role="alert">{duplicateError}</div>}
-            <div className="confirm-actions">
-              <button className="secondary" onClick={() => { setDuplicateOpen(false); setDuplicateError(null); }}>Cancel</button>
-              <button className="primary" disabled={submitting !== null || !duplicateAgentId.trim()} onClick={() => void handleDuplicate()}>Duplicate</button>
-            </div>
-          </div>
-        )}
-        {operationResult && <OperationResultBox result={operationResult} />}
-        {operationError && <div className="error-banner" role="alert">{operationError}</div>}
+      </section>
+      <section className="panel overview-secondary">
+        <div className="panel-head"><div><h2>Technical context</h2><p>Provider, model, composition and diagnostics are secondary to Agent identity</p></div><Badge tone="muted">advanced</Badge></div>
+        <p className="panel-note">Technical bindings remain available without redefining this Agent by provider, model or runtime.</p>
+        <div className="panel-actions"><Link className="secondary action-link" to={`/agents/${detail.agentId}/advanced`}>Open Advanced</Link><Link className="detail-link" to={`/agents/${detail.agentId}/composition`}>Composition detail</Link></div>
       </section>
     </div>
+    {duplicateOpen && detail && (
+      <section className="panel duplicate-form">
+        <div><b>Duplicate {detail.agentId}</b><p className="panel-note">Creates a separate Agent identity through the existing Product API command.</p></div>
+        <div className="form">
+          <label>New agent ID<input className="mono" value={duplicateAgentId} onChange={e => setDuplicateAgentId(e.target.value)} placeholder="e.g. morpheus-copy" /></label>
+          <label>Name (optional)<input value={duplicateName} onChange={e => setDuplicateName(e.target.value)} placeholder={definition.name} /></label>
+        </div>
+        {duplicateError && <div className="error-banner" role="alert">{duplicateError}</div>}
+        <div className="confirm-actions">
+          <button className="secondary" onClick={() => { setDuplicateOpen(false); setDuplicateError(null); }}>Cancel</button>
+          <button className="primary" disabled={submitting !== null || !duplicateAgentId.trim()} onClick={() => void handleDuplicate()}>Duplicate</button>
+        </div>
+      </section>
+    )}
+    {operationResult && <OperationResultBox result={operationResult} />}
+    {operationError && <div className="error-banner" role="alert">{operationError}</div>}
     {confirming && (
       <div className="modal-wrap">
         <div className="wizard confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-agent-action-title">
@@ -1830,17 +1775,35 @@ function AgentRevisionsView() {
   const { agentId } = useParams();
   const surface = useAgentSurface(agentId ?? "");
   if (!agentId) return <Navigate to="/agents" replace />;
+  const revisions = surface.data ? [...surface.data.revisions].sort((left, right) => right.revisionNumber - left.revisionNumber) : [];
+
   return <>
-    <AgentLocalHeader agentId={agentId} title="Revisions" description="Immutable Agent revision lineage and current head." />
+    <AgentLocalHeader agentId={agentId} title="Revisions" description="Immutable Agent revision lineage and canonical current head." />
     {surface.loadError && <div className="error-banner" role="alert">{surface.loadError}</div>}
     <section className="panel">
-      <div className="panel-head"><div><h2>Revision history</h2><p>Revision records are read from the existing Agent API.</p></div><Link className="secondary action-link" to={`/agents/${agentId}`}>Open overview</Link></div>
+      <div className="panel-head"><div><h2>Revision history</h2><p>Current is the canonical head. Historical revisions are read-only records.</p></div><Link className="secondary action-link" to={`/agents/${agentId}`}>Open overview</Link></div>
       {surface.loadState === "loading" && !surface.data
         ? <div className="state-line">Loading revisions...</div>
-        : surface.data?.revisions.length
-          ? <div className="revision-list">{surface.data.revisions.map(revision => <div className={`revision-row ${revision.status === "current" ? "current" : ""}`} key={revision.revisionId}><div className="revision-main"><div className="revision-top"><b className="mono">r{revision.revisionNumber}</b><Badge tone={revision.status === "current" ? "good" : "muted"}>{revision.status}</Badge></div><small>Created <Time value={revision.createdAt} /></small>{revision.changeSummary && <small>{revision.changeSummary}</small>}</div><Link className="detail-link" to={`/agents/${agentId}`}>View</Link></div>)}</div>
+        : revisions.length
+          ? <div className="revision-list">{revisions.map(revision => {
+            const current = revision.status === "current";
+            return <div className={`revision-row ${current ? "current" : "historical"}`} key={revision.revisionId}>
+              <div className="revision-main">
+                <div className="revision-top"><b className="mono">r{revision.revisionNumber}</b><Badge tone={current ? "good" : "muted"}>{current ? "CURRENT" : "HISTORICAL"}</Badge>{revision.restoredFrom !== undefined && <span className="tag">restored from r{revision.restoredFrom}</span>}</div>
+                <small>{current ? "Canonical current revision" : "Historical revision — read-only"} · Created <Time value={revision.createdAt} /></small>
+                {revision.adoptedAt !== revision.createdAt && <small>Adopted <Time value={revision.adoptedAt} /></small>}
+                {revision.changeSummary && <small>{revision.changeSummary}</small>}
+                {revision.compositionHash && <code className="mono hash">{revision.compositionHash}</code>}
+              </div>
+              <div className="revision-actions">
+                {current
+                  ? <Link className="secondary action-link" to={`/agents/${agentId}/configuration`}>Edit current</Link>
+                  : <span className="action-reason">Historical records cannot be edited directly.</span>}
+              </div>
+            </div>;
+          })}</div>
           : <div className="state-line empty">No revision history is available.</div>}
-      <p className="panel-note">Adopt and restore controls remain on the Agent overview so lifecycle consequences stay visible in one governed surface.</p>
+      <p className="panel-note">Adopt and restore retain immutable history by creating a new current revision through the existing governed API. They remain available from Overview when the backend marks them available; revision comparison is deferred.</p>
     </section>
   </>;
 }
@@ -1860,20 +1823,62 @@ function AgentScopedUnsupportedView({ title, description, canonicalPath, canonic
 
 function AgentAdvancedView() {
   const { agentId } = useParams();
+  const surface = useAgentSurface(agentId ?? "");
   if (!agentId) return <Navigate to="/agents" replace />;
+  const detail = surface.data?.detail;
+  const definition = detail?.agentDefinition;
+  const composition = detail?.composition;
+
   return <>
-    <AgentLocalHeader agentId={agentId} title="Advanced" description="Technical and diagnostic surfaces that explain Agent state." />
-    <section className="panel">
-      <div className="panel-head"><div><h2>Advanced surfaces</h2><p>Progressive disclosure keeps low-level detail contextual to this Agent.</p></div><Badge tone="muted">diagnostic</Badge></div>
-      <div className="cross-links">
-        <Link className="detail-link" to={`/agents/${agentId}/composition`}>Composition detail →</Link>
-        <Link className="detail-link" to={`/agents/${agentId}/validate`}>Readiness validation →</Link>
-        <Link className="detail-link" to="/operational-execution">Deployment and execution planning →</Link>
-        <Link className="detail-link" to="/runtime">Runtime support →</Link>
-        <Link className="detail-link" to="/audit">Audit records →</Link>
-      </div>
-      <p className="panel-note">Provider identifiers, credential references, runtime internals and diagnostics remain behind contextual or global governed surfaces.</p>
-    </section>
+    <AgentLocalHeader agentId={agentId} title="Advanced" description="Technical and diagnostic context for this Agent." />
+    {surface.loadError && <div className="error-banner" role="alert">{surface.loadError}</div>}
+    {surface.loadState === "loading" && !detail
+      ? <div className="loading-screen">Loading technical Agent context...</div>
+      : detail && definition
+        ? <div className="detail-grid">
+          <section className="panel">
+            <div className="panel-head"><div><h2>Provider and model binding</h2><p>Technical composition, not Agent identity</p></div><Badge tone="muted">technical</Badge></div>
+            {definition.modelStrategy
+              ? <dl className="config-list">
+                <div><dt>Provider</dt><dd className="mono">{definition.modelStrategy.primary.providerId}</dd></div>
+                <div><dt>Model</dt><dd className="mono">{definition.modelStrategy.primary.modelId}</dd></div>
+                <div><dt>Fallbacks</dt><dd>{definition.modelStrategy.fallbacks.length}</dd></div>
+              </dl>
+              : <div className="state-line empty">No model strategy is attached to this Agent definition.</div>}
+          </section>
+          <section className="panel">
+            <div className="panel-head"><div><h2>Composition references</h2><p>ACS-owned references used by the current revision</p></div></div>
+            <dl className="config-list">
+              <div><dt>Role</dt><dd>{definition.roleId ? `${definition.roleId}${definition.roleRevision ? ` (r${definition.roleRevision})` : ""}` : "unassigned"}</dd></div>
+              <div><dt>Profile</dt><dd>{definition.profileId ? `${definition.profileId}${definition.profileRevision ? ` (r${definition.profileRevision})` : ""}` : "unassigned"}</dd></div>
+              <div><dt>Execution policy</dt><dd>{definition.executionPolicyId ?? "none"}</dd></div>
+            </dl>
+            <div className="panel-body"><IdList label="Capabilities" ids={definition.capabilityIds} /><IdList label="Skills" ids={definition.skillIds} /><IdList label="Tools" ids={definition.toolIds} /></div>
+          </section>
+          <section className="panel">
+            <div className="panel-head"><div><h2>Credentials and runner preferences</h2><p>References only; secret values are never displayed</p></div></div>
+            <div className="panel-body"><IdList label="Credential connections" ids={definition.credentialConnectionIds} /><IdList label="Runner preferences" ids={definition.runnerPreferences} /></div>
+          </section>
+          <section className="panel">
+            <div className="panel-head"><div><h2>Revision and materialization</h2><p>Diagnostic identifiers for the current immutable revision</p></div></div>
+            <dl className="config-list">
+              <div><dt>Revision fingerprint</dt><dd className="mono hash">{detail.currentRevision.fingerprint}</dd></div>
+              <div><dt>Composition fingerprint</dt><dd className="mono hash">{composition?.fingerprint ?? "unavailable"}</dd></div>
+              <div><dt>Materialization</dt><dd>{composition?.materialization ? `${composition.materialization.artifactType} · ${composition.materialization.artifactFingerprint}` : "none"}</dd></div>
+            </dl>
+          </section>
+          <section className="panel wide">
+            <div className="panel-head"><div><h2>Advanced surfaces</h2><p>Existing detail endpoints preserve canonical ownership.</p></div></div>
+            <div className="cross-links">
+              <Link className="detail-link" to={`/agents/${agentId}/composition`}>Composition detail →</Link>
+              <Link className="detail-link" to={`/agents/${agentId}/validate`}>Readiness validation →</Link>
+              <Link className="detail-link" to="/operational-execution">Deployment and execution planning →</Link>
+              <Link className="detail-link" to="/runtime">Runtime support →</Link>
+              <Link className="detail-link" to="/audit">Audit records →</Link>
+            </div>
+          </section>
+        </div>
+        : <section className="panel"><div className="state-line empty">Technical Agent context is unavailable.</div></section>}
   </>;
 }
 
