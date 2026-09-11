@@ -57,7 +57,7 @@ test("Agent-local routes preserve compatibility and explicit unavailable states"
   for (const route of ["configuration", "validate", "runs", "revisions", "evidence", "usage-cost", "advanced"]) {
     assert.match(appSource, new RegExp(`path=\\"/agents/:agentId/${route}\\"`));
   }
-  assert.match(appSource, /current frontend client has no verified Agent-scoped aggregation/);
+  assert.match(appSource, /does not provide a bounded, verified Agent-scoped query/);
   assert.match(appSource, /Agent-specific \{subject\.toLowerCase\(\)\} are not fabricated/);
 });
 

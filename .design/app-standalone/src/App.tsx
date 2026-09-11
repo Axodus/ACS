@@ -85,6 +85,7 @@ import {
   type MeteringRecord,
   type Settlement,
   type Receipt,
+  type UsageInspectionRecord,
   type EntityReference,
   type SystemGuardrailsView,
   type SystemConfigurationView,
@@ -1814,9 +1815,50 @@ function AgentScopedUnsupportedView({ title, description, canonicalPath, canonic
   return <>
     <AgentLocalHeader agentId={agentId} title={title} description={description} />
     <section className="panel">
-      <div className="panel-head"><div><h2>Agent-scoped {subject}</h2><p>The current frontend client has no verified Agent-scoped aggregation for this surface.</p></div><Badge tone="muted">unavailable</Badge></div>
-      <div className="state-line empty">Agent-specific {subject.toLowerCase()} are not fabricated from global records. Use the canonical global view and correlate with Agent ID where the Product API provides that reference.</div>
+      <div className="panel-head"><div><h2>Agent-scoped {subject}</h2><p>The current Product API does not provide a bounded, verified Agent-scoped query for this surface.</p></div><Badge tone="muted">unavailable</Badge></div>
+      <div className="state-line empty">The Agent-specific endpoint is not used because it can return unbounded history. Agent-specific {subject.toLowerCase()} are not fabricated from global records.</div>
       <div className="panel-actions"><Link className="primary action-link" to={canonicalPath}>Open {canonicalLabel}</Link><Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Link></div>
+    </section>
+  </>;
+}
+
+const AGENT_OPERATIONAL_PAGE_LIMIT = 50;
+
+function AgentUsageCostView() {
+  const { agentId } = useParams();
+  const usage = useOperationalSummary<UsageInspectionRecord[]>(
+    () => productApi.listUsageRecords({ agentId, limit: AGENT_OPERATIONAL_PAGE_LIMIT }),
+    "Unable to load Agent-scoped usage records from Product API",
+    () => false,
+  );
+  if (!agentId) return <Navigate to="/agents" replace />;
+
+  return <>
+    <AgentLocalHeader agentId={agentId} title="Usage & Cost" description="Economic records canonically attributed to this Agent." />
+    <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Product API source of truth</span><span>No browser-side accounting</span><span>Missing values are unavailable, not zero</span></div>
+    <section className="panel">
+      <div className="panel-head"><div><h2>Usage records</h2><p>Up to {AGENT_OPERATIONAL_PAGE_LIMIT} records returned by the Product API. Agent-scoped cost totals and a canonical ordering contract are unavailable.</p></div><button className="secondary" disabled={usage.loadState === "loading" || usage.loadState === "refreshing"} onClick={usage.refresh}>{usage.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button></div>
+      {usage.loadError && <div className="error-banner" role="alert">{usage.loadError}</div>}
+      {usage.loadState === "loading" && !usage.data
+        ? <div className="state-line">Loading Agent usage records...</div>
+        : usage.data?.length
+          ? <div className="catalog-list">{usage.data.map(record => <article className="catalog-row operational-record" key={record.usageId}>
+            <div className="catalog-row-main">
+              <div className="operational-record-title"><b>{record.dimension}</b><Badge tone={statusTone(record.status)}>{record.status}</Badge></div>
+              <small className="mono">{record.usageId}</small>
+              <p>{record.quantity} {record.unit} · {record.measurementState} · {record.settlementState}</p>
+              <small>Observed <Time value={record.observedAt} /> · source {record.measurementSource}</small>
+            </div>
+            <div className="catalog-badges operational-correlation">
+              <span className="tag mono">Run {record.executionRunId}</span>
+              {record.reservationId && <span className="tag mono">Reservation {record.reservationId}</span>}
+              {record.quoteId && <span className="tag mono">Quote {record.quoteId}</span>}
+              {record.settlementId && <span className="tag mono">Settlement {record.settlementId}</span>}
+            </div>
+          </article>)}</div>
+          : <PanelStateLine state={usage.loadState} error={usage.loadError} emptyMessage="No Usage & Cost records have been recorded for this Agent." />}
+      <p className="panel-note">Usage correlation is reported by the Product API as Agent → Run → reservation → quote → settlement when those records exist. The UI does not derive cost totals from this bounded page, and partial or missing economic links are not converted into a complete cost claim.</p>
+      <div className="panel-actions"><Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Link><Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Evidence</Link></div>
     </section>
   </>;
 }
@@ -5574,15 +5616,7 @@ export default function App() {
             />
             <Route
               path="/agents/:agentId/usage-cost"
-              element={
-                <AgentScopedUnsupportedView
-                  title="Usage & Cost"
-                  description="Usage and cost associated with this Agent."
-                  canonicalPath="/economics"
-                  canonicalLabel="global Usage & Cost"
-                  subject="Usage & Cost"
-                />
-              }
+              element={<AgentUsageCostView />}
             />
             <Route path="/agents/:agentId/advanced" element={<AgentAdvancedView />} />
             <Route path="/agents/:agentId" element={<AgentDetail />} />

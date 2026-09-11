@@ -2690,8 +2690,12 @@ export const productApi = {
   async listReceipts() {
     return request<Receipt[]>("/economics/receipts");
   },
-  async listUsageRecords() {
-    return request<UsageInspectionRecord[]>("/economics/usage?limit=8");
+  async listUsageRecords(query?: { agentId?: string; executionRunId?: string; limit?: number }) {
+    const params = new URLSearchParams();
+    if (query?.agentId) params.set("agentId", query.agentId);
+    if (query?.executionRunId) params.set("executionRunId", query.executionRunId);
+    params.set("limit", String(query?.limit ?? 8));
+    return request<UsageInspectionRecord[]>(`/economics/usage?${params.toString()}`);
   },
   async listReconciliationBacklog() {
     return request<ReconciliationBacklogItem[]>("/economics/reconciliation?limit=8");

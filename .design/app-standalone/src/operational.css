@@ -2775,6 +2775,21 @@ button.danger:disabled {
   line-height: 1.45;
 }
 
+.operational-record {
+  align-items: flex-start;
+}
+
+.operational-record-title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.operational-correlation {
+  align-items: flex-end;
+}
+
 .catalog-badges {
   align-items: center;
   display: flex;
@@ -3144,6 +3159,10 @@ button.danger:disabled {
 
   .catalog-badges {
     justify-content: flex-start;
+  }
+
+  .operational-correlation {
+    align-items: flex-start;
   }
 
   .card-badges,
