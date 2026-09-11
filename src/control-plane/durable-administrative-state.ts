@@ -421,6 +421,10 @@ class FileAdministrativeAuditStore implements AuditEventStore {
   list(): readonly AuditEvent[] {
     return [...this.state.read().auditEvents];
   }
+
+  forEach(visitor: (event: AuditEvent) => void): void {
+    for (const event of this.state.read().auditEvents) visitor(event);
+  }
 }
 
 export class DurableAdministrativeState {

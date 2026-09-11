@@ -20,11 +20,29 @@ async function get(context, path, correlationId) {
   return routeProductApiRequest({ method: "GET", url: path, headers: {} }, path, context, { correlationId });
 }
 
+function createAgent(context, agentId) {
+  context.agentService.create({
+    definition: {
+      agentId,
+      name: `Test Agent ${agentId}`,
+      status: "draft",
+      capabilityIds: [],
+      skillIds: [],
+      toolIds: [],
+      credentialConnectionIds: [],
+      runnerPreferences: [],
+    },
+    createdAt: Date.now(),
+  });
+}
+
 test("IMP-02D verified Agent-scoped routes exclude foreign Agent records", async () => {
   const context = createControlPlaneContext({ engine: createMockEngine(), startLocalWorker: false });
   const agentA = "agent-imp-02d-a";
   const agentB = "agent-imp-02d-b";
   try {
+    createAgent(context, agentA);
+    createAgent(context, agentB);
     const runA = context.runtimeService.createExecutionRun({ runtimeInstanceId: "runtime-imp-02d-a", agentId: agentA, executionPlanId: "plan-imp-02d-a" });
     const runB = context.runtimeService.createExecutionRun({ runtimeInstanceId: "runtime-imp-02d-b", agentId: agentB, executionPlanId: "plan-imp-02d-b" });
     context.auditService.recordEvent({ eventType: "execution.completed", agentId: agentA, executionRunId: runA.runId, result: "success", decision: "passed", metadata: { message: "Agent A completed" } });

@@ -1268,9 +1268,12 @@ export async function routeProductApiRequest(
 
     // GET /api/v1/agents/:agentId/execution-runs
     if (segments[2] === "agents" && segments[3] && segments[4] === "execution-runs" && segments.length === 5 && request.method === "GET") {
-      assertAllowedQueryParams(url, []);
+      assertAllowedQueryParams(url, ["limit", "offset"]);
       const agentId = readPathSegment(segments, 3, "agentId");
-      const runs = await api.listAgentExecutionRunSummaries(agentId);
+      if (!await api.getAgent(agentId)) {
+        return fail(`agent not found: ${agentId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      const runs = await api.listAgentExecutionRunSummaries(agentId, readAgentOperationalPage(url));
       return { status: 200, body: ok(runs, [], options.correlationId, routeMeta) };
     }
     if (segments[2] === "agents" && segments[3] && segments[4] === "execution-runs" && segments.length === 5) {
@@ -1537,9 +1540,12 @@ export async function routeProductApiRequest(
 
     // Entity-scoped evidence
     if (segments[2] === "agents" && segments[3] && segments[4] === "evidence" && segments.length === 5 && request.method === "GET") {
-      assertAllowedQueryParams(url, []);
+      assertAllowedQueryParams(url, ["limit", "offset"]);
       const agentId = readPathSegment(segments, 3, "agentId");
-      const evidence = await api.listAgentEvidence(agentId);
+      if (!await api.getAgent(agentId)) {
+        return fail(`agent not found: ${agentId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      const evidence = await api.listAgentEvidence(agentId, readAgentOperationalPage(url));
       return { status: 200, body: ok(evidence, [], options.correlationId, routeMeta) };
     }
     if (segments[2] === "deployments" && segments[3] && segments[4] === "evidence" && segments.length === 5 && request.method === "GET") {
@@ -2442,6 +2448,7 @@ function buildEvidenceQuery(url: URL, agentId?: string) {
     limit?: number;
   } = { ...(agentId ? { agentId } : {}) };
   const p = url.searchParams;
+  if (p.has("agentId")) query.agentId = p.get("agentId")!;
   if (p.has("deploymentId")) query.deploymentId = p.get("deploymentId")!;
   if (p.has("runtimeId")) query.runtimeId = p.get("runtimeId")!;
   if (p.has("executionRunId")) query.executionRunId = p.get("executionRunId")!;
@@ -2449,6 +2456,29 @@ function buildEvidenceQuery(url: URL, agentId?: string) {
   if (p.has("severity")) query.severity = p.get("severity")!;
   if (p.has("limit")) query.limit = parseInt(p.get("limit")!, 10);
   return query;
+}
+
+const AGENT_OPERATIONAL_DEFAULT_LIMIT = 50;
+const AGENT_OPERATIONAL_MAX_LIMIT = 100;
+const AGENT_OPERATIONAL_MAX_OFFSET = 10_000;
+
+function readAgentOperationalPage(url: URL): { readonly limit: number; readonly offset: number } {
+  const limit = readBoundedQueryInteger(url, "limit", AGENT_OPERATIONAL_DEFAULT_LIMIT, 1, AGENT_OPERATIONAL_MAX_LIMIT);
+  const offset = readBoundedQueryInteger(url, "offset", 0, 0, AGENT_OPERATIONAL_MAX_OFFSET);
+  return { limit, offset };
+}
+
+function readBoundedQueryInteger(url: URL, name: string, fallback: number, minimum: number, maximum: number): number {
+  const raw = url.searchParams.get(name);
+  if (raw === null) return fallback;
+  if (!/^(0|[1-9][0-9]*)$/.test(raw)) {
+    throw new AcsHttpValidationError(`${name} must be an integer between ${minimum} and ${maximum}`, { minimum, maximum, received: raw });
+  }
+  const value = Number(raw);
+  if (value < minimum || value > maximum) {
+    throw new AcsHttpValidationError(`${name} must be between ${minimum} and ${maximum}`, { minimum, maximum, received: value });
+  }
+  return value;
 }
 
 function buildAuditQuery(url: URL) {

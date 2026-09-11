@@ -55,6 +55,7 @@ export interface AuditQueryFilter {
 export interface AuditEventStore {
   append(event: AuditEvent): AuditEvent;
   list(): readonly AuditEvent[];
+  forEach(visitor: (event: AuditEvent) => void): void;
 }
 
 export class InMemoryAuditEventStore implements AuditEventStore {
@@ -67,6 +68,10 @@ export class InMemoryAuditEventStore implements AuditEventStore {
 
   list(): readonly AuditEvent[] {
     return [...this.#events];
+  }
+
+  forEach(visitor: (event: AuditEvent) => void): void {
+    for (const event of this.#events) visitor(event);
   }
 }
 
@@ -145,21 +150,32 @@ export class AuditService {
   }
 
   queryEvents(filter: AuditQueryFilter): readonly AuditEvent[] {
-    return this.#store.list().filter((evt) => {
-      if (filter.correlationId && evt.correlationId !== filter.correlationId) return false;
-      if (filter.tenantId && evt.tenantId !== filter.tenantId) return false;
-      if (filter.workloadId && evt.workloadId !== filter.workloadId) return false;
-      if (filter.agentId && evt.agentId !== filter.agentId) return false;
-      if (filter.deploymentId && evt.deploymentId !== filter.deploymentId) return false;
-      if (filter.runtimeInstanceId && evt.runtimeInstanceId !== filter.runtimeInstanceId) return false;
-      if (filter.executionRunId && evt.executionRunId !== filter.executionRunId) return false;
-      if (filter.eventType && evt.eventType !== filter.eventType) return false;
-      if (filter.actor && evt.actor !== filter.actor) return false;
-      return true;
+    const events: AuditEvent[] = [];
+    this.forEachEvent(filter, (event) => events.push(event));
+    return events;
+  }
+
+  forEachEvent(filter: AuditQueryFilter, visitor: (event: AuditEvent) => void): void {
+    this.#store.forEach((event) => {
+      if (!matchesAuditQueryFilter(event, filter)) return;
+      visitor(event);
     });
   }
 
   listEvents(): readonly AuditEvent[] {
     return this.#store.list();
   }
+}
+
+function matchesAuditQueryFilter(event: AuditEvent, filter: AuditQueryFilter): boolean {
+  if (filter.correlationId && event.correlationId !== filter.correlationId) return false;
+  if (filter.tenantId && event.tenantId !== filter.tenantId) return false;
+  if (filter.workloadId && event.workloadId !== filter.workloadId) return false;
+  if (filter.agentId && event.agentId !== filter.agentId) return false;
+  if (filter.deploymentId && event.deploymentId !== filter.deploymentId) return false;
+  if (filter.runtimeInstanceId && event.runtimeInstanceId !== filter.runtimeInstanceId) return false;
+  if (filter.executionRunId && event.executionRunId !== filter.executionRunId) return false;
+  if (filter.eventType && event.eventType !== filter.eventType) return false;
+  if (filter.actor && event.actor !== filter.actor) return false;
+  return true;
 }

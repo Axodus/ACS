@@ -607,6 +607,7 @@ export interface EvidenceQuery {
   readonly kind?: EvidenceKind;
   readonly correlationId?: string;
   readonly limit?: number;
+  readonly offset?: number;
 }
 
 export interface EconomicQuery {
@@ -697,6 +698,7 @@ export interface OperationalEvidenceServiceOptions {
   readonly auditService?: {
     queryEvents(filter: AuditQueryFilter): readonly AuditEvent[];
     listEvents(): readonly AuditEvent[];
+    forEachEvent(filter: AuditQueryFilter, visitor: (event: AuditEvent) => void): void;
   };
   readonly economicService?: EconomicService;
   readonly deploymentService?: {
@@ -824,53 +826,25 @@ export class OperationalEvidenceService {
       ...(query.correlationId ? { correlationId: query.correlationId } : {}),
     };
 
-    const events = this.#auditService.queryEvents(filter);
-    const evidence: EvidenceRecord[] = [];
+    const evidence = createEvidenceCollector(query);
 
-    for (const event of events) {
+    this.#auditService.forEachEvent(filter, (event) => {
       if (event.metadata && typeof event.metadata === "object") {
         const meta = event.metadata as Record<string, unknown>;
         if (meta.findings && Array.isArray(meta.findings)) {
-          evidence.push(this.#createEvidenceFromEvent(event, meta.findings as OperationalFinding[]));
+          evidence.add(this.#createEvidenceFromEvent(event, meta.findings as OperationalFinding[]));
         }
       }
-    }
+      if (event.eventType === "governance.evaluated" || event.eventType === "deployment.completed" || event.eventType === "runtime.started") {
+        evidence.add(this.#createReadinessEvidenceFromEvent(event));
+      }
+      if (event.eventType.startsWith("deployment.")) evidence.add(this.#createDeploymentEvidenceFromEvent(event));
+      if (event.eventType.startsWith("runtime.")) evidence.add(this.#createRuntimeEvidenceFromEvent(event));
+      if (event.eventType.startsWith("execution.")) evidence.add(this.#createExecutionRunEvidenceFromEvent(event));
+      if (event.eventType.startsWith("economic.")) evidence.add(this.#createEconomicEvidenceFromEvent(event));
+    });
 
-    // Add readiness evidence from audit events
-    const readinessEvents = events.filter((event) =>
-      event.eventType === "governance.evaluated" || event.eventType === "deployment.completed" || event.eventType === "runtime.started"
-    );
-    for (const event of readinessEvents) {
-      evidence.push(this.#createReadinessEvidenceFromEvent(event));
-    }
-
-    // Add deployment evidence
-    const deploymentEvents = events.filter((event) => event.eventType.startsWith("deployment."));
-    for (const event of deploymentEvents) {
-      evidence.push(this.#createDeploymentEvidenceFromEvent(event));
-    }
-
-    // Add runtime evidence
-    const runtimeEvents = events.filter((event) => event.eventType.startsWith("runtime."));
-    for (const event of runtimeEvents) {
-      evidence.push(this.#createRuntimeEvidenceFromEvent(event));
-    }
-
-    // Add execution run evidence
-    const executionEvents = events.filter((event) => event.eventType.startsWith("execution."));
-    for (const event of executionEvents) {
-      evidence.push(this.#createExecutionRunEvidenceFromEvent(event));
-    }
-
-    // Add economic evidence
-    const economicEvents = events.filter((event) => event.eventType.startsWith("economic."));
-    for (const event of economicEvents) {
-      evidence.push(this.#createEconomicEvidenceFromEvent(event));
-    }
-
-    const sorted = [...evidence].sort((left, right) => right.createdAt - left.createdAt);
-    const limited = query.limit ? sorted.slice(0, query.limit) : sorted;
-    return limited;
+    return evidence.finish();
   }
 
   async getEvidenceDetail(evidenceId: string): Promise<EvidenceRecord | undefined> {
@@ -923,6 +897,7 @@ export class OperationalEvidenceService {
 
     if (this.#agentService) {
       for (const revision of this.#agentService.list()) {
+        if (query?.agentId && revision.agentId !== query.agentId) continue;
         agentConsumption.push({
           agentId: revision.agentId,
           estimated: "0",
@@ -933,20 +908,27 @@ export class OperationalEvidenceService {
       }
     }
 
-    if (this.#deploymentService) {
-      for (const deployment of this.#deploymentService.listDeployments()) {
-        deploymentConsumption.push({
+    const deployments = this.#deploymentService?.listDeployments() ?? [];
+    const deploymentsById = new Map(deployments.map((deployment) => [deployment.deploymentId, deployment]));
+    for (const deployment of deployments) {
+      if (query?.agentId && deployment.agentId !== query.agentId) continue;
+      if (query?.deploymentId && deployment.deploymentId !== query.deploymentId) continue;
+      deploymentConsumption.push({
           deploymentId: deployment.deploymentId,
           agentId: deployment.agentId,
           metered: "0",
           settled: "0",
           unit,
         });
-      }
     }
 
     if (this.#runtimeService) {
       for (const runtime of this.#runtimeService.listRuntimes()) {
+        const deployment = deploymentsById.get(runtime.deploymentId);
+        const agentId = runtime.agentId ?? deployment?.agentId;
+        if (query?.agentId && agentId !== query.agentId) continue;
+        if (query?.deploymentId && runtime.deploymentId !== query.deploymentId) continue;
+        if (query?.runtimeId && runtime.runtimeInstanceId !== query.runtimeId) continue;
         runtimeConsumption.push({
           runtimeId: runtime.runtimeInstanceId,
           deploymentId: runtime.deploymentId,
@@ -956,6 +938,8 @@ export class OperationalEvidenceService {
         });
       }
       for (const run of this.#runtimeService.listExecutionRuns()) {
+        if (query?.agentId && run.agentId !== query.agentId) continue;
+        if (query?.executionRunId && run.runId !== query.executionRunId) continue;
         executionRunConsumption.push({
           runId: run.runId,
           agentId: run.agentId,
@@ -2129,6 +2113,42 @@ export class OperationalEvidenceService {
       return true;
     }).slice(0, query?.limit ?? Number.POSITIVE_INFINITY);
   }
+}
+
+function createEvidenceCollector(query: EvidenceQuery): {
+  add(record: EvidenceRecord): void;
+  finish(): readonly EvidenceRecord[];
+} {
+  const evidence: EvidenceRecord[] = [];
+  const capacity = query.limit === undefined ? undefined : (query.offset ?? 0) + query.limit;
+
+  return {
+    add(record) {
+      if (capacity === undefined) {
+        evidence.push(record);
+        return;
+      }
+      insertEvidenceInDescendingOrder(evidence, record);
+      if (evidence.length > capacity) evidence.pop();
+    },
+    finish() {
+      if (capacity === undefined) {
+        return [...evidence].sort(compareEvidence);
+      }
+      return evidence.slice(query.offset ?? 0);
+    },
+  };
+}
+
+function insertEvidenceInDescendingOrder(records: EvidenceRecord[], candidate: EvidenceRecord): void {
+  const index = records.findIndex((record) => compareEvidence(candidate, record) < 0);
+  if (index === -1) records.push(candidate);
+  else records.splice(index, 0, candidate);
+}
+
+function compareEvidence(left: EvidenceRecord, right: EvidenceRecord): number {
+  if (left.createdAt !== right.createdAt) return right.createdAt - left.createdAt;
+  return right.evidenceId.localeCompare(left.evidenceId);
 }
 
 // Re-export for convenience

@@ -64,6 +64,11 @@ export interface ExecutionRunRecord {
   readonly scope?: IsolationScope;
 }
 
+export interface ExecutionRunPageQuery {
+  readonly limit: number;
+  readonly offset: number;
+}
+
 export interface DeploymentLookupRecord {
   readonly targetId?: string;
   readonly deploymentMode?: string;
@@ -437,6 +442,25 @@ export class RuntimeLifecycleService {
     });
   }
 
+  listAgentExecutionRuns(agentId: string, query: ExecutionRunPageQuery, scope?: IsolationScope): readonly ExecutionRunRecord[] {
+    const effectiveScope = scope ?? this.#defaultScope;
+    const capacity = query.offset + query.limit;
+    const selected: ExecutionRunRecord[] = [];
+
+    for (const record of this.#executionRuns.values()) {
+      try {
+        assertSameIsolationScope(effectiveScope, record.scope);
+      } catch {
+        continue;
+      }
+      if (record.agentId !== agentId) continue;
+      insertRunInDescendingOrder(selected, record);
+      if (selected.length > capacity) selected.pop();
+    }
+
+    return selected.slice(query.offset);
+  }
+
   #jobRuntimeRecord(job: ExecutionJob, scope?: IsolationScope): RuntimeInstanceRecord {
     const status: RuntimeState = job.status === "queued" ? "pending"
       : job.status === "assigned" || job.status === "running" ? "starting"
@@ -459,6 +483,17 @@ export class RuntimeLifecycleService {
       ...(scope ? { scope } : {}),
     };
   }
+}
+
+function insertRunInDescendingOrder(records: ExecutionRunRecord[], candidate: ExecutionRunRecord): void {
+  const index = records.findIndex((record) => compareExecutionRuns(candidate, record) < 0);
+  if (index === -1) records.push(candidate);
+  else records.splice(index, 0, candidate);
+}
+
+function compareExecutionRuns(left: ExecutionRunRecord, right: ExecutionRunRecord): number {
+  if (left.startedAt !== right.startedAt) return right.startedAt - left.startedAt;
+  return right.runId.localeCompare(left.runId);
 }
 
 function deploymentModeValue(mode: string): "sandbox" | "staged" | "live" {

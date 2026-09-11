@@ -1876,8 +1876,8 @@ export class ProductApiClient {
     return this.#operationalEvidence.getDiagnosticDetail(diagnosticId);
   }
 
-  async listAgentEvidence(agentId: string): Promise<readonly EvidenceRecord[]> {
-    return this.#operationalEvidence.listEvidence({ agentId });
+  async listAgentEvidence(agentId: string, query: { readonly limit: number; readonly offset: number }): Promise<readonly EvidenceRecord[]> {
+    return this.#operationalEvidence.listEvidence({ agentId, ...query });
   }
 
   async listDeploymentEvidence(deploymentId: string): Promise<readonly EvidenceRecord[]> {
@@ -2346,9 +2346,8 @@ export class ProductApiClient {
     return run ? this.#executionRunRecordSummary(run) : undefined;
   }
 
-  async listAgentExecutionRunSummaries(agentId: string): Promise<readonly ExecutionRunSummary[]> {
-    return (this.#runtimeService?.listExecutionRuns() ?? [])
-      .filter((run) => run.agentId === agentId)
+  async listAgentExecutionRunSummaries(agentId: string, query: { readonly limit: number; readonly offset: number }): Promise<readonly ExecutionRunSummary[]> {
+    return (this.#runtimeService?.listAgentExecutionRuns(agentId, query) ?? [])
       .map((run) => this.#executionRunRecordSummary(run));
   }
 
