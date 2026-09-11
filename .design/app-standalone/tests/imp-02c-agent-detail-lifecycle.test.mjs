@@ -2,7 +2,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const appSource = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const sourceFiles = [
+  "../src/shared.tsx",
+  "../src/App.tsx",
+  "../src/domains/dashboard/Dashboard.tsx",
+  "../src/domains/agents/Agents.tsx",
+  "../src/domains/composition/Composition.tsx",
+  "../src/domains/runtime/Runtime.tsx",
+  "../src/domains/economics/Economics.tsx",
+  "../src/domains/administration/Administration.tsx",
+];
+const appSource = (await Promise.all(sourceFiles.map(file => readFile(new URL(file, import.meta.url), "utf8")))).join("\n");
 const cssSource = await readFile(new URL("../src/operational.css", import.meta.url), "utf8");
 
 function sectionBetween(startMarker, endMarker) {
@@ -42,7 +52,7 @@ test("technical bindings are secondary in Overview and rendered in Agent Advance
 });
 
 test("IMP-02C revision hierarchy distinguishes the canonical head from read-only history", () => {
-  const revisions = sectionBetween("function AgentRevisionsView()", "const AGENT_OPERATIONAL_PAGE_LIMIT");
+  const revisions = sectionBetween("function AgentRevisionsView()", "export function AgentRunsView()");
   assert.match(revisions, /sort\(\(left, right\) => right\.revisionNumber - left\.revisionNumber\)/);
   assert.match(revisions, /CURRENT/);
   assert.match(revisions, /HISTORICAL/);

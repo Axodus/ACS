@@ -2,7 +2,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const appSource = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const sourceFiles = [
+  "../src/shared.tsx",
+  "../src/App.tsx",
+  "../src/domains/dashboard/Dashboard.tsx",
+  "../src/domains/agents/Agents.tsx",
+  "../src/domains/composition/Composition.tsx",
+  "../src/domains/runtime/Runtime.tsx",
+  "../src/domains/economics/Economics.tsx",
+  "../src/domains/administration/Administration.tsx",
+];
+const appSource = (await Promise.all(sourceFiles.map(file => readFile(new URL(file, import.meta.url), "utf8")))).join("\n");
 const cssSource = await readFile(new URL("../src/operational.css", import.meta.url), "utf8");
 
 test("root Dashboard and Administration Overview are separate canonical routes", () => {
@@ -24,13 +34,13 @@ test("customer Dashboard presents operational health without technical compositi
   assert.match(dashboard, /Recent Activity/);
   assert.doesNotMatch(dashboard, /title="Active composition"/);
   assert.doesNotMatch(dashboard, /title="Critical blockers"/);
-  assert.match(dashboard, /\(\) => productApi\.getDashboardSummary\(\)/);
-  assert.match(dashboard, /\(\) => productApi\.getEconomicSummary\(\)/);
-  assert.match(dashboard, /\(\) => productApi\.listEvents\(\)/);
+  assert.match(dashboard, /\(\) => Api\.productApi\.getDashboardSummary\(\)/);
+  assert.match(dashboard, /\(\) => Api\.productApi\.getEconomicSummary\(\)/);
+  assert.match(dashboard, /\(\) => Api\.productApi\.listEvents\(\)/);
   assert.match(dashboard, /Financial data unavailable/);
   assert.match(dashboard, /Unable to load recent activity/);
   assert.match(dashboard, /Welcome back, Operator/);
-  assert.match(dashboard, /<DashboardMetric label="Active Agents"/);
+  assert.match(dashboard, /<Shared\.DashboardMetric label="Active Agents"/);
   assert.match(dashboard, /className="execution-chart"/);
   assert.match(dashboard, /className=\{`success-orbit/);
   assert.match(dashboard, /className="financial-visual"/);

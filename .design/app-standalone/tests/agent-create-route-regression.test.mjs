@@ -2,7 +2,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const appSource = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const sourceFiles = [
+  "../src/shared.tsx",
+  "../src/App.tsx",
+  "../src/domains/dashboard/Dashboard.tsx",
+  "../src/domains/agents/Agents.tsx",
+  "../src/domains/composition/Composition.tsx",
+  "../src/domains/runtime/Runtime.tsx",
+  "../src/domains/economics/Economics.tsx",
+  "../src/domains/administration/Administration.tsx",
+];
+const appSource = (await Promise.all(sourceFiles.map(file => readFile(new URL(file, import.meta.url), "utf8")))).join("\n");
 
 test("/agents/new is excluded from entity-context navigation", () => {
   assert.match(appSource, /if \(pathname === "\/agents\/new"\) return null;/);
@@ -31,5 +41,5 @@ test("page-level DomainNav is removed", () => {
 test("DomainHeader owns page-level actions", () => {
   assert.match(appSource, /function DomainHeader\(\{ domain, title, description, entityLabel, actions, children \}/);
   assert.match(appSource, /className="domain-header-actions"/);
-  assert.match(appSource, /<DomainHeader domain="Agents" title="Agent Inventory"[\s\S]*?actions=\{/);
+  assert.match(appSource, /<Shared\.DomainHeader domain="Agents" title="Agent Inventory"[\s\S]*?actions=\{/);
 });

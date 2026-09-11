@@ -2,7 +2,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const appSource = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const sourceFiles = [
+  "../src/shared.tsx",
+  "../src/App.tsx",
+  "../src/domains/dashboard/Dashboard.tsx",
+  "../src/domains/agents/Agents.tsx",
+  "../src/domains/composition/Composition.tsx",
+  "../src/domains/runtime/Runtime.tsx",
+  "../src/domains/economics/Economics.tsx",
+  "../src/domains/administration/Administration.tsx",
+];
+const appSource = (await Promise.all(sourceFiles.map(file => readFile(new URL(file, import.meta.url), "utf8")))).join("\n");
 const apiSource = await readFile(new URL("../src/api/product-api.ts", import.meta.url), "utf8");
 
 function sectionBetween(startMarker, endMarker) {

@@ -123,6 +123,33 @@ button,
     padding: 0 8px 18px
 }
 
+.brand-copy {
+    min-width: 0;
+}
+
+.sidebar-toggle {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--secondary);
+    cursor: pointer;
+    display: inline-flex;
+    height: 32px;
+    justify-content: center;
+    margin-left: auto;
+    min-width: 32px;
+    padding: 0;
+}
+
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
+    background: var(--hover);
+    border-color: var(--border2);
+    color: var(--text);
+    outline: none;
+}
+
 .brand>span {
     width: 31px;
     height: 31px;
@@ -306,6 +333,62 @@ footer i {
     display: flex;
     flex-direction: column;
     width: calc(100% - 238px)
+}
+
+.sidebar-collapsed .sidebar {
+    width: 72px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.sidebar-collapsed .main {
+    margin-left: 72px;
+    width: calc(100% - 72px);
+}
+
+.sidebar-collapsed .brand {
+    gap: 0;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar-collapsed .brand-copy,
+.sidebar-collapsed .workspace-switch > div,
+.sidebar-collapsed .connection > div > div,
+.sidebar-collapsed .connection > .mono {
+    display: none;
+}
+
+.sidebar-collapsed .sidebar-toggle {
+    margin-left: 0;
+}
+
+.sidebar-collapsed .workspace-switch {
+    justify-content: center;
+    padding: 9px 0;
+}
+
+.sidebar-collapsed .connection {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar-collapsed .connection > div {
+    gap: 0;
+}
+
+.sidebar-collapsed .domain-link {
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.sidebar-collapsed .domain-link .domain-label,
+.sidebar-collapsed .domain-link .sidebar-chevron,
+.sidebar-collapsed .sidebar-children {
+    display: none;
 }
 
 .topbar {
@@ -1877,6 +1960,51 @@ footer span:last-child {
     .main {
         margin-left: 0;
         width: 100%
+    }
+
+    .sidebar-collapsed .sidebar {
+        width: 238px;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .sidebar-collapsed .main {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .sidebar-collapsed .brand {
+        gap: 10px;
+        justify-content: flex-start;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .sidebar-collapsed .brand-copy,
+    .sidebar-collapsed .workspace-switch > div,
+    .sidebar-collapsed .connection > div > div,
+    .sidebar-collapsed .connection > .mono,
+    .sidebar-collapsed .domain-link .domain-label,
+    .sidebar-collapsed .domain-link .sidebar-chevron,
+    .sidebar-collapsed .sidebar-children {
+        display: initial;
+    }
+
+    .sidebar-collapsed .workspace-switch {
+        justify-content: initial;
+        padding: 9px;
+    }
+
+    .sidebar-collapsed .connection {
+        justify-content: space-between;
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+
+    .sidebar-collapsed .domain-link {
+        justify-content: initial;
+        padding-left: 12px;
+        padding-right: 12px;
     }
 
     .mobile-drawer-overlay {
