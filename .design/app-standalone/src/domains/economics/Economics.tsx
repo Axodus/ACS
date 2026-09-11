@@ -39,15 +39,16 @@ export function EconomicsView() {
     { to: "/system/pricing-invoice-boundary", label: "Pricing & invoice boundary" },
     { to: "/system/payment-rails-boundary", label: "Payment rails boundary" },
     { to: "/system/tenant-billing-boundary", label: "Tenant accountability boundary" },
-    { to: "/system/settlement-reconciliation", label: "Api.Settlement & receipt boundary" },
+    { to: "/system/settlement-reconciliation", label: "Settlement & receipt boundary" },
     { to: "/system/financial-audit", label: "Financial audit boundary" },
     { to: "/system/billing-acceptance", label: "Acceptance & claims" },
   ];
   return <>
     <Shared.DomainHeader domain="Economics" title="Economics" description="Operational usage and financial-boundary evidence from the Product API. Usage, economics and billing are separate truths." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button>} />
+    <Shared.ReportSectionNav sections={[{ id: "economics-primary", label: "Primary boundary" }, { id: "economics-secondary", label: "Attribution" }, { id: "economics-quotes", label: "Quotes & reservations" }, { id: "economics-diagnostics", label: "Diagnostics" }, { id: "economics-boundaries", label: "Boundary evidence" }]} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Operational truth ≠ economic truth ≠ billing truth</span><span>Missing values are unavailable, not zero</span></div>
     {Shared.staleBanner({ stale, loadState, loadError }, "economics")}
-    <div className="flow-group">
+    <div className="flow-group" id="economics-primary">
       <div className="flow-group-head"><h2>Primary financial boundary</h2><p>Product API values only. The UI labels authority and never upgrades operational records into billing claims.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
@@ -81,7 +82,7 @@ export function EconomicsView() {
         </section>
       </div>
     </div>
-    <Shared.SectionDisclosure title="Secondary — workload attribution" summary="Agent, deployment, runtime and execution aggregates only where Product API supplies them." tier="Secondary">
+    <div id="economics-secondary"><Shared.SectionDisclosure title="Secondary — workload attribution" summary="Agent, deployment, runtime and execution aggregates only where Product API supplies them." tier="Secondary">
       <div className="dashboard-grid evidence-grid">
         <section className="panel">
           <div className="panel-head"><div><h2>Agent attribution</h2><p>Contextual aggregate, Economics-owned</p></div><Shared.Badge tone="muted">{data?.agentConsumption.length ?? 0}</Shared.Badge></div>
@@ -92,8 +93,8 @@ export function EconomicsView() {
           <div className="panel-body"><Shared.TimelineList limit={6} items={(data?.executionRunConsumption ?? []).map((item) => ({ id: item.entityId, title: item.entityId, meta: `${item.status} · ${formatEconomicAmount(item.amount, item.unit)}`, detail: "Execution-run economic context; operational detail remains in Operations.", tone: item.status === "available" ? "good" : item.status === "limited" ? "warn" : "muted" }))} /></div>
         </section>
       </div>
-    </Shared.SectionDisclosure>
-    <Shared.SectionDisclosure title="Secondary — quotes and reservations" summary="Operational quote/reservation visibility before and during execution; not payment authorization." tier="Secondary">
+    </Shared.SectionDisclosure></div>
+    <div id="economics-quotes"><Shared.SectionDisclosure title="Secondary — quotes and reservations" summary="Operational quote/reservation visibility before and during execution; not payment authorization." tier="Secondary">
       <div className="dashboard-grid evidence-grid">
         <section className="panel">
           <div className="panel-head"><div><h2>Quotes</h2><p>Estimated operational economics</p></div><Shared.Badge tone="muted">{quotes.data?.length ?? 0}</Shared.Badge></div>
@@ -108,8 +109,8 @@ export function EconomicsView() {
           </div>
         </section>
       </div>
-    </Shared.SectionDisclosure>
-    <Shared.SectionDisclosure title="Diagnostic — metering, settlement and receipt evidence" summary="Execution-level operational accounting evidence. Legal billing and payment rails remain not claimed." tier="Diagnostic">
+    </Shared.SectionDisclosure></div>
+    <div id="economics-diagnostics"><Shared.SectionDisclosure title="Diagnostic — metering, settlement and receipt evidence" summary="Execution-level operational accounting evidence. Legal billing and payment rails remain not claimed." tier="Diagnostic">
       <div className="dashboard-grid evidence-grid">
         <section className="panel">
           <div className="panel-head"><div><h2>Metering</h2><p>Recorded usage per execution run</p></div><Shared.Badge tone="muted">{metering.data?.length ?? 0}</Shared.Badge></div>
@@ -138,8 +139,8 @@ export function EconomicsView() {
             <Shared.TimelineList items={(data?.warnings ?? []).map((warning, index) => ({ id: `warning-${index}`, title: warning.severity, detail: warning.message, tone: warning.severity === "error" ? "warn" : undefined }))} />
         </div>
       </section>
-    </Shared.SectionDisclosure>
-    <div className="flow-group">
+    </Shared.SectionDisclosure></div>
+    <div className="flow-group" id="economics-boundaries">
       <div className="flow-group-head"><h2>Boundary evidence</h2><p>EPIC-13 reports are Economics children. They prove financial no-claims; they are not billing products.</p></div>
       <section className="panel blocked-panel"><div className="panel-head"><div><h2>Not billing</h2><p>Governed read-only economics</p></div><Shared.Badge tone="muted">all billing claims not claimed</Shared.Badge></div><p className="panel-note">Billing, invoices, payment rails, tenant billing, balances, budgets, wallets, exchange rates and production financial operations are not implemented ACS claims. Open the boundary reports for evidence.</p><Shared.CrossLinks links={allBoundaryLinks} /></section>
     </div>
@@ -189,7 +190,7 @@ export function PaymentRailsBoundaryView() {
       </div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
-          <div className="panel-head"><div><h2>Shared.Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
           <div className="panel-body">
             <div className="summary-list">
               <Shared.SummaryRow label="Payment Ready" value={data?.paymentReady ? "YES" : "NO / not yet claimed"} tone={data?.paymentReady ? "good" : "muted"} />
@@ -213,7 +214,7 @@ export function PaymentRailsBoundaryView() {
                 <Shared.SummaryRow label="Capture support" value={paymentProviderBoundary.captureSupportState} />
                 <Shared.SummaryRow label="Refund support" value={paymentProviderBoundary.refundSupportState} />
                 <Shared.SummaryRow label="Chargeback support" value={paymentProviderBoundary.chargebackSupportState} />
-                <Shared.SummaryRow label="Api.Settlement dependency" value={paymentProviderBoundary.settlementDependency} />
+                <Shared.SummaryRow label="Settlement dependency" value={paymentProviderBoundary.settlementDependency} />
               </div>
               : <Shared.PanelStateLine state={loadState} error={loadError} emptyMessage="No payment provider boundary available." />}
           </div>
@@ -235,7 +236,7 @@ export function PaymentRailsBoundaryView() {
                 <Shared.SummaryRow label="Authorization state" value={authorizationCaptureBoundary.authorizationState} />
                 <Shared.SummaryRow label="Capture state" value={authorizationCaptureBoundary.captureState} />
                 <Shared.SummaryRow label="Capture dependency" value={authorizationCaptureBoundary.captureDependency} />
-                <Shared.SummaryRow label="Api.Settlement dependency" value={authorizationCaptureBoundary.settlementDependency} />
+                <Shared.SummaryRow label="Settlement dependency" value={authorizationCaptureBoundary.settlementDependency} />
               </div>
               : <Shared.PanelStateLine state={loadState} error={loadError} emptyMessage="No authorization / capture boundary available." />}
           </div>
@@ -373,7 +374,7 @@ export function PricingInvoiceBoundaryView() {
     <header className="domain-header">
       <div>
         <p className="eyebrow">PRICING, QUOTE &amp; INVOICE CONTRACTS</p>
-        <h1>Pricing, Api.Quote &amp; Invoice Contracts</h1>
+        <h1>Pricing, Quote &amp; Invoice Contracts</h1>
         <p>Read-only boundary projection for pricing, quote candidates and invoice candidate contracts. No real invoice or payment activity is allowed here.</p>
       </div>
       <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
@@ -398,7 +399,7 @@ export function PricingInvoiceBoundaryView() {
       </div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
-          <div className="panel-head"><div><h2>Shared.Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
           <div className="panel-body">
             <div className="summary-list">
               <Shared.SummaryRow label="Pricing Ready" value={data?.pricingReady ? "YES" : "NO / not yet claimed"} tone={data?.pricingReady ? "good" : "muted"} />
@@ -424,7 +425,7 @@ export function PricingInvoiceBoundaryView() {
                 <Shared.SummaryRow label="Pricing state" value={pricingBoundary.pricingState} />
                 <Shared.SummaryRow label="Financial truth dependency" value={pricingBoundary.financialTruthDependency} />
                 <Shared.SummaryRow label="Billable event dependency" value={pricingBoundary.billableEventDependency} />
-                <Shared.SummaryRow label="Api.Quote dependency" value={pricingBoundary.quoteDependency} />
+                <Shared.SummaryRow label="Quote dependency" value={pricingBoundary.quoteDependency} />
               </div>
               : <Shared.PanelStateLine state={loadState} error={loadError} emptyMessage="No pricing boundary available." />}
           </div>
@@ -433,12 +434,12 @@ export function PricingInvoiceBoundaryView() {
     </div>
     <div className="flow-group">
       <div className="flow-group-head">
-        <h2>Api.Quote candidates</h2>
+        <h2>Quote candidates</h2>
         <p>Candidate quotes remain conceptual and evidence-bounded.</p>
       </div>
       <div className="dashboard-grid evidence-grid">
         <section className="panel">
-          <div className="panel-head"><div><h2>Api.Quote candidates</h2><p>Read-only candidate set</p></div><Shared.Badge tone="muted">{quoteCandidates.length}</Shared.Badge></div>
+          <div className="panel-head"><div><h2>Quote candidates</h2><p>Read-only candidate set</p></div><Shared.Badge tone="muted">{quoteCandidates.length}</Shared.Badge></div>
           <div className="panel-body">
             <Shared.TimelineList items={quoteCandidates.map((quote, index) => ({
               id: `${quote.quoteCandidateId}-${index}`,
@@ -450,7 +451,7 @@ export function PricingInvoiceBoundaryView() {
           </div>
         </section>
         <section className="panel">
-          <div className="panel-head"><div><h2>Api.Quote-to-invoice flow</h2><p>Conceptual boundary only</p></div></div>
+          <div className="panel-head"><div><h2>Quote-to-invoice flow</h2><p>Conceptual boundary only</p></div></div>
           <div className="panel-body">
             {quoteToInvoiceFlow
               ? <div className="summary-list">
@@ -493,7 +494,7 @@ export function PricingInvoiceBoundaryView() {
                 <Shared.SummaryRow label="Legal/tax invoice" value={invoiceArtifactBoundary.legalTaxInvoice} />
                 <Shared.SummaryRow label="Tax-compliant invoice" value={invoiceArtifactBoundary.taxCompliantInvoice} />
                 <Shared.SummaryRow label="Accounting invoice" value={invoiceArtifactBoundary.accountingInvoice} />
-                <Shared.SummaryRow label="Api.Receipt" value={invoiceArtifactBoundary.receipt} />
+                <Shared.SummaryRow label="Receipt" value={invoiceArtifactBoundary.receipt} />
                 <Shared.SummaryRow label="Payment request" value={invoiceArtifactBoundary.paymentRequest} />
                 <Shared.SummaryRow label="Legal/tax readiness" value={invoiceArtifactBoundary.legalTaxInvoiceReadiness} />
                 <Shared.SummaryRow label="Compliance readiness" value={invoiceArtifactBoundary.complianceReadiness} />
@@ -605,7 +606,7 @@ export function BillingBoundaryView() {
       </div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
-          <div className="panel-head"><div><h2>Shared.Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
           <div className="panel-body">
             <div className="summary-list">
               <Shared.SummaryRow label="Billing Ready" value={data?.billingReady ? "YES" : "NO / not yet claimed"} tone={data?.billingReady ? "good" : "muted"} />
@@ -773,7 +774,7 @@ export function TenantBillingBoundaryView() {
       </div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
-          <div className="panel-head"><div><h2>Shared.Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
           <div className="panel-body">
             <div className="summary-list">
               <Shared.SummaryRow label="Tenant Billing Ready" value={data?.tenantBillingReady ? "YES" : "NO / not yet claimed"} tone={data?.tenantBillingReady ? "good" : "muted"} />
@@ -974,7 +975,7 @@ export function SettlementReconciliationBoundaryView() {
     <header className="domain-header">
       <div>
         <p className="eyebrow">RECEIPTS, SETTLEMENT & RECONCILIATION</p>
-        <h1>Receipts, Api.Settlement &amp; Reconciliation</h1>
+        <h1>Receipts, Settlement &amp; Reconciliation</h1>
         <p>Read-only evidence boundary for operational receipts, settlement visibility and reconciliation evidence. No legal receipt, settlement execution or accounting integration is allowed here.</p>
       </div>
       <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
@@ -997,16 +998,16 @@ export function SettlementReconciliationBoundaryView() {
     <div className="flow-group">
       <div className="flow-group-head">
         <h2>Claims</h2>
-        <p>Api.Receipt, settlement and reconciliation readiness remain explicitly not claimed.</p>
+        <p>Receipt, settlement and reconciliation readiness remain explicitly not claimed.</p>
       </div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
-          <div className="panel-head"><div><h2>Shared.Status</h2><p>Governed claims snapshot</p></div></div>
+          <div className="panel-head"><div><h2>Status</h2><p>Governed claims snapshot</p></div></div>
           <div className="panel-body">
             <div className="summary-list">
-              <Shared.SummaryRow label="Api.Receipt Ready" value={data?.receiptReady ? "YES" : "NO / not yet claimed"} tone={data?.receiptReady ? "good" : "muted"} />
-              <Shared.SummaryRow label="Legal/Tax Api.Receipt Ready" value={data?.legalTaxReceiptReady ? "YES" : "NO / not yet claimed"} tone={data?.legalTaxReceiptReady ? "good" : "muted"} />
-              <Shared.SummaryRow label="Api.Settlement Ready" value={data?.settlementReady ? "YES" : "NO / not yet claimed"} tone={data?.settlementReady ? "good" : "muted"} />
+              <Shared.SummaryRow label="Receipt Ready" value={data?.receiptReady ? "YES" : "NO / not yet claimed"} tone={data?.receiptReady ? "good" : "muted"} />
+              <Shared.SummaryRow label="Legal/Tax Receipt Ready" value={data?.legalTaxReceiptReady ? "YES" : "NO / not yet claimed"} tone={data?.legalTaxReceiptReady ? "good" : "muted"} />
+              <Shared.SummaryRow label="Settlement Ready" value={data?.settlementReady ? "YES" : "NO / not yet claimed"} tone={data?.settlementReady ? "good" : "muted"} />
               <Shared.SummaryRow label="Reconciliation Ready" value={data?.reconciliationReady ? "YES" : "NO / not yet claimed"} tone={data?.reconciliationReady ? "good" : "muted"} />
               <Shared.SummaryRow label="Accounting Integration Ready" value={data?.accountingIntegrationReady ? "YES" : "NO / not yet claimed"} tone={data?.accountingIntegrationReady ? "good" : "muted"} />
               <Shared.SummaryRow label="Billing Ready" value={data?.billingReady ? "YES" : "NO / not yet claimed"} tone={data?.billingReady ? "good" : "muted"} />
@@ -1020,8 +1021,8 @@ export function SettlementReconciliationBoundaryView() {
           <div className="panel-body">
             {operationalReceiptBoundary
               ? <div className="summary-list">
-                <Shared.SummaryRow label="Api.Receipt candidate id" value={operationalReceiptBoundary.receiptCandidateId} />
-                <Shared.SummaryRow label="Api.Receipt type" value={operationalReceiptBoundary.receiptType} />
+                <Shared.SummaryRow label="Receipt candidate id" value={operationalReceiptBoundary.receiptCandidateId} />
+                <Shared.SummaryRow label="Receipt type" value={operationalReceiptBoundary.receiptType} />
                 <Shared.SummaryRow label="Related invoice candidate" value={operationalReceiptBoundary.relatedInvoiceCandidate} />
                 <Shared.SummaryRow label="Related quote candidate" value={operationalReceiptBoundary.relatedQuoteCandidate} />
                 <Shared.SummaryRow label="Related billable event" value={operationalReceiptBoundary.relatedBillableEvent} />
@@ -1037,7 +1038,7 @@ export function SettlementReconciliationBoundaryView() {
     </div>
     <div className="flow-group">
       <div className="flow-group-head">
-        <h2>Api.Receipt and settlement distinctions</h2>
+        <h2>Receipt and settlement distinctions</h2>
         <p>Operational evidence is separated from legal receipt and financial settlement.</p>
       </div>
       <div className="dashboard-grid evidence-grid">
@@ -1051,7 +1052,7 @@ export function SettlementReconciliationBoundaryView() {
                 <Shared.SummaryRow label="Invoice artifact" value={legalTaxReceiptBoundary.invoiceArtifact} />
                 <Shared.SummaryRow label="Tax/legal receipt" value={legalTaxReceiptBoundary.taxLegalReceipt} />
                 <Shared.SummaryRow label="Accounting receipt" value={legalTaxReceiptBoundary.accountingReceipt} />
-                <Shared.SummaryRow label="Api.Settlement receipt" value={legalTaxReceiptBoundary.settlementReceipt} />
+                <Shared.SummaryRow label="Settlement receipt" value={legalTaxReceiptBoundary.settlementReceipt} />
                 <Shared.SummaryRow label="Legal/tax receipt readiness" value={legalTaxReceiptBoundary.legalTaxReceiptReadiness} />
                 <Shared.SummaryRow label="Compliance readiness" value={legalTaxReceiptBoundary.complianceReadiness} />
                 <Shared.SummaryRow label="Accounting integration" value={legalTaxReceiptBoundary.accountingIntegration} />
@@ -1061,16 +1062,16 @@ export function SettlementReconciliationBoundaryView() {
           </div>
         </section>
         <section className="panel">
-          <div className="panel-head"><div><h2>Api.Settlement visibility</h2><p>Provider-dependent evidence only</p></div></div>
+          <div className="panel-head"><div><h2>Settlement visibility</h2><p>Provider-dependent evidence only</p></div></div>
           <div className="panel-body">
             {settlementVisibility
               ? <div className="summary-list">
-                <Shared.SummaryRow label="Api.Settlement candidate id" value={settlementVisibility.settlementCandidateId} />
+                <Shared.SummaryRow label="Settlement candidate ID" value={settlementVisibility.settlementCandidateId} />
                 <Shared.SummaryRow label="Related payment boundary" value={settlementVisibility.relatedPaymentBoundary} />
                 <Shared.SummaryRow label="Provider dependency" value={settlementVisibility.providerDependency} />
                 <Shared.SummaryRow label="Payment state dependency" value={settlementVisibility.paymentStateDependency} />
-                <Shared.SummaryRow label="Api.Settlement state" value={settlementVisibility.settlementState} />
-                <Shared.SummaryRow label="Api.Settlement source" value={settlementVisibility.settlementSource} />
+                <Shared.SummaryRow label="Settlement state" value={settlementVisibility.settlementState} />
+                <Shared.SummaryRow label="Settlement source" value={settlementVisibility.settlementSource} />
                 <Shared.SummaryRow label="Amount availability" value={settlementVisibility.amountAvailabilityState} />
                 <Shared.SummaryRow label="Currency availability" value={settlementVisibility.currencyAvailabilityState} />
                 <Shared.SummaryRow label="Settled at availability" value={settlementVisibility.settledAtAvailabilityState} />
@@ -1145,9 +1146,9 @@ export function SettlementReconciliationBoundaryView() {
           <div className="panel-head"><div><h2>Claim discipline</h2><p>No readiness upgrade is allowed here</p></div></div>
           <div className="panel-body">
             <div className="summary-list">
-              <Shared.SummaryRow label="Api.Receipt Ready" value={data?.receiptReady ? "YES" : "NO / not yet claimed"} tone={data?.receiptReady ? "good" : "muted"} />
-              <Shared.SummaryRow label="Legal/Tax Api.Receipt Ready" value={data?.legalTaxReceiptReady ? "YES" : "NO / not yet claimed"} tone={data?.legalTaxReceiptReady ? "good" : "muted"} />
-              <Shared.SummaryRow label="Api.Settlement Ready" value={data?.settlementReady ? "YES" : "NO / not yet claimed"} tone={data?.settlementReady ? "good" : "muted"} />
+              <Shared.SummaryRow label="Receipt Ready" value={data?.receiptReady ? "YES" : "NO / not yet claimed"} tone={data?.receiptReady ? "good" : "muted"} />
+              <Shared.SummaryRow label="Legal/Tax Receipt Ready" value={data?.legalTaxReceiptReady ? "YES" : "NO / not yet claimed"} tone={data?.legalTaxReceiptReady ? "good" : "muted"} />
+              <Shared.SummaryRow label="Settlement Ready" value={data?.settlementReady ? "YES" : "NO / not yet claimed"} tone={data?.settlementReady ? "good" : "muted"} />
               <Shared.SummaryRow label="Reconciliation Ready" value={data?.reconciliationReady ? "YES" : "NO / not yet claimed"} tone={data?.reconciliationReady ? "good" : "muted"} />
               <Shared.SummaryRow label="Accounting Integration Ready" value={data?.accountingIntegrationReady ? "YES" : "NO / not yet claimed"} tone={data?.accountingIntegrationReady ? "good" : "muted"} />
               <Shared.SummaryRow label="Reason" value={data?.claimDiscipline?.reason ?? "claim discipline remains blocked"} />
@@ -1262,11 +1263,11 @@ const BILLING_OPERATOR_REVIEW_STEPS = [
   },
   {
     step: "02",
-    title: "Pricing / Api.Quote / Invoice Boundary",
+    title: "Pricing / Quote / Invoice Boundary",
     route: "/system/pricing-invoice-boundary",
     review: "Review pricing source dependencies, quote candidates and invoice artifact caveats.",
     blockedClaim: "Pricing Ready / Invoice Ready: NO / not yet claimed",
-    caveat: "Api.Quote and invoice candidates are not charges, tax invoices or payment requests.",
+    caveat: "Quote and invoice candidates are not charges, tax invoices or payment requests.",
     deferred: "Pricing engine, legal/tax invoice issuance and billing-grade amounts remain deferred.",
   },
   {
@@ -1289,10 +1290,10 @@ const BILLING_OPERATOR_REVIEW_STEPS = [
   },
   {
     step: "05",
-    title: "Receipts / Api.Settlement / Reconciliation",
+    title: "Receipts / Settlement / Reconciliation",
     route: "/system/settlement-reconciliation",
     review: "Review operational receipt evidence, settlement visibility and reconciliation evidence boundaries.",
-    blockedClaim: "Api.Receipt / Api.Settlement / Reconciliation Ready: NO / not yet claimed",
+    blockedClaim: "Receipt / Settlement / Reconciliation Ready: NO / not yet claimed",
     caveat: "Operational receipt evidence is not legal receipt, bank settlement or accounting reconciliation.",
     deferred: "Legal receipts, settlement sync, ledger and reconciliation jobs remain deferred.",
   },
@@ -1315,8 +1316,8 @@ const BILLING_OPERATOR_CLAIMS = [
   "Payment Ready",
   "Invoice Ready",
   "Tenant Billing Ready",
-  "Api.Receipt Ready",
-  "Api.Settlement Ready",
+  "Receipt Ready",
+  "Settlement Ready",
   "Reconciliation Ready",
   "Financial Audit Ready",
   "Compliance Ready",

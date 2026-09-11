@@ -14,6 +14,7 @@ import {
   type FinancialException,
   type FinancialRemediation,
 } from "./api/product-api";
+import * as Shared from "./shared";
 
 type Loadable<T> = { data: T | null; loading: boolean; error: string | null };
 
@@ -77,11 +78,8 @@ function StatusPill({ value }: { value: string }) {
   return <span className={`ops-pill ${tone(value)}`}>{value.replaceAll("_", " ")}</span>;
 }
 
-function PageHeader({ eyebrow, title, description, actions }: { eyebrow: string; title: string; description: string; actions?: React.ReactNode }) {
-  return <header className="domain-header">
-    <div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div>
-    {actions && <div className="ops-actions">{actions}</div>}
-  </header>;
+function PageHeader({ domain, title, description, actions }: { domain: Shared.Domain; title: string; description: string; actions?: React.ReactNode }) {
+  return <Shared.DomainHeader domain={domain} title={title} description={description} actions={actions} />;
 }
 
 function StateMessage({ loading, error, empty }: { loading: boolean; error: string | null; empty?: string }) {
@@ -110,7 +108,7 @@ export function ExecutionsPage() {
   };
 
   return <>
-    <PageHeader eyebrow="OPERATIONS" title="Executions" description="Durable jobs, attempts, assignments and terminal results from the remote runtime." actions={<button className="secondary" type="button" onClick={jobs.refresh}>Refresh</button>} />
+    <PageHeader domain="Runs" title="Executions" description="Durable jobs, attempts, assignments and terminal results from the remote runtime." actions={<button className="secondary" type="button" onClick={jobs.refresh}>Refresh</button>} />
     <section className="ops-toolbar" aria-label="Execution filters">
       <label>Search<input value={search} onChange={event => update("q", event.target.value)} placeholder="job, agent, runtime or correlation" /></label>
       <label>Status<select value={status ?? ""} onChange={event => update("status", event.target.value)}><option value="">All statuses</option>{JOB_STATUSES.map(value => <option key={value}>{value}</option>)}</select></label>
@@ -166,7 +164,7 @@ export function ExecutionDetailPage() {
   };
 
   return <>
-    <PageHeader eyebrow="EXECUTION" title={job ? `Job ${shortId(job.jobId)}` : "Job diagnostics"} description="Authoritative job state, assignment evidence, recovery history and operator guidance." actions={<><Link className="secondary" to="/executions">Back to jobs</Link><button className="secondary" type="button" onClick={resource.refresh}>Refresh</button>{canCancel && <button className="danger" type="button" onClick={() => setConfirmCancel(true)}>Cancel</button>}</>} />
+    <PageHeader domain="Runs" title={job ? `Job ${shortId(job.jobId)}` : "Job diagnostics"} description="Authoritative job state, assignment evidence, recovery history and operator guidance." actions={<><Link className="secondary" to="/executions">Back to jobs</Link><button className="secondary" type="button" onClick={resource.refresh}>Refresh</button>{canCancel && <button className="danger" type="button" onClick={() => setConfirmCancel(true)}>Cancel</button>}</>} />
     {resource.loading && !resource.data ? <StateMessage loading error={null} /> : resource.error && !resource.data ? <StateMessage loading={false} error={resource.error} /> : job && diagnostic ? <>
       {(resource.error || mutationError) && <StateMessage loading={false} error={mutationError ?? resource.error} />}
       {confirmCancel && <section className="ops-confirm" role="alertdialog" aria-modal="true" aria-labelledby="cancel-job-title"><div><h2 id="cancel-job-title">Cancel this execution?</h2><p>Queued work is cancelled immediately. Assigned or running work receives a durable cancellation request.</p></div><div className="ops-actions"><button autoFocus type="button" className="secondary" onClick={() => setConfirmCancel(false)}>Keep running</button><button type="button" className="danger" disabled={cancelling} onClick={() => void cancel()}>{cancelling ? "Cancelling…" : "Confirm cancel"}</button></div></section>}
@@ -201,7 +199,7 @@ export function WorkersPage() {
   const status = usePolling(loader);
   const workers = status.data?.workers.entries ?? [];
   return <>
-    <PageHeader eyebrow="RUNTIME" title="Workers" description="Remote worker registration, capacity, heartbeat and current assignment state." actions={<button className="secondary" type="button" onClick={status.refresh}>Refresh</button>} />
+    <PageHeader domain="Runtime" title="Workers" description="Remote worker registration, capacity, heartbeat and current assignment state." actions={<button className="secondary" type="button" onClick={status.refresh}>Refresh</button>} />
     {status.error && <StateMessage loading={false} error={status.error} />}
     {status.loading && !status.data ? <StateMessage loading error={null} /> : workers.length === 0 ? <StateMessage loading={false} error={null} empty="No workers registered. Start a compatible remote worker through the supported deployment environment." /> : <div className="ops-card-grid">{workers.map(worker => <WorkerCard key={`${worker.workerId}:${worker.instanceId}`} worker={worker} />)}</div>}
   </>;
@@ -224,7 +222,7 @@ export function WorkerDetailPage() {
   const resource = usePolling(loader);
   const worker = resource.data?.status.workers.entries.find(entry => entry.workerId === workerId);
   return <>
-    <PageHeader eyebrow="WORKER" title={worker?.name ?? workerId} description="Remote identity, heartbeat, capability and assignment evidence. Service credentials are never exposed." actions={<><Link className="secondary" to="/workers">Back to workers</Link><button className="secondary" type="button" onClick={resource.refresh}>Refresh</button></>} />
+    <PageHeader domain="Runtime" title={worker?.name ?? workerId} description="Remote identity, heartbeat, capability and assignment evidence. Service credentials are never exposed." actions={<><Link className="secondary" to="/workers">Back to workers</Link><button className="secondary" type="button" onClick={resource.refresh}>Refresh</button></>} />
     {resource.loading && !resource.data ? <StateMessage loading error={null} /> : resource.error && !resource.data ? <StateMessage loading={false} error={resource.error} /> : worker ? <div className="ops-two-column"><WorkerCard worker={worker} /><section className="ops-panel"><div className="ops-panel-head"><div><h2>Current assignments</h2><p>Lease summaries for work this worker currently owns.</p></div></div>{worker.currentAssignments.length ? <ul className="ops-list">{worker.currentAssignments.map(item => <li key={item.assignmentId}><Link to={`/executions/${encodeURIComponent(item.jobId)}`}>{shortId(item.jobId)}</Link><span>attempt {item.attempt}</span><small>lease until {formatTime(item.leaseExpiresAt)}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No active assignment." />}</section></div> : <StateMessage loading={false} error={resource.error ?? "Worker not found."} />}
   </>;
 }
@@ -234,7 +232,7 @@ export function OperationsStatusPage() {
   const resource = usePolling(loader, 5_000);
   const status = resource.data;
   return <>
-    <PageHeader eyebrow="SYSTEM" title="Operations" description="Liveness, workload readiness, dependencies, worker capacity, recovery and external telemetry." actions={<button className="secondary" type="button" onClick={resource.refresh}>Run checks</button>} />
+    <PageHeader domain="Runtime" title="Operations" description="Liveness, workload readiness, dependencies, worker capacity, recovery and external telemetry." actions={<button className="secondary" type="button" onClick={resource.refresh}>Run checks</button>} />
     {resource.error && <StateMessage loading={false} error={resource.error} />}
     {resource.loading && !status ? <StateMessage loading error={null} /> : status ? <OperationsStatus status={status} /> : null}
     <OperationsEconomicEvidence />
@@ -352,7 +350,7 @@ export function CredentialsPage() {
   };
 
   return <>
-    <PageHeader eyebrow="AGENT COMPOSITION" title="Secret references" description="Write-only provider credentials with redacted metadata, rotation and logical revocation." actions={<button className="secondary" type="button" onClick={resource.refresh}>Refresh</button>} />
+    <PageHeader domain="Administration" title="Secret references" description="Write-only provider credentials with redacted metadata, rotation and logical revocation." actions={<button className="secondary" type="button" onClick={resource.refresh}>Refresh</button>} />
     <section className="ops-panel"><div className="ops-panel-head"><div><h2>Add managed credential</h2><p>The value is sent once to the configured SecretProvider and is never returned by the Product API.</p></div><StatusPill value="write-only" /></div>
       <form className="ops-secret-form" onSubmit={event => void create(event)}>
         <label>Credential id<input value={draft.credentialId} onChange={event => setDraft(current => ({ ...current, credentialId: event.target.value }))} placeholder="optional stable id" /></label>

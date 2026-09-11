@@ -90,10 +90,11 @@ export function GovernanceView() {
 
   return <>
     <Shared.DomainHeader domain="Governance" title="Control Plane Boundaries" description="Guardrails, policy and configuration visibility. Current tenant administration is available from the Administration navigation surface." actions={<button className="secondary" onClick={refreshAll}>Refresh all</button>} />
+    <Shared.ReportSectionNav sections={[{ id: "governance-guardrails", label: "Guardrails" }, { id: "governance-readiness", label: "Readiness" }, { id: "governance-access", label: "Access boundary" }, { id: "governance-admin", label: "Administration" }, { id: "governance-tenants", label: "Tenants & isolation" }, { id: "governance-policies", label: "Policies" }, { id: "governance-configuration", label: "Configuration" }, { id: "governance-acceptance", label: "Acceptance" }, { id: "governance-caveats", label: "Caveats" }]} />
     <Shared.CrossLinks links={[{ to: "/system/operational-reliability", label: "Open operational reliability" }]} />
     {Shared.staleBanner(guardrails, "system guardrails")}
     {Shared.staleBanner(governanceBoundary, "governance boundary")}
-    <div className="flow-group">
+    <div className="flow-group" id="governance-guardrails">
       <div className="flow-group-head"><h2>System guardrails</h2><p>Operational mode reported by the Product API — never inferred by this surface.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel wide">
@@ -115,7 +116,7 @@ export function GovernanceView() {
         </section>
       </div>
     </div>
-    <div className="flow-group">
+    <div className="flow-group" id="governance-readiness">
       <div className="flow-group-head"><h2>Production readiness</h2><p>Readiness gates and boundaries projected by the Product API. This is evidence, not a production claim.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel wide">
@@ -253,7 +254,7 @@ export function GovernanceView() {
         </Shared.SummaryCard>
       </div>
     </div>
-    <div className="flow-group">
+    <div className="flow-group" id="governance-access">
       <div className="flow-group-head"><h2>Governance & access boundary</h2><p>Actor, permission, read vs mutate, tenant awareness and administration limits reported by the Product API.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel wide">
@@ -389,7 +390,7 @@ export function GovernanceView() {
         </Shared.SummaryCard>
       </div>
     </div>
-    <div className="flow-group">
+    <div className="flow-group" id="governance-admin">
       <div className="flow-group-head"><h2>Administration boundary</h2><p>Historical EPIC-11 boundary; use Tenant Administration for the current governed surface.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
@@ -405,7 +406,7 @@ export function GovernanceView() {
         <Shared.BlockedPanel title="Legacy administration projection" note="Historical EPIC-11 read model" reason={administration.data?.reason ?? "This legacy projection does not expose mutations; current tenant and secret operations are available from dedicated governed surfaces."} />
       </div>
     </div>
-    <div className="flow-group">
+    <div className="flow-group" id="governance-tenants">
       <div className="flow-group-head"><h2>Tenants & isolation</h2><p>This historical view keeps isolation evidence; current tenant lifecycle and governance live in Tenant Administration.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel wide">
@@ -430,7 +431,7 @@ export function GovernanceView() {
         </section>
       </div>
     </div>
-    <div className="flow-group">
+    <div className="flow-group" id="governance-policies">
       <div className="flow-group-head"><h2>Policies</h2><p>Policy visibility only — mutations are governed by the Product API or deferred to a future EPIC.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel wide">
@@ -451,7 +452,7 @@ export function GovernanceView() {
         </section>
       </div>
     </div>
-    <div className="flow-group">
+    <div className="flow-group" id="governance-configuration">
       <div className="flow-group-head"><h2>Configuration</h2><p>Read-only configuration visibility. No settings mutation in this milestone.</p></div>
       <div className="dashboard-grid execution-grid">
         <Shared.SummaryCard title="Configuration visibility" meta="Inspection mode, memory backends" state={configuration.data ? "ready" : configuration.loadState}>
@@ -475,7 +476,7 @@ export function GovernanceView() {
         </Shared.SummaryCard>
       </div>
     </div>
-    <div className="flow-group">
+    <div className="flow-group" id="governance-acceptance">
       <div className="flow-group-head"><h2>EPIC-11 acceptance</h2><p>Read-only milestone gate projection. It reports what was validated and never fabricates checks.</p></div>
       <div className="dashboard-grid execution-grid">
         <section className="panel">
@@ -511,7 +512,7 @@ export function GovernanceView() {
         </section>
       </div>
     </div>
-    <div className="flow-group">
+    <div className="flow-group" id="governance-caveats">
       <div className="flow-group-head"><h2>Known caveats & deferred scope</h2><p>Honest boundary of the EPIC-11 gate.</p></div>
       <div className="dashboard-grid evidence-grid">
         <section className="panel">

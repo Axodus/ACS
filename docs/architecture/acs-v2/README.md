@@ -90,6 +90,7 @@ for compatibility.
 | [REQ-03 native contract freeze](req-03/README.md) | ACS-owned contract semantics, state/event model, migration matrix, dependency-ordered backlog, adapter boundaries, ADRs, and implementation gate. |
 | [REQ-04 durable persistence and event ownership freeze](req-04/README.md) | Evidence-driven durable Agent lineage, canonical event/outbox, idempotency, replay, recovery, fencing, migration, and IMP-01B acceptance gates. |
 | [REQ-05 Agent experience and application navigation audit](req-05/README.md) | Evidence-backed current UX audit, Agenta workflow reference, target Agent information architecture, lifecycle, screen inventory, API gaps, implementation plan, and decision record. |
+| [REQ-06 Workforce Core contract completion](req-06/README.md) | `FROZEN-v1` semantic Workforce boundary: ACS-owned identity, immutable revisions, Agent membership resolution, Run snapshots, coordination/adaptor sovereignty, Eigent extraction evidence, and dependency-ordered implementation plan. Implementation remains separately authorized work. |
 | [IMP-02A Application Shell & Navigation](imp-02a/README.md) | `COMPLETE` — frontend-only implementation of the REQ-05 global shell, canonical navigation, Agent-local context, route compatibility, and explicit scoped-data limitations. |
 | [IMP-02B Agent Creation & Configuration](imp-02b/README.md) | COMPLETE — frontend-only progressive create/configuration hierarchy using existing Agent commands, catalog-backed credential references, explicit contract gaps, and VAL-02B reload/regression acceptance. |
 | [VAL-02B IMP-02B regression and reload acceptance](val-02b/README.md) | `COMPLETE` — regression classification and browser reload/Product API re-fetch evidence; recommends IMP-02B promotion to `COMPLETE — ACCEPTED`. |
@@ -142,8 +143,9 @@ separate implementation and governance authorization.
 8. [REQ-03 native contract freeze](req-03/README.md)
 9. [REQ-04 durable persistence and event ownership freeze](req-04/README.md)
 10. [REQ-05 Agent experience and application navigation audit](req-05/README.md)
-11. [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md)
-12. [IMP-01C typed durable error surface completion](imp-01c/README.md)
+11. [REQ-06 Workforce Core contract completion](req-06/README.md)
+12. [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md)
+13. [IMP-01C typed durable error surface completion](imp-01c/README.md)
 
 ## Non-goals
 

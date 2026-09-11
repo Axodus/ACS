@@ -84,7 +84,7 @@ export default function App() {
 
   const domain = Shared.domainByPath(location.pathname);
   const domainDef = Shared.domainDefs.find(item => item.id === domain)!;
-  const entityMatch = location.pathname.match(/^\/(agents|roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)(?:\/|$)/);
+  const entityMatch = location.pathname.match(/^\/(agents|roles|profiles|capabilities|skills|plugins|tools|engines|providers|executions|workers)\/([^/]+)(?:\/|$)/);
   const entityLabel = location.pathname === "/agents/new"
     ? "Create agent"
     : location.pathname.includes("/edit")
@@ -93,6 +93,7 @@ export default function App() {
         ? entityMatch[1].replace(/s$/, "") + ": " + entityMatch[2]
         : undefined;
   const title = entityLabel ?? view ?? domain;
+  const isDomainRoot = location.pathname === domainDef.to;
 
   return (
     <div className={`${dark ? "app dark" : "app light"} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
@@ -100,13 +101,12 @@ export default function App() {
         <div className="brand"><img src="/assets/Axodus_logo.svg" alt="ACS" /><div className="brand-copy"><b>ACS</b><small>CONTROL PLANE</small></div><button className="sidebar-toggle" type="button" aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed(value => !value)}>{sidebarCollapsed ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}</button><button className="mobile-close" type="button" aria-label="Close navigation" onClick={() => setMobile(false)}>×</button></div>
         <div className="workspace-switch" aria-live="polite"><span className="workspace-icon">⌘</span><div><b>{Api.productApiConfig.environment} environment</b><small>{Api.productApiConfig.tenantId} · server-resolved session</small></div></div>
         <Shared.SidebarNavigation pathname={location.pathname} activeDomain={domain} onNavigate={() => setMobile(false)} collapsed={sidebarCollapsed} />
-        <div className="connection"><div><span className="openclaw-mark">A</span><div><b>Product API</b><small><i /> {connectivity.status === "ready" ? "Connected" : connectivity.status === "loading" ? "Checking" : "Unavailable"}</small></div></div><span className="mono">/api/v1</span></div>
       </aside>
       {mobile && <button type="button" className="mobile-drawer-overlay" aria-label="Close navigation overlay" onClick={() => setMobile(false)} />}
       <main className="main">
         <header className="topbar">
           <button className="menu" type="button" aria-label="Open navigation" onClick={() => setMobile(true)}>☰</button>
-          <nav className="crumb" aria-label="Breadcrumb"><Link to="/">ACS</Link><i>/</i><Link to={domainDef.to}>{domain}</Link>{entityLabel && <><i>/</i><b>{entityLabel}</b></>}{!entityLabel && <><i>/</i><b>{title}</b></>}</nav>
+          <nav className="crumb" aria-label="Breadcrumb"><Link to="/">ACS</Link><i>/</i><Link to={domainDef.to}>{domain}</Link>{!isDomainRoot && <><i>/</i><b>{title}</b></>}</nav>
           <div className="top-actions"><Shared.Status status={connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Checking Product API" : "Product API unavailable"} /><AccountControl dark={dark} /><button className="command" type="button" onClick={() => setPalette(true)}>⌕ <span>Search ACS...</span><kbd>⌘ K</kbd></button><button className="icon-btn" type="button" aria-label="Toggle theme" onClick={() => setDark(!dark)}>{dark ? "☼" : "◐"}</button></div>
         </header>
         {connectivity.status === "loading" && <div className="global-state loading-state" role="status">Connecting to Product API boundary...</div>}
@@ -174,7 +174,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-        <footer><span><i /> {connectivity.status === "ready" ? "Product API connected" : connectivity.status === "loading" ? "Connecting" : "Product API unavailable"}</span><span className="mono">{Api.productApiConfig.environment}</span><span>ACS Control Plane</span></footer>
+        <footer><span className="mono">{Api.productApiConfig.environment}</span><span>ACS Control Plane</span></footer>
       </main>
       {palette && <div className="palette-wrap" onClick={() => setPalette(false)}><div className="palette" onClick={e => e.stopPropagation()}><label>⌕<input autoFocus placeholder="Search ACS or run a command..." /></label><p>QUICK ACTIONS</p><button onClick={() => { setPalette(false); navigate("/agents/new"); }}><span>＋</span><div><b>Create agent</b><small>Open the governed Agent create form</small></div><kbd>↵</kbd></button></div></div>}
     </div>

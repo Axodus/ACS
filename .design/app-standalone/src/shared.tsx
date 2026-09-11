@@ -7,6 +7,10 @@ type View =
   | "Dashboard"
   | "Administration Overview"
   | "Operational Execution"
+  | "Operational Reliability"
+  | "Executions"
+  | "Workers"
+  | "Operations"
   | "Readiness"
   | "Composition"
   | "Agents"
@@ -16,6 +20,7 @@ type View =
   | "Skills"
   | "Tools & Plugins"
   | "Memory"
+  | "Secret references"
   | "Runtime"
   | "Logs"
   | "Operational Evidence"
@@ -25,14 +30,14 @@ type View =
   | "Pricing & Invoice Boundary"
   | "Payment Rails Boundary"
   | "Tenant Billing & Account Responsibility"
-  | "Receipts, Api.Settlement & Reconciliation"
+  | "Receipts, Settlement & Reconciliation"
   | "Financial Audit & Compliance"
   | "Billing UX & Operator Acceptance"
   | "Governance & System"
   | "Settings";
 
 type PrimaryDomain = "Dashboard" | "Agents" | "Runs" | "Evidence" | "Usage & Cost" | "Runtime" | "Administration";
-type Domain = PrimaryDomain | "Executions" | "Workers" | "Financial Operations" | "Customers" | "Operations" | "Capabilities" | "Economics" | "Governance" | "System";
+type Domain = PrimaryDomain | "Executions" | "Workers" | "Financial Operations" | "Customers" | "Operations" | "Capabilities" | "Composition" | "Economics" | "Governance" | "System";
 
 type DomainChild = {
   readonly label: string;
@@ -59,6 +64,10 @@ const viewPaths: Record<View, string> = {
   Dashboard: "/",
   "Administration Overview": "/administration",
   "Operational Execution": "/operational-execution",
+  "Operational Reliability": "/system/operational-reliability",
+  Executions: "/executions",
+  Workers: "/workers",
+  Operations: "/operations",
   Readiness: "/readiness",
   Composition: "/composition",
   Agents: "/agents",
@@ -68,6 +77,7 @@ const viewPaths: Record<View, string> = {
   Skills: "/skills",
   "Tools & Plugins": "/plugins",
   Memory: "/memory",
+  "Secret references": "/credentials",
   Runtime: "/runtime",
   Logs: "/logs",
   "Operational Evidence": "/operational-evidence",
@@ -77,7 +87,7 @@ const viewPaths: Record<View, string> = {
   "Pricing & Invoice Boundary": "/system/pricing-invoice-boundary",
   "Payment Rails Boundary": "/system/payment-rails-boundary",
   "Tenant Billing & Account Responsibility": "/system/tenant-billing-boundary",
-  "Receipts, Api.Settlement & Reconciliation": "/system/settlement-reconciliation",
+  "Receipts, Settlement & Reconciliation": "/system/settlement-reconciliation",
   "Financial Audit & Compliance": "/system/financial-audit",
   "Billing UX & Operator Acceptance": "/system/billing-acceptance",
   "Governance & System": "/system",
@@ -423,21 +433,21 @@ function SectionDisclosure({ title, summary, tier, defaultOpen = false, children
   </details>;
 }
 
-function DomainHeader({ domain, title, description, entityLabel, actions, children }: {
+function DomainHeader({ domain, title, description, entityLabel, actions, titleAdornment, children }: {
   domain: Domain;
   title: string;
   description: string;
   entityLabel?: string;
   actions?: React.ReactNode;
+  titleAdornment?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return <>
     <header className="domain-header">
-      <div className="domain-header-copy"><p className="eyebrow">{domain.toUpperCase()}</p><h1>{title}</h1><p>{description}</p></div>
+      <div className="domain-header-copy"><p className="eyebrow">{domain.toUpperCase()}</p><div className="title-status"><h1>{title}</h1>{titleAdornment}</div><p>{description}</p></div>
       <div className="domain-context-inline" aria-label="Current context">
         <span>Workspace: <strong>{Api.productApiConfig.environment}</strong></span>
         {entityLabel && <span>Entity: <strong>{entityLabel}</strong></span>}
-        <span className="context-endpoint" title={Api.productApiConfig.baseUrl}>API: {Api.productApiConfig.baseUrl}</span>
       </div>
       {actions && <div className="domain-header-actions">{actions}</div>}
     </header>
@@ -459,6 +469,15 @@ function ContextTabs({ title, tabs }: {
         : <Router.Link key={tab.to} className={`context-tab ${active === tab.to ? "active" : ""}`} to={tab.to}>{tab.label}</Router.Link>)}
     </nav>
   </div>;
+}
+
+export function ReportSectionNav({ sections }: {
+  sections: readonly { id: string; label: string }[];
+}) {
+  return <nav className="report-section-nav" aria-label="Sections in this report">
+    <span className="report-section-nav-title">In this report</span>
+    <div>{sections.map(section => <a key={section.id} href={`#${section.id}`}>{section.label}</a>)}</div>
+  </nav>;
 }
 
 function SidebarNavigation({ pathname, activeDomain, onNavigate, collapsed }: {
@@ -544,8 +563,8 @@ function CompositionCard({ title, meta, count, state, to }: {
   </section>;
 }
 
-function CatalogPage({ eyebrow, title, description, loadState, loadError, stale, refresh, children }: {
-  eyebrow: string;
+function CatalogPage({ domain, title, description, loadState, loadError, stale, refresh, children }: {
+  domain: Domain;
   title: string;
   description: string;
   loadState: DashboardLoadState;
@@ -555,10 +574,7 @@ function CatalogPage({ eyebrow, title, description, loadState, loadError, stale,
   children: React.ReactNode;
 }) {
   return <>
-    <header className="domain-header">
-      <div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div>
-      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
-    </header>
+    <DomainHeader domain={domain} title={title} description={description} actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
     {stale && <div className="stale-banner" role="status">Showing a stale composition snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing composition...</div>}

@@ -39,7 +39,7 @@ test("page-level DomainNav is removed", () => {
 });
 
 test("DomainHeader owns page-level actions", () => {
-  assert.match(appSource, /function DomainHeader\(\{ domain, title, description, entityLabel, actions, children \}/);
+  assert.match(appSource, /function DomainHeader\(\{ domain, title, description, entityLabel, actions, titleAdornment, children \}/);
   assert.match(appSource, /className="domain-header-actions"/);
   assert.match(appSource, /<Shared\.DomainHeader domain="Agents" title="Agent Inventory"[\s\S]*?actions=\{/);
 });

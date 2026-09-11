@@ -4,8 +4,8 @@ import * as Shared from "../../shared";
 
 export function GenericView({ view }: { view: Shared.View }) {
   return <>
-    <header className="domain-header"><div><p className="eyebrow">ACS CORE</p><h1>{view}</h1><p>Manage {view.toLowerCase()} available to this local workspace.</p></div><button className="primary">＋ New {view}</button></header>
-    <section className="resource-list"><div className="empty-state">API integration for {view} is pending.</div></section>
+    <Shared.DomainHeader domain="Administration" title={view} description={`${view} is unavailable because the Product API integration is pending.`} />
+    <section className="resource-list"><div className="empty-state">No {view.toLowerCase()} records can be inspected until this Product API integration is available.</div></section>
   </>;
 }
 

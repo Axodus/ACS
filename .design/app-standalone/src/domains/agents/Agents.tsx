@@ -375,7 +375,7 @@ function OperationResultBox({ result }: { result: Api.AgentOperationResult }) {
     <p>{result.message}</p>
     <dl className="config-list">
       <div><dt>Entity</dt><dd className="mono">{result.entityId}</dd></div>
-      <div><dt>Shared.Status</dt><dd>{result.status}</dd></div>
+      <div><dt>Status</dt><dd>{result.status}</dd></div>
       <div><dt>Audit ref</dt><dd className="mono">{result.auditRef ?? "—"}</dd></div>
       <div><dt>Checked at</dt><dd><Shared.Time value={result.checkedAt} /></dd></div>
     </dl>
@@ -518,21 +518,17 @@ export function AgentDetail() {
   }
 
   return <>
-    <Shared.DomainHeader domain="Agents" title={definition.name} description="Agent lifecycle, readiness and related evidence." entityLabel={`Agent: ${detail.agentId}`} />
+    <Shared.DomainHeader
+      domain="Agents"
+      title={definition.name}
+      description={`Current revision r${detail.currentRevision.revision}`}
+      entityLabel={`Agent: ${detail.agentId}`}
+      titleAdornment={<Shared.Status status={lifecycle.status} />}
+    />
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
     {stale && <div className="stale-banner" role="status">Showing a stale agent snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing agent state...</div>}
     <Shared.AgentGuardrailBanner guardrails={detail.guardrails} />
-    <section className="overview-hero">
-      <div>
-        <p className="eyebrow">AGENT OVERVIEW</p>
-        <div className="title-status"><h2>{definition.name}</h2><Shared.Status status={lifecycle.status} /></div>
-        <p className="mono">{detail.agentId} · current revision r{detail.currentRevision.revision}</p>
-      </div>
-      <div className="overview-hero-actions">
-        <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
-      </div>
-    </section>
     <div className="overview-grid">
       <section className="panel overview-primary">
         <div className="panel-head"><div><h2>Current state</h2><p>ACS-owned identity and lifecycle state</p></div><Shared.Status status={lifecycle.status} /></div>
@@ -551,7 +547,7 @@ export function AgentDetail() {
           <div><dt>Updated</dt><dd><Shared.Time value={detail.currentRevision.updatedAt} /></dd></div>
           <div><dt>Changed by</dt><dd>{detail.currentRevision.createdBy ?? "unknown"}</dd></div>
         </dl>
-        <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${detail.agentId}/revisions`}>Shared.View revision history</Router.Link><Router.Link className="detail-link" to={`/agents/${detail.agentId}/configuration`}>Configuration</Router.Link></div>
+        <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${detail.agentId}/revisions`}>View revision history</Router.Link><Router.Link className="detail-link" to={`/agents/${detail.agentId}/configuration`}>Configuration</Router.Link></div>
       </section>
       <section className="panel overview-primary">
         <div className="panel-head"><div><h2>Readiness</h2><p>Composition and configuration status</p></div><Shared.ReadinessBadge summary={detail.readinessSummary} /></div>
@@ -672,11 +668,11 @@ export function AgentConfigurationView() {
             ? <>
               <dl className="config-list">
                 <div><dt>Agent</dt><dd>{detail.agentDefinition.name} <code className="mono">{detail.agentId}</code></dd></div>
-                <div><dt>Shared.Status</dt><dd>{detail.agentDefinition.status}</dd></div>
+                <div><dt>Status</dt><dd>{detail.agentDefinition.status}</dd></div>
                 <div><dt>Current revision</dt><dd className="mono">r{detail.currentRevision.revision}</dd></div>
                 <div><dt>Composition</dt><dd>{detail.composition ? (detail.composition.ready ? "ready" : "attention") : "unavailable"}</dd></div>
               </dl>
-              <div className="panel-actions"><Router.Link className="primary action-link" to={`/agents/${agentId}/edit`}>Open configuration</Router.Link><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>Shared.View overview</Router.Link></div>
+              <div className="panel-actions"><Router.Link className="primary action-link" to={`/agents/${agentId}/edit`}>Open configuration</Router.Link><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>View overview</Router.Link></div>
               <p className="panel-note">Configuration uses the same identity, functional, composition, and advanced hierarchy as Agent creation.</p>
             </>
             : <div className="state-line empty">Agent configuration is unavailable.</div>}
@@ -791,7 +787,7 @@ function AgentRunsContent({ agentId, offset, onPage }: { agentId: string; offset
           : <Shared.PanelStateLine state={runs.loadState} error={runs.loadError} emptyMessage={offset === 0 ? "No Runs have been recorded for this Agent." : "No Runs were returned for this page. Use Previous to return to earlier records."} />}
       {runs.data && (runs.data.length > 0 || offset > 0) && <AgentOperationalPagination offset={offset} returned={runs.data.length} onPage={onPage} />}
       <p className="panel-note">Run execution revision provenance is not supplied by this query. The current Agent revision is not used as a historical substitute.</p>
-      <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>Shared.View Agent overview</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Agent Evidence</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/usage-cost`}>Open Usage & Cost</Router.Link></div>
+      <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Agent Evidence</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/usage-cost`}>Open Usage & Cost</Router.Link></div>
     </section>
   </>;
 }
@@ -840,7 +836,7 @@ function AgentEvidenceContent({ agentId, offset, onPage }: { agentId: string; of
           : <Shared.PanelStateLine state={evidence.loadState} error={evidence.loadError} emptyMessage={offset === 0 ? "No Evidence has been recorded for this Agent." : "No Evidence was returned for this page. Use Previous to return to earlier records."} />}
       {evidence.data && (evidence.data.length > 0 || offset > 0) && <AgentOperationalPagination offset={offset} returned={evidence.data.length} onPage={onPage} />}
       <p className="panel-note">Evidence is distinct from Events, Audit, and Runtime Events. Source, correlation, and entity references are shown only when supplied by the Product API; no provenance or integrity claim is synthesized.</p>
-      <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>Shared.View Agent overview</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/runs`}>Open Agent Runs</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/usage-cost`}>Open Usage & Cost</Router.Link></div>
+      <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/runs`}>Open Agent Runs</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/usage-cost`}>Open Usage & Cost</Router.Link></div>
     </section>
   </>;
 }
@@ -881,9 +877,9 @@ function AgentUsageCostContent({ agentId }: { agentId: string }) {
             </div>
             <div className="catalog-badges operational-correlation">
               <span className="tag mono">Run {record.executionRunId}</span>
-              {record.reservationId && <span className="tag mono">Api.Reservation {record.reservationId}</span>}
-              {record.quoteId && <span className="tag mono">Api.Quote {record.quoteId}</span>}
-              {record.settlementId && <span className="tag mono">Api.Settlement {record.settlementId}</span>}
+              {record.reservationId && <span className="tag mono">Reservation {record.reservationId}</span>}
+              {record.quoteId && <span className="tag mono">Quote {record.quoteId}</span>}
+              {record.settlementId && <span className="tag mono">Settlement {record.settlementId}</span>}
             </div>
           </article>)}</div>
           : <Shared.PanelStateLine state={usage.loadState} error={usage.loadError} emptyMessage="No Usage & Cost records have been recorded for this Agent." />}
@@ -896,7 +892,7 @@ function AgentUsageCostContent({ agentId }: { agentId: string }) {
             : <div className="state-line error" role="alert">{summary.loadError ?? "The scoped economic summary is unavailable. Usage records remain independently available."}</div>}
       </section>
       <p className="panel-note">Usage correlation is reported by the Product API as Agent → Run → reservation → quote → settlement when those records exist. The UI does not derive cost totals from this bounded page, and partial or missing economic links are not converted into a complete cost claim.</p>
-      <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>Shared.View Agent overview</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/runs`}>Open Agent Runs</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Agent Evidence</Router.Link></div>
+      <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/runs`}>Open Agent Runs</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Agent Evidence</Router.Link></div>
     </section>
   </>;
 }

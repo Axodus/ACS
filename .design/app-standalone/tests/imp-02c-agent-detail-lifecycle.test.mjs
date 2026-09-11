@@ -23,17 +23,13 @@ function sectionBetween(startMarker, endMarker) {
   return appSource.slice(start, end);
 }
 
-test("IMP-02C Overview prioritizes identity, lifecycle, current revision, readiness, and one next action", () => {
+test("IMP-02C Agent header prioritizes identity, lifecycle status, and current revision", () => {
   const detail = sectionBetween("function AgentDetail()", "function AgentLocalHeader");
-  for (const label of [
-    "AGENT OVERVIEW",
-    "Current state",
-    "Current revision",
-    "Readiness",
-    "Next safe action",
-  ]) {
-    assert.match(detail, new RegExp(label));
-  }
+  assert.match(detail, /Shared\.DomainHeader/);
+  assert.match(detail, /description=\{`Current revision r\$\{detail\.currentRevision\.revision\}`\}/);
+  assert.match(detail, /titleAdornment=\{<Shared\.Status status=\{lifecycle\.status\} \/>\}/);
+  assert.doesNotMatch(detail, /overview-hero/);
+  for (const label of ["Current state", "Current revision", "Readiness", "Next safe action"]) assert.match(detail, new RegExp(label));
   assert.match(detail, /function renderNextSafeAction/);
   assert.match(detail, /Validate configuration/);
   assert.match(detail, /Edit configuration/);
@@ -84,7 +80,6 @@ test("Agent-local detail routes and responsive Overview styles remain present", 
   ]) {
     assert.match(appSource, new RegExp(route.replace(/[/:]/g, "\\$&")));
   }
-  assert.match(cssSource, /\.overview-hero/);
   assert.match(cssSource, /\.overview-grid/);
   assert.match(cssSource, /\.overview-action-grid/);
   assert.match(cssSource, /@media \(max-width: 720px\)/);

@@ -25,7 +25,7 @@ export function CompositionOverview() {
   const checkedAt = summary ? new Date(summary.checkedAt).toLocaleTimeString() : "--";
 
   return <>
-    <Shared.DomainHeader domain="Capabilities" title="Composition" description="Operational summary of the elements that form an Agent, sourced from the Product API." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
+    <Shared.DomainHeader domain="Composition" title="Composition" description="Operational summary of the elements that form an Agent, sourced from the Product API." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
     <Shared.OperationalModeNotice guardrails={summary?.guardrails} />
     {stale && <div className="stale-banner" role="status">Showing a stale composition snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing composition...</div>}
@@ -114,7 +114,7 @@ function AgentCompositionSurface({ agentId }: { agentId: string }) {
               <div><dt>Role</dt><dd><Router.Link className="surface-link" to={`/roles/${composition.roleSummary.roleId}`}>{composition.roleSummary.name}</Router.Link></dd></div>
               <div><dt>Role ID</dt><dd className="mono">{composition.roleSummary.roleId}</dd></div>
               <div><dt>Revision</dt><dd className="mono">r{composition.roleSummary.revision}</dd></div>
-              <div><dt>Shared.Status</dt><dd><Shared.Status status={composition.roleSummary.status} /></dd></div>
+              <div><dt>Status</dt><dd><Shared.Status status={composition.roleSummary.status} /></dd></div>
             </dl>
             : <div className="state-line empty">No role assigned to this Agent.</div>}
         </div>
@@ -235,7 +235,7 @@ export function RoleCatalog() {
     "Unable to load roles from Product API",
     () => false,
   );
-  return <Shared.CatalogPage eyebrow="ROLE & PROFILE COMPOSITION" title="Roles" description="Role catalog with capabilities, revisions and usage from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
+  return <Shared.CatalogPage domain="Composition" title="Roles" description="Role catalog with capabilities, revisions and usage from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
     {loadState === "loading" && !roles && <Shared.CatalogLoading message="Loading roles..." />}
     {loadState === "error" && !roles && <Shared.CatalogError message={loadError ?? "Unable to load roles"} />}
     {roles && roles.length === 0 && <section className="panel"><div className="empty-state">No roles registered in the Product API.</div></section>}
@@ -293,7 +293,7 @@ function RoleDetailSurface({ roleId }: { roleId: string }) {
           <div><dt>Name</dt><dd>{role.name}</dd></div>
           <div><dt>Description</dt><dd>{role.description}</dd></div>
           <div><dt>Revision</dt><dd className="mono">r{role.revision}</dd></div>
-          <div><dt>Shared.Status</dt><dd><Shared.Status status={role.status} /></dd></div>
+          <div><dt>Status</dt><dd><Shared.Status status={role.status} /></dd></div>
           <div><dt>Used by agents</dt><dd>{role.usageCount}</dd></div>
         </dl>
       </section>
@@ -312,7 +312,7 @@ export function ProfileCatalog() {
     "Unable to load profiles from Product API",
     () => false,
   );
-  return <Shared.CatalogPage eyebrow="ROLE & PROFILE COMPOSITION" title="Profiles" description="Profile catalog with sections, OpenClaw-compatible state and legacy visibility from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
+  return <Shared.CatalogPage domain="Composition" title="Profiles" description="Profile catalog with sections, OpenClaw-compatible state and legacy visibility from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
     {loadState === "loading" && !profiles && <Shared.CatalogLoading message="Loading profiles..." />}
     {loadState === "error" && !profiles && <Shared.CatalogError message={loadError ?? "Unable to load profiles"} />}
     {profiles && profiles.length === 0 && <section className="panel"><div className="empty-state">No profiles registered in the Product API.</div></section>}
@@ -372,7 +372,7 @@ function ProfileDetailSurface({ profileId }: { profileId: string }) {
           <div><dt>Name</dt><dd>{profile.name}</dd></div>
           <div><dt>Description</dt><dd>{profile.description}</dd></div>
           <div><dt>Revision</dt><dd className="mono">r{profile.revision}</dd></div>
-          <div><dt>Shared.Status</dt><dd><Shared.Status status={profile.status} /></dd></div>
+          <div><dt>Status</dt><dd><Shared.Status status={profile.status} /></dd></div>
           <div><dt>OpenClaw compatible</dt><dd>{profile.openClawCompatible ? "Yes" : "No"}</dd></div>
           <div><dt>Legacy profile visible</dt><dd>{profile.legacyProfileVisible ? "Yes" : "No"}</dd></div>
           <div><dt>Used by agents</dt><dd>{profile.usageCount}</dd></div>
@@ -409,7 +409,7 @@ export function CapabilityCatalog() {
     && (type === "all" || capability.type === type)
     && (status === "all" || capability.status === status));
 
-  return <Shared.CatalogPage eyebrow="CAPABILITY MODEL" title="Capabilities" description="Capability registry from the Product API. Filters and badges are presentation only — effective capability truth is never recomputed here." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
+  return <Shared.CatalogPage domain="Composition" title="Capabilities" description="Capability registry from the Product API. Filters and badges are presentation only — effective capability truth is never recomputed here." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
     {loadState === "loading" && !capabilities && <Shared.CatalogLoading message="Loading capabilities..." />}
     {loadState === "error" && !capabilities && <Shared.CatalogError message={loadError ?? "Unable to load capabilities"} />}
     {capabilities && capabilities.length === 0 && <section className="panel"><div className="empty-state">No capabilities registered in the Product API.</div></section>}
@@ -488,7 +488,7 @@ function CapabilityDetailSurface({ capabilityId }: { capabilityId: string }) {
           <div><dt>Source</dt><dd>{capability.source}</dd></div>
           <div><dt>Type</dt><dd>{capability.type}</dd></div>
           <div><dt>Level</dt><dd>{capability.level ?? "—"}</dd></div>
-          <div><dt>Shared.Status</dt><dd><Shared.Status status={capability.status} /></dd></div>
+          <div><dt>Status</dt><dd><Shared.Status status={capability.status} /></dd></div>
           <div><dt>Used by agents</dt><dd>{capability.usageCount}</dd></div>
         </dl>
       </section>
@@ -510,7 +510,7 @@ export function SkillCatalog() {
     "Unable to load skills from Product API",
     () => false,
   );
-  return <Shared.CatalogPage eyebrow="SKILLS MANAGEMENT" title="Skills" description="Skill catalog with installed, assigned and compatibility state from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
+  return <Shared.CatalogPage domain="Composition" title="Skills" description="Skill catalog with installed, assigned and compatibility state from the Product API." loadState={loadState} loadError={loadError} stale={stale} refresh={refresh}>
     {loadState === "loading" && !skills && <Shared.CatalogLoading message="Loading skills..." />}
     {loadState === "error" && !skills && <Shared.CatalogError message={loadError ?? "Unable to load skills"} />}
     {skills && skills.length === 0 && <section className="panel"><div className="empty-state">No skills registered in the Product API.</div></section>}
@@ -610,10 +610,7 @@ export function ToolsPluginsCatalog() {
   );
 
   return <>
-    <header className="domain-header">
-      <div><p className="eyebrow">TOOLS & PLUGINS MANAGEMENT</p><h1>Tools & Plugins</h1><p>Tool catalog, plugin packages and package sources from the Product API.</p></div>
-      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
-    </header>
+    <Shared.DomainHeader domain="Composition" title="Tools & Plugins" description="Tool catalog, plugin packages and package sources from the Product API." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
     {stale && <div className="stale-banner" role="status">Showing a stale snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing tools and plugins...</div>}
@@ -827,10 +824,7 @@ export function EngineCatalog() {
   );
 
   return <>
-    <header className="domain-header">
-      <div><p className="eyebrow">MODELS, ENGINES & PROVIDERS</p><h1>Engines, Providers & Models</h1><p>Composition registries from the Product API. Credential requirements link to the governed write-only Secret references surface.</p></div>
-      <button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>
-    </header>
+    <Shared.DomainHeader domain="Composition" title="Engines, Providers & Models" description="Composition registries from the Product API. Credential requirements link to the governed write-only Secret references surface." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Read-only</span><span>Composition governed by Product API</span></div>
     {stale && <div className="stale-banner" role="status">Showing a stale snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing engine registries...</div>}
