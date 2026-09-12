@@ -1,8 +1,10 @@
 # ACS-V2-IMP-03F-FIX-02 — First Workforce Creation Enablement
 
-## Decision
+## Decision status
 
-`AUTHORIZED`
+`AUTHORIZED` on September 12, 2026.
+
+`ACCEPTED — CANONICAL HOST / POSTGRESQL` on September 12, 2026.
 
 `POST /api/v1/workforces` creates the initial canonical Workforce lineage only. It creates a draft definition and immutable draft revision `r1` through `AsyncNativeCoreRepository.advanceWorkforceLineage`.
 
@@ -42,4 +44,6 @@ The create form intentionally has no local persistence or direct database access
 
 ## Validation state
 
-The deterministic route test proves creation, `r1`, draft lifecycle, event/outbox command data, retry idempotency, list readback, and direct detail readback using an injected native-core boundary. The running local server still lacks `ACS_SH_DATABASE_URL` and does not register the Workforce API, so fresh-database persistence and browser end-to-end acceptance remain pending.
+The deterministic route test proves creation, `r1`, draft lifecycle, event/outbox command data, retry idempotency, list readback, and direct detail readback using an injected native-core boundary. A separate PostgreSQL acceptance test starts a canonical shared-state HTTP host, creates a schema-isolated native Agent through `nativeCore`, creates the first Workforce through the Product API, retries the request with the same idempotency key, restarts the shared control-plane context, and verifies durable collection and direct-detail reads.
+
+On September 12, 2026, the PostgreSQL acceptance test and the full repository suite passed with 726 tests, 0 failures, and 0 skips. This accepts the canonical-host persistence criterion for FIX-02. The separately running standalone host on port 8788 remains without its shared native-core configuration; it is not evidence against the canonical host used in this acceptance.

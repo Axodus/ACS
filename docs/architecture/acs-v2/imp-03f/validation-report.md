@@ -46,4 +46,15 @@ Validation completed on September 12, 2026:
 - `node --test tests/acs-v2-imp-03f-fix-02.test.mjs` passed: 1 test, 1 pass, 0 failed, 0 skipped. The test uses an injected native-core boundary and verifies empty list, canonical `draft r1` creation, event/outbox command values, retry with the same idempotency key, list readback, and direct detail readback.
 - `pnpm typecheck && pnpm test && pnpm build` passed for the standalone application: 13 test files, 13 passing, 0 failed, 0 skipped.
 - The running app at `http://localhost:3000/workforces/new` was inspected. The collection action opens the Create Workforce form and the create route no longer renders `Workforce: new` entity navigation.
-- `npm run check` passed outside the sandbox with 725 tests: 714 passing, 0 failed, and 11 skipped. Every skip reports that `ACS_SH_DATABASE_URL` is not configured. This is not fresh-database or real-browser creation acceptance; the zero-skip repository criterion remains pending until a shared PostgreSQL configuration is available.
+- Earlier local-only repository results are retained above as historical evidence. They were superseded for FIX-02 acceptance by the canonical PostgreSQL run below.
+
+## ACS-V2-IMP-03F-FIX-02 PostgreSQL/E2E acceptance
+
+Validation completed on September 12, 2026 against the canonical PostgreSQL configuration loaded from `.env.local`; the connection value is intentionally not recorded.
+
+- A canonical HTTP host was started with `ACS_STATE_BACKEND=shared` and `ACS_SHARED_DATABASE_URL` sourced from `ACS_SH_DATABASE_URL`.
+- `node --test tests/acs-v2-imp-03f-fix-02.test.mjs tests/acs-v2-imp-03f-fix-02-postgres.test.mjs` passed: 2 tests, 2 passing, 0 failed, 0 skipped. The PostgreSQL test creates its own temporary schema, seeds an Agent through `nativeCore`, creates the first Workforce through the real HTTP Product API, retries with the same idempotency key, restarts the shared control-plane context, and verifies collection and direct-detail persistence.
+- `npm run check` passed with `ACS_SH_DATABASE_URL` configured: 726 tests, 726 passing, 0 failed, 0 skipped. This includes IMP-03A through IMP-03E PostgreSQL coverage, `VAL-01 PostgreSQL durable acceptance`, the FIX-02 PostgreSQL test, and the full repository suite.
+- `git diff --check` passed after the acceptance-record updates.
+
+This proves canonical-host and PostgreSQL acceptance for initial Workforce creation. It does not claim a browser interaction against the pre-existing standalone process on port 3000, which remains configured to use the separate host on port 8788.

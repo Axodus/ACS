@@ -229,6 +229,7 @@ Tests:
 - `tests/s52-epic-15-5-structured-telemetry.test.mjs`
 - `tests/s53-epic-15-5-operational-diagnostics.test.mjs`
 - `tests/s54-epic-15-5-observability-incident-acceptance.test.mjs`
+- `tests/s77-security-telemetry-receiver-auth.test.mjs`
 - `tests/fixtures/aees-e-failure-worker-process.mjs`
 
 ## Finding and readiness result
@@ -247,7 +248,7 @@ Tests:
 
 - multi-host collector/store/network-partition behavior is not proven;
 - managed retention, dashboards, alert routing and SLO/SLA tooling are deferred, not simulated;
-- the receiver entrypoint is an acceptance utility, not a bundled generic observability platform;
+- the receiver entrypoint is an acceptance utility, not a bundled generic observability platform; unauthenticated startup is limited to loopback and any external bind requires `ACS_TELEMETRY_RECEIVER_AUTH_TOKEN`;
 - Agent/deployment authoritative durability and a complete remediation UI remain open;
 - production deployment remains sandbox-gated;
 - audit durability/retention and telemetry retention are separate concerns.

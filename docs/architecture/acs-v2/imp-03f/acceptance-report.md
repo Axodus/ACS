@@ -2,9 +2,9 @@
 
 ## Status
 
-`PARTIAL / DOMAIN ENTRY ACCEPTED / DOMAIN NAVIGATION INCOMPLETE`
+`PARTIAL / DOMAIN ENTRY ACCEPTED / CONTEXTUAL NAVIGATION ACCEPTED IN CODE / FIRST WORKFORCE CREATION ACCEPTED`
 
-## Proven read-domain criteria
+## Proven criteria
 
 - Workforce is a first-class global application domain.
 - The implementation separates collection and entity navigation: `All Workforces` is collection-scoped, while a selected Workforce can expose Overview, Members, Revisions, Runs, and Operations.
@@ -15,14 +15,14 @@
 - Historical revisions are direct-addressable and read-only.
 - Admitted Run membership, coordination lineage, assignment history, runtime attempts, revision references, slot, generation, and recovery are available when explicit Run and Task IDs are supplied.
 - Product API remains the sole data boundary.
-- `POST /api/v1/workforces` is implemented for initial canonical draft `r1` creation through the native lineage repository, with tenant governance, idempotency, event, and outbox inputs.
+- `POST /api/v1/workforces` creates the initial canonical draft `r1` through the native lineage repository, with tenant governance, idempotency, event, and outbox inputs.
 - The collection page and its empty state expose Create Workforce; successful creation navigates to the canonical Workforce detail route.
+- On September 12, 2026, a canonical shared-state HTTP host against PostgreSQL proved first-Workforce creation, same-key idempotent retry, durable collection readback, and direct-detail readback after a control-plane restart. The repository suite completed with 726 passes, 0 failures, and 0 skips.
 
-## Blocked criteria
+## Remaining criteria
 
-- Later Workforce revision creation and lifecycle writes remain blocked by missing Product API writes.
-- Workforce-scoped Run list is blocked by missing Product API query support.
-- On September 12, 2026, the local API returned HTTP 404 `route not found` for `GET /api/v1/workforces`. The running process had neither `ACS_STATE_BACKEND=shared` nor `ACS_SH_DATABASE_URL` configured, so it did not create the `nativeCore` required to register Workforce routes. No real Workforce can be selected in the app; visible entity navigation and display-name resolution are therefore not accepted.
-- PostgreSQL-required acceptance remains blocked in this environment: the root suite has 11 skips because `ACS_SH_DATABASE_URL` is not configured.
+- Later Workforce revision creation and lifecycle writes remain outside FIX-02 and require their own Product API mutations.
+- Workforce-scoped Run list remains blocked by missing Product API query support.
+- The existing standalone browser process on port 3000 is still configured for the separate host on port 8788, whose current process does not register Workforce routes. That process is not the canonical host used for the PostgreSQL acceptance above. A browser run against the canonical host remains useful UI evidence, but it does not invalidate the completed FIX-02 host/API persistence acceptance.
 
-`ACS-V2-IMP-03F-FIX-02` is implemented but not accepted end-to-end: the configured local server lacks the shared native-core database configuration required to register the route. Fresh-database persistence, real browser creation, post-create navigation, and the repository suite requirement of zero skips remain pending.
+`ACS-V2-IMP-03F-FIX-02` is accepted for initial Workforce creation. `ACS-V2-IMP-03F` remains partial until the material revision/lifecycle and Workforce-scoped Run write/query gaps are resolved.

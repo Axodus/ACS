@@ -13,13 +13,17 @@ export interface TelemetryReceiverSnapshot {
 }
 
 export async function runOperationalTelemetryReceiverFromEnvironment(environment: NodeJS.ProcessEnv = process.env) {
-  const host = environment.ACS_TELEMETRY_RECEIVER_HOST ?? "127.0.0.1";
+  const host = (environment.ACS_TELEMETRY_RECEIVER_HOST ?? "127.0.0.1").trim();
+  if (!host) throw new Error("telemetry receiver host is required");
   const port = optionalPort(environment.ACS_TELEMETRY_RECEIVER_PORT);
   const capacity = optionalPositiveInteger(environment.ACS_TELEMETRY_RECEIVER_CAPACITY) ?? 2_048;
   const certificatePath = environment.ACS_TELEMETRY_RECEIVER_TLS_CERT_PATH;
   const keyPath = environment.ACS_TELEMETRY_RECEIVER_TLS_KEY_PATH;
-  const authenticationToken = environment.ACS_TELEMETRY_RECEIVER_AUTH_TOKEN;
+  const authenticationToken = environment.ACS_TELEMETRY_RECEIVER_AUTH_TOKEN?.trim() || undefined;
   if (Boolean(certificatePath) !== Boolean(keyPath)) throw new Error("telemetry receiver TLS certificate and key must be configured together");
+  if (!authenticationToken && !isLoopbackHost(host)) {
+    throw new Error("telemetry receiver authentication token is required outside loopback");
+  }
   const state = {
     logs: [] as unknown[],
     metrics: [] as unknown[],
@@ -136,6 +140,11 @@ function optionalPositiveInteger(value: string | undefined): number | undefined 
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error("receiver capacity must be a positive integer");
   return parsed;
+}
+
+function isLoopbackHost(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : undefined;
