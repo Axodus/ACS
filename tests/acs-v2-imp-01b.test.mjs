@@ -99,7 +99,7 @@ function event(input) {
 }
 
 test("IMP-01B migration is additive and keeps native Event, Outbox, Evidence, and Audit distinct", () => {
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 3);
+  assert.equal(SHARED_STATE_SCHEMA_VERSION, SHARED_STATE_MIGRATIONS.at(-1).version);
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 3);
   assert.ok(migration);
   const schema = migration.statements.join("\n");

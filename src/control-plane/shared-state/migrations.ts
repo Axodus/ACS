@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 3;
+export const SHARED_STATE_SCHEMA_VERSION = 5;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -351,6 +351,101 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
       )`,
       `CREATE INDEX IF NOT EXISTS acs_native_evidence_event_idx ON acs_native_evidence (event_id, evidence_id)`,
       `CREATE INDEX IF NOT EXISTS acs_native_evidence_subject_idx ON acs_native_evidence (subject_kind, subject_id, evidence_id)`,
+    ],
+  },
+  {
+    version: 4,
+    name: "workforce_durable_lineage_and_governed_role_history",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_governed_role_revisions (
+        role_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        native_fingerprint TEXT NOT NULL,
+        supersedes_revision INTEGER,
+        status TEXT NOT NULL CHECK (status IN ('active', 'deprecated', 'experimental')),
+        payload JSONB NOT NULL,
+        created_by TEXT NOT NULL,
+        committed_at TIMESTAMPTZ NOT NULL,
+        change_reason TEXT NOT NULL,
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        PRIMARY KEY (role_id, revision),
+        UNIQUE (role_id, native_fingerprint),
+        FOREIGN KEY (role_id, supersedes_revision) REFERENCES acs_governed_role_revisions(role_id, revision),
+        CHECK (supersedes_revision IS NULL OR supersedes_revision = revision - 1)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_governed_role_history_lookup_idx
+        ON acs_governed_role_revisions (role_id, revision, native_fingerprint)`,
+      `CREATE TABLE IF NOT EXISTS acs_workforces (
+        workforce_id TEXT PRIMARY KEY,
+        current_revision INTEGER NOT NULL CHECK (current_revision > 0),
+        current_status TEXT NOT NULL CHECK (current_status IN ('draft', 'active', 'disabled', 'archived')),
+        tenant_id TEXT,
+        payload JSONB NOT NULL,
+        native_fingerprint TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_workforces_tenant_status_idx
+        ON acs_workforces (tenant_id, current_status, workforce_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_workforce_revisions (
+        workforce_id TEXT NOT NULL REFERENCES acs_workforces(workforce_id),
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        native_fingerprint TEXT NOT NULL,
+        supersedes_revision INTEGER,
+        lifecycle_status TEXT NOT NULL CHECK (lifecycle_status IN ('draft', 'active', 'disabled', 'archived')),
+        payload JSONB NOT NULL,
+        created_by TEXT NOT NULL,
+        committed_at TIMESTAMPTZ NOT NULL,
+        change_reason TEXT NOT NULL,
+        correlation_id TEXT NOT NULL,
+        event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        PRIMARY KEY (workforce_id, revision),
+        UNIQUE (workforce_id, native_fingerprint),
+        UNIQUE (workforce_id, revision, native_fingerprint, lifecycle_status),
+        FOREIGN KEY (workforce_id, supersedes_revision) REFERENCES acs_workforce_revisions(workforce_id, revision),
+        CHECK ((revision = 1 AND supersedes_revision IS NULL) OR (revision > 1 AND supersedes_revision = revision - 1))
+      )`,
+      `ALTER TABLE acs_workforces ADD CONSTRAINT acs_workforce_head_revision_fk
+        FOREIGN KEY (workforce_id, current_revision, native_fingerprint, current_status)
+        REFERENCES acs_workforce_revisions(workforce_id, revision, native_fingerprint, lifecycle_status)
+        DEFERRABLE INITIALLY DEFERRED`,
+      `CREATE INDEX IF NOT EXISTS acs_workforce_history_lookup_idx
+        ON acs_workforce_revisions (workforce_id, revision)`,
+      `ALTER TABLE acs_native_events ADD COLUMN IF NOT EXISTS workforce_id TEXT REFERENCES acs_workforces(workforce_id)`,
+      `CREATE INDEX IF NOT EXISTS acs_native_event_workforce_idx
+        ON acs_native_events (workforce_id, sequence) WHERE workforce_id IS NOT NULL`,
+    ],
+  },
+  {
+    version: 5,
+    name: "workforce_run_admission_and_immutable_membership_snapshots",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_native_runs (
+        run_id TEXT PRIMARY KEY,
+        workforce_id TEXT NOT NULL REFERENCES acs_workforces(workforce_id),
+        workforce_revision INTEGER NOT NULL,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        FOREIGN KEY (workforce_id, workforce_revision) REFERENCES acs_workforce_revisions(workforce_id, revision)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_native_runs_workforce_idx
+        ON acs_native_runs (workforce_id, workforce_revision, run_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_workforce_run_membership_snapshots (
+        snapshot_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL UNIQUE REFERENCES acs_native_runs(run_id),
+        workforce_id TEXT NOT NULL,
+        workforce_revision INTEGER NOT NULL,
+        admitted_at TIMESTAMPTZ NOT NULL,
+        member_count INTEGER NOT NULL CHECK (member_count > 0),
+        FOREIGN KEY (workforce_id, workforce_revision) REFERENCES acs_workforce_revisions(workforce_id, revision)
+      )`,
+      `CREATE TABLE IF NOT EXISTS acs_workforce_run_membership_members (
+        snapshot_id TEXT NOT NULL REFERENCES acs_workforce_run_membership_snapshots(snapshot_id),
+        slot_id TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        PRIMARY KEY (snapshot_id, slot_id)
+      )`,
     ],
   },
 ];

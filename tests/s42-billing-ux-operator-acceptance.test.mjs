@@ -5,9 +5,11 @@ import test from "node:test";
 
 const root = resolve(import.meta.dirname, "..");
 const appPath = resolve(root, ".design/app-standalone/src/App.tsx");
+const economicsPath = resolve(root, ".design/app-standalone/src/domains/economics/Economics.tsx");
 const clientPath = resolve(root, ".design/app-standalone/src/api/product-api.ts");
 const browserAcceptancePath = resolve(root, "docs/epics/epic-13/browser-acceptance.md");
 const app = readFileSync(appPath, "utf8");
+const economics = readFileSync(economicsPath, "utf8");
 const client = readFileSync(clientPath, "utf8");
 
 const financialRoutes = [
@@ -33,10 +35,10 @@ function escapeRegExp(value) {
 }
 
 test("S09 exposes a read-only billing operator acceptance surface and all financial boundaries", () => {
-  assert.match(app, /Billing UX &amp; Operator Acceptance/);
   assert.match(app, /path="\/system\/billing-acceptance"/);
+  assert.match(economics, /Billing UX &amp; Operator Acceptance/);
   for (const route of financialRoutes) {
-    assert.match(app, new RegExp(escapeRegExp(route)));
+    assert.match(economics, new RegExp(escapeRegExp(route)));
   }
   for (const method of productApiMethods) {
     assert.match(client, new RegExp(method));
@@ -53,12 +55,12 @@ test("S09 displays no-claim consistency and state taxonomy", () => {
     "Tax Ready",
     "Production Financial Operations",
   ]) {
-    assert.match(app, new RegExp(escapeRegExp(claim)));
+    assert.match(economics, new RegExp(escapeRegExp(claim)));
   }
   for (const state of ["candidate", "blocked", "deferred", "not_claimed", "evidence_only"]) {
-    assert.match(app, new RegExp(state));
+    assert.match(economics, new RegExp(state));
   }
-  assert.match(app, /NO \/ not yet claimed/);
+  assert.match(economics, /NO \/ not yet claimed/);
 });
 
 test("S09 documents browser/manual acceptance without claiming browser certification", () => {
@@ -89,7 +91,7 @@ test("S09 contains no productive financial action surface", () => {
     "approve financial operation",
   ];
   for (const action of prohibited) {
-    assert.equal(app.toLowerCase().includes(">" + action + "<"), false, "productive action must not be rendered: " + action);
+    assert.equal(economics.toLowerCase().includes(">" + action + "<"), false, "productive action must not be rendered: " + action);
   }
-  assert.equal(app.includes("No financial actions"), true);
+  assert.equal(economics.includes("No financial actions"), true);
 });

@@ -1,3 +1,4 @@
+import { NativeGovernedRoleHistoryError } from "../governed-role-history.js";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { Pool, type PoolClient, type PoolConfig, type QueryResult, type QueryResultRow } from "pg";
@@ -83,9 +84,13 @@ import {
 import {
   NativeFencingError,
   NativeIdempotencyConflictError,
+  NativeWorkforceLineageIntegrityError,
+  NativeWorkforceNotFoundError,
+  NativeWorkforceReferenceError,
   PostgresNativeCoreRepository,
   type AsyncNativeCoreRepository,
 } from "./native-core-durable.js";
+import { NativeContractValidationError } from "../../native-core/primitives.js";
 import {
   SHARED_STATE_MIGRATIONS,
   SHARED_STATE_SCHEMA_VERSION,
@@ -136,6 +141,11 @@ function mapRepositoryError(operation: string, error: unknown): Error {
     || error instanceof RuntimeWorkerIdentityError
     || error instanceof NativeIdempotencyConflictError
     || error instanceof NativeFencingError
+    || error instanceof NativeWorkforceLineageIntegrityError
+    || error instanceof NativeWorkforceNotFoundError
+    || error instanceof NativeWorkforceReferenceError
+    || error instanceof NativeGovernedRoleHistoryError
+    || error instanceof NativeContractValidationError
     || error instanceof AcsError
     || error instanceof AgentRevisionConflictError
     || error instanceof DeploymentRevisionConflictError
@@ -1448,6 +1458,21 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
         (tx) => tx.nativeCore.advanceAgentLineage(input),
       ),
       getAgentLineage: (agentId) => session.nativeCore.getAgentLineage(agentId),
+      advanceWorkforceLineage: (input) => this.withTransaction(
+        "advance native workforce lineage",
+        (tx) => tx.nativeCore.advanceWorkforceLineage(input),
+      ),
+      getWorkforceLineage: (workforceId) => this.withTransaction(
+        "read native workforce lineage",
+        (tx) => tx.nativeCore.getWorkforceLineage(workforceId),
+      ),
+      getWorkforceRevision: (workforceId, revision) => session.nativeCore.getWorkforceRevision(workforceId, revision),
+      listWorkforceRevisions: (workforceId) => session.nativeCore.listWorkforceRevisions(workforceId),
+      recordGovernedRoleRevision: (role, expectedHead) => this.withTransaction(
+        "record governed role revision",
+        (tx) => tx.nativeCore.recordGovernedRoleRevision(role, expectedHead),
+      ),
+      getGovernedRoleRevision: (roleRef) => session.nativeCore.getGovernedRoleRevision(roleRef),
       getEvent: (eventId) => session.nativeCore.getEvent(eventId),
       replayEvents: (input) => session.nativeCore.replayEvents(input),
       listOutbox: (input) => session.nativeCore.listOutbox(input),
@@ -1464,6 +1489,12 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       recordAccounting: (input) => this.withTransaction("record native accounting", (tx) => tx.nativeCore.recordAccounting(input)),
       listUsage: (runId) => session.nativeCore.listUsage(runId),
       listCosts: (usageId) => session.nativeCore.listCosts(usageId),
+      admitWorkforceRun: (input) => this.withTransaction(
+        "admit Workforce Run",
+        (tx) => tx.nativeCore.admitWorkforceRun(input),
+      ),
+      getRun: (runId) => session.nativeCore.getRun(runId),
+      getRunMembership: (runId) => session.nativeCore.getRunMembership(runId),
     };
   }
 

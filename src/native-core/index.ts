@@ -3,3 +3,5 @@ export * from "./agent.js";
 export * from "./runtime.js";
 export * from "./evidence.js";
 export * from "./accounting.js";
+export * from "./workforce.js";
+export * from "./workforce-run-membership.js";

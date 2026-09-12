@@ -1,9 +1,17 @@
+import {
+  validateGovernedRoleRevisionV2,
+  NativeGovernedRoleHistoryError,
+  type GovernedRoleRevisionV2,
+} from "../governed-role-history.js";
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 import {
+  ACS_NATIVE_SCHEMA_VERSION,
   NativeContractValidationError,
+  sha256Hex,
   stableStringify,
   validateIdempotency,
+  validateRevisionRef,
   type Idempotency,
 } from "../../native-core/primitives.js";
 import {
@@ -13,11 +21,26 @@ import {
   type AgentRevisionV2,
 } from "../../native-core/agent.js";
 import {
+  validateWorkforceDefinitionV2,
+  validateWorkforceRevisionV2,
+  type WorkforceDefinitionV2,
+  type WorkforceRevisionV2,
+} from "../../native-core/workforce.js";
+import {
   validateCheckpointV2,
   validateEventEnvelopeV2,
   type CheckpointV2,
   type EventEnvelopeV2,
 } from "../../native-core/runtime.js";
+import {
+  createWorkforceRunMembershipV2,
+  validateWorkforceRunAdmissionRequest,
+  validateWorkforceRunMembershipV2,
+  type WorkforceRunAdmissionRequest,
+  type WorkforceRunAdmissionResult,
+  type WorkforceRunMembershipV2,
+} from "../../native-core/workforce-run-membership.js";
+import { validateRunV2, type RunV2 } from "../../native-core/runtime.js";
 import {
   validateEvidenceRecordV2,
   type EvidenceRecordV2,
@@ -89,6 +112,35 @@ export interface NativeAgentLineageCommandResult {
   readonly outbox: NativeOutboxRecord;
 }
 
+export interface NativeWorkforceLineage {
+  readonly definition: WorkforceDefinitionV2;
+  readonly revisions: readonly WorkforceRevisionV2[];
+}
+
+export interface NativeWorkforceLineageCommand {
+  readonly definition: WorkforceDefinitionV2;
+  readonly revision: WorkforceRevisionV2;
+  readonly expectedHead: number;
+  readonly idempotency: Idempotency;
+  readonly event: EventEnvelopeV2;
+  readonly authority: WorkforceMutationAuthority;
+  readonly outboxId?: string;
+  readonly deliveryKind?: string;
+}
+
+export interface WorkforceMutationAuthority {
+  readonly decision_ref: string;
+  readonly decision: "allowed";
+  readonly authority_scope_ref: string;
+  readonly evaluated_at: number;
+}
+
+export interface NativeWorkforceLineageCommandResult {
+  readonly lineage: NativeWorkforceLineage;
+  readonly event: NativeDurableEvent;
+  readonly outbox: NativeOutboxRecord;
+}
+
 export interface NativeFencedCheckpointCommand {
   readonly ownership: RuntimeOwnershipInput;
   readonly checkpoint: CheckpointV2;
@@ -123,6 +175,12 @@ export interface NativeAccountingCommandResult {
 export interface AsyncNativeCoreRepository {
   advanceAgentLineage(input: NativeAgentLineageCommand): Promise<NativeAgentLineageCommandResult>;
   getAgentLineage(agentId: string): Promise<NativeAgentLineage>;
+  advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult>;
+  getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage>;
+  getWorkforceRevision(workforceId: string, revision: number): Promise<WorkforceRevisionV2 | undefined>;
+  listWorkforceRevisions(workforceId: string): Promise<readonly WorkforceRevisionV2[]>;
+  recordGovernedRoleRevision(role: GovernedRoleRevisionV2, expectedHead: number): Promise<GovernedRoleRevisionV2>;
+  getGovernedRoleRevision(roleRef: WorkforceRevisionV2["members"][number]["role_ref"]): Promise<GovernedRoleRevisionV2 | undefined>;
   getEvent(eventId: string): Promise<NativeDurableEvent | undefined>;
   replayEvents(input?: { readonly streamScope?: string; readonly afterSequence?: number }): Promise<readonly NativeDurableEvent[]>;
   listOutbox(input?: { readonly status?: NativeOutboxStatus; readonly recoverableAt?: number }): Promise<readonly NativeOutboxRecord[]>;
@@ -136,6 +194,9 @@ export interface AsyncNativeCoreRepository {
   recordAccounting(input: NativeAccountingCommand): Promise<NativeAccountingCommandResult>;
   listUsage(runId?: string): Promise<readonly UsageRecordV2[]>;
   listCosts(usageId?: string): Promise<readonly CostRecordV2[]>;
+  admitWorkforceRun(input: WorkforceRunAdmissionRequest): Promise<WorkforceRunAdmissionResult>;
+  getRun(runId: string): Promise<RunV2 | undefined>;
+  getRunMembership(runId: string): Promise<readonly WorkforceRunMembershipV2[]>;
 }
 
 export class NativeIdempotencyConflictError extends Error {
@@ -153,6 +214,47 @@ export class NativeLineageIntegrityError extends Error {
     this.name = "NativeLineageIntegrityError";
   }
 }
+
+export class NativeWorkforceLineageIntegrityError extends Error {
+  readonly code = "ACS_NATIVE_WORKFORCE_LINEAGE_INTEGRITY";
+  constructor(readonly workforceId: string, detail: string) {
+    super(`native workforce lineage integrity failure for ${workforceId}: ${detail}`);
+    this.name = "NativeWorkforceLineageIntegrityError";
+  }
+}
+
+export class NativeWorkforceNotFoundError extends Error {
+  readonly code = "ACS_NATIVE_WORKFORCE_NOT_FOUND";
+  constructor(readonly workforceId: string) {
+    super(`native Workforce was not found: ${workforceId}`);
+    this.name = "NativeWorkforceNotFoundError";
+  }
+}
+
+export class NativeWorkforceReferenceError extends Error {
+  readonly code = "ACS_NATIVE_WORKFORCE_REFERENCE_INVALID";
+  constructor(readonly workforceId: string, readonly reference: string, readonly detail: string, options?: ErrorOptions) {
+    super(`native workforce reference is invalid for ${workforceId}/${reference}: ${detail}`, options);
+    this.name = "NativeWorkforceReferenceError";
+  }
+}
+
+export class NativeRunAdmissionError extends Error {
+  readonly code = "ACS_NATIVE_RUN_ADMISSION_REJECTED";
+  constructor(readonly runId: string, readonly detail: string, options?: ErrorOptions) {
+    super(`native Workforce Run admission rejected for ${runId}: ${detail}`, options);
+    this.name = "NativeRunAdmissionError";
+  }
+}
+
+export class NativeRunNotFoundError extends Error {
+  readonly code = "ACS_NATIVE_RUN_NOT_FOUND";
+  constructor(readonly runId: string) {
+    super(`native Run was not found: ${runId}`);
+    this.name = "NativeRunNotFoundError";
+  }
+}
+
 
 export class NativeFencingError extends Error {
   readonly code = "ACS_NATIVE_FENCING_REJECTED";
@@ -229,6 +331,9 @@ async function query<R extends QueryResultRow = QueryResultRow>(
   } catch (error) {
     if (error instanceof NativeIdempotencyConflictError
       || error instanceof NativeLineageIntegrityError
+      || error instanceof NativeWorkforceLineageIntegrityError
+      || error instanceof NativeWorkforceReferenceError
+      || error instanceof NativeGovernedRoleHistoryError
       || error instanceof NativeFencingError
       || error instanceof NativeOutboxLeaseError
       || error instanceof RevisionConflictError
@@ -258,13 +363,14 @@ function requireOutboxFailureCode(value: string): void {
 }
 
 function streamScope(event: EventEnvelopeV2): string {
+  if (event.workforce_id && !event.run_id && !event.task_id) return `workforce:${event.workforce_id}`;
   if (event.agent_id) return `agent:${event.agent_id}`;
   if (event.run_id) return `run:${event.run_id}`;
   if (event.task_id) return `task:${event.task_id}`;
   throw new NativeContractValidationError("native event requires a stream subject", [{
     path: "event",
     code: "MISSING_STREAM_SUBJECT",
-    message: "Canonical event must identify Agent, Run, or Task ownership",
+    message: "Canonical event must identify Agent, Workforce, Run, or Task ownership",
   }]);
 }
 
@@ -307,6 +413,62 @@ export function validateNativeAgentLineageCommand(input: NativeAgentLineageComma
   }
   if (event.idempotency_key !== input.idempotency.key) {
     throw new NativeContractValidationError("native agent lineage command validation failed", [{ path: "event.idempotency_key", code: "IDEMPOTENCY_MISMATCH", message: "Event and command idempotency keys must match" }]);
+  }
+}
+
+export function validateNativeWorkforceLineageCommand(input: NativeWorkforceLineageCommand): void {
+  const definition = validateWorkforceDefinitionV2(input.definition);
+  const revision = validateWorkforceRevisionV2(input.revision);
+  const event = validateEventEnvelopeV2(input.event);
+  validateIdempotency(input.idempotency);
+  if (!input.authority || input.authority.decision !== "allowed"
+    || typeof input.authority.decision_ref !== "string" || !input.authority.decision_ref.trim()
+    || typeof input.authority.authority_scope_ref !== "string" || !input.authority.authority_scope_ref.trim()
+    || !Number.isSafeInteger(input.authority.evaluated_at) || input.authority.evaluated_at < 0) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "authority", code: "AUTHORITY_REQUIRED", message: "An explicit allowed ACS authority decision is required" }]);
+  }
+  if (input.authority.authority_scope_ref !== definition.scope.authority_scope_ref) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "authority.authority_scope_ref", code: "AUTHORITY_SCOPE_MISMATCH", message: "Authority decision must match the Workforce scope" }]);
+  }
+  if (!Number.isSafeInteger(input.expectedHead) || input.expectedHead < 0) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "expectedHead", code: "INVALID_INTEGER", message: "expectedHead must be a non-negative safe integer" }]);
+  }
+  if (revision.ref.entity_id !== definition.workforce_id || revision.ref.revision !== definition.current_revision || revision.lifecycle_status !== definition.current_status) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "revision", code: "WORKFORCE_HEAD_MISMATCH", message: "Revision must match the canonical Workforce head and current status projection" }]);
+  }
+  if (input.expectedHead === 0) {
+    if (revision.ref.revision !== 1 || revision.supersedes_revision !== undefined || revision.lifecycle_status !== "draft") {
+      throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "revision", code: "INVALID_ROOT_REVISION", message: "Root Workforce revision must be draft revision 1 without a predecessor" }]);
+    }
+    if (event.event_type !== "workforce.created") {
+      throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "event.event_type", code: "INVALID_EVENT_TYPE", message: "Root Workforce revision requires workforce.created" }]);
+    }
+  } else {
+    if (revision.ref.revision !== input.expectedHead + 1 || revision.supersedes_revision !== input.expectedHead) {
+      throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "revision", code: "INVALID_LINEAGE_ADVANCE", message: "Revision must advance exactly one expected Workforce head" }]);
+    }
+    if (!["workforce.revision.created", "workforce.lifecycle.changed"].includes(event.event_type)) {
+      throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "event.event_type", code: "INVALID_EVENT_TYPE", message: "A Workforce successor requires workforce.revision.created or workforce.lifecycle.changed" }]);
+    }
+  }
+  if (event.workforce_id !== definition.workforce_id || event.sequence !== revision.ref.revision || event.organization_id !== definition.scope.organization_id || event.product_domain !== definition.scope.product_domain) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "event", code: "EVENT_LINEAGE_MISMATCH", message: "Canonical Event must describe the committed Workforce revision" }]);
+  }
+  if (event.tenant_id !== definition.scope.tenant_id || event.idempotency_key !== input.idempotency.key) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "event", code: "EVENT_CONTEXT_MISMATCH", message: "Canonical Event tenant and idempotency must match the Workforce command" }]);
+  }
+  if (event.source !== "acs" || event.run_id !== undefined || event.task_id !== undefined
+    || event.agent_id !== undefined || event.attempt !== undefined || event.workflow_id !== undefined) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "event", code: "EVENT_OWNERSHIP_MISMATCH", message: "Workforce mutation events must be ACS-owned Workforce facts without execution subjects" }]);
+  }
+  if (definition.updated_at !== revision.commit.committed_at || event.timestamp !== revision.commit.committed_at) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "event.timestamp", code: "COMMIT_TIMESTAMP_MISMATCH", message: "Definition, revision, and event must describe the same commit timestamp" }]);
+  }
+  if (event.payload.workforce_revision !== revision.ref.revision
+    || event.payload.workforce_fingerprint !== revision.ref.fingerprint
+    || event.payload.lifecycle_status !== revision.lifecycle_status
+    || event.payload.authority_decision_ref !== input.authority.decision_ref) {
+    throw new NativeContractValidationError("native workforce lineage command validation failed", [{ path: "event.payload", code: "EVENT_PAYLOAD_MISMATCH", message: "Canonical Event payload must identify the committed Workforce revision, status, and authority decision" }]);
   }
 }
 
@@ -403,7 +565,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
   async getAgentLineage(agentId: string): Promise<NativeAgentLineage> {
     const head = await query<HeadRow>(this.db, "get native agent head", `
       SELECT revision, native_fingerprint, payload FROM acs_agents
-      WHERE agent_id = $1 AND record_kind = 'native_v2'
+      WHERE agent_id = $1 AND record_kind = 'native_v2' FOR SHARE
     `, [agentId]);
     if (!head.rows[0]) throw new NativeLineageIntegrityError(agentId, "canonical head is missing");
     const history = await query<PayloadRow>(this.db, "get native agent history", `
@@ -434,6 +596,228 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       throw new NativeLineageIntegrityError(agentId, "head fingerprint diverges from immutable history");
     }
     return { definition, revisions };
+  }
+
+  async advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult> {
+    validateNativeWorkforceLineageCommand(input);
+    const idempotency = { ...input.idempotency, request_hash: sha256Hex(stableStringify({
+      request_hash: input.idempotency.request_hash,
+      definition: input.definition, revision: input.revision, expectedHead: input.expectedHead,
+      authority: input.authority, event: input.event,
+    })) };
+    return this.idempotent(idempotency, "native.workforce.lineage.advance", async () => {
+      await query(this.db, "lock native workforce lineage", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`native-workforce:${input.definition.workforce_id}`]);
+      await this.assertWorkforceReferences(input.definition, input.revision);
+      let prior: NativeWorkforceLineage | undefined;
+      if (input.expectedHead > 0) {
+        prior = await this.getWorkforceLineage(input.definition.workforce_id);
+        if (prior.definition.current_revision !== input.expectedHead) {
+          throw new RevisionConflictError(`native-workforce:${input.definition.workforce_id}`, input.expectedHead, prior.definition.current_revision);
+        }
+        if (input.definition.updated_at < prior.definition.updated_at) {
+          throw new NativeWorkforceReferenceError(input.definition.workforce_id, "updated_at", "commit timestamp cannot move backwards");
+        }
+        this.assertLifecycleTransition(prior.revisions.at(-1)!.lifecycle_status, input.revision.lifecycle_status, input.event.event_type);
+        if (input.event.payload.previous_status !== prior.definition.current_status) {
+          throw new NativeWorkforceReferenceError(input.definition.workforce_id, "event.previous_status", "lifecycle event payload does not match the persisted previous status");
+        }
+        if (prior.definition.created_at !== input.definition.created_at
+          || prior.definition.scope.organization_id !== input.definition.scope.organization_id
+          || prior.definition.scope.product_domain !== input.definition.scope.product_domain
+          || prior.definition.scope.tenant_id !== input.definition.scope.tenant_id
+          || prior.definition.scope.owner_ref !== input.definition.scope.owner_ref
+          || prior.definition.scope.authority_scope_ref !== input.definition.scope.authority_scope_ref
+          || !equal(prior.definition.scope.knowledge_scope_refs, input.definition.scope.knowledge_scope_refs)
+          || prior.definition.scope.budget_scope_ref !== input.definition.scope.budget_scope_ref
+          || prior.definition.scope.credential_scope_ref !== input.definition.scope.credential_scope_ref
+          || prior.definition.ownership_ref !== input.definition.ownership_ref) {
+          throw new NativeWorkforceReferenceError(input.definition.workforce_id, "identity", "scope, ownership, and creation timestamp are immutable across Workforce revisions");
+        }
+      }
+
+      if (input.expectedHead === 0) {
+        const created = await query(this.db, "create native workforce head", `
+          INSERT INTO acs_workforces (
+            workforce_id, current_revision, current_status, tenant_id, payload, native_fingerprint
+          ) VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+          ON CONFLICT (workforce_id) DO NOTHING
+          RETURNING workforce_id
+        `, [
+          input.definition.workforce_id,
+          input.definition.current_revision,
+          input.definition.current_status,
+          input.definition.scope.tenant_id ?? null,
+          serialize(input.definition),
+          input.revision.ref.fingerprint,
+        ]);
+        if ((created.rowCount ?? 0) !== 1) {
+          const existing = await query<HeadRow>(this.db, "read conflicting native workforce head", "SELECT current_revision AS revision, native_fingerprint, payload FROM acs_workforces WHERE workforce_id = $1", [input.definition.workforce_id]);
+          throw new RevisionConflictError(`native-workforce:${input.definition.workforce_id}`, 0, existing.rows[0] ? Number(existing.rows[0].revision) : undefined);
+        }
+      } else {
+        const updated = await query(this.db, "advance native workforce head", `
+          UPDATE acs_workforces SET
+            current_revision = $2,
+            current_status = $3,
+            tenant_id = $4,
+            payload = $5::jsonb,
+            native_fingerprint = $6,
+            updated_at = clock_timestamp()
+          WHERE workforce_id = $1 AND current_revision = $7
+          RETURNING workforce_id
+        `, [
+          input.definition.workforce_id,
+          input.definition.current_revision,
+          input.definition.current_status,
+          input.definition.scope.tenant_id ?? null,
+          serialize(input.definition),
+          input.revision.ref.fingerprint,
+          input.expectedHead,
+        ]);
+        if ((updated.rowCount ?? 0) !== 1) {
+          const existing = await query<HeadRow>(this.db, "read native workforce head", "SELECT current_revision AS revision, native_fingerprint, payload FROM acs_workforces WHERE workforce_id = $1", [input.definition.workforce_id]);
+          throw new RevisionConflictError(`native-workforce:${input.definition.workforce_id}`, input.expectedHead, existing.rows[0] ? Number(existing.rows[0].revision) : undefined);
+        }
+      }
+
+      await query(this.db, "append immutable native workforce revision", `
+        INSERT INTO acs_workforce_revisions (
+          workforce_id, revision, native_fingerprint, supersedes_revision, lifecycle_status,
+          payload, created_by, committed_at, change_reason, correlation_id, event_id
+      ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, to_timestamp($8 / 1000.0), $9, $10, $11)
+      `, [
+        input.definition.workforce_id,
+        input.revision.ref.revision,
+        input.revision.ref.fingerprint,
+        input.revision.supersedes_revision ?? null,
+        input.revision.lifecycle_status,
+        serialize(input.revision),
+        input.revision.commit.created_by,
+        input.revision.commit.committed_at,
+        input.revision.commit.change_reason,
+        input.event.correlation_id,
+        input.event.event_id,
+      ]);
+      const event = await this.appendEvent(input.event);
+      const outbox = await this.insertOutbox(event.event.event_id, input.outboxId, input.deliveryKind, input.event.timestamp);
+      const lineage = await this.getWorkforceLineage(input.definition.workforce_id);
+      return { lineage, event, outbox };
+    });
+  }
+
+  async getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage> {
+    requireText(workforceId, "workforceId");
+    const head = await query<HeadRow>(this.db, "get native workforce head", `
+      SELECT current_revision AS revision, native_fingerprint, payload
+      FROM acs_workforces WHERE workforce_id = $1 FOR SHARE
+    `, [workforceId]);
+    if (!head.rows[0]) throw new NativeWorkforceNotFoundError(workforceId);
+    const revisions = await this.listWorkforceRevisions(workforceId);
+    const definition = validateWorkforceDefinitionV2(decode<WorkforceDefinitionV2>(head.rows[0].payload));
+    if (definition.workforce_id !== workforceId || definition.current_revision !== Number(head.rows[0].revision)) {
+      throw new NativeWorkforceLineageIntegrityError(workforceId, "head payload and head revision diverge");
+    }
+    if (revisions.length !== definition.current_revision) throw new NativeWorkforceLineageIntegrityError(workforceId, "revision history is not contiguous");
+    for (const [index, revision] of revisions.entries()) {
+      const expected = index + 1;
+      if (revision.ref.entity_id !== workforceId || revision.ref.revision !== expected) throw new NativeWorkforceLineageIntegrityError(workforceId, `invalid revision at position ${expected}`);
+      if (expected === 1 && revision.supersedes_revision !== undefined) throw new NativeWorkforceLineageIntegrityError(workforceId, "root revision has a predecessor");
+      if (expected > 1 && revision.supersedes_revision !== expected - 1) throw new NativeWorkforceLineageIntegrityError(workforceId, `revision ${expected} has an invalid predecessor`);
+      for (const member of revision.members) {
+        if (member.agent_selector.mode === "pinned") {
+          const lineage = await this.getAgentLineage(member.agent_selector.agent_id);
+          const pinnedRevisionRef = member.agent_selector.pinned_revision_ref;
+          if (!lineage.revisions.some((candidate) => equal(candidate.ref, pinnedRevisionRef))) {
+            throw new NativeWorkforceLineageIntegrityError(workforceId, `pinned Agent history is missing for ${member.agent_selector.agent_id}@${pinnedRevisionRef.revision}`);
+          }
+        }
+        if (member.role_ref) {
+          const role = await this.getGovernedRoleRevision(member.role_ref);
+          if (!role) throw new NativeWorkforceLineageIntegrityError(workforceId, `role history is missing for ${member.role_ref.entity_id}@${member.role_ref.revision}`);
+        }
+      }
+    }
+    const current = revisions.at(-1);
+    if (!current || current.ref.fingerprint !== head.rows[0].native_fingerprint || current.lifecycle_status !== definition.current_status) {
+      throw new NativeWorkforceLineageIntegrityError(workforceId, "head projection diverges from immutable history");
+    }
+    return { definition, revisions };
+  }
+
+  async getWorkforceRevision(workforceId: string, revision: number): Promise<WorkforceRevisionV2 | undefined> {
+    requireText(workforceId, "workforceId");
+    if (!Number.isSafeInteger(revision) || revision < 1) {
+      throw new NativeContractValidationError("native workforce revision lookup validation failed", [{ path: "revision", code: "INVALID_INTEGER", message: "revision must be >= 1" }]);
+    }
+    const result = await query<PayloadRow>(this.db, "get native workforce revision", `
+      SELECT payload FROM acs_workforce_revisions WHERE workforce_id = $1 AND revision = $2
+    `, [workforceId, revision]);
+    return result.rows[0] ? validateWorkforceRevisionV2(decode<WorkforceRevisionV2>(result.rows[0].payload)) : undefined;
+  }
+
+  async listWorkforceRevisions(workforceId: string): Promise<readonly WorkforceRevisionV2[]> {
+    requireText(workforceId, "workforceId");
+    const history = await query<PayloadRow>(this.db, "list native workforce history", `
+      SELECT payload FROM acs_workforce_revisions WHERE workforce_id = $1 ORDER BY revision
+    `, [workforceId]);
+    return history.rows.map((row) => validateWorkforceRevisionV2(decode<WorkforceRevisionV2>(row.payload)));
+  }
+
+  async recordGovernedRoleRevision(roleInput: GovernedRoleRevisionV2, expectedHead: number): Promise<GovernedRoleRevisionV2> {
+    const role = validateGovernedRoleRevisionV2(roleInput);
+    if (!Number.isSafeInteger(expectedHead) || expectedHead < 0) {
+      throw new NativeContractValidationError("governed role history validation failed", [{ path: "expectedHead", code: "INVALID_INTEGER", message: "expectedHead must be non-negative" }]);
+    }
+    if (expectedHead === 0) {
+      if (role.supersedes_revision !== undefined) throw new NativeGovernedRoleHistoryError(role.ref.entity_id, "the first durable snapshot cannot claim an unavailable predecessor");
+    } else if (role.ref.revision !== expectedHead + 1 || role.supersedes_revision !== expectedHead) {
+      throw new NativeGovernedRoleHistoryError(role.ref.entity_id, "revision must advance exactly one expected head");
+    }
+    await query(this.db, "lock governed role history", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`governed-role:${role.ref.entity_id}`]);
+    const inserted = await query(this.db, "append governed role revision", `
+      INSERT INTO acs_governed_role_revisions (
+        role_id, revision, native_fingerprint, supersedes_revision, status,
+        payload, created_by, committed_at, change_reason
+      ) SELECT $1, $2, $3, $4, $5, $6::jsonb, $7, to_timestamp($8 / 1000.0), $9
+      WHERE COALESCE((SELECT MAX(revision) FROM acs_governed_role_revisions WHERE role_id = $1), 0) = $10
+      ON CONFLICT DO NOTHING
+      RETURNING role_id
+    `, [
+      role.ref.entity_id,
+      role.ref.revision,
+      role.ref.fingerprint,
+      role.supersedes_revision ?? null,
+      role.status,
+      serialize(role),
+      role.commit.created_by,
+      role.commit.committed_at,
+      role.commit.change_reason,
+      expectedHead,
+    ]);
+    if ((inserted.rowCount ?? 0) !== 1) {
+      const head = await query<{ readonly revision: string | number } & QueryResultRow>(this.db, "read governed role head", "SELECT COALESCE(MAX(revision), 0) AS revision FROM acs_governed_role_revisions WHERE role_id = $1", [role.ref.entity_id]);
+      throw new RevisionConflictError(`governed-role:${role.ref.entity_id}`, expectedHead, Number(head.rows[0]?.revision ?? 0));
+    }
+    return role;
+  }
+
+  async getGovernedRoleRevision(roleRef: WorkforceRevisionV2["members"][number]["role_ref"]): Promise<GovernedRoleRevisionV2 | undefined> {
+    if (!roleRef) return undefined;
+    const ref = validateRevisionRef(roleRef, "roleRef");
+    if (ref.entity_kind !== "resource") throw new NativeGovernedRoleHistoryError(ref.entity_id, "role reference must identify a resource revision");
+    const result = await query<PayloadRow>(this.db, "get governed role revision", `
+      SELECT payload FROM acs_governed_role_revisions
+      WHERE role_id = $1 AND revision = $2 AND native_fingerprint = $3
+    `, [ref.entity_id, ref.revision, ref.fingerprint]);
+    return result.rows[0] ? validateGovernedRoleRevisionV2(decode<GovernedRoleRevisionV2>(result.rows[0].payload)) : undefined;
+  }
+
+  private async getGovernedRoleHead(roleId: string): Promise<GovernedRoleRevisionV2 | undefined> {
+    const result = await query<PayloadRow>(this.db, "get governed role head", `
+      SELECT payload FROM acs_governed_role_revisions
+      WHERE role_id = $1 ORDER BY revision DESC LIMIT 1
+    `, [roleId]);
+    return result.rows[0] ? validateGovernedRoleRevisionV2(decode<GovernedRoleRevisionV2>(result.rows[0].payload)) : undefined;
   }
 
   async getEvent(eventId: string): Promise<NativeDurableEvent | undefined> {
@@ -626,6 +1010,135 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     return result.rows.map((row) => validateCostRecordV2(decode<{ readonly payload: CostRecordV2 }>(row.payload).payload));
   }
 
+  async admitWorkforceRun(input: WorkforceRunAdmissionRequest): Promise<WorkforceRunAdmissionResult> {
+    validateWorkforceRunAdmissionRequest(input);
+    const requestHash = sha256Hex(stableStringify({
+      workforce_id: input.workforce_id,
+      workforce_revision: input.workforce_revision,
+      run: input.run,
+      authority_decision_ref: input.authority_decision_ref,
+      admitted_at: input.admitted_at,
+    }));
+    const idempotency = { ...input.idempotency, request_hash: requestHash };
+    return this.idempotent(idempotency, "native.workforce.run.admit", async () => {
+      await query(this.db, "lock Workforce head for Run admission", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`native-workforce:${input.workforce_id}`]);
+      const headResult = await query<HeadRow>(this.db, "read Workforce head for Run admission", `
+        SELECT current_revision AS revision, native_fingerprint, payload
+        FROM acs_workforces WHERE workforce_id = $1 FOR SHARE
+      `, [input.workforce_id]);
+      const head = headResult.rows[0];
+      if (!head) throw new NativeWorkforceNotFoundError(input.workforce_id);
+      const headDefinition = validateWorkforceDefinitionV2(decode<WorkforceDefinitionV2>(head.payload));
+      const selectedRevision = input.workforce_revision ?? Number(head.revision);
+      if (selectedRevision !== Number(head.revision)) {
+        throw new NativeRunAdmissionError(input.run.run_id, "operational admission must bind the active current Workforce revision");
+      }
+      if (headDefinition.current_status !== "active") {
+        throw new NativeRunAdmissionError(input.run.run_id, `Workforce revision is ${headDefinition.current_status}, not active`);
+      }
+      const workforceRevision = await this.getWorkforceRevision(input.workforce_id, selectedRevision);
+      if (!workforceRevision) throw new NativeRunAdmissionError(input.run.run_id, "selected Workforce revision was not found");
+      const snapshotId = `workforce_run_membership_${input.run.run_id}`;
+      const run: RunV2 = validateRunV2({
+        schema_version: ACS_NATIVE_SCHEMA_VERSION,
+        run_id: input.run.run_id,
+        kind: "workforce",
+        scope: input.run.scope,
+        definition_refs: { workforce_revision_ref: workforceRevision.ref },
+        status: "created",
+        idempotency: input.run.idempotency,
+        execution_binding_refs: input.run.execution_binding_refs,
+        ...(input.run.checkpoint_ref ? { checkpoint_ref: input.run.checkpoint_ref } : {}),
+        ...(input.run.lease_ref ? { lease_ref: input.run.lease_ref } : {}),
+        ...(input.run.fencing_token ? { fencing_token: input.run.fencing_token } : {}),
+        created_at: input.run.created_at,
+      });
+      const members: WorkforceRunMembershipV2[] = [];
+      for (const member of workforceRevision.members) {
+        const selector = member.agent_selector;
+        const lineage = await this.getAgentLineage(member.agent_selector.agent_id);
+        if (lineage.definition.status === "archived" || lineage.definition.status === "disabled") {
+          throw new NativeRunAdmissionError(input.run.run_id, `Agent ${member.agent_selector.agent_id} is ${lineage.definition.status}`);
+        }
+        const resolved = selector.mode === "pinned"
+          ? lineage.revisions.find((revision) => revision.ref.revision === selector.pinned_revision_ref.revision
+            && revision.ref.fingerprint === selector.pinned_revision_ref.fingerprint)
+          : lineage.revisions.at(-1);
+        if (!resolved) throw new NativeRunAdmissionError(input.run.run_id, `Agent revision is unavailable for ${member.agent_selector.agent_id}`);
+        if (member.role_ref && !await this.getGovernedRoleRevision(member.role_ref)) {
+          throw new NativeRunAdmissionError(input.run.run_id, `governed role revision is unavailable for ${member.role_ref.entity_id}@${member.role_ref.revision}`);
+        }
+        members.push(createWorkforceRunMembershipV2({
+          snapshot_id: snapshotId,
+          run_id: input.run.run_id,
+          workforce_revision_ref: workforceRevision.ref,
+          slot_id: member.slot_id,
+          resolved_agent_revision_ref: resolved.ref,
+          agent_id: member.agent_selector.agent_id,
+          ...(member.role_ref ? { role_ref: member.role_ref } : {}),
+          resolution_mode: member.agent_selector.mode,
+          resolved_at: input.admitted_at,
+          ...(input.authority_decision_ref ? { authority_decision_ref: input.authority_decision_ref } : {}),
+        }));
+      }
+      await query(this.db, "persist admitted native Run", `
+        INSERT INTO acs_native_runs (run_id, workforce_id, workforce_revision, payload, created_at)
+        VALUES ($1, $2, $3, $4::jsonb, to_timestamp($5 / 1000.0))
+      `, [input.run.run_id, input.workforce_id, selectedRevision, serialize(run), input.admitted_at]);
+      await query(this.db, "persist Workforce Run membership snapshot", `
+        INSERT INTO acs_workforce_run_membership_snapshots (snapshot_id, run_id, workforce_id, workforce_revision, admitted_at, member_count)
+        VALUES ($1, $2, $3, $4, to_timestamp($5 / 1000.0), $6)
+      `, [snapshotId, input.run.run_id, input.workforce_id, selectedRevision, input.admitted_at, members.length]);
+      for (const member of members) {
+        await query(this.db, "persist Workforce Run membership member", `
+          INSERT INTO acs_workforce_run_membership_members (
+            snapshot_id, slot_id, payload
+          ) VALUES ($1, $2, $3::jsonb)
+        `, [snapshotId, member.slot_id, serialize(member)]);
+      }
+      const event = validateEventEnvelopeV2({
+        schema_version: ACS_NATIVE_SCHEMA_VERSION,
+        event_id: `event_workforce_run_admitted_${input.run.run_id}`,
+        event_type: "workforce.run.admitted",
+        timestamp: input.admitted_at,
+        sequence: 1,
+        organization_id: input.run.scope.organization_id,
+        product_domain: input.run.scope.product_domain,
+        ...(input.run.scope.tenant_id ? { tenant_id: input.run.scope.tenant_id } : {}),
+        run_id: input.run.run_id,
+        workforce_id: input.workforce_id,
+        actor: { kind: "service", ref: "acs:workforce-admission" },
+        source: "acs",
+        correlation_id: input.idempotency.key,
+        idempotency_key: input.idempotency.key,
+        payload: {
+          workforce_revision: selectedRevision,
+          workforce_revision_fingerprint: workforceRevision.ref.fingerprint,
+          snapshot_id: snapshotId,
+          member_count: members.length,
+        },
+      });
+      const durableEvent = await this.appendEvent(event);
+      await this.insertOutbox(durableEvent.event.event_id, `outbox_workforce_run_admitted_${input.run.run_id}`);
+      return { run, snapshot_id: snapshotId, members, event_id: durableEvent.event.event_id };
+    });
+  }
+
+  async getRun(runId: string): Promise<RunV2 | undefined> {
+    const result = await query<PayloadRow>(this.db, "get native Run", "SELECT payload FROM acs_native_runs WHERE run_id = $1", [runId]);
+    return result.rows[0] ? validateRunV2(decode<RunV2>(result.rows[0].payload)) : undefined;
+  }
+
+  async getRunMembership(runId: string): Promise<readonly WorkforceRunMembershipV2[]> {
+    const result = await query<PayloadRow>(this.db, "get Workforce Run membership snapshot", `
+      SELECT member.payload
+      FROM acs_workforce_run_membership_members member
+      JOIN acs_workforce_run_membership_snapshots snapshot ON snapshot.snapshot_id = member.snapshot_id
+      WHERE snapshot.run_id = $1 ORDER BY member.slot_id
+    `, [runId]);
+    return result.rows.map((row) => validateWorkforceRunMembershipV2(decode<WorkforceRunMembershipV2>(row.payload)));
+  }
+
   private async idempotent<T>(idempotency: Idempotency, operation: string, fn: () => Promise<T>): Promise<T> {
     await query(this.db, "lock native idempotency", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`${idempotency.scope}:${idempotency.key}`]);
     const existing = await query<IdempotencyRow>(this.db, "read native idempotency", `
@@ -669,17 +1182,17 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     await query(this.db, "append canonical native event", `
       INSERT INTO acs_native_events (
         event_id, stream_scope, sequence, event_type, schema_version, occurred_at,
-        organization_id, product_domain, tenant_id, agent_id, run_id, task_id, attempt,
+        organization_id, product_domain, tenant_id, agent_id, workforce_id, run_id, task_id, attempt,
         correlation_id, causation_id, idempotency_key, actor, source, payload
       ) VALUES (
         $1, $2, $3, $4, $5, to_timestamp($6 / 1000.0),
-        $7, $8, $9, $10, $11, $12, $13,
-        $14, $15, $16, $17::jsonb, $18, $19::jsonb
+        $7, $8, $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18::jsonb, $19, $20::jsonb
       )
     `, [
       event.event_id, scope, event.sequence, event.event_type, event.schema_version, event.timestamp,
       event.organization_id, event.product_domain, event.tenant_id ?? null, event.agent_id ?? null,
-      event.run_id ?? null, event.task_id ?? null, event.attempt ?? null, event.correlation_id,
+      event.workforce_id ?? null, event.run_id ?? null, event.task_id ?? null, event.attempt ?? null, event.correlation_id,
       event.causation_id ?? null, event.idempotency_key ?? null, serialize(event.actor), event.source,
       serialize(event),
     ]);
@@ -734,5 +1247,57 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     if ((inserted.rowCount ?? 0) === 1) return;
     const existing = await query<PayloadRow>(this.db, "read native accounting record", "SELECT payload FROM acs_economic_records WHERE kind = $1 AND record_id = $2", [kind, recordId]);
     if (!existing.rows[0] || !equal(decode(existing.rows[0].payload), record)) throw new NativeIdempotencyConflictError(`accounting:${kind}`, recordId);
+  }
+
+  private assertLifecycleTransition(
+    from: WorkforceDefinitionV2["current_status"],
+    to: WorkforceDefinitionV2["current_status"],
+    eventType: string,
+  ): void {
+    if (from === "archived") throw new NativeWorkforceReferenceError("lifecycle", from, "archived Workforces cannot receive successors");
+    const transition = `${from}->${to}`;
+    const lifecycleTransitions = new Set(["draft->active", "disabled->active", "active->disabled", "draft->archived", "active->archived", "disabled->archived"]);
+    if (from === to) {
+      if (eventType !== "workforce.revision.created") throw new NativeWorkforceReferenceError("lifecycle", transition, "composition-only successors require workforce.revision.created");
+      return;
+    }
+    if (!lifecycleTransitions.has(transition)) throw new NativeWorkforceReferenceError("lifecycle", transition, "unsupported Workforce lifecycle transition");
+    if (eventType !== "workforce.lifecycle.changed") throw new NativeWorkforceReferenceError("lifecycle", transition, "lifecycle successors require workforce.lifecycle.changed");
+  }
+
+  private async assertWorkforceReferences(definition: WorkforceDefinitionV2, revision: WorkforceRevisionV2): Promise<void> {
+    for (const member of revision.members) {
+      const lineage = await this.getAgentLineage(member.agent_selector.agent_id).catch((error: unknown) => {
+        if (error instanceof NativeLineageIntegrityError) {
+          throw new NativeWorkforceReferenceError(definition.workforce_id, member.agent_selector.agent_id, "referenced Agent revision lineage is unavailable", { cause: error });
+        }
+        throw error;
+      });
+      if (lineage.definition.scope.organization_id !== definition.scope.organization_id
+        || lineage.definition.scope.product_domain !== definition.scope.product_domain
+        || lineage.definition.scope.tenant_id !== definition.scope.tenant_id) {
+        throw new NativeWorkforceReferenceError(definition.workforce_id, member.agent_selector.agent_id, "Agent scope is not eligible and no explicit sharing path was supplied");
+      }
+      if (lineage.definition.status === "archived" || lineage.definition.status === "disabled") {
+        throw new NativeWorkforceReferenceError(definition.workforce_id, member.agent_selector.agent_id, `Agent status ${lineage.definition.status} is not eligible for new Workforce membership`);
+      }
+      if (member.agent_selector.mode === "pinned") {
+        const pinnedRevisionRef = member.agent_selector.pinned_revision_ref;
+        const matched = lineage.revisions.find((candidate) => equal(candidate.ref, pinnedRevisionRef));
+        if (!matched) throw new NativeWorkforceReferenceError(definition.workforce_id, member.agent_selector.agent_id, "pinned Agent revision does not exist with the requested fingerprint");
+      }
+      if (member.role_ref) {
+        await query(this.db, "share lock governed role history", "SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))", [`governed-role:${member.role_ref.entity_id}`]);
+        const role = await this.getGovernedRoleRevision(member.role_ref);
+        if (!role) throw new NativeWorkforceReferenceError(definition.workforce_id, member.role_ref.entity_id, "exact governed role revision is unavailable");
+        if (role.status === "deprecated") {
+          throw new NativeWorkforceReferenceError(definition.workforce_id, member.role_ref.entity_id, "referenced governed role revision is deprecated and cannot be used for a new Workforce revision");
+        }
+        const currentRole = await this.getGovernedRoleHead(member.role_ref.entity_id);
+        if (!currentRole || currentRole.status === "deprecated") {
+          throw new NativeWorkforceReferenceError(definition.workforce_id, member.role_ref.entity_id, `governed role is ${currentRole?.status ?? "unavailable"} and cannot be used for a new Workforce revision`);
+        }
+      }
+    }
   }
 }

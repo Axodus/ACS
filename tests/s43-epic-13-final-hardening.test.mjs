@@ -69,9 +69,10 @@ for (const projection of projections) {
 
 test("S09 acceptance surface and pre-closure evidence remain present without a closure claim", () => {
   const app = readFileSync(resolve(root, ".design/app-standalone/src/App.tsx"), "utf8");
+  const economics = readFileSync(resolve(root, ".design/app-standalone/src/domains/economics/Economics.tsx"), "utf8");
   const inventory = readFileSync(resolve(root, "docs/epics/epic-13/final-hardening-inventory.md"), "utf8");
   assert.match(app, /path="\/system\/billing-acceptance"/);
-  assert.match(app, /No financial actions/);
+  assert.match(economics, /No financial actions/);
   assert.match(inventory, /EPIC-13 Closed: NO \/ pending S11/);
   assert.match(inventory, /Production Financial Operations: NO \/ not yet claimed/);
 });

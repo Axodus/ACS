@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { Pool } from "pg";
 
 const distRoot = process.env.ACS_TEST_DIST_ROOT ?? "../dist";
 const {
@@ -127,13 +128,18 @@ async function createRuntimeClaim(state, suffix, at) {
 
 test("VAL-01 PostgreSQL durable acceptance", { skip: process.env.ACS_SH_DATABASE_URL ? false : "ACS_SH_DATABASE_URL is not configured" }, async () => {
   const suffix = `${Date.now()}-${process.pid}`;
-  const url = process.env.ACS_SH_DATABASE_URL;
+  const schema = `val01_${Date.now()}_${process.pid}`;
+  const admin = new Pool({ connectionString: process.env.ACS_SH_DATABASE_URL });
+  const isolatedUrl = new URL(process.env.ACS_SH_DATABASE_URL);
+  isolatedUrl.searchParams.set("options", `-c search_path=${schema}`);
+  const url = isolatedUrl.toString();
+  await admin.query(`CREATE SCHEMA "${schema}"`);
   let state = new PostgresSharedAuthoritativeState({ connectionString: url });
   let second = new PostgresSharedAuthoritativeState({ connectionString: url });
   try {
     assert.equal(await state.migrate(), SHARED_STATE_SCHEMA_VERSION);
     assert.equal(await second.migrate(), SHARED_STATE_SCHEMA_VERSION);
-    assert.equal(await state.schemaVersion(), 3);
+    assert.equal(await state.schemaVersion(), SHARED_STATE_SCHEMA_VERSION);
 
     const rolledBackAgentId = `agent-rollback-${suffix}`;
     const rolledBack = lineageCommand({ agentId: rolledBackAgentId, revision: 1, expectedHead: 0, suffix: `rollback-${suffix}` });
@@ -258,5 +264,7 @@ test("VAL-01 PostgreSQL durable acceptance", { skip: process.env.ACS_SH_DATABASE
     );
   } finally {
     await Promise.all([state.close(), second.close()]);
+    await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+    await admin.end();
   }
 });

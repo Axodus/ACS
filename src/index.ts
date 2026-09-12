@@ -162,3 +162,5 @@ export * from "./control-plane/epic-11-acceptance.js";
 export * from "./control-plane/product-api-client.js";
 
 export * from "./native-core/index.js";
+
+export * from "./control-plane/governed-role-history.js";
