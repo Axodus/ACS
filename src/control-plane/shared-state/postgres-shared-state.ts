@@ -1495,6 +1495,16 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       ),
       getRun: (runId) => session.nativeCore.getRun(runId),
       getRunMembership: (runId) => session.nativeCore.getRunMembership(runId),
+      recordCoordinationProposal: (input) => this.withTransaction(
+        "record coordination proposal",
+        (tx) => tx.nativeCore.recordCoordinationProposal(input),
+      ),
+      recordCoordinationDecision: (input) => this.withTransaction(
+        "record coordination decision",
+        (tx) => tx.nativeCore.recordCoordinationDecision(input),
+      ),
+      getCurrentTaskAssignment: (runId, taskId) => session.nativeCore.getCurrentTaskAssignment(runId, taskId),
+      listTaskAssignments: (runId, taskId) => session.nativeCore.listTaskAssignments(runId, taskId),
     };
   }
 

@@ -40,7 +40,15 @@ import {
   type WorkforceRunAdmissionResult,
   type WorkforceRunMembershipV2,
 } from "../../native-core/workforce-run-membership.js";
-import { validateRunV2, type RunV2 } from "../../native-core/runtime.js";
+import {
+  validateCoordinationDecisionV2,
+  validateCoordinationProposalV2,
+  validateTaskAssignmentV2,
+  type CoordinationDecisionV2,
+  type CoordinationProposalV2,
+  type TaskAssignmentV2,
+} from "../../native-core/coordination.js";
+import { validateRunV2, validateTaskV2, type RunV2, type TaskV2 } from "../../native-core/runtime.js";
 import {
   validateEvidenceRecordV2,
   type EvidenceRecordV2,
@@ -172,6 +180,36 @@ export interface NativeAccountingCommandResult {
   readonly outbox: NativeOutboxRecord;
 }
 
+export interface CoordinationProposalCommand {
+  readonly proposal: CoordinationProposalV2;
+  readonly task: TaskV2;
+  readonly event: EventEnvelopeV2;
+  readonly outboxId?: string;
+  readonly deliveryKind?: string;
+}
+
+export interface CoordinationProposalCommandResult {
+  readonly proposal: CoordinationProposalV2;
+  readonly event: NativeDurableEvent;
+  readonly outbox: NativeOutboxRecord;
+}
+
+export interface CoordinationDecisionCommand {
+  readonly decision: CoordinationDecisionV2;
+  readonly task: TaskV2;
+  readonly proposal?: CoordinationProposalV2;
+  readonly event: EventEnvelopeV2;
+  readonly outboxId?: string;
+  readonly deliveryKind?: string;
+}
+
+export interface CoordinationDecisionCommandResult {
+  readonly decision: CoordinationDecisionV2;
+  readonly assignment?: TaskAssignmentV2;
+  readonly event: NativeDurableEvent;
+  readonly outbox: NativeOutboxRecord;
+}
+
 export interface AsyncNativeCoreRepository {
   advanceAgentLineage(input: NativeAgentLineageCommand): Promise<NativeAgentLineageCommandResult>;
   getAgentLineage(agentId: string): Promise<NativeAgentLineage>;
@@ -197,6 +235,10 @@ export interface AsyncNativeCoreRepository {
   admitWorkforceRun(input: WorkforceRunAdmissionRequest): Promise<WorkforceRunAdmissionResult>;
   getRun(runId: string): Promise<RunV2 | undefined>;
   getRunMembership(runId: string): Promise<readonly WorkforceRunMembershipV2[]>;
+  recordCoordinationProposal(input: CoordinationProposalCommand): Promise<CoordinationProposalCommandResult>;
+  recordCoordinationDecision(input: CoordinationDecisionCommand): Promise<CoordinationDecisionCommandResult>;
+  getCurrentTaskAssignment(runId: string, taskId: string): Promise<TaskAssignmentV2 | undefined>;
+  listTaskAssignments(runId: string, taskId: string): Promise<readonly TaskAssignmentV2[]>;
 }
 
 export class NativeIdempotencyConflictError extends Error {
@@ -252,6 +294,22 @@ export class NativeRunNotFoundError extends Error {
   constructor(readonly runId: string) {
     super(`native Run was not found: ${runId}`);
     this.name = "NativeRunNotFoundError";
+  }
+}
+
+export class NativeCoordinationConflictError extends Error {
+  readonly code = "ACS_NATIVE_COORDINATION_CONFLICT";
+  constructor(readonly runId: string, readonly taskId: string, detail: string) {
+    super(`native coordination conflict for ${runId}/${taskId}: ${detail}`);
+    this.name = "NativeCoordinationConflictError";
+  }
+}
+
+export class NativeMemberSlotNotFoundError extends Error {
+  readonly code = "ACS_NATIVE_MEMBER_SLOT_NOT_FOUND";
+  constructor(readonly runId: string, readonly slotId: string) {
+    super(`admitted Workforce member slot was not found: ${runId}/${slotId}`);
+    this.name = "NativeMemberSlotNotFoundError";
   }
 }
 
@@ -336,6 +394,8 @@ async function query<R extends QueryResultRow = QueryResultRow>(
       || error instanceof NativeGovernedRoleHistoryError
       || error instanceof NativeFencingError
       || error instanceof NativeOutboxLeaseError
+      || error instanceof NativeCoordinationConflictError
+      || error instanceof NativeMemberSlotNotFoundError
       || error instanceof RevisionConflictError
       || error instanceof NativeContractValidationError) throw error;
     throw new TransactionFailedError(operation, { cause: error });
@@ -1137,6 +1197,104 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       WHERE snapshot.run_id = $1 ORDER BY member.slot_id
     `, [runId]);
     return result.rows.map((row) => validateWorkforceRunMembershipV2(decode<WorkforceRunMembershipV2>(row.payload)));
+  }
+
+  async recordCoordinationProposal(input: CoordinationProposalCommand): Promise<CoordinationProposalCommandResult> {
+    const proposal = validateCoordinationProposalV2(input.proposal);
+    const task = validateTaskV2(input.task);
+    const event = validateEventEnvelopeV2(input.event);
+    if (proposal.run_id !== task.run_id || proposal.task_id !== task.task_run_id) throw new NativeCoordinationConflictError(proposal.run_id, proposal.task_id, "proposal and Task ownership do not match");
+    if (event.run_id !== proposal.run_id || event.task_id !== proposal.task_id || event.idempotency_key !== proposal.idempotency.key) throw new NativeCoordinationConflictError(proposal.run_id, proposal.task_id, "proposal event does not match the command");
+    validateIdempotency(proposal.idempotency);
+    return this.idempotent(proposal.idempotency, "native.coordination.proposal.record", async () => {
+      const run = await this.getRun(proposal.run_id);
+      if (!run) throw new NativeRunNotFoundError(proposal.run_id);
+      const member = (await this.getRunMembership(proposal.run_id)).find((candidate) => candidate.slot_id === proposal.target_member_slot_id);
+      if (!member) throw new NativeMemberSlotNotFoundError(proposal.run_id, proposal.target_member_slot_id);
+      await query(this.db, "persist coordination proposal", `
+        INSERT INTO acs_coordination_proposals (proposal_id, run_id, task_id, payload, created_at)
+        VALUES ($1, $2, $3, $4::jsonb, to_timestamp($5 / 1000.0))
+        ON CONFLICT (proposal_id) DO NOTHING
+      `, [proposal.proposal_id, proposal.run_id, proposal.task_id, serialize(proposal), proposal.created_at]);
+      const durableEvent = await this.appendEvent(event);
+      const outbox = await this.insertOutbox(durableEvent.event.event_id, input.outboxId, input.deliveryKind, event.timestamp);
+      return { proposal, event: durableEvent, outbox };
+    });
+  }
+
+  async recordCoordinationDecision(input: CoordinationDecisionCommand): Promise<CoordinationDecisionCommandResult> {
+    const decision = validateCoordinationDecisionV2(input.decision);
+    const task = validateTaskV2(input.task);
+    const proposal = input.proposal ? validateCoordinationProposalV2(input.proposal) : undefined;
+    const event = validateEventEnvelopeV2(input.event);
+    if (decision.run_id !== task.run_id || decision.task_id !== task.task_run_id) throw new NativeCoordinationConflictError(decision.run_id, decision.task_id, "decision and Task ownership do not match");
+    if (decision.proposal_id && (!proposal || decision.proposal_id !== proposal.proposal_id)) throw new NativeCoordinationConflictError(decision.run_id, decision.task_id, "decision proposal does not match the supplied proposal");
+    if (proposal && (proposal.run_id !== decision.run_id || proposal.task_id !== decision.task_id)) throw new NativeCoordinationConflictError(decision.run_id, decision.task_id, "proposal and decision ownership do not match");
+    if (event.run_id !== decision.run_id || event.task_id !== decision.task_id || event.idempotency_key !== decision.idempotency.key) throw new NativeCoordinationConflictError(decision.run_id, decision.task_id, "decision event does not match the command");
+    return this.idempotent(decision.idempotency, "native.coordination.decision.record", async () => {
+      const run = await this.getRun(decision.run_id);
+      if (!run) throw new NativeRunNotFoundError(decision.run_id);
+      if (proposal) {
+        const persisted = await query<PayloadRow>(this.db, "read selected coordination proposal", "SELECT payload FROM acs_coordination_proposals WHERE proposal_id = $1 AND run_id = $2 AND task_id = $3", [proposal.proposal_id, decision.run_id, decision.task_id]);
+        if (!persisted.rows[0]) throw new NativeCoordinationConflictError(decision.run_id, decision.task_id, "selected proposal is not durably recorded");
+      }
+      await query(this.db, "lock task coordination head", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`task-coordination:${decision.run_id}:${decision.task_id}`]);
+      const membership = await this.getRunMembership(decision.run_id);
+      const current = await this.getCurrentTaskAssignment(decision.run_id, decision.task_id);
+      const expected = decision.expected_assignment_id;
+      if (expected !== undefined && current?.assignment_id !== expected) throw new NativeCoordinationConflictError(decision.run_id, decision.task_id, "expected assignment is stale");
+      if (decision.status === "accepted") {
+        if (!decision.selected_member_slot_id) throw new NativeCoordinationConflictError(decision.run_id, decision.task_id, "accepted decision requires a member slot");
+        const member = membership.find((candidate) => candidate.slot_id === decision.selected_member_slot_id);
+        if (!member) throw new NativeMemberSlotNotFoundError(decision.run_id, decision.selected_member_slot_id);
+        if (decision.prior_assignment_id !== undefined && current?.assignment_id !== decision.prior_assignment_id) throw new NativeCoordinationConflictError(decision.run_id, decision.task_id, "prior assignment is stale");
+      }
+      await query(this.db, "persist coordination decision", `
+        INSERT INTO acs_coordination_decisions (decision_id, run_id, task_id, proposal_id, status, payload, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6::jsonb, to_timestamp($7 / 1000.0))
+      `, [decision.decision_id, decision.run_id, decision.task_id, decision.proposal_id ?? null, decision.status, serialize(decision), decision.decided_at]);
+      let assignment: TaskAssignmentV2 | undefined;
+      if (decision.status === "accepted") {
+        const member = membership.find((candidate) => candidate.slot_id === decision.selected_member_slot_id)!;
+        const generation = (current?.generation ?? 0) + 1;
+        assignment = validateTaskAssignmentV2({
+          schema_version: ACS_NATIVE_SCHEMA_VERSION,
+          assignment_id: `assignment_${decision.decision_id}`,
+          run_id: decision.run_id,
+          task_id: decision.task_id,
+          member_slot_id: member.slot_id,
+          workforce_revision_ref: member.workforce_revision_ref,
+          resolved_agent_revision_ref: member.resolved_agent_revision_ref,
+          agent_id: member.agent_id,
+          decision_id: decision.decision_id,
+          generation,
+          created_at: decision.decided_at,
+          ...(current ? { supersedes_assignment_id: current.assignment_id } : {}),
+          provenance: { source: decision.source, authority_ref: decision.authority_ref, reason: decision.reason, ...(proposal ? { proposal_id: proposal.proposal_id } : {}) },
+        });
+        await query(this.db, "persist task assignment", `
+          INSERT INTO acs_task_assignments (assignment_id, run_id, task_id, member_slot_id, decision_id, generation, supersedes_assignment_id, payload, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, to_timestamp($9 / 1000.0))
+        `, [assignment.assignment_id, assignment.run_id, assignment.task_id, assignment.member_slot_id, assignment.decision_id, assignment.generation, assignment.supersedes_assignment_id ?? null, serialize(assignment), assignment.created_at]);
+      }
+      const durableEvent = await this.appendEvent(event);
+      const outbox = await this.insertOutbox(durableEvent.event.event_id, input.outboxId, input.deliveryKind, event.timestamp);
+      return { decision, ...(assignment ? { assignment } : {}), event: durableEvent, outbox };
+    });
+  }
+
+  async getCurrentTaskAssignment(runId: string, taskId: string): Promise<TaskAssignmentV2 | undefined> {
+    const result = await query<PayloadRow>(this.db, "get current task assignment", `
+      SELECT payload FROM acs_task_assignments WHERE run_id = $1 AND task_id = $2 ORDER BY generation DESC LIMIT 1
+    `, [runId, taskId]);
+    return result.rows[0] ? validateTaskAssignmentV2(decode<TaskAssignmentV2>(result.rows[0].payload)) : undefined;
+  }
+
+  async listTaskAssignments(runId: string, taskId: string): Promise<readonly TaskAssignmentV2[]> {
+    const result = await query<PayloadRow>(this.db, "list task assignment history", `
+      SELECT payload FROM acs_task_assignments WHERE run_id = $1 AND task_id = $2 ORDER BY generation
+    `, [runId, taskId]);
+    return result.rows.map((row) => validateTaskAssignmentV2(decode<TaskAssignmentV2>(row.payload)));
   }
 
   private async idempotent<T>(idempotency: Idempotency, operation: string, fn: () => Promise<T>): Promise<T> {

@@ -47,7 +47,7 @@ test("IMP-03B rejects unresolved or malformed snapshot semantics", () => {
 });
 
 test("IMP-03B migration adds immutable Run binding and snapshot tables", () => {
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 5);
+  assert.equal(SHARED_STATE_SCHEMA_VERSION, 6);
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 5);
   assert.ok(migration);
   const schema = migration.statements.join("\n");
@@ -55,6 +55,13 @@ test("IMP-03B migration adds immutable Run binding and snapshot tables", () => {
     assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
   }
   assert.doesNotMatch(schema, /DROP TABLE|DELETE FROM|TRUNCATE/i);
+  const coordination = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 6);
+  assert.ok(coordination);
+  const coordinationSchema = coordination.statements.join("\n");
+  for (const table of ["acs_coordination_proposals", "acs_coordination_decisions", "acs_task_assignments"]) {
+    assert.match(coordinationSchema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+  }
+  assert.doesNotMatch(coordinationSchema, /DROP TABLE|DELETE FROM|TRUNCATE/i);
 });
 
 test("IMP-03B implementation has no external runtime dependency", async () => {

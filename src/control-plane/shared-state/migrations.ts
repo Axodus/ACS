@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 5;
+export const SHARED_STATE_SCHEMA_VERSION = 6;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -446,6 +446,46 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
         payload JSONB NOT NULL,
         PRIMARY KEY (snapshot_id, slot_id)
       )`,
+    ],
+  },
+  {
+    version: 6,
+    name: "coordination_proposals_decisions_and_assignments",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_coordination_proposals (
+        proposal_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES acs_native_runs(run_id),
+        task_id TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (run_id, proposal_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_coordination_proposals_task_idx ON acs_coordination_proposals (run_id, task_id, created_at)`,
+      `CREATE TABLE IF NOT EXISTS acs_coordination_decisions (
+        decision_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES acs_native_runs(run_id),
+        task_id TEXT NOT NULL,
+        proposal_id TEXT REFERENCES acs_coordination_proposals(proposal_id),
+        status TEXT NOT NULL CHECK (status IN ('accepted', 'rejected', 'approval_required')),
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (run_id, decision_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_coordination_decisions_task_idx ON acs_coordination_decisions (run_id, task_id, created_at)`,
+      `CREATE TABLE IF NOT EXISTS acs_task_assignments (
+        assignment_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES acs_native_runs(run_id),
+        task_id TEXT NOT NULL,
+        member_slot_id TEXT NOT NULL,
+        decision_id TEXT NOT NULL REFERENCES acs_coordination_decisions(decision_id),
+        generation INTEGER NOT NULL CHECK (generation > 0),
+        supersedes_assignment_id TEXT REFERENCES acs_task_assignments(assignment_id),
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (run_id, task_id, generation),
+        UNIQUE (run_id, task_id, decision_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_task_assignments_current_idx ON acs_task_assignments (run_id, task_id, generation DESC)`,
     ],
   },
 ];
