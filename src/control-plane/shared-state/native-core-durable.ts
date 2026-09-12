@@ -158,6 +158,12 @@ export interface NativeWorkforceLineageCommandResult {
   readonly outbox: NativeOutboxRecord;
 }
 
+export interface NativeWorkforceRunSummary {
+  readonly run: RunV2;
+  readonly membership_snapshot_id?: string;
+  readonly admitted_at?: number;
+}
+
 export interface NativeFencedCheckpointCommand {
   readonly ownership: RuntimeOwnershipInput;
   readonly checkpoint: CheckpointV2;
@@ -244,6 +250,7 @@ export interface AsyncNativeCoreRepository {
   listCosts(usageId?: string): Promise<readonly CostRecordV2[]>;
   admitWorkforceRun(input: WorkforceRunAdmissionRequest): Promise<WorkforceRunAdmissionResult>;
   getRun(runId: string): Promise<RunV2 | undefined>;
+  listWorkforceRuns(workforceId: string): Promise<readonly NativeWorkforceRunSummary[]>;
   getRunMembership(runId: string): Promise<readonly WorkforceRunMembershipV2[]>;
   listCoordinationProposals(runId: string, taskId?: string): Promise<readonly CoordinationProposalV2[]>;
   listCoordinationDecisions(runId: string, taskId?: string): Promise<readonly CoordinationDecisionV2[]>;
@@ -1229,6 +1236,39 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
   async getRun(runId: string): Promise<RunV2 | undefined> {
     const result = await query<PayloadRow>(this.db, "get native Run", "SELECT payload FROM acs_native_runs WHERE run_id = $1", [runId]);
     return result.rows[0] ? validateRunV2(decode<RunV2>(result.rows[0].payload)) : undefined;
+  }
+
+  async listWorkforceRuns(workforceId: string): Promise<readonly NativeWorkforceRunSummary[]> {
+    requireText(workforceId, "workforceId");
+    const result = await query<{
+      payload: unknown;
+      snapshot_id: string | null;
+      admitted_at: unknown;
+      run_created_at: unknown;
+    }>(this.db, "list native Workforce Runs", `
+      SELECT
+        run.payload,
+        snapshot.snapshot_id,
+        snapshot.admitted_at,
+        run.created_at AS run_created_at
+      FROM acs_native_runs run
+      LEFT JOIN acs_workforce_run_membership_snapshots snapshot ON snapshot.run_id = run.run_id
+      WHERE run.workforce_id = $1
+      ORDER BY run.created_at ASC, run.run_id ASC
+    `, [workforceId]);
+    return result.rows.map((row) => {
+      const run = validateRunV2(decode<RunV2>(row.payload));
+      const admittedRef = run.definition_refs.workforce_revision_ref;
+      if (!admittedRef || admittedRef.entity_id !== workforceId) {
+        throw new NativeWorkforceLineageIntegrityError(workforceId, `Run ${run.run_id} does not preserve its canonical Workforce admission reference`);
+      }
+      const admittedAt = asMillis(row.admitted_at) ?? asMillis(row.run_created_at);
+      return {
+        run,
+        ...(row.snapshot_id ? { membership_snapshot_id: row.snapshot_id } : {}),
+        ...(admittedAt !== undefined ? { admitted_at: admittedAt } : {}),
+      };
+    });
   }
 
   async getRunMembership(runId: string): Promise<readonly WorkforceRunMembershipV2[]> {

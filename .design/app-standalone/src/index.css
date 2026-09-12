@@ -127,29 +127,6 @@ button,
     min-width: 0;
 }
 
-.sidebar-toggle {
-    align-items: center;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    color: var(--secondary);
-    cursor: pointer;
-    display: inline-flex;
-    height: 32px;
-    justify-content: center;
-    margin-left: auto;
-    min-width: 32px;
-    padding: 0;
-}
-
-.sidebar-toggle:hover,
-.sidebar-toggle:focus-visible {
-    background: var(--hover);
-    border-color: var(--border2);
-    color: var(--text);
-    outline: none;
-}
-
 .brand>span {
     width: 31px;
     height: 31px;
@@ -356,12 +333,9 @@ footer i {
 .sidebar-collapsed .brand-copy,
 .sidebar-collapsed .workspace-switch > div,
 .sidebar-collapsed .connection > div > div,
-.sidebar-collapsed .connection > .mono {
+.sidebar-collapsed .connection > .mono,
+.sidebar-collapsed .sidebar-footer-label {
     display: none;
-}
-
-.sidebar-collapsed .sidebar-toggle {
-    margin-left: 0;
 }
 
 .sidebar-collapsed .workspace-switch {

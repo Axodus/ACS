@@ -10,6 +10,7 @@ export interface WorkforceProductApi {
   listWorkforces(): Promise<readonly WorkforceListItem[]>;
   getWorkforce(workforceId: string): Promise<WorkforceDetail>;
   getWorkforceRevisions(workforceId: string): Promise<readonly WorkforceRevisionV2[]>;
+  listWorkforceRuns(workforceId: string): Promise<readonly WorkforceRunListItem[]>;
   getRunWorkforce(runId: string): Promise<RunWorkforceView>;
   getCoordination(runId: string, taskId: string): Promise<TaskCoordinationView>;
   getRuntime(runId: string, taskId: string): Promise<TaskRuntimeView>;
@@ -29,6 +30,16 @@ export interface WorkforceDetail {
   readonly currentRevision: WorkforceRevisionV2;
   readonly currentComposition: WorkforceRevisionV2["members"];
   readonly revisionMetadata: WorkforceRevisionV2["commit"];
+}
+
+export interface WorkforceRunListItem {
+  readonly runId: string;
+  readonly status: RunV2["status"];
+  readonly admittedWorkforceRevision: number;
+  readonly admittedWorkforceRevisionRef: NonNullable<RunV2["definition_refs"]["workforce_revision_ref"]>;
+  readonly admittedAt: number;
+  readonly membershipSnapshotId?: string;
+  readonly createdAt: number;
 }
 
 export interface RunWorkforceView {
@@ -93,6 +104,24 @@ export function createWorkforceProductApi(nativeCore: AsyncNativeCoreRepository)
       return { identity: lineage.definition, currentRevision, currentComposition: currentRevision.members, revisionMetadata: currentRevision.commit };
     },
     getWorkforceRevisions: (workforceId) => nativeCore.listWorkforceRevisions(workforceId),
+    async listWorkforceRuns(workforceId) {
+      const lineage = await nativeCore.getWorkforceLineage(workforceId);
+      if (!lineage.definition) throw new NotFoundError("workforce", workforceId);
+      const runs = await nativeCore.listWorkforceRuns(workforceId);
+      return runs.map(({ run, membership_snapshot_id, admitted_at }) => {
+        const admittedRef = run.definition_refs.workforce_revision_ref;
+        if (!admittedRef) throw new Error(`workforce Run ${run.run_id} has no admitted Workforce revision`);
+        return {
+          runId: run.run_id,
+          status: run.status,
+          admittedWorkforceRevision: admittedRef.revision,
+          admittedWorkforceRevisionRef: admittedRef,
+          admittedAt: admitted_at ?? run.created_at,
+          ...(membership_snapshot_id ? { membershipSnapshotId: membership_snapshot_id } : {}),
+          createdAt: run.created_at,
+        };
+      });
+    },
     async getRunWorkforce(runId) {
       const run = await nativeCore.getRun(runId);
       if (!run) throw new NotFoundError("run", runId);

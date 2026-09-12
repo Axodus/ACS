@@ -1505,6 +1505,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
         (tx) => tx.nativeCore.admitWorkforceRun(input),
       ),
       getRun: (runId) => session.nativeCore.getRun(runId),
+      listWorkforceRuns: (workforceId) => session.nativeCore.listWorkforceRuns(workforceId),
       getRunMembership: (runId) => session.nativeCore.getRunMembership(runId),
       listCoordinationProposals: (runId, taskId) => session.nativeCore.listCoordinationProposals(runId, taskId),
       listCoordinationDecisions: (runId, taskId) => session.nativeCore.listCoordinationDecisions(runId, taskId),

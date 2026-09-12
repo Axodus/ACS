@@ -67,10 +67,18 @@ import {
   type AcsAuthSessionReadModel,
 } from "../../control-plane/account-identity.js";
 import { SiwxArtifactVerificationError } from "../siwx-artifact.js";
-import { createWorkforceProductApi } from "../../control-plane/product-api-workforce.js";
-import { createWorkforceDefinitionV2, createWorkforceRevisionV2, validateWorkforceMemberV2, type WorkforceMemberV2 } from "../../native-core/workforce.js";
+import { createWorkforceProductApi, type WorkforceDetail } from "../../control-plane/product-api-workforce.js";
+import type { AsyncNativeCoreRepository } from "../../control-plane/shared-state/native-core-durable.js";
+import { createWorkforceDefinitionV2, createWorkforceRevisionV2, validateWorkforceMemberV2, type WorkforceLifecycleStatus, type WorkforceMemberV2 } from "../../native-core/workforce.js";
 import { createEventEnvelopeV2 } from "../../native-core/runtime.js";
-import { sha256Hex, stableStringify, validateRevisionRef } from "../../native-core/primitives.js";
+import { NativeContractValidationError, sha256Hex, stableStringify, validateRevisionRef } from "../../native-core/primitives.js";
+import {
+  NativeIdempotencyConflictError,
+  NativeWorkforceLineageIntegrityError,
+  NativeWorkforceNotFoundError,
+  NativeWorkforceReferenceError,
+} from "../../control-plane/shared-state/native-core-durable.js";
+import { RepositoryTimeoutError, RepositoryUnavailableError, RevisionConflictError, TransactionFailedError } from "../../control-plane/shared-state/contracts.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -262,9 +270,98 @@ export async function routeProductApiRequest(
       return { status: 201, body: ok(await workforceApi.getWorkforce(input.workforceId), [], options.correlationId, routeMeta) };
     }
     if (apiPath === "workforces") return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
+    if (workforceApi && context.nativeCore && segments[2] === "workforces" && segments[3] && segments[4] === "revisions" && segments.length === 5 && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const workforceId = readPathSegment(segments, 3, "workforceId");
+      const input = parseWorkforceRevisionInput(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const current = await workforceApi.getWorkforce(workforceId);
+      assertWorkforceTenantScope(current.identity.scope.tenant_id, context.isolation.scope.tenantId, options.auth?.platformAdmin, workforceId);
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "workforce.create",
+        at: input.requestedAt,
+        requirement: { governedAction: "workforce.create" },
+      });
+      if (!enforcement.allowed) return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      const baseRevision = await context.nativeCore.getWorkforceRevision(workforceId, input.expectedRevision);
+      if (!baseRevision) throw new NotFoundError("workforce-revision", `${workforceId}@${input.expectedRevision}`);
+      await commitWorkforceSuccessor({
+        nativeCore: context.nativeCore,
+        current,
+        baseRevision,
+        expectedRevision: input.expectedRevision,
+        requestedAt: input.requestedAt,
+        idempotencyKey: input.idempotencyKey,
+        changeReason: input.changeReason,
+        actor: options.auth?.actorId ?? "product-api",
+        authorityDecisionRef: `tenant-governance:${enforcement.tenantId}:${input.idempotencyKey}`,
+        authorityEvaluatedAt: enforcement.evaluatedAt,
+        revision: {
+          display_name: input.displayName,
+          purpose: input.purpose,
+          lifecycle_status: baseRevision.lifecycle_status,
+          members: input.members,
+          composition_constraints: input.compositionConstraints,
+          governance: { authority_refs: input.authorityRefs, membership_policy_ref: input.membershipPolicyRef },
+          evidence: { audit_policy_ref: input.auditPolicyRef },
+        },
+        eventType: "workforce.revision.created",
+      });
+      return { status: 201, body: ok(await workforceApi.getWorkforce(workforceId), [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && context.nativeCore && segments[2] === "workforces" && segments[3] && segments[4] === "lifecycle" && segments.length === 5 && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const workforceId = readPathSegment(segments, 3, "workforceId");
+      const input = parseWorkforceLifecycleInput(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const current = await workforceApi.getWorkforce(workforceId);
+      assertWorkforceTenantScope(current.identity.scope.tenant_id, context.isolation.scope.tenantId, options.auth?.platformAdmin, workforceId);
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "workforce.create",
+        at: input.requestedAt,
+        requirement: { governedAction: "workforce.create" },
+      });
+      if (!enforcement.allowed) return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      const baseRevision = await context.nativeCore.getWorkforceRevision(workforceId, input.expectedRevision);
+      if (!baseRevision) throw new NotFoundError("workforce-revision", `${workforceId}@${input.expectedRevision}`);
+      await commitWorkforceSuccessor({
+        nativeCore: context.nativeCore,
+        current,
+        baseRevision,
+        expectedRevision: input.expectedRevision,
+        requestedAt: input.requestedAt,
+        idempotencyKey: input.idempotencyKey,
+        changeReason: input.changeReason,
+        actor: options.auth?.actorId ?? "product-api",
+        authorityDecisionRef: `tenant-governance:${enforcement.tenantId}:${input.idempotencyKey}`,
+        authorityEvaluatedAt: enforcement.evaluatedAt,
+        revision: {
+          display_name: baseRevision.display_name,
+          purpose: baseRevision.purpose,
+          lifecycle_status: input.targetStatus,
+          members: baseRevision.members,
+          composition_constraints: baseRevision.composition_constraints,
+          governance: baseRevision.governance,
+          evidence: baseRevision.evidence,
+        },
+        eventType: "workforce.lifecycle.changed",
+      });
+      return { status: 200, body: ok(await workforceApi.getWorkforce(workforceId), [], options.correlationId, routeMeta) };
+    }
     if (workforceApi && segments[2] === "workforces" && segments[3] && segments.length === 4 && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       return { status: 200, body: ok(await workforceApi.getWorkforce(readPathSegment(segments, 3, "workforceId")), [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && segments[2] === "workforces" && segments[3] && segments[4] === "runs" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const workforceId = readPathSegment(segments, 3, "workforceId");
+      const current = await workforceApi.getWorkforce(workforceId);
+      assertWorkforceTenantScope(current.identity.scope.tenant_id, context.isolation.scope.tenantId, options.auth?.platformAdmin, workforceId);
+      return { status: 200, body: ok(await workforceApi.listWorkforceRuns(workforceId), [], options.correlationId, routeMeta) };
     }
     if (workforceApi && segments[2] === "workforces" && segments[3] && segments[4] === "revisions" && segments.length === 5 && request.method === "GET") {
       assertAllowedQueryParams(url, []);
@@ -2708,6 +2805,167 @@ function parseWorkforceCreateInput(body: unknown) {
   };
 }
 
+function parseWorkforceRevisionInput(body: unknown) {
+  const record = readBodyRecord(body);
+  const expectedRevision = readExpectedRevision(record.expectedRevision);
+  const displayName = readOptionalString(record.displayName, "displayName");
+  const purpose = readOptionalString(record.purpose, "purpose");
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey");
+  const changeReason = readOptionalString(record.changeReason, "changeReason");
+  const requestedAt = record.requestedAt;
+  if (!displayName || !purpose || !idempotencyKey || !changeReason) {
+    throw new AcsHttpValidationError("displayName, purpose, changeReason and idempotencyKey are required");
+  }
+  if (!Number.isSafeInteger(requestedAt) || (requestedAt as number) < 0) {
+    throw new AcsHttpValidationError("requestedAt must be a non-negative safe integer");
+  }
+  if (!Array.isArray(record.members) || record.members.length === 0) {
+    throw new AcsHttpValidationError("members must be a non-empty array");
+  }
+  const members = record.members.map((member, index) => {
+    try {
+      return validateWorkforceMemberV2(member) as WorkforceMemberV2;
+    } catch (error) {
+      throw new AcsHttpValidationError(`members[${index}] is invalid`, { cause: error instanceof Error ? error.message : "invalid member" });
+    }
+  });
+  return {
+    expectedRevision,
+    displayName,
+    purpose,
+    members,
+    compositionConstraints: readRevisionRefArray(record.compositionConstraints, "compositionConstraints", false),
+    authorityRefs: readRevisionRefArray(record.authorityRefs, "authorityRefs", false),
+    membershipPolicyRef: validateRevisionRef(record.membershipPolicyRef, "membershipPolicyRef"),
+    auditPolicyRef: validateRevisionRef(record.auditPolicyRef, "auditPolicyRef"),
+    changeReason,
+    idempotencyKey,
+    requestedAt: requestedAt as number,
+  };
+}
+
+function parseWorkforceLifecycleInput(body: unknown): {
+  readonly expectedRevision: number;
+  readonly targetStatus: WorkforceLifecycleStatus;
+  readonly changeReason: string;
+  readonly idempotencyKey: string;
+  readonly requestedAt: number;
+} {
+  const record = readBodyRecord(body);
+  const expectedRevision = readExpectedRevision(record.expectedRevision);
+  const targetStatus = record.targetStatus;
+  if (typeof targetStatus !== "string" || !(["draft", "active", "disabled", "archived"] as const).includes(targetStatus as WorkforceLifecycleStatus)) {
+    throw new AcsHttpValidationError("targetStatus must be draft, active, disabled or archived");
+  }
+  const changeReason = readOptionalString(record.changeReason, "changeReason");
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey");
+  if (!changeReason || !idempotencyKey) throw new AcsHttpValidationError("changeReason and idempotencyKey are required");
+  if (!Number.isSafeInteger(record.requestedAt) || (record.requestedAt as number) < 0) {
+    throw new AcsHttpValidationError("requestedAt must be a non-negative safe integer");
+  }
+  return { expectedRevision, targetStatus: targetStatus as WorkforceLifecycleStatus, changeReason, idempotencyKey, requestedAt: record.requestedAt as number };
+}
+
+function readRevisionRefArray(value: unknown, name: string, required: boolean): readonly ReturnType<typeof validateRevisionRef>[] {
+  if (value === undefined && !required) return [];
+  if (!Array.isArray(value)) throw new AcsHttpValidationError(`${name} must be an array of revision references`);
+  return value.map((entry, index) => {
+    try {
+      return validateRevisionRef(entry, `${name}[${index}]`);
+    } catch (error) {
+      throw new AcsHttpValidationError(`${name}[${index}] is invalid`, { cause: error instanceof Error ? error.message : "invalid reference" });
+    }
+  });
+}
+
+function assertWorkforceTenantScope(
+  workforceTenantId: string | undefined,
+  currentTenantId: string,
+  platformAdmin: boolean | undefined,
+  workforceId: string,
+): void {
+  if (!platformAdmin && workforceTenantId !== currentTenantId) {
+    throw new PolicyRejectedError(`Workforce ${workforceId} is outside the current tenant scope`);
+  }
+}
+
+async function commitWorkforceSuccessor(input: {
+  readonly nativeCore: AsyncNativeCoreRepository;
+  readonly current: WorkforceDetail;
+  readonly baseRevision: WorkforceDetail["currentRevision"];
+  readonly expectedRevision: number;
+  readonly requestedAt: number;
+  readonly idempotencyKey: string;
+  readonly changeReason: string;
+  readonly actor: string;
+  readonly authorityDecisionRef: string;
+  readonly authorityEvaluatedAt: number;
+  readonly revision: Omit<WorkforceDetail["currentRevision"], "schema_version" | "ref" | "supersedes_revision" | "commit"> & {
+    readonly lifecycle_status: WorkforceLifecycleStatus;
+  };
+  readonly eventType: "workforce.revision.created" | "workforce.lifecycle.changed";
+}): Promise<void> {
+  const nextRevision = input.expectedRevision + 1;
+  const revision = createWorkforceRevisionV2({
+    workforce_id: input.current.identity.workforce_id,
+    revision: nextRevision,
+    ...input.revision,
+    supersedes_revision: input.expectedRevision,
+    commit: {
+      created_by: input.actor,
+      committed_at: input.requestedAt,
+      change_reason: input.changeReason,
+    },
+  });
+  const definition = createWorkforceDefinitionV2({
+    ...input.current.identity,
+    current_status: revision.lifecycle_status,
+    current_revision: nextRevision,
+    updated_at: input.requestedAt,
+  });
+  const commandHash = sha256Hex(stableStringify({
+    expectedRevision: input.expectedRevision,
+    revision,
+    idempotencyKey: input.idempotencyKey,
+  }));
+  const eventId = `workforce-${input.eventType.replaceAll(".", "-")}-${sha256Hex(`${input.current.identity.workforce_id}:${input.idempotencyKey}`)}`;
+  await input.nativeCore.advanceWorkforceLineage({
+    definition,
+    revision,
+    expectedHead: input.expectedRevision,
+    idempotency: { key: input.idempotencyKey, scope: `workforce:${input.current.identity.workforce_id}`, request_hash: commandHash },
+    authority: {
+      decision_ref: input.authorityDecisionRef,
+      decision: "allowed",
+      authority_scope_ref: input.current.identity.scope.authority_scope_ref,
+      evaluated_at: input.authorityEvaluatedAt,
+    },
+    event: createEventEnvelopeV2({
+      event_id: eventId,
+      event_type: input.eventType,
+      timestamp: input.requestedAt,
+      sequence: nextRevision,
+      organization_id: input.current.identity.scope.organization_id,
+      product_domain: input.current.identity.scope.product_domain,
+      tenant_id: input.current.identity.scope.tenant_id,
+      workforce_id: input.current.identity.workforce_id,
+      actor: { kind: "service", ref: `product-api:${input.actor}` },
+      source: "acs",
+      correlation_id: input.idempotencyKey,
+      idempotency_key: input.idempotencyKey,
+      payload: {
+        workforce_revision: nextRevision,
+        workforce_fingerprint: revision.ref.fingerprint,
+        lifecycle_status: revision.lifecycle_status,
+        previous_status: input.baseRevision.lifecycle_status,
+        authority_decision_ref: input.authorityDecisionRef,
+      },
+    }),
+    outboxId: `outbox-${eventId}`,
+    deliveryKind: input.eventType,
+  });
+}
+
 function parseAgentUpdateInput(body: unknown, agentId: string): UpdateAgentInput {
   const record = readBodyRecord(body);
   const definition = readAgentDefinition(record.definition, agentId);
@@ -3138,6 +3396,53 @@ function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined,
       "not_found",
       { entityRefs: [toEntityRef(error.kind, error.id)], retryable: false, severity: "error" },
     );
+  }
+  if (error instanceof NativeWorkforceNotFoundError) {
+    return fail("workforce not found", 404, "not_found", correlationId, undefined, meta, error.code, {
+      retryable: false,
+      severity: "warning",
+    });
+  }
+  if (error instanceof RevisionConflictError) {
+    return fail("Workforce revision conflict", 409, "conflict", correlationId, {
+      resource: error.resource,
+      expectedRevision: error.expectedRevision,
+      ...(error.currentRevision === undefined ? {} : { currentRevision: error.currentRevision }),
+    }, meta, "stale_revision", {
+      retryable: true,
+      severity: "warning",
+      guardrails: ["refresh_before_retry"],
+    });
+  }
+  if (error instanceof NativeIdempotencyConflictError) {
+    return fail("idempotency key was already used for a different Workforce request", 409, "conflict", correlationId, undefined, meta, "idempotency_conflict", {
+      retryable: false,
+      severity: "warning",
+    });
+  }
+  if (error instanceof NativeWorkforceReferenceError) {
+    return fail("Workforce reference is invalid", 400, "validation_error", correlationId, { reference: error.reference }, meta, error.code, {
+      retryable: false,
+      severity: "warning",
+    });
+  }
+  if (error instanceof NativeContractValidationError) {
+    return fail("Workforce request violates the canonical contract", 400, "validation_error", correlationId, { issues: error.issues }, meta, "canonical_validation_failed", {
+      retryable: false,
+      severity: "warning",
+    });
+  }
+  if (error instanceof NativeWorkforceLineageIntegrityError) {
+    return fail("Workforce lineage is inconsistent", 500, "internal_error", correlationId, undefined, meta, "lineage_integrity_failure", {
+      retryable: false,
+      severity: "error",
+    });
+  }
+  if (error instanceof RepositoryUnavailableError || error instanceof RepositoryTimeoutError || error instanceof TransactionFailedError) {
+    return fail("shared authoritative repository failure", 500, "internal_error", correlationId, undefined, meta, error.code, {
+      retryable: true,
+      severity: "error",
+    });
   }
   if (error instanceof DuplicateRegistrationError) {
     return fail(error.message, 409, "conflict", correlationId, undefined, meta, "conflict", {

@@ -128,9 +128,12 @@ export default function App() {
   return (
     <div className={`${dark ? "app dark" : "app light"} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
-        <div className="brand"><img src="/assets/Axodus_logo.svg" alt="ACS" /><div className="brand-copy"><b>ACS</b><small>CONTROL PLANE</small></div><button className="sidebar-toggle" type="button" aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed(value => !value)}>{sidebarCollapsed ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}</button><button className="mobile-close" type="button" aria-label="Close navigation" onClick={() => setMobile(false)}>×</button></div>
+        <div className="brand"><img src="/assets/Axodus_logo.svg" alt="ACS" /><div className="brand-copy"><b>ACS</b><small>CONTROL PLANE</small></div><button className="mobile-close" type="button" aria-label="Close navigation" onClick={() => setMobile(false)}>×</button></div>
         <div className="workspace-switch" aria-live="polite"><span className="workspace-icon">⌘</span><div><b>{Api.productApiConfig.environment} environment</b><small>{Api.productApiConfig.tenantId} · server-resolved session</small></div></div>
         <Shared.SidebarNavigation pathname={location.pathname} activeDomain={domain} onNavigate={() => setMobile(false)} collapsed={sidebarCollapsed} workforceContext={workforceContext} />
+        <footer className="sidebar-footer">
+          <button className="sidebar-toggle" type="button" aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed(value => !value)}>{sidebarCollapsed ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}<span className="sidebar-footer-label">Collapse sidebar</span></button>
+        </footer>
       </aside>
       {mobile && <button type="button" className="mobile-drawer-overlay" aria-label="Close navigation overlay" onClick={() => setMobile(false)} />}
       <main className="main">

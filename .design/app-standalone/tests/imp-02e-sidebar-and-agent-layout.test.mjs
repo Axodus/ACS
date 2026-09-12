@@ -41,7 +41,16 @@ test("IMP-02E keeps collapsed navigation semantic and understandable", () => {
   assert.match(navigation, /className="domain-label"/);
   assert.match(indexCss, /\.sidebar-collapsed \.domain-link \.domain-label/);
   assert.match(indexCss, /\.sidebar-collapsed \.domain-link \.sidebar-chevron/);
-  assert.match(indexCss, /\.sidebar-toggle:focus-visible/);
+  assert.match(operationalCss, /\.sidebar-footer \.sidebar-toggle:focus-visible/);
+});
+
+test("keeps only the toggle in the sidebar footer", () => {
+  const app = appSource;
+  const footer = app.slice(app.indexOf("<footer className=\"sidebar-footer\">"), app.indexOf("</footer>", app.indexOf("<footer className=\"sidebar-footer\">")));
+  assert.match(footer, /className="sidebar-toggle"/);
+  assert.doesNotMatch(footer, /Accounting|sidebar-accounting/);
+  assert.match(operationalCss, /\.sidebar-navigation \{[\s\S]*display: grid/);
+  assert.match(operationalCss, /\.sidebar-footer \{[\s\S]*margin-top: auto/);
 });
 
 test("IMP-02E places review and create beside the canonical configuration flow", () => {
