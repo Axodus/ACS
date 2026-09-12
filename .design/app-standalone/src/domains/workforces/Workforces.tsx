@@ -42,8 +42,8 @@ export function WorkforceInventory() {
     .sort((left, right) => sort === "updatedAt" ? right.updatedAt - left.updatedAt : sort === "lifecycle" ? left.lifecycleState.localeCompare(right.lifecycleState) : left.name.localeCompare(right.name));
 
   return <>
-    <Shared.DomainHeader domain="Workforces" title="Workforce Inventory" description="Discover canonical Agent compositions, their current revision and lifecycle." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
-    <div className="guardrail-banner compact" role="note"><span>Inspection mode</span><span>Composition is governed by Product API</span><span>Writes unavailable</span></div>
+    <Shared.DomainHeader domain="Workforces" title="Workforce Inventory" description="Discover canonical Agent compositions, their current revision and lifecycle." actions={<><Router.Link className="primary action-link" to="/workforces/new">Create Workforce</Router.Link><button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button></>} />
+    <div className="guardrail-banner compact" role="note"><span>Canonical creation</span><span>Initial draft revision only</span><span>Product API is authoritative</span></div>
     {stale && <div className="stale-banner" role="status">Showing a stale Workforce snapshot. Refresh to recover live state.</div>}
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing Workforces...</div>}
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
@@ -58,16 +58,51 @@ export function WorkforceInventory() {
     </div>
     {loadState === "loading" && !workforces && <div className="loading-screen">Loading Workforces...</div>}
     {loadState === "error" && !workforces && <section className="panel"><div className="empty-state">Unable to load Workforces. Check Product API connectivity and retry.</div></section>}
-    {workforces && workforces.length === 0 && <section className="panel"><div className="empty-state">No Workforces exist. A Workforce composes Agents into a reusable execution unit. Creation is not exposed by the current Product API.</div></section>}
+    {workforces && workforces.length === 0 && <section className="panel"><div className="empty-state">No Workforces exist. A Workforce composes Agents into a reusable execution unit.<br /><Router.Link className="primary action-link" to="/workforces/new">Create Workforce</Router.Link></div></section>}
     {workforces && workforces.length > 0 && filtered.length === 0 && <section className="panel"><div className="empty-state">No Workforces match your search or filters.</div></section>}
     {filtered.length > 0 && <section className="agent-cards inventory-grid">{filtered.map(workforce => <WorkforceCard key={workforce.workforceId} workforce={workforce} />)}</section>}
   </>;
 }
 
 export function WorkforceCreateUnavailable() {
+  const navigate = Router.useNavigate();
+  const [workforceId, setWorkforceId] = React.useState("");
+  const [displayName, setDisplayName] = React.useState("");
+  const [purpose, setPurpose] = React.useState("");
+  const [ownershipRef, setOwnershipRef] = React.useState("");
+  const [slotId, setSlotId] = React.useState("primary");
+  const [agentId, setAgentId] = React.useState("");
+  const [responsibilities, setResponsibilities] = React.useState("");
+  const [membershipPolicyId, setMembershipPolicyId] = React.useState("");
+  const [membershipPolicyRevision, setMembershipPolicyRevision] = React.useState("1");
+  const [membershipPolicyFingerprint, setMembershipPolicyFingerprint] = React.useState("");
+  const [auditPolicyId, setAuditPolicyId] = React.useState("");
+  const [auditPolicyRevision, setAuditPolicyRevision] = React.useState("1");
+  const [auditPolicyFingerprint, setAuditPolicyFingerprint] = React.useState("");
+  const [changeReason, setChangeReason] = React.useState("Initial Workforce creation");
+  const [idempotencyKey] = React.useState(() => crypto.randomUUID());
+  const [requestedAt] = React.useState(() => Date.now());
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const policyRef = (entityId: string, revision: string, fingerprint: string): Api.WorkforceRevisionRef => ({ entity_kind: "policy", entity_id: entityId.trim(), revision: Number(revision), fingerprint: fingerprint.trim() });
+  const validFingerprint = (value: string) => /^[a-f0-9]{64}$/i.test(value.trim());
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (submitting) return;
+    if (![workforceId, displayName, purpose, ownershipRef, slotId, agentId, membershipPolicyId, auditPolicyId].every(value => value.trim())) return setError("Complete identity, one member slot, and both canonical policy references.");
+    if (![workforceId, slotId, agentId].every(value => Shared.SAFE_IDENTIFIER.test(value.trim()))) return setError("Workforce, slot, and Agent IDs support letters, numbers, dots, underscores, colons and dashes only.");
+    if (![membershipPolicyFingerprint, auditPolicyFingerprint].every(validFingerprint)) return setError("Policy fingerprints must be SHA-256 values with 64 hexadecimal characters.");
+    if (![membershipPolicyRevision, auditPolicyRevision].every(value => Number.isSafeInteger(Number(value)) && Number(value) > 0)) return setError("Policy revisions must be positive integers.");
+    setSubmitting(true); setError(null);
+    try {
+      const created = await Api.productApi.createWorkforce({ workforceId: workforceId.trim(), displayName: displayName.trim(), purpose: purpose.trim(), ownershipRef: ownershipRef.trim(), slotId: slotId.trim(), agentId: agentId.trim(), responsibilities: responsibilities.split(",").map(value => value.trim()).filter(Boolean), membershipPolicyRef: policyRef(membershipPolicyId, membershipPolicyRevision, membershipPolicyFingerprint), auditPolicyRef: policyRef(auditPolicyId, auditPolicyRevision, auditPolicyFingerprint), changeReason: changeReason.trim() || undefined, idempotencyKey, requestedAt });
+      navigate(`/workforces/${encodeURIComponent(created.identity.workforce_id)}`);
+    } catch (cause) { setError(Shared.apiErrorMessage(cause)); setSubmitting(false); }
+  }
   return <>
-    <Shared.DomainHeader domain="Workforces" title="Create Workforce" description="Canonical Workforce creation is not available through the accepted Product API." />
-    <Shared.UnsupportedPanel title="Workforce creation unavailable" reason="The accepted API exposes Workforce reads only. This application does not create local state, call repository internals, or write directly to persistence." note="A scoped Product API write contract and CTO approval are required before a creation flow can be implemented." />
+    <Router.Link className="back" to="/workforces">← Back to Workforces</Router.Link>
+    <Shared.DomainHeader domain="Workforces" title="Create Workforce" description="Create the initial canonical draft revision from an existing eligible Agent." />
+    <form className="panel" onSubmit={submit}><div className="panel-head"><div><h2>Identity</h2><p>The API derives tenant scope from the selected Agent and creates draft revision r1.</p></div></div><div className="panel-body form-grid"><label>Workforce ID<input value={workforceId} onChange={event => setWorkforceId(event.target.value)} required /></label><label>Display name<input value={displayName} onChange={event => setDisplayName(event.target.value)} required /></label><label>Purpose<input value={purpose} onChange={event => setPurpose(event.target.value)} required /></label><label>Ownership reference<input value={ownershipRef} onChange={event => setOwnershipRef(event.target.value)} required /></label><h3>Basic composition</h3><label>Slot ID<input value={slotId} onChange={event => setSlotId(event.target.value)} required /></label><label>Agent ID<input value={agentId} onChange={event => setAgentId(event.target.value)} required /></label><label>Responsibilities (comma separated)<input value={responsibilities} onChange={event => setResponsibilities(event.target.value)} /></label><h3>Canonical policies</h3><label>Membership policy ID<input value={membershipPolicyId} onChange={event => setMembershipPolicyId(event.target.value)} required /></label><label>Membership policy revision<input type="number" min="1" value={membershipPolicyRevision} onChange={event => setMembershipPolicyRevision(event.target.value)} required /></label><label>Membership policy fingerprint<input value={membershipPolicyFingerprint} onChange={event => setMembershipPolicyFingerprint(event.target.value)} required /></label><label>Audit policy ID<input value={auditPolicyId} onChange={event => setAuditPolicyId(event.target.value)} required /></label><label>Audit policy revision<input type="number" min="1" value={auditPolicyRevision} onChange={event => setAuditPolicyRevision(event.target.value)} required /></label><label>Audit policy fingerprint<input value={auditPolicyFingerprint} onChange={event => setAuditPolicyFingerprint(event.target.value)} required /></label><label>Change reason<input value={changeReason} onChange={event => setChangeReason(event.target.value)} /></label>{error && <div className="error-banner" role="alert">{error}</div>}<div className="form-actions"><button className="primary" type="submit" disabled={submitting}>{submitting ? "Creating Workforce..." : "Create draft r1"}</button></div></div></form>
   </>;
 }
 

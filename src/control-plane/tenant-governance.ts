@@ -7,6 +7,7 @@ export type GovernanceEffect = "allow" | "deny";
 
 export type GovernedAction =
   | "agent.create"
+  | "workforce.create"
   | "agent.configure"
   | "deployment.create"
   | "deployment.production"
@@ -273,6 +274,7 @@ export class GovernanceRuleNotFoundError extends AcsError {
 
 const GOVERNED_ACTIONS = new Set<GovernedAction>([
   "agent.create",
+  "workforce.create",
   "agent.configure",
   "deployment.create",
   "deployment.production",

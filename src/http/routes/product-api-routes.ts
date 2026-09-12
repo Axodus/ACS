@@ -68,6 +68,9 @@ import {
 } from "../../control-plane/account-identity.js";
 import { SiwxArtifactVerificationError } from "../siwx-artifact.js";
 import { createWorkforceProductApi } from "../../control-plane/product-api-workforce.js";
+import { createWorkforceDefinitionV2, createWorkforceRevisionV2, validateWorkforceMemberV2, type WorkforceMemberV2 } from "../../native-core/workforce.js";
+import { createEventEnvelopeV2 } from "../../native-core/runtime.js";
+import { sha256Hex, stableStringify, validateRevisionRef } from "../../native-core/primitives.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -224,6 +227,41 @@ export async function routeProductApiRequest(
       assertAllowedQueryParams(url, []);
       return { status: 200, body: ok(await workforceApi.listWorkforces(), [], options.correlationId, routeMeta) };
     }
+    if (workforceApi && context.nativeCore && apiPath === "workforces" && request.method === "POST") {
+      assertAllowedQueryParams(url, []);
+      const input = parseWorkforceCreateInput(await readBoundedJsonBody(request, context.edgePolicy.limits.maxBodyBytes));
+      const enforcement = enforceTenantGovernanceMutation({
+        context,
+        auth: options.auth,
+        correlationId: options.correlationId,
+        operation: "workforce.create",
+        at: input.requestedAt,
+        requirement: { governedAction: "workforce.create", limitKey: "max_workforces", requestedAmount: 1, usage: (await workforceApi.listWorkforces()).length },
+      });
+      if (!enforcement.allowed) return mapGovernanceEnforcementFailure(enforcement, options.correlationId, routeMeta);
+      const memberLineage = await context.nativeCore.getAgentLineage(input.member.agent_selector.agent_id);
+      if (memberLineage.definition.scope.tenant_id !== context.isolation.scope.tenantId) {
+        return fail("selected Agent is outside the current tenant scope", 403, "forbidden", options.correlationId, undefined, routeMeta);
+      }
+      const scope = memberLineage.definition.scope;
+      const definition = createWorkforceDefinitionV2({ workforce_id: input.workforceId, scope, current_status: "draft", current_revision: 1, ownership_ref: input.ownershipRef, created_at: input.requestedAt, updated_at: input.requestedAt });
+      const revision = createWorkforceRevisionV2({ workforce_id: input.workforceId, revision: 1, display_name: input.displayName, purpose: input.purpose, lifecycle_status: "draft", members: [input.member], composition_constraints: [], governance: { authority_refs: [], membership_policy_ref: input.membershipPolicyRef }, evidence: { audit_policy_ref: input.auditPolicyRef }, commit: { created_by: options.auth?.actorId ?? "product-api", committed_at: input.requestedAt, change_reason: input.changeReason } });
+      const commandHash = sha256Hex(stableStringify(input));
+      const eventId = `workforce-created-${sha256Hex(`${input.workforceId}:${input.idempotencyKey}`)}`;
+      const authorityDecisionRef = `tenant-governance:${enforcement.tenantId}:${input.idempotencyKey}`;
+      await context.nativeCore.advanceWorkforceLineage({
+        definition,
+        revision,
+        expectedHead: 0,
+        idempotency: { key: input.idempotencyKey, scope: `workforce:${input.workforceId}`, request_hash: commandHash },
+        authority: { decision_ref: authorityDecisionRef, decision: "allowed", authority_scope_ref: scope.authority_scope_ref, evaluated_at: enforcement.evaluatedAt },
+        event: createEventEnvelopeV2({ event_id: eventId, event_type: "workforce.created", timestamp: input.requestedAt, sequence: 1, organization_id: scope.organization_id, product_domain: scope.product_domain, tenant_id: scope.tenant_id, workforce_id: input.workforceId, actor: { kind: "service", ref: `product-api:${options.auth?.actorId ?? "system"}` }, source: "acs", correlation_id: input.idempotencyKey, idempotency_key: input.idempotencyKey, payload: { workforce_revision: 1, workforce_fingerprint: revision.ref.fingerprint, lifecycle_status: "draft", authority_decision_ref: authorityDecisionRef } }),
+        outboxId: `outbox-${eventId}`,
+        deliveryKind: "workforce.created",
+      });
+      return { status: 201, body: ok(await workforceApi.getWorkforce(input.workforceId), [], options.correlationId, routeMeta) };
+    }
+    if (apiPath === "workforces") return methodNotAllowed(options.correlationId, routeMeta, "GET, POST");
     if (workforceApi && segments[2] === "workforces" && segments[3] && segments.length === 4 && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       return { status: 200, body: ok(await workforceApi.getWorkforce(readPathSegment(segments, 3, "workforceId")), [], options.correlationId, routeMeta) };
@@ -2641,6 +2679,33 @@ function parseAgentCreateInput(body: unknown): AgentCreateInput {
   const definition = readAgentDefinition(record.definition, undefined);
   const createdBy = readOptionalString(record.createdBy, "createdBy");
   return { definition, ...(createdBy ? { createdBy } : {}) };
+}
+
+function parseWorkforceCreateInput(body: unknown) {
+  const record = readBodyRecord(body);
+  const workforceId = typeof record.workforceId === "string" ? assertSafeIdentifier(record.workforceId, "workforceId") : (() => { throw new AcsHttpValidationError("workforceId is required"); })();
+  const displayName = readOptionalString(record.displayName, "displayName");
+  const purpose = readOptionalString(record.purpose, "purpose");
+  const ownershipRef = readOptionalString(record.ownershipRef, "ownershipRef");
+  const slotId = typeof record.slotId === "string" ? assertSafeIdentifier(record.slotId, "slotId") : (() => { throw new AcsHttpValidationError("slotId is required"); })();
+  const agentId = typeof record.agentId === "string" ? assertSafeIdentifier(record.agentId, "agentId") : (() => { throw new AcsHttpValidationError("agentId is required"); })();
+  const responsibilities = Array.isArray(record.responsibilities) && record.responsibilities.every(value => typeof value === "string") ? record.responsibilities : (() => { throw new AcsHttpValidationError("responsibilities must be an array of strings"); })();
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey");
+  const requestedAt = typeof record.requestedAt === "number" ? record.requestedAt : Number.NaN;
+  if (!displayName || !purpose || !ownershipRef || !idempotencyKey) throw new AcsHttpValidationError("displayName, purpose, ownershipRef and idempotencyKey are required");
+  if (!Number.isSafeInteger(requestedAt) || requestedAt < 0) throw new AcsHttpValidationError("requestedAt must be a non-negative safe integer");
+  return {
+    workforceId,
+    displayName,
+    purpose,
+    ownershipRef,
+    member: validateWorkforceMemberV2({ slot_id: slotId, agent_selector: { mode: "current_head_at_admission", agent_id: agentId }, responsibilities, capability_requirement_refs: [], authority_constraint_refs: [], participation_constraint_refs: [] }) as WorkforceMemberV2,
+    membershipPolicyRef: validateRevisionRef(record.membershipPolicyRef, "membershipPolicyRef"),
+    auditPolicyRef: validateRevisionRef(record.auditPolicyRef, "auditPolicyRef"),
+    changeReason: readOptionalString(record.changeReason, "changeReason") ?? "Initial Workforce creation",
+    idempotencyKey,
+    requestedAt,
+  };
 }
 
 function parseAgentUpdateInput(body: unknown, agentId: string): UpdateAgentInput {

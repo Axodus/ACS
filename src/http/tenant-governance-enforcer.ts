@@ -23,6 +23,7 @@ export type TenantGovernanceEnforcementLayer =
 
 export type TenantGovernanceEnforcementOperation =
   | "agent.create"
+  | "workforce.create"
   | "agent.configure"
   | "deployment.create"
   | "execution.start"

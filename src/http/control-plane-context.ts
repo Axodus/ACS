@@ -662,6 +662,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
       defaultEffect: "deny",
       rules: [
         { ruleId: "allow_agent_create", action: "agent.create", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
+        { ruleId: "allow_workforce_create", action: "workforce.create", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
         { ruleId: "allow_agent_configure", action: "agent.configure", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
         { ruleId: "allow_deployment_create", action: "deployment.create", effect: "allow", priority: 100, reason: "dev bootstrap allow" },
         { ruleId: "allow_execution_start", action: "execution.start", effect: "allow", priority: 100, reason: "dev bootstrap allow" },

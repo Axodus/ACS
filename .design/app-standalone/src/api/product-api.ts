@@ -2353,7 +2353,7 @@ export type ExecutionRunSummary = {
 };
 
 export type WorkforceRevisionRef = {
-  entity_kind: "workforce" | "agent" | "resource";
+  entity_kind: "workforce" | "agent" | "policy" | "resource";
   entity_id: string;
   revision: number;
   fingerprint?: string;
@@ -2394,6 +2394,21 @@ export type WorkforceDetail = {
   currentRevision: WorkforceRevision;
   currentComposition: readonly WorkforceMember[];
   revisionMetadata: WorkforceRevision["commit"];
+};
+
+export type WorkforceCreateInput = {
+  workforceId: string;
+  displayName: string;
+  purpose: string;
+  ownershipRef: string;
+  slotId: string;
+  agentId: string;
+  responsibilities: string[];
+  membershipPolicyRef: WorkforceRevisionRef;
+  auditPolicyRef: WorkforceRevisionRef;
+  changeReason?: string;
+  idempotencyKey: string;
+  requestedAt: number;
 };
 
 export type WorkforceRunMembership = {
@@ -2746,6 +2761,9 @@ export const productApi = {
   },
   async listWorkforces() {
     return request<WorkforceListItem[]>("/workforces");
+  },
+  async createWorkforce(input: WorkforceCreateInput) {
+    return request<WorkforceDetail>("/workforces", { method: "POST", body: JSON.stringify(input) });
   },
   async getWorkforce(workforceId: string) {
     return request<WorkforceDetail>(`/workforces/${encodeURIComponent(workforceId)}`);
