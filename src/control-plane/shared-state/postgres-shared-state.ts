@@ -86,6 +86,7 @@ import {
   NativeIdempotencyConflictError,
   NativeMemberSlotNotFoundError,
   NativeCoordinationConflictError,
+  NativeRunAdmissionError,
   NativeRunNotFoundError,
   NativeStaleAssignmentError,
   NativeRuntimeBindingCorruptionError,
@@ -148,6 +149,7 @@ function mapRepositoryError(operation: string, error: unknown): Error {
     || error instanceof NativeFencingError
     || error instanceof NativeMemberSlotNotFoundError
     || error instanceof NativeCoordinationConflictError
+    || error instanceof NativeRunAdmissionError
     || error instanceof NativeRunNotFoundError
     || error instanceof NativeStaleAssignmentError
     || error instanceof NativeRuntimeBindingCorruptionError

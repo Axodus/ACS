@@ -464,8 +464,11 @@ function requireOutboxFailureCode(value: string): void {
   }
 }
 
-function streamScope(event: EventEnvelopeV2): string {
+type EventStreamIdentity = Pick<EventEnvelopeV2, "event_type" | "agent_id" | "workforce_id" | "run_id" | "task_id">;
+
+function streamScope(event: EventStreamIdentity): string {
   if (event.workforce_id && !event.run_id && !event.task_id) return `workforce:${event.workforce_id}`;
+  if (event.event_type === "execution.intent_compiled" && event.run_id) return `run:${event.run_id}`;
   if (event.agent_id) return `agent:${event.agent_id}`;
   if (event.run_id) return `run:${event.run_id}`;
   if (event.task_id) return `task:${event.task_id}`;
@@ -1482,12 +1485,11 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, to_timestamp($8 / 1000.0))
         ON CONFLICT (attempt_id) DO NOTHING
       `, [attempt.attempt_id, intent.run_id, intent.task_id, intent.intent_id, intent.assignment_id, intent.assignment_generation, serialize(attempt), intent.compiled_at]);
-      const event = await this.appendEvent({
+      const eventInput: Omit<EventEnvelopeV2, "sequence"> = {
         schema_version: ACS_NATIVE_SCHEMA_VERSION,
         event_id: `event_${intent.intent_id}`,
         event_type: "execution.intent_compiled",
         timestamp: compiledAt,
-        sequence: await this.nextEventSequence(`run:${intent.run_id}`),
         organization_id: run.scope.organization_id,
         product_domain: run.scope.product_domain,
         ...(run.scope.tenant_id ? { tenant_id: run.scope.tenant_id } : {}),
@@ -1501,6 +1503,10 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
         correlation_id: input.correlation_id ?? input.idempotency.key,
         idempotency_key: input.idempotency.key,
         payload: { intent_id: intent.intent_id, assignment_id: intent.assignment_id, assignment_generation: intent.assignment_generation, member_slot_id: intent.member_slot_id, agent_revision: intent.agent_revision_ref.revision },
+      };
+      const event = await this.appendEvent({
+        ...eventInput,
+        sequence: await this.nextEventSequence(streamScope(eventInput)),
       });
       const outbox = await this.insertOutbox(event.event.event_id, `outbox_${intent.intent_id}`);
       void outbox;
