@@ -235,6 +235,11 @@ const DEV_BILLING_POLICY: BillingPolicy = {
 
 export interface ControlPlaneContextOptions {
   readonly nativeCore?: AsyncNativeCoreRepository;
+  /** Canonical shared-host composition is consumed by createAcsHttpServer. */
+  readonly sharedControlPlaneContext?: {
+    readonly state: { readonly nativeCore: AsyncNativeCoreRepository };
+    readonly close: () => Promise<void>;
+  };
   readonly acsRoot?: string;
   readonly engine?: AgentEngine;
   readonly deploymentEngine?: "openclaw" | "production-http";

@@ -1,5 +1,5 @@
 import { isIP } from "node:net";
-import { createAcsHttpServer } from "../dist/index.js";
+import { createAcsHttpServer, createSharedControlPlaneContextFromEnvironment } from "../dist/index.js";
 
 const DEFAULT_HOST = "0.0.0.0";
 
@@ -28,7 +28,10 @@ function resolveHost() {
 
 const port = Number(process.env.ACS_HTTP_PORT ?? 8788);
 const host = resolveHost();
-const { server } = await createAcsHttpServer();
+const sharedControlPlaneContext = process.env.ACS_STATE_BACKEND === "shared"
+  ? await createSharedControlPlaneContextFromEnvironment({ instanceId: process.env.ACS_HTTP_INSTANCE_ID ?? `http-${process.pid}` })
+  : undefined;
+const { server } = await createAcsHttpServer({ sharedControlPlaneContext });
 
 server.on("error", (error) => {
   if (error?.code === "EADDRNOTAVAIL" && host !== DEFAULT_HOST) {

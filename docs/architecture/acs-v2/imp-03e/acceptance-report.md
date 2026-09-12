@@ -1,6 +1,6 @@
 # Acceptance report
 
-Status on **September 12, 2026**: **PARTIAL / IMPLEMENTATION ACCEPTED**. The implementation and focused regression are green, but IMP-03E acceptance is not closed until the canonical shared HTTP host proves the native-core path and the full repository suite reaches zero failures and zero skips.
+Status on **September 12, 2026**: **COMPLETE / ACCEPTED**. Gate A and Gate B are closed with the canonical shared HTTP host, real PostgreSQL nativeCore, and zero failures or skips.
 
 The Product API read adapter uses `AsyncNativeCoreRepository` directly. No projection tables or migration 8 were added, so projection rebuild is inherent: removing any derived process state does not affect canonical PostgreSQL records, and the same API views are reconstructed from those records on the next read.
 
@@ -17,28 +17,31 @@ Validation performed:
 | VAL-01 | `node --test tests/acs-v2-val-01-postgres.test.mjs` | PASS, 1 passed, 0 failed, 0 skipped |
 | Product API | `node --test tests/s20-http-integration.test.mjs` | PASS, 1 passed, 0 failed, 0 skipped |
 | Combined ACS v2/API | six-file regression command | PASS, 6 passed, 0 failed, 0 skipped |
-| Full repository | `node --test tests/*.test.mjs` | FAIL, 122 total, 114 passed, 8 failed, 0 skipped |
+| Canonical shared-host composition | `node --test tests/acs-v2-imp-03e-gate-a-postgres.test.mjs` with `ACS_SH_DATABASE_URL` | PASS, real HTTP host → `ControlPlaneContext` → `state.nativeCore` → PostgreSQL → Product API; Workforce, Run membership, coordination/assignment, and runtime covered |
+| Gate B affected suites | `s48/s50/s51/s52/s54/s55/s56/s57` in socket-capable full run | PASS; all affected suites are green |
+| Full repository | `set -a; . .env.local; set +a; export ACS_SHARED_DATABASE_URL="$ACS_SH_DATABASE_URL"; npm test` | PASS, 724 total, 724 passed, 0 failed, 0 skipped |
 | Diff hygiene | `git diff --check` | PASS, exit 0 |
 
-The eight full-suite failures are `s48`, `s50`, `s51`, `s52`, `s54`, `s55`, `s56`, and `s57` under EPIC-15.5. No IMP-03E, ACS v2, VAL-01, or existing Product API test failed in the recorded run.
+The canonical PostgreSQL endpoint was verified before execution: `.env.local` defines `ACS_SH_DATABASE_URL` on `127.0.0.1:55433`, and container `acs-imp03a-pg` publishes that port. The current full repository run has no failures and no skips. No IMP-03E, ACS v2, VAL-01, Product API, or affected EPIC-15.5 test failed.
 
 ## ACS-BLOCKER-018
 
-ACS-V2-IMP-03E remains **PARTIAL / IMPLEMENTATION ACCEPTED** pending two acceptance gates:
+ACS-V2-IMP-03E is **COMPLETE / ACCEPTED** after both acceptance gates passed:
 
-1. Prove the real canonical host path: HTTP request → `ControlPlaneContext` → `nativeCore` → PostgreSQL → Product API response.
-2. Reconfirm the current full-suite state and close the eight `s48`/`s50`/`s51`/`s52`/`s54`/`s55`/`s56`/`s57` failures at `0 failed / 0 skipped`.
+1. Gate A PASS: real HTTP request → canonical HTTP host → `ControlPlaneContext` → `state.nativeCore` → canonical PostgreSQL repository → Product API response, covering Workforce, Run membership, coordination/assignment, and runtime.
+2. Gate B PASS: full repository at exactly `724 total, 724 passed, 0 failed, 0 skipped`; the eight previously affected suites are green.
 
-The shared-host native-core composition is part of IMP-03E acceptance. It is not deferred to IMP-03F+. IMP-03F remains unauthorized. No CEO decision is required.
+The shared-host native-core composition was part of IMP-03E acceptance and is closed. IMP-03F is ready for authorization. No CEO decision is required.
 
 Decision path:
 
 ```text
 ACS-V2-IMP-03E
-PARTIAL / IMPLEMENTATION ACCEPTED
+COMPLETE / ACCEPTED
         ↓
 ACS-BLOCKER-018
-Shared-Host Integration & Full Regression Acceptance
+RESOLVED / ACCEPTED
         ↓
-IMP-03E COMPLETE / ACCEPTED
+ACS-V2-IMP-03F
+READY FOR AUTHORIZATION
 ```

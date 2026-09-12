@@ -17,6 +17,13 @@ import {
   type ControlPlaneContextOptions,
 } from "./control-plane-context.js";
 
+type SharedNativeCoreContext = {
+  readonly state: {
+    readonly nativeCore: NonNullable<ControlPlaneContext["nativeCore"]>;
+  };
+  readonly close: () => Promise<void>;
+};
+
 const SUPPORTED_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
 export function createAcsHttpHandler(context: ControlPlaneContext) {
@@ -283,14 +290,18 @@ function readHeaders(request: IncomingMessage): Readonly<Record<string, string |
 }
 
 export async function createAcsHttpServer(options: ControlPlaneContextOptions = {}) {
+  const { sharedControlPlaneContext, ...contextOptions } = options as ControlPlaneContextOptions & {
+    readonly sharedControlPlaneContext?: SharedNativeCoreContext;
+  };
   const context = createControlPlaneContext({
-    ...options,
-    useDurableAdministrativeState: options.useDurableAdministrativeState ?? true,
-    useDurableAgentState: options.useDurableAgentState ?? true,
-    useDurableDeploymentState: options.useDurableDeploymentState ?? true,
-    useDurableSecretCatalog: options.useDurableSecretCatalog ?? true,
-    useDurableEconomicState: options.useDurableEconomicState ?? true,
-    useDurableRateLimitStore: options.useDurableRateLimitStore ?? true,
+    ...contextOptions,
+    nativeCore: sharedControlPlaneContext?.state.nativeCore ?? contextOptions.nativeCore,
+    useDurableAdministrativeState: contextOptions.useDurableAdministrativeState ?? true,
+    useDurableAgentState: contextOptions.useDurableAgentState ?? true,
+    useDurableDeploymentState: contextOptions.useDurableDeploymentState ?? true,
+    useDurableSecretCatalog: contextOptions.useDurableSecretCatalog ?? true,
+    useDurableEconomicState: contextOptions.useDurableEconomicState ?? true,
+    useDurableRateLimitStore: contextOptions.useDurableRateLimitStore ?? true,
   });
   const server = createServer(
     { maxHeaderSize: context.edgePolicy.limits.maxHeaderBytes },
@@ -304,10 +315,12 @@ export async function createAcsHttpServer(options: ControlPlaneContextOptions = 
 
   process.on("SIGINT", async () => {
     await context.close();
+    await sharedControlPlaneContext?.close();
     process.exit(0);
   });
   process.on("SIGTERM", async () => {
     await context.close();
+    await sharedControlPlaneContext?.close();
     process.exit(0);
   });
   return { server, context };

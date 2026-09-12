@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { createWorkforceProductApi } from "../dist/control-plane/product-api-workforce.js";
 import { createControlPlaneContext } from "../dist/http/control-plane-context.js";
+import { createAcsHttpServer } from "../dist/http/server.js";
 import { routeProductApiRequest } from "../dist/http/routes/product-api-routes.js";
 
 const revision = (n, name = `Workforce ${n}`) => ({ ref: { entity_id: "wf-1", revision: n, fingerprint: `fp-${n}` }, display_name: name, purpose: "test", lifecycle_status: "active", members: [{ slot_id: "slot-1" }], commit: { created_by: "test", committed_at: n, change_reason: "test" } });
@@ -73,5 +77,51 @@ test("IMP-03E HTTP routes use the injected native core read boundary", async () 
     assert.deepEqual(result.body.data.history.map((entry) => entry.assignment_id), ["a-1", "a-2"]);
   } finally {
     await context.close();
+  }
+});
+
+test("IMP-03E canonical HTTP host composes shared state nativeCore into Product API", async () => {
+  const root = await mkdtemp(join(tmpdir(), "acs-imp-03e-shared-host-"));
+  let closed = false;
+  const sharedControlPlaneContext = {
+    state: { nativeCore: fakeCore() },
+    async close() { closed = true; },
+  };
+  const { server, context } = await createAcsHttpServer({
+    sharedControlPlaneContext,
+    engine: createMockEngine(),
+    startLocalWorker: false,
+    runtimeMode: "remote",
+    runtimeStatePath: join(root, "runtime.sqlite"),
+    runtimeRoot: root,
+    stateRoot: join(root, "state"),
+    configRoot: join(root, "config"),
+    artifactsRoot: join(root, "artifacts"),
+    workspaceRoot: join(root, "workspace"),
+    administrativeStatePath: join(root, "admin.json"),
+    secretCatalogPath: join(root, "secrets.sqlite"),
+    economicStatePath: join(root, "economic.sqlite"),
+    rateLimitDatabasePath: join(root, "rate-limit.sqlite"),
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    const address = server.address();
+    assert.equal(typeof address, "object");
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/tasks/task-1/assignments?runId=run-1`, {
+      headers: { "x-acs-actor-id": "system", "x-acs-actor-type": "system" },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(body));
+    assert.equal(body.data.current.assignment_id, "a-2");
+    assert.deepEqual(body.data.history.map((entry) => entry.assignment_id), ["a-1", "a-2"]);
+    assert.equal(context.nativeCore, sharedControlPlaneContext.state.nativeCore);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await context.close();
+    await sharedControlPlaneContext.close();
+    assert.equal(closed, true);
   }
 });
