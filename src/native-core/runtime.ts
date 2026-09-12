@@ -145,6 +145,13 @@ export interface TaskAttemptV2 {
   readonly attempt: number;
   readonly dispatch_key: string;
   readonly execution_id?: string;
+  readonly execution_intent_id?: string;
+  readonly assignment_id?: string;
+  readonly assignment_generation?: number;
+  readonly member_slot_id?: string;
+  readonly agent_id?: string;
+  readonly agent_revision_ref?: RevisionRef;
+  readonly workforce_revision_ref?: RevisionRef;
   readonly lease_ref?: EntityRef;
   readonly fencing_token?: string;
   readonly status: TaskAttemptStatus;
@@ -451,6 +458,12 @@ export function validateTaskAttemptV2(value: unknown): TaskAttemptV2 {
   for (const key of ["attempt_id", "task_run_id", "dispatch_key", "status"] as const) requireString(attempt[key], key, issues);
   requireSafeInteger(attempt.attempt, "attempt", issues, 1);
   if (attempt.execution_id !== undefined) requireString(attempt.execution_id, "execution_id", issues);
+  if (attempt.execution_intent_id !== undefined) requireString(attempt.execution_intent_id, "execution_intent_id", issues);
+  if (attempt.assignment_id !== undefined) requireString(attempt.assignment_id, "assignment_id", issues);
+  if (attempt.assignment_generation !== undefined) requireSafeInteger(attempt.assignment_generation, "assignment_generation", issues, 1);
+  for (const key of ["member_slot_id", "agent_id"] as const) if (attempt[key] !== undefined) requireString(attempt[key], key, issues);
+  if (attempt.agent_revision_ref !== undefined) try { validateRevisionRef(attempt.agent_revision_ref, "agent_revision_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
+  if (attempt.workforce_revision_ref !== undefined) try { validateRevisionRef(attempt.workforce_revision_ref, "workforce_revision_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   if (attempt.lease_ref !== undefined) try { validateEntityRef(attempt.lease_ref, "lease_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   if (attempt.fencing_token !== undefined) requireString(attempt.fencing_token, "fencing_token", issues);
   if (!["queued", "running", "succeeded", "failed", "cancelled", "timed_out", "unknown"].includes(attempt.status ?? "")) issues.push({ path: "status", code: "INVALID_ENUM", message: "Invalid TaskAttempt status" });

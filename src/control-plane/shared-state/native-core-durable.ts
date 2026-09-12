@@ -48,6 +48,15 @@ import {
   type CoordinationProposalV2,
   type TaskAssignmentV2,
 } from "../../native-core/coordination.js";
+import {
+  createRuntimeExecutionIntentV2,
+  validateRuntimeCompilationRequest,
+  validateRuntimeExecutionIntentV2,
+  type RuntimeCompilationRequest,
+  type RuntimeCompilationResult,
+  type RuntimeExecutionIntentV2,
+} from "../../native-core/runtime-compilation.js";
+import { createTaskAttemptV2, validateTaskAttemptV2, type TaskAttemptV2 } from "../../native-core/runtime.js";
 import { validateRunV2, validateTaskV2, type RunV2, type TaskV2 } from "../../native-core/runtime.js";
 import {
   validateEvidenceRecordV2,
@@ -215,6 +224,7 @@ export interface AsyncNativeCoreRepository {
   getAgentLineage(agentId: string): Promise<NativeAgentLineage>;
   advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult>;
   getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage>;
+  listWorkforceDefinitions(): Promise<readonly WorkforceDefinitionV2[]>;
   getWorkforceRevision(workforceId: string, revision: number): Promise<WorkforceRevisionV2 | undefined>;
   listWorkforceRevisions(workforceId: string): Promise<readonly WorkforceRevisionV2[]>;
   recordGovernedRoleRevision(role: GovernedRoleRevisionV2, expectedHead: number): Promise<GovernedRoleRevisionV2>;
@@ -235,10 +245,17 @@ export interface AsyncNativeCoreRepository {
   admitWorkforceRun(input: WorkforceRunAdmissionRequest): Promise<WorkforceRunAdmissionResult>;
   getRun(runId: string): Promise<RunV2 | undefined>;
   getRunMembership(runId: string): Promise<readonly WorkforceRunMembershipV2[]>;
+  listCoordinationProposals(runId: string, taskId?: string): Promise<readonly CoordinationProposalV2[]>;
+  listCoordinationDecisions(runId: string, taskId?: string): Promise<readonly CoordinationDecisionV2[]>;
   recordCoordinationProposal(input: CoordinationProposalCommand): Promise<CoordinationProposalCommandResult>;
   recordCoordinationDecision(input: CoordinationDecisionCommand): Promise<CoordinationDecisionCommandResult>;
   getCurrentTaskAssignment(runId: string, taskId: string): Promise<TaskAssignmentV2 | undefined>;
   listTaskAssignments(runId: string, taskId: string): Promise<readonly TaskAssignmentV2[]>;
+  compileTaskExecution(input: RuntimeCompilationRequest): Promise<RuntimeCompilationResult>;
+  getExecutionIntent(intentId: string): Promise<RuntimeExecutionIntentV2 | undefined>;
+  getAttempt(attemptId: string): Promise<TaskAttemptV2 | undefined>;
+  listExecutionIntents(runId: string, taskId?: string): Promise<readonly RuntimeExecutionIntentV2[]>;
+  listAttempts(runId: string, taskId?: string): Promise<readonly TaskAttemptV2[]>;
 }
 
 export class NativeIdempotencyConflictError extends Error {
@@ -310,6 +327,22 @@ export class NativeMemberSlotNotFoundError extends Error {
   constructor(readonly runId: string, readonly slotId: string) {
     super(`admitted Workforce member slot was not found: ${runId}/${slotId}`);
     this.name = "NativeMemberSlotNotFoundError";
+  }
+}
+
+export class NativeStaleAssignmentError extends Error {
+  readonly code = "ACS_NATIVE_STALE_ASSIGNMENT";
+  constructor(readonly runId: string, readonly taskId: string, readonly assignmentId: string) {
+    super(`native runtime compilation rejected stale assignment for ${runId}/${taskId}/${assignmentId}`);
+    this.name = "NativeStaleAssignmentError";
+  }
+}
+
+export class NativeRuntimeBindingCorruptionError extends Error {
+  readonly code = "ACS_NATIVE_RUNTIME_BINDING_CORRUPTION";
+  constructor(readonly attemptId: string, detail: string) {
+    super(`native runtime binding is corrupt for ${attemptId}: ${detail}`);
+    this.name = "NativeRuntimeBindingCorruptionError";
   }
 }
 
@@ -396,6 +429,8 @@ async function query<R extends QueryResultRow = QueryResultRow>(
       || error instanceof NativeOutboxLeaseError
       || error instanceof NativeCoordinationConflictError
       || error instanceof NativeMemberSlotNotFoundError
+      || error instanceof NativeStaleAssignmentError
+      || error instanceof NativeRuntimeBindingCorruptionError
       || error instanceof RevisionConflictError
       || error instanceof NativeContractValidationError) throw error;
     throw new TransactionFailedError(operation, { cause: error });
@@ -804,6 +839,13 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     return { definition, revisions };
   }
 
+  async listWorkforceDefinitions(): Promise<readonly WorkforceDefinitionV2[]> {
+    const result = await query<PayloadRow>(this.db, "list native workforce heads", `
+      SELECT payload FROM acs_workforces ORDER BY updated_at DESC, workforce_id
+    `);
+    return result.rows.map((row) => validateWorkforceDefinitionV2(decode<WorkforceDefinitionV2>(row.payload)));
+  }
+
   async getWorkforceRevision(workforceId: string, revision: number): Promise<WorkforceRevisionV2 | undefined> {
     requireText(workforceId, "workforceId");
     if (!Number.isSafeInteger(revision) || revision < 1) {
@@ -1199,6 +1241,24 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     return result.rows.map((row) => validateWorkforceRunMembershipV2(decode<WorkforceRunMembershipV2>(row.payload)));
   }
 
+  async listCoordinationProposals(runId: string, taskId?: string): Promise<readonly CoordinationProposalV2[]> {
+    const result = await query<PayloadRow>(this.db, "list coordination proposals", `
+      SELECT payload FROM acs_coordination_proposals
+      WHERE run_id = $1 ${taskId === undefined ? "" : "AND task_id = $2"}
+      ORDER BY created_at, proposal_id
+    `, taskId === undefined ? [runId] : [runId, taskId]);
+    return result.rows.map((row) => validateCoordinationProposalV2(decode<CoordinationProposalV2>(row.payload)));
+  }
+
+  async listCoordinationDecisions(runId: string, taskId?: string): Promise<readonly CoordinationDecisionV2[]> {
+    const result = await query<PayloadRow>(this.db, "list coordination decisions", `
+      SELECT payload FROM acs_coordination_decisions
+      WHERE run_id = $1 ${taskId === undefined ? "" : "AND task_id = $2"}
+      ORDER BY created_at, decision_id
+    `, taskId === undefined ? [runId] : [runId, taskId]);
+    return result.rows.map((row) => validateCoordinationDecisionV2(decode<CoordinationDecisionV2>(row.payload)));
+  }
+
   async recordCoordinationProposal(input: CoordinationProposalCommand): Promise<CoordinationProposalCommandResult> {
     const proposal = validateCoordinationProposalV2(input.proposal);
     const task = validateTaskV2(input.task);
@@ -1295,6 +1355,150 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       SELECT payload FROM acs_task_assignments WHERE run_id = $1 AND task_id = $2 ORDER BY generation
     `, [runId, taskId]);
     return result.rows.map((row) => validateTaskAssignmentV2(decode<TaskAssignmentV2>(row.payload)));
+  }
+
+  async compileTaskExecution(input: RuntimeCompilationRequest): Promise<RuntimeCompilationResult> {
+    validateRuntimeCompilationRequest(input);
+    const requestHash = sha256Hex(stableStringify(input));
+    const idempotency = { ...input.idempotency, request_hash: requestHash };
+    return this.idempotent(idempotency, "native.runtime.execution.compile", async () => {
+      await query(this.db, "lock runtime compilation task", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`runtime-compilation:${input.run_id}:${input.task_id}`]);
+      const run = await this.getRun(input.run_id);
+      if (!run) throw new NativeRunNotFoundError(input.run_id);
+      const assignmentResult = await query<PayloadRow>(this.db, "load canonical task assignment", `
+        SELECT payload FROM acs_task_assignments
+        WHERE assignment_id = $1 AND run_id = $2 AND task_id = $3
+        FOR SHARE
+      `, [input.assignment_id, input.run_id, input.task_id]);
+      const assignment = assignmentResult.rows[0] ? validateTaskAssignmentV2(decode<TaskAssignmentV2>(assignmentResult.rows[0].payload)) : undefined;
+      if (!assignment) throw new NativeCoordinationConflictError(input.run_id, input.task_id, "assignment was not found for the Run and Task");
+      if (input.expected_assignment_id !== undefined && input.expected_assignment_id !== assignment.assignment_id) throw new NativeStaleAssignmentError(input.run_id, input.task_id, assignment.assignment_id);
+      if (input.expected_assignment_generation !== undefined && input.expected_assignment_generation !== assignment.generation) throw new NativeStaleAssignmentError(input.run_id, input.task_id, assignment.assignment_id);
+      const current = await this.getCurrentTaskAssignment(input.run_id, input.task_id);
+      if (!current || current.assignment_id !== assignment.assignment_id || current.generation !== assignment.generation) throw new NativeStaleAssignmentError(input.run_id, input.task_id, assignment.assignment_id);
+      const members = await this.getRunMembership(input.run_id);
+      const member = members.find((candidate) => candidate.slot_id === assignment.member_slot_id);
+      if (!member || member.agent_id !== assignment.agent_id
+        || !equal(member.resolved_agent_revision_ref, assignment.resolved_agent_revision_ref)
+        || !equal(member.workforce_revision_ref, assignment.workforce_revision_ref)) {
+        throw new NativeRuntimeBindingCorruptionError(input.assignment_id, "assignment does not match the immutable Run membership snapshot");
+      }
+      const agentRevisionResult = await query<PayloadRow>(this.db, "load exact Agent revision for runtime compilation", `
+        SELECT payload FROM acs_agent_history
+        WHERE agent_id = $1 AND revision = $2 AND native_fingerprint = $3 AND record_kind = 'native_v2'
+        FOR SHARE
+      `, [assignment.agent_id, assignment.resolved_agent_revision_ref.revision, assignment.resolved_agent_revision_ref.fingerprint]);
+      const agentRevision = agentRevisionResult.rows[0] ? validateAgentRevisionV2(decode<AgentRevisionV2>(agentRevisionResult.rows[0].payload)) : undefined;
+      if (!agentRevision) throw new NativeRuntimeBindingCorruptionError(input.assignment_id, "exact Agent revision is missing");
+      const compiledAt = input.compiled_at ?? Date.now();
+      const intentId = input.intent_id ?? `execution_intent_${assignment.assignment_id}`;
+      const attemptId = input.attempt_id ?? `attempt_${assignment.assignment_id}`;
+      const intent = createRuntimeExecutionIntentV2({
+        intent_id: intentId,
+        run_id: assignment.run_id,
+        task_id: assignment.task_id,
+        assignment_id: assignment.assignment_id,
+        assignment_generation: assignment.generation,
+        member_slot_id: member.slot_id,
+        agent_id: agentRevision.ref.entity_id,
+        agent_revision_ref: agentRevision.ref,
+        workforce_revision_ref: member.workforce_revision_ref,
+        runtime_configuration: { runtime_preferences: agentRevision.runtime_preferences },
+        status: "compiled",
+        compiled_at: compiledAt,
+        provenance: {
+          assignment_id: assignment.assignment_id,
+          assignment_generation: assignment.generation,
+          member_slot_id: member.slot_id,
+          agent_revision: agentRevision.ref.revision,
+          workforce_revision: member.workforce_revision_ref.revision,
+        },
+      });
+      const attempt = createTaskAttemptV2({
+        attempt_id: attemptId,
+        task_run_id: assignment.task_id,
+        attempt: 1,
+        dispatch_key: `${assignment.task_id}:${assignment.assignment_id}:${assignment.generation}`,
+        execution_id: intent.intent_id,
+        execution_intent_id: intent.intent_id,
+        assignment_id: assignment.assignment_id,
+        assignment_generation: assignment.generation,
+        member_slot_id: member.slot_id,
+        agent_id: agentRevision.ref.entity_id,
+        agent_revision_ref: agentRevision.ref,
+        workforce_revision_ref: member.workforce_revision_ref,
+        status: "queued",
+      });
+      await query(this.db, "persist runtime execution intent", `
+        INSERT INTO acs_runtime_execution_intents (
+          intent_id, run_id, task_id, assignment_id, assignment_generation, member_slot_id,
+          agent_id, agent_revision, workforce_revision, status, payload, compiled_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, to_timestamp($12 / 1000.0))
+        ON CONFLICT (intent_id) DO NOTHING
+      `, [intent.intent_id, intent.run_id, intent.task_id, intent.assignment_id, intent.assignment_generation, intent.member_slot_id, intent.agent_id, intent.agent_revision_ref.revision, intent.workforce_revision_ref.revision, intent.status, serialize(intent), intent.compiled_at]);
+      await query(this.db, "persist runtime Attempt assignment binding", `
+        INSERT INTO acs_runtime_attempts (
+          attempt_id, run_id, task_id, intent_id, assignment_id, assignment_generation, payload, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, to_timestamp($8 / 1000.0))
+        ON CONFLICT (attempt_id) DO NOTHING
+      `, [attempt.attempt_id, intent.run_id, intent.task_id, intent.intent_id, intent.assignment_id, intent.assignment_generation, serialize(attempt), intent.compiled_at]);
+      const event = await this.appendEvent({
+        schema_version: ACS_NATIVE_SCHEMA_VERSION,
+        event_id: `event_${intent.intent_id}`,
+        event_type: "execution.intent_compiled",
+        timestamp: compiledAt,
+        sequence: await this.nextEventSequence(`run:${intent.run_id}`),
+        organization_id: run.scope.organization_id,
+        product_domain: run.scope.product_domain,
+        ...(run.scope.tenant_id ? { tenant_id: run.scope.tenant_id } : {}),
+        run_id: intent.run_id,
+        task_id: intent.task_id,
+        attempt: attempt.attempt,
+        agent_id: intent.agent_id,
+        workforce_id: intent.workforce_revision_ref.entity_id,
+        actor: { kind: "system", ref: "acs.runtime" },
+        source: "acs",
+        correlation_id: input.correlation_id ?? input.idempotency.key,
+        idempotency_key: input.idempotency.key,
+        payload: { intent_id: intent.intent_id, assignment_id: intent.assignment_id, assignment_generation: intent.assignment_generation, member_slot_id: intent.member_slot_id, agent_revision: intent.agent_revision_ref.revision },
+      });
+      const outbox = await this.insertOutbox(event.event.event_id, `outbox_${intent.intent_id}`);
+      void outbox;
+      return { intent, attempt, event_id: event.event.event_id };
+    });
+  }
+
+  async getExecutionIntent(intentId: string): Promise<RuntimeExecutionIntentV2 | undefined> {
+    const result = await query<PayloadRow>(this.db, "get runtime execution intent", "SELECT payload FROM acs_runtime_execution_intents WHERE intent_id = $1", [intentId]);
+    return result.rows[0] ? validateRuntimeExecutionIntentV2(decode<RuntimeExecutionIntentV2>(result.rows[0].payload)) : undefined;
+  }
+
+  async getAttempt(attemptId: string): Promise<TaskAttemptV2 | undefined> {
+    const result = await query<PayloadRow>(this.db, "get runtime Attempt", "SELECT payload FROM acs_runtime_attempts WHERE attempt_id = $1", [attemptId]);
+    return result.rows[0] ? validateTaskAttemptV2(decode<TaskAttemptV2>(result.rows[0].payload)) : undefined;
+  }
+
+  async listExecutionIntents(runId: string, taskId?: string): Promise<readonly RuntimeExecutionIntentV2[]> {
+    const result = await query<PayloadRow>(this.db, "list runtime execution intents", `
+      SELECT payload FROM acs_runtime_execution_intents
+      WHERE run_id = $1 ${taskId === undefined ? "" : "AND task_id = $2"}
+      ORDER BY compiled_at, intent_id
+    `, taskId === undefined ? [runId] : [runId, taskId]);
+    return result.rows.map((row) => validateRuntimeExecutionIntentV2(decode<RuntimeExecutionIntentV2>(row.payload)));
+  }
+
+  async listAttempts(runId: string, taskId?: string): Promise<readonly TaskAttemptV2[]> {
+    const result = await query<PayloadRow>(this.db, "list runtime attempts", `
+      SELECT payload FROM acs_runtime_attempts
+      WHERE run_id = $1 ${taskId === undefined ? "" : "AND task_id = $2"}
+      ORDER BY created_at, attempt_id
+    `, taskId === undefined ? [runId] : [runId, taskId]);
+    return result.rows.map((row) => validateTaskAttemptV2(decode<TaskAttemptV2>(row.payload)));
+  }
+
+  private async nextEventSequence(scope: string): Promise<number> {
+    const result = await query<{ readonly sequence: string | number } & QueryResultRow>(this.db, "read next runtime event sequence", "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM acs_native_events WHERE stream_scope = $1", [scope]);
+    return Number(result.rows[0]?.sequence ?? 1);
   }
 
   private async idempotent<T>(idempotency: Idempotency, operation: string, fn: () => Promise<T>): Promise<T> {

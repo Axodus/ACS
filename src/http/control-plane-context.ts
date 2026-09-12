@@ -126,9 +126,11 @@ import {
   type SiwxAuthenticatedArtifactVerifier,
 } from "./siwx-artifact.js";
 import { ViemSiwxArtifactVerifier } from "./viem-siwx-artifact-verifier.js";
+import type { AsyncNativeCoreRepository } from "../control-plane/shared-state/native-core-durable.js";
 import { resolveSiwxRpcUrls } from "./siwx-rpc-configuration.js";
 
 export interface ControlPlaneContext {
+  readonly nativeCore?: AsyncNativeCoreRepository;
   readonly engineRegistry: EngineRegistry;
   readonly engineService: EngineService;
   readonly targetService: ExecutionTargetService;
@@ -232,6 +234,7 @@ const DEV_BILLING_POLICY: BillingPolicy = {
 };
 
 export interface ControlPlaneContextOptions {
+  readonly nativeCore?: AsyncNativeCoreRepository;
   readonly acsRoot?: string;
   readonly engine?: AgentEngine;
   readonly deploymentEngine?: "openclaw" | "production-http";
@@ -973,6 +976,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
   });
 
   return {
+    nativeCore: options.nativeCore,
     engineRegistry,
     engineService: new EngineService(engineRegistry),
     targetService,

@@ -422,7 +422,7 @@ test("IMP-03A command boundary requires authoritative lifecycle, event, and idem
 
 test("IMP-03A schema remains additive after Workforce Run admission extensions", () => {
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 4);
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 6);
+  assert.equal(SHARED_STATE_SCHEMA_VERSION, 7);
   assert.ok(migration);
   const schema = migration.statements.join("\n");
   for (const table of ["acs_workforces", "acs_workforce_revisions", "acs_governed_role_revisions"]) {

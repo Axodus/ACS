@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 6;
+export const SHARED_STATE_SCHEMA_VERSION = 7;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -486,6 +486,41 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
         UNIQUE (run_id, task_id, decision_id)
       )`,
       `CREATE INDEX IF NOT EXISTS acs_task_assignments_current_idx ON acs_task_assignments (run_id, task_id, generation DESC)`,
+    ],
+  },
+  {
+    version: 7,
+    name: "runtime_execution_intents_and_assignment_bound_attempts",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_runtime_execution_intents (
+        intent_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES acs_native_runs(run_id),
+        task_id TEXT NOT NULL,
+        assignment_id TEXT NOT NULL REFERENCES acs_task_assignments(assignment_id),
+        assignment_generation INTEGER NOT NULL CHECK (assignment_generation > 0),
+        member_slot_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
+        agent_revision INTEGER NOT NULL CHECK (agent_revision > 0),
+        workforce_revision INTEGER NOT NULL CHECK (workforce_revision > 0),
+        status TEXT NOT NULL CHECK (status IN ('compiled', 'started', 'completed', 'rejected')),
+        payload JSONB NOT NULL,
+        compiled_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (run_id, task_id, assignment_id),
+        UNIQUE (run_id, task_id, assignment_id, assignment_generation)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_runtime_execution_intents_task_idx ON acs_runtime_execution_intents (run_id, task_id, assignment_generation)`,
+      `CREATE TABLE IF NOT EXISTS acs_runtime_attempts (
+        attempt_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES acs_native_runs(run_id),
+        task_id TEXT NOT NULL,
+        intent_id TEXT NOT NULL REFERENCES acs_runtime_execution_intents(intent_id),
+        assignment_id TEXT NOT NULL REFERENCES acs_task_assignments(assignment_id),
+        assignment_generation INTEGER NOT NULL CHECK (assignment_generation > 0),
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (intent_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_runtime_attempts_task_idx ON acs_runtime_attempts (run_id, task_id, created_at, attempt_id)`,
     ],
   },
 ];

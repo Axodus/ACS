@@ -67,6 +67,7 @@ import {
   type AcsAuthSessionReadModel,
 } from "../../control-plane/account-identity.js";
 import { SiwxArtifactVerificationError } from "../siwx-artifact.js";
+import { createWorkforceProductApi } from "../../control-plane/product-api-workforce.js";
 
 function isDeploymentMode(value: string): value is DeploymentMode {
   return value === "sandbox" || value === "staged" || value === "live";
@@ -141,6 +142,7 @@ export async function routeProductApiRequest(
       liveDeploymentEnabled: context.productionAdapters.deploymentTarget.productionOriented,
     },
   });
+  const workforceApi = context.nativeCore ? createWorkforceProductApi(context.nativeCore) : undefined;
 
   const segments = path.split("/").filter(Boolean);
 
@@ -216,6 +218,46 @@ export async function routeProductApiRequest(
     }
     if (apiPath === "ready") {
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
+    }
+
+    if (workforceApi && apiPath === "workforces" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(await workforceApi.listWorkforces(), [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && segments[2] === "workforces" && segments[3] && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(await workforceApi.getWorkforce(readPathSegment(segments, 3, "workforceId")), [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && segments[2] === "workforces" && segments[3] && segments[4] === "revisions" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(await workforceApi.getWorkforceRevisions(readPathSegment(segments, 3, "workforceId")), [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && segments[2] === "runs" && segments[3] && segments[4] === "workforce" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(await workforceApi.getRunWorkforce(readPathSegment(segments, 3, "runId")), [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && segments[2] === "runs" && segments[3] && segments[4] === "membership" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok((await workforceApi.getRunWorkforce(readPathSegment(segments, 3, "runId"))).membership, [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && segments[2] === "tasks" && segments[3] && segments[4] === "coordination" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["runId"]);
+      const runId = url.searchParams.get("runId");
+      if (!runId) return fail("runId query parameter is required", 400, "validation_error", options.correlationId, { field: "runId" }, routeMeta);
+      return { status: 200, body: ok(await workforceApi.getCoordination(runId, readPathSegment(segments, 3, "taskId")), [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && segments[2] === "tasks" && segments[3] && segments[4] === "assignments" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["runId"]);
+      const runId = url.searchParams.get("runId");
+      if (!runId) return fail("runId query parameter is required", 400, "validation_error", options.correlationId, { field: "runId" }, routeMeta);
+      const coordination = await workforceApi.getCoordination(runId, readPathSegment(segments, 3, "taskId"));
+      return { status: 200, body: ok({ current: coordination.currentAssignment, history: coordination.assignmentHistory }, [], options.correlationId, routeMeta) };
+    }
+    if (workforceApi && segments[2] === "tasks" && segments[3] && segments[4] === "runtime" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["runId"]);
+      const runId = url.searchParams.get("runId");
+      if (!runId) return fail("runId query parameter is required", 400, "validation_error", options.correlationId, { field: "runId" }, routeMeta);
+      return { status: 200, body: ok(await workforceApi.getRuntime(runId, readPathSegment(segments, 3, "taskId")), [], options.correlationId, routeMeta) };
     }
 
     // The nonce contains no authority. It exists only to make the later

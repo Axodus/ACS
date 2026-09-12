@@ -6,3 +6,4 @@ export * from "./accounting.js";
 export * from "./workforce.js";
 export * from "./workforce-run-membership.js";
 export * from "./coordination.js";
+export * from "./runtime-compilation.js";

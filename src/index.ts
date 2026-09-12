@@ -160,6 +160,7 @@ export * from "./control-plane/shared-state/native-core-durable.js";
 export * from "./control-plane/epic-11-acceptance.js";
 
 export * from "./control-plane/product-api-client.js";
+export * from "./control-plane/product-api-workforce.js";
 
 export * from "./native-core/index.js";
 

@@ -84,6 +84,11 @@ import {
 import {
   NativeFencingError,
   NativeIdempotencyConflictError,
+  NativeMemberSlotNotFoundError,
+  NativeCoordinationConflictError,
+  NativeRunNotFoundError,
+  NativeStaleAssignmentError,
+  NativeRuntimeBindingCorruptionError,
   NativeWorkforceLineageIntegrityError,
   NativeWorkforceNotFoundError,
   NativeWorkforceReferenceError,
@@ -141,6 +146,11 @@ function mapRepositoryError(operation: string, error: unknown): Error {
     || error instanceof RuntimeWorkerIdentityError
     || error instanceof NativeIdempotencyConflictError
     || error instanceof NativeFencingError
+    || error instanceof NativeMemberSlotNotFoundError
+    || error instanceof NativeCoordinationConflictError
+    || error instanceof NativeRunNotFoundError
+    || error instanceof NativeStaleAssignmentError
+    || error instanceof NativeRuntimeBindingCorruptionError
     || error instanceof NativeWorkforceLineageIntegrityError
     || error instanceof NativeWorkforceNotFoundError
     || error instanceof NativeWorkforceReferenceError
@@ -1466,6 +1476,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
         "read native workforce lineage",
         (tx) => tx.nativeCore.getWorkforceLineage(workforceId),
       ),
+      listWorkforceDefinitions: () => session.nativeCore.listWorkforceDefinitions(),
       getWorkforceRevision: (workforceId, revision) => session.nativeCore.getWorkforceRevision(workforceId, revision),
       listWorkforceRevisions: (workforceId) => session.nativeCore.listWorkforceRevisions(workforceId),
       recordGovernedRoleRevision: (role, expectedHead) => this.withTransaction(
@@ -1495,6 +1506,8 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       ),
       getRun: (runId) => session.nativeCore.getRun(runId),
       getRunMembership: (runId) => session.nativeCore.getRunMembership(runId),
+      listCoordinationProposals: (runId, taskId) => session.nativeCore.listCoordinationProposals(runId, taskId),
+      listCoordinationDecisions: (runId, taskId) => session.nativeCore.listCoordinationDecisions(runId, taskId),
       recordCoordinationProposal: (input) => this.withTransaction(
         "record coordination proposal",
         (tx) => tx.nativeCore.recordCoordinationProposal(input),
@@ -1505,6 +1518,11 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       ),
       getCurrentTaskAssignment: (runId, taskId) => session.nativeCore.getCurrentTaskAssignment(runId, taskId),
       listTaskAssignments: (runId, taskId) => session.nativeCore.listTaskAssignments(runId, taskId),
+      compileTaskExecution: (input) => this.withTransaction("compile canonical task execution", (tx) => tx.nativeCore.compileTaskExecution(input)),
+      getExecutionIntent: (intentId) => session.nativeCore.getExecutionIntent(intentId),
+      getAttempt: (attemptId) => session.nativeCore.getAttempt(attemptId),
+      listExecutionIntents: (runId, taskId) => session.nativeCore.listExecutionIntents(runId, taskId),
+      listAttempts: (runId, taskId) => session.nativeCore.listAttempts(runId, taskId),
     };
   }
 
