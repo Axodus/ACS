@@ -124,10 +124,22 @@
 .sidebar-child-link {
   border-radius: 8px;
   color: var(--muted);
+  display: grid;
   font-size: 11px;
   overflow-wrap: anywhere;
   padding: 6px 8px;
   text-decoration: none;
+}
+
+.sidebar-child-link.unavailable {
+  cursor: not-allowed;
+  opacity: .7;
+}
+
+.sidebar-child-link.unavailable small {
+  color: var(--muted);
+  font-size: 9px;
+  margin-top: 2px;
 }
 
 .sidebar-child-link:hover,

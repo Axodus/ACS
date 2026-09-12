@@ -45,6 +45,8 @@ type DomainChild = {
   readonly kind?: "canonical" | "compatibility" | "legacy";
   readonly group?: string;
   readonly external?: boolean;
+  readonly available?: boolean;
+  readonly note?: string;
 };
 
 type DomainDef = {
@@ -97,7 +99,13 @@ const viewPaths: Record<View, string> = {
 const domainDefs: readonly DomainDef[] = [
   { id: "Dashboard", icon: <Icons.Gauge size={18} weight="duotone" />, to: "/", description: "Global attention, readiness and recent activity.", children: [] },
   { id: "Agents", icon: <Icons.Robot size={18} weight="duotone" />, to: "/agents", description: "Governed Agent identity, lifecycle, revisions and configuration.", children: [{ label: "All Agents", to: "/agents" }, { label: "Create Agent", to: "/agents/new" }, { label: "Credential references", to: "/credentials", kind: "compatibility" }] },
-  { id: "Workforces", icon: <Icons.UsersThree size={18} weight="duotone" />, to: "/workforces", description: "Reusable Agent composition with canonical revision and admission semantics.", children: [{ label: "All Workforces", to: "/workforces" }] },
+  { id: "Workforces", icon: <Icons.UsersThree size={18} weight="duotone" />, to: "/workforces", description: "Reusable Agent composition with canonical revision and admission semantics.", children: [
+    { label: "Overview / List", to: "/workforces" },
+    { label: "Members", to: "/workforces", available: false, note: "Select a Workforce" },
+    { label: "Revisions", to: "/workforces", available: false, note: "Select a Workforce" },
+    { label: "Runs", to: "/workforces", available: false, note: "Select a Workforce" },
+    { label: "Operations", to: "/workforces", available: false, note: "Select a Workforce" },
+  ] },
   { id: "Runs", icon: <Icons.PlayCircle size={18} weight="duotone" />, to: "/executions", description: "Cross-Agent execution history and governed planning.", children: [{ label: "All Runs", to: "/executions" }, { label: "Execution planning", to: "/operational-execution", kind: "compatibility" }] },
   { id: "Evidence", icon: <Icons.Pulse size={18} weight="duotone" />, to: "/operational-evidence", description: "Cross-Agent evidence, audit and operational activity.", children: [{ label: "Evidence", to: "/operational-evidence" }, { label: "Audit", to: "/audit" }, { label: "Logs", to: "/logs", kind: "compatibility" }] },
   { id: "Usage & Cost", icon: <Icons.CurrencyDollar size={18} weight="duotone" />, to: "/economics", description: "Operational usage and cost visibility with explicit financial boundaries.", children: [{ label: "Overview", to: "/economics" }, { label: "Reservations & settlement", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Boundary reports", to: "/system/billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Boundaries" }] },
@@ -482,20 +490,48 @@ export function ReportSectionNav({ sections }: {
   </nav>;
 }
 
-function SidebarNavigation({ pathname, activeDomain, onNavigate, collapsed }: {
+type WorkforceNavigationContext = {
+  workforceId: string;
+  name: string | null;
+};
+
+function workforceContextChildren(workforceId: string): readonly DomainChild[] {
+  const base = `/workforces/${encodeURIComponent(workforceId)}`;
+  return [
+    { label: "Overview", to: base },
+    { label: "Members", to: `${base}/members` },
+    { label: "Revisions", to: `${base}/revisions` },
+    { label: "Runs", to: `${base}/runs` },
+    { label: "Operations", to: `${base}/operations` },
+  ];
+}
+
+function SidebarNavigation({ pathname, activeDomain, onNavigate, collapsed, workforceContext }: {
   pathname: string;
   activeDomain: PrimaryDomain;
   onNavigate: () => void;
   collapsed: boolean;
+  workforceContext: WorkforceNavigationContext | null;
 }) {
   return <nav className="sidebar-navigation" aria-label="Control Plane navigation">
     {domainDefs.map(domain => {
       const expanded = domain.id === activeDomain;
-      const groups = domain.children.reduce<Record<string, DomainChild[]>>((acc, child) => {
+      const visibleChildren = domain.id === "Workforces" && workforceContext
+        ? domain.children.filter(child => child.to === "/workforces" && child.available !== false)
+        : domain.children;
+      const groups = visibleChildren.reduce<Record<string, DomainChild[]>>((acc, child) => {
         const group = child.group ?? "";
         (acc[group] ??= []).push(child);
         return acc;
       }, {});
+      if (domain.id === "Workforces" && workforceContext) {
+        groups[`Workforce: ${workforceContext.name ?? workforceContext.workforceId}`] = [...workforceContextChildren(workforceContext.workforceId)];
+      }
+      const activeWorkforceChild = domain.id === "Workforces" && workforceContext
+        ? [...workforceContextChildren(workforceContext.workforceId)]
+          .sort((left, right) => right.to.length - left.to.length)
+          .find(child => childActive(pathname, child.to))?.to
+        : undefined;
       return <section className={`sidebar-domain ${expanded ? "expanded" : ""}`} key={domain.id}>
         <Router.Link className={`domain-link ${expanded ? "active" : ""}`} to={domain.to} onClick={onNavigate} aria-current={expanded ? "page" : undefined} title={collapsed ? domain.id : undefined}>
           <span aria-hidden="true">{domain.icon}</span><span className="domain-label">{domain.id}</span><i className="sidebar-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</i>
@@ -503,9 +539,18 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate, collapsed }: {
         {!collapsed && expanded && <div className="sidebar-children">
           {Object.entries(groups).map(([group, children]) => <div className="sidebar-child-group" key={group || "root"}>
             {group && <span className="sidebar-group-label">{group}</span>}
-            {children.map(child => child.external
-              ? <a key={child.to} className="sidebar-child-link" href={child.to} onClick={onNavigate}>{child.label} ↗</a>
-              : <Router.Link key={child.to} className={`sidebar-child-link ${childActive(pathname, child.to) ? "active" : ""}`} to={child.to} onClick={onNavigate} aria-current={childActive(pathname, child.to) ? "page" : undefined}>{child.label}</Router.Link>)}
+            {children.map(child => {
+              const active = domain.id === "Workforces"
+                ? child.to === "/workforces"
+                  ? pathname === child.to
+                  : child.to === activeWorkforceChild
+                : childActive(pathname, child.to);
+              return child.available === false
+                ? <span key={child.label} className="sidebar-child-link unavailable" aria-disabled="true">{child.label}<small>{child.note ?? "Select a Workforce"}</small></span>
+                : child.external
+                ? <a key={child.to} className="sidebar-child-link" href={child.to} onClick={onNavigate}>{child.label} ↗</a>
+                : <Router.Link key={child.to} className={`sidebar-child-link ${active ? "active" : ""}`} to={child.to} onClick={onNavigate} aria-current={active ? "page" : undefined}>{child.label}</Router.Link>;
+            })}
           </div>)}
         </div>}
       </section>;
@@ -513,7 +558,7 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate, collapsed }: {
   </nav>;
 }
 
-function EntityContextNav({ pathname }: { pathname: string }) {
+function EntityContextNav({ pathname, workforceContext }: { pathname: string; workforceContext: WorkforceNavigationContext | null }) {
   if (pathname === "/agents/new") return null;
   const agentMatch = pathname.match(/^\/agents\/([^/]+)(?:\/[^/]+)?/);
   if (agentMatch) {
@@ -531,14 +576,8 @@ function EntityContextNav({ pathname }: { pathname: string }) {
   }
   const workforceMatch = pathname.match(/^\/workforces\/([^/]+)(?:\/[^/]+)?/);
   if (workforceMatch) {
-    const workforceId = workforceMatch[1];
-    return <ContextTabs title={`Workforce / ${workforceId}`} tabs={[
-      { label: "Overview", to: `/workforces/${workforceId}` },
-      { label: "Members", to: `/workforces/${workforceId}/members` },
-      { label: "Revisions", to: `/workforces/${workforceId}/revisions` },
-      { label: "Runs", to: `/workforces/${workforceId}/runs` },
-      { label: "Operations", to: `/workforces/${workforceId}/operations` },
-    ]} />;
+    const workforceId = decodeURIComponent(workforceMatch[1]);
+    return <ContextTabs title={`Workforce: ${workforceContext?.name ?? workforceId}`} tabs={workforceContextChildren(workforceId)} />;
   }
   const resourceMatch = pathname.match(/^\/(roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)/);
   if (resourceMatch) {

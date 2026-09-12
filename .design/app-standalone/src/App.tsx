@@ -28,6 +28,7 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const [connectivity, setConnectivity] = useState<Shared.ConnectivityState>({ status: "loading", health: null, error: null });
+  const [workforceContext, setWorkforceContext] = useState<{ workforceId: string; name: string | null } | null>(null);
 
   async function checkProductApi() {
     setConnectivity({ status: "loading", health: null, error: null });
@@ -81,6 +82,28 @@ export default function App() {
     void checkProductApi();
   }, []);
 
+  useEffect(() => {
+    const match = location.pathname.match(/^\/workforces\/([^/]+)(?:\/|$)/);
+    if (!match) {
+      setWorkforceContext(null);
+      return;
+    }
+
+    const workforceId = decodeURIComponent(match[1]);
+    let cancelled = false;
+    setWorkforceContext({ workforceId, name: null });
+    void Api.productApi.getWorkforce(workforceId)
+      .then(detail => {
+        if (!cancelled) setWorkforceContext({ workforceId, name: detail.currentRevision.display_name });
+      })
+      .catch(() => {
+        // Keep the ID visible for direct links while the detail surface presents the API error.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname]);
+
   const view = Shared.viewOfPath(location.pathname);
 
   const domain = Shared.domainByPath(location.pathname);
@@ -101,7 +124,7 @@ export default function App() {
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
         <div className="brand"><img src="/assets/Axodus_logo.svg" alt="ACS" /><div className="brand-copy"><b>ACS</b><small>CONTROL PLANE</small></div><button className="sidebar-toggle" type="button" aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed(value => !value)}>{sidebarCollapsed ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}</button><button className="mobile-close" type="button" aria-label="Close navigation" onClick={() => setMobile(false)}>×</button></div>
         <div className="workspace-switch" aria-live="polite"><span className="workspace-icon">⌘</span><div><b>{Api.productApiConfig.environment} environment</b><small>{Api.productApiConfig.tenantId} · server-resolved session</small></div></div>
-        <Shared.SidebarNavigation pathname={location.pathname} activeDomain={domain} onNavigate={() => setMobile(false)} collapsed={sidebarCollapsed} />
+        <Shared.SidebarNavigation pathname={location.pathname} activeDomain={domain} onNavigate={() => setMobile(false)} collapsed={sidebarCollapsed} workforceContext={workforceContext} />
       </aside>
       {mobile && <button type="button" className="mobile-drawer-overlay" aria-label="Close navigation overlay" onClick={() => setMobile(false)} />}
       <main className="main">
@@ -113,7 +136,7 @@ export default function App() {
         {connectivity.status === "loading" && <div className="global-state loading-state" role="status">Connecting to Product API boundary...</div>}
         {connectivity.status === "error" && <div className="global-state error-state" role="alert"><span>Product API unavailable: {connectivity.error}</span><button className="secondary" onClick={() => void checkProductApi()}>Retry</button></div>}
         <div className="content">
-          <Shared.EntityContextNav pathname={location.pathname} />
+          <Shared.EntityContextNav pathname={location.pathname} workforceContext={workforceContext} />
           <Routes>
             <Route path="/" element={<CustomerDashboard />} />
             <Route path="/administration" element={<AdministrationOverview />} />

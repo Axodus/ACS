@@ -2,11 +2,13 @@
 
 ## Status
 
-`PARTIAL`
+`PARTIAL / DOMAIN ENTRY ACCEPTED / DOMAIN NAVIGATION INCOMPLETE`
 
 The Workforce read domain is implemented in the standalone ACS Control Plane application. It consumes only the accepted IMP-03E Product API reads and presents Workforces as a peer application domain.
 
 Creation, revision writes, lifecycle writes, and Workforce-scoped Run discovery remain unavailable because no corresponding accepted Product API write or query route exists. The application deliberately does not synthesize these capabilities.
+
+`ACS-V2-IMP-03F-FIX-01` adds the entity-local navigation implementation. `All Workforces` remains a collection-level link; a selected Workforce can expose `Overview`, `Members`, `Revisions`, `Runs`, and `Operations` in the sidebar and the entity context strip. The local environment does not currently return a Workforce collection, so a real selection and its visible navigation cannot be accepted yet.
 
 ## Scope delivered
 

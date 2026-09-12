@@ -10,7 +10,8 @@ const workforceSource = await readFile(new URL("../src/domains/workforces/Workfo
 test("IMP-03F exposes Workforces as a global application domain", () => {
   assert.match(sharedSource, /id: "Workforces"[\s\S]*?to: "\/workforces"/);
   assert.match(sharedSource, /if \(path\.startsWith\("\/workforces"\)\) return "Workforces"/);
-  assert.match(sharedSource, /Workforce \/ \$\{workforceId\}/);
+  assert.match(sharedSource, /label: "Overview \/ List", to: "\/workforces"/);
+  for (const label of ["Members", "Revisions", "Runs", "Operations"]) assert.match(sharedSource, new RegExp(`label: "${label}", to: "\\/workforces", available: false`));
 });
 
 test("IMP-03F registers direct Workforce routes and contextual navigation", () => {
@@ -25,6 +26,12 @@ test("IMP-03F registers direct Workforce routes and contextual navigation", () =
     "/workforces/:workforceId",
   ]) assert.match(appSource, new RegExp(`path=\\"${route.replaceAll("/", "\\/").replaceAll(":", "\\:")}\\"`));
   for (const label of ["Overview", "Members", "Revisions", "Runs", "Operations"]) assert.match(sharedSource, new RegExp(`label: "${label}"`));
+  assert.match(sharedSource, /Workforce: \$\{workforceContext\.name \?\? workforceContext\.workforceId\}/);
+  assert.match(sharedSource, /title=\{`Workforce: \$\{workforceContext\?\.name \?\? workforceId\}`\}/);
+  assert.match(sharedSource, /child\.to === "\/workforces"[\s\S]*?pathname === child\.to/);
+  assert.match(sharedSource, /Select a Workforce/);
+  assert.match(sharedSource, /sort\(\(left, right\) => right\.to\.length - left\.to\.length\)[\s\S]*?find\(child => childActive\(pathname, child\.to\)\)/);
+  assert.match(appSource, /Api\.productApi\.getWorkforce\(workforceId\)/);
 });
 
 test("IMP-03F reads only from accepted Workforce Product API endpoints", () => {

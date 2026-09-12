@@ -12,9 +12,10 @@ The application owns presentation, URL state, retry, filtering, and selected-sec
 
 | Existing pattern | Classification | IMP-03F use |
 | --- | --- | --- |
-| global `domainDefs` sidebar | EXTEND | Added `Workforces` peer entry |
+| global `domainDefs` sidebar | EXTEND | Added `Workforces` peer entry and collection-level `All Workforces` |
+| entity-local sidebar group | EXTEND | Selected Workforce exposes Overview, Members, Revisions, Runs, and Operations |
 | React Router shell and breadcrumbs | EXTEND | Added Workforce routes and entity labels |
-| `EntityContextNav` / `ContextTabs` | EXTEND | Added Overview, Members, Revisions, Runs, Operations |
+| `EntityContextNav` / `ContextTabs` | EXTEND | Mirrors the selected Workforce local navigation in the content shell |
 | `DomainHeader`, panels, badges, cards | REUSE | List and detail surface |
 | `useOperationalSummary` | REUSE | Workforce inventory reads |
 | Agent lifecycle forms and confirmations | OUT OF SCOPE | Workforce writes are absent from Product API |
