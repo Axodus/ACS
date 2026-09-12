@@ -23,3 +23,16 @@ test("EPIC-14 browser evidence roots are configurable", () => {
   assert.match(harnessSource, /chromium\.launch/);
   assert.doesNotMatch(harnessSource, /--dump-dom/);
 });
+
+test("IMP-03F Workforce direct routes are in the browser route matrix", () => {
+  for (const route of [
+    '"/workforces"',
+    '"/workforces/new"',
+    '"/workforces/workforce-browser-check"',
+    '"/workforces/workforce-browser-check/members"',
+    '"/workforces/workforce-browser-check/revisions"',
+    '"/workforces/workforce-browser-check/revisions/1"',
+    '"/workforces/workforce-browser-check/runs"',
+    '"/workforces/workforce-browser-check/operations"',
+  ]) assert.ok(harnessSource.includes(route), `missing browser route ${route}`);
+});

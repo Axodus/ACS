@@ -2352,6 +2352,84 @@ export type ExecutionRunSummary = {
   guardrails: ProductApiOperationalGuardrails;
 };
 
+export type WorkforceRevisionRef = {
+  entity_kind: "workforce" | "agent" | "resource";
+  entity_id: string;
+  revision: number;
+  fingerprint?: string;
+};
+
+export type WorkforceMember = {
+  slot_id: string;
+  agent_selector: {
+    mode: "pinned" | "current_head_at_admission";
+    agent_id: string;
+    pinned_revision_ref?: WorkforceRevisionRef;
+  };
+  role_ref?: WorkforceRevisionRef;
+  responsibilities?: readonly string[];
+};
+
+export type WorkforceRevision = {
+  ref: WorkforceRevisionRef;
+  supersedes_revision?: number;
+  display_name: string;
+  purpose: string;
+  lifecycle_status: "draft" | "active" | "disabled" | "archived";
+  members: readonly WorkforceMember[];
+  commit: { created_by: string; committed_at: number; change_reason: string };
+};
+
+export type WorkforceListItem = {
+  workforceId: string;
+  name: string;
+  currentRevision: number;
+  lifecycleState: WorkforceRevision["lifecycle_status"];
+  memberCount: number;
+  updatedAt: number;
+};
+
+export type WorkforceDetail = {
+  identity: { workforce_id: string; current_revision: number; current_status: WorkforceRevision["lifecycle_status"]; updated_at: number };
+  currentRevision: WorkforceRevision;
+  currentComposition: readonly WorkforceMember[];
+  revisionMetadata: WorkforceRevision["commit"];
+};
+
+export type WorkforceRunMembership = {
+  snapshot_id: string;
+  run_id: string;
+  workforce_revision_ref: WorkforceRevisionRef;
+  slot_id: string;
+  resolved_agent_revision_ref: WorkforceRevisionRef;
+  agent_id: string;
+  role_ref?: WorkforceRevisionRef;
+  resolution_mode: "pinned" | "current_head_at_admission";
+  resolved_at: number;
+};
+
+export type RunWorkforceView = {
+  run: { run_id: string; status: string };
+  workforce: { workforceId: string; admittedRevision: number; currentHeadRevision: number } | null;
+  membership: readonly WorkforceRunMembership[];
+};
+
+export type WorkforceCoordinationView = {
+  runId: string;
+  taskId: string;
+  proposals: readonly { proposal_id: string; proposal_kind: string; target_member_slot_id: string; source: string; reason: string; canonicalStatus: "advisory" }[];
+  decisions: readonly { decision_id: string; status: string; selected_member_slot_id?: string; reason: string; canonicalStatus: "canonical" }[];
+  currentAssignment: { assignment_id: string; member_slot_id: string; generation: number; agent_id: string; workforce_revision_ref: WorkforceRevisionRef; resolved_agent_revision_ref: WorkforceRevisionRef; supersedes_assignment_id?: string } | null;
+  assignmentHistory: readonly { assignment_id: string; member_slot_id: string; generation: number; agent_id: string; workforce_revision_ref: WorkforceRevisionRef; resolved_agent_revision_ref: WorkforceRevisionRef; supersedes_assignment_id?: string }[];
+};
+
+export type WorkforceRuntimeView = {
+  runId: string;
+  taskId: string;
+  intents: readonly { execution_intent_id?: string }[];
+  attempts: readonly { attemptId: string; status: string; executionIntentId?: string; assignmentId?: string; assignmentGeneration?: number; memberSlotId?: string; agentId?: string; agentRevisionRef?: WorkforceRevisionRef; workforceRevisionRef?: WorkforceRevisionRef; recoveryClassification: string }[];
+};
+
 export type WorkerSummary = {
   workerId: string;
   status: "registered" | "available" | "unavailable" | "degraded" | "stale";
@@ -2665,6 +2743,24 @@ export const productApi = {
   },
   async listExecutionRuns() {
     return request<ExecutionRunSummary[]>("/execution-runs");
+  },
+  async listWorkforces() {
+    return request<WorkforceListItem[]>("/workforces");
+  },
+  async getWorkforce(workforceId: string) {
+    return request<WorkforceDetail>(`/workforces/${encodeURIComponent(workforceId)}`);
+  },
+  async getWorkforceRevisions(workforceId: string) {
+    return request<WorkforceRevision[]>(`/workforces/${encodeURIComponent(workforceId)}/revisions`);
+  },
+  async getRunWorkforce(runId: string) {
+    return request<RunWorkforceView>(`/runs/${encodeURIComponent(runId)}/workforce`);
+  },
+  async getWorkforceCoordination(runId: string, taskId: string) {
+    return request<WorkforceCoordinationView>(`/tasks/${encodeURIComponent(taskId)}/coordination?runId=${encodeURIComponent(runId)}`);
+  },
+  async getWorkforceRuntime(runId: string, taskId: string) {
+    return request<WorkforceRuntimeView>(`/tasks/${encodeURIComponent(taskId)}/runtime?runId=${encodeURIComponent(runId)}`);
   },
   async listAgentExecutionRuns(agentId: string, query: { limit: number; offset: number }) {
     const params = new URLSearchParams({ limit: String(query.limit), offset: String(query.offset) });

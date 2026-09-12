@@ -20,7 +20,7 @@ test("/agents/new is excluded from entity-context navigation", () => {
 
 test("agent entity tabs contain only same-entity contexts", () => {
   const start = appSource.indexOf("function EntityContextNav");
-  const end = appSource.indexOf("/* ---------------------------------------------------------------------------", start);
+  const end = appSource.indexOf("const workforceMatch", start);
   const entityNav = appSource.slice(start, end);
   assert.match(entityNav, /Overview/);
   assert.match(entityNav, /Configuration/);

@@ -25,7 +25,7 @@ function sectionBetween(startMarker, endMarker) {
 test("IMP-02A defines the frozen global navigation order", () => {
   const domainSource = sectionBetween("const domainDefs", "const domainByPath");
   const labels = [...domainSource.matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(labels, ["Dashboard", "Agents", "Runs", "Evidence", "Usage & Cost", "Runtime", "Administration"]);
+  assert.deepEqual(labels, ["Dashboard", "Agents", "Workforces", "Runs", "Evidence", "Usage & Cost", "Runtime", "Administration"]);
   for (const legacyLabel of ["Executions", "Workers", "Financial Operations", "Customers", "Operations"]) {
     assert.doesNotMatch(domainSource, new RegExp(`id: "${legacyLabel}"`));
   }
@@ -34,6 +34,7 @@ test("IMP-02A defines the frozen global navigation order", () => {
 test("global routes retain their canonical domains", () => {
   const routingSource = sectionBetween("const domainByPath", "const viewOfPath");
   assert.match(routingSource, /executions.*return "Runs"/);
+  assert.match(routingSource, /workforces.*return "Workforces"/);
   assert.match(routingSource, /operational-evidence.*return "Evidence"/);
   assert.match(routingSource, /economics.*return "Usage & Cost"/);
   assert.match(routingSource, /runtime.*return "Runtime"/);

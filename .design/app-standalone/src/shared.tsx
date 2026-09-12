@@ -36,7 +36,7 @@ type View =
   | "Governance & System"
   | "Settings";
 
-type PrimaryDomain = "Dashboard" | "Agents" | "Runs" | "Evidence" | "Usage & Cost" | "Runtime" | "Administration";
+type PrimaryDomain = "Dashboard" | "Agents" | "Workforces" | "Runs" | "Evidence" | "Usage & Cost" | "Runtime" | "Administration";
 type Domain = PrimaryDomain | "Executions" | "Workers" | "Financial Operations" | "Customers" | "Operations" | "Capabilities" | "Composition" | "Economics" | "Governance" | "System";
 
 type DomainChild = {
@@ -97,6 +97,7 @@ const viewPaths: Record<View, string> = {
 const domainDefs: readonly DomainDef[] = [
   { id: "Dashboard", icon: <Icons.Gauge size={18} weight="duotone" />, to: "/", description: "Global attention, readiness and recent activity.", children: [] },
   { id: "Agents", icon: <Icons.Robot size={18} weight="duotone" />, to: "/agents", description: "Governed Agent identity, lifecycle, revisions and configuration.", children: [{ label: "All Agents", to: "/agents" }, { label: "Create Agent", to: "/agents/new" }, { label: "Credential references", to: "/credentials", kind: "compatibility" }] },
+  { id: "Workforces", icon: <Icons.UsersThree size={18} weight="duotone" />, to: "/workforces", description: "Reusable Agent composition with canonical revision and admission semantics.", children: [{ label: "All Workforces", to: "/workforces" }] },
   { id: "Runs", icon: <Icons.PlayCircle size={18} weight="duotone" />, to: "/executions", description: "Cross-Agent execution history and governed planning.", children: [{ label: "All Runs", to: "/executions" }, { label: "Execution planning", to: "/operational-execution", kind: "compatibility" }] },
   { id: "Evidence", icon: <Icons.Pulse size={18} weight="duotone" />, to: "/operational-evidence", description: "Cross-Agent evidence, audit and operational activity.", children: [{ label: "Evidence", to: "/operational-evidence" }, { label: "Audit", to: "/audit" }, { label: "Logs", to: "/logs", kind: "compatibility" }] },
   { id: "Usage & Cost", icon: <Icons.CurrencyDollar size={18} weight="duotone" />, to: "/economics", description: "Operational usage and cost visibility with explicit financial boundaries.", children: [{ label: "Overview", to: "/economics" }, { label: "Reservations & settlement", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Boundary reports", to: "/system/billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Boundaries" }] },
@@ -107,6 +108,7 @@ const domainDefs: readonly DomainDef[] = [
 const domainByPath = (path: string): PrimaryDomain => {
   if (path === "/") return "Dashboard";
   if (path.startsWith("/agents")) return "Agents";
+  if (path.startsWith("/workforces")) return "Workforces";
   if (path.startsWith("/executions")) return "Runs";
   if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Usage & Cost";
   if (path.startsWith("/operational-evidence") || path.startsWith("/audit")) return "Evidence";
@@ -525,6 +527,17 @@ function EntityContextNav({ pathname }: { pathname: string }) {
       { label: "Evidence", to: `/agents/${agentId}/evidence` },
       { label: "Usage & Cost", to: `/agents/${agentId}/usage-cost` },
       { label: "Advanced", to: `/agents/${agentId}/advanced` },
+    ]} />;
+  }
+  const workforceMatch = pathname.match(/^\/workforces\/([^/]+)(?:\/[^/]+)?/);
+  if (workforceMatch) {
+    const workforceId = workforceMatch[1];
+    return <ContextTabs title={`Workforce / ${workforceId}`} tabs={[
+      { label: "Overview", to: `/workforces/${workforceId}` },
+      { label: "Members", to: `/workforces/${workforceId}/members` },
+      { label: "Revisions", to: `/workforces/${workforceId}/revisions` },
+      { label: "Runs", to: `/workforces/${workforceId}/runs` },
+      { label: "Operations", to: `/workforces/${workforceId}/operations` },
     ]} />;
   }
   const resourceMatch = pathname.match(/^\/(roles|profiles|capabilities|skills|plugins|tools|engines|providers)\/([^/]+)/);

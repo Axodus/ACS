@@ -19,7 +19,7 @@ const [economicsSource, administrationSource, cssSource] = await Promise.all([
 test("domain-root breadcrumbs omit the duplicated view and operational details keep entity context", () => {
   assert.match(appSource, /const isDomainRoot = location\.pathname === domainDef\.to;/);
   assert.match(appSource, /\{!isDomainRoot && <>/);
-  assert.match(appSource, /agents\|roles\|profiles\|capabilities\|skills\|plugins\|tools\|engines\|providers\|executions\|workers/);
+  assert.match(appSource, /agents\|workforces\|roles\|profiles\|capabilities\|skills\|plugins\|tools\|engines\|providers\|executions\|workers/);
 
   for (const mapping of [
     'Executions: "/executions"',
