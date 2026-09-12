@@ -15,12 +15,14 @@
 - Historical revisions are direct-addressable and read-only.
 - Admitted Run membership, coordination lineage, assignment history, runtime attempts, revision references, slot, generation, and recovery are available when explicit Run and Task IDs are supplied.
 - Product API remains the sole data boundary.
+- `POST /api/v1/workforces` is implemented for initial canonical draft `r1` creation through the native lineage repository, with tenant governance, idempotency, event, and outbox inputs.
+- The collection page and its empty state expose Create Workforce; successful creation navigates to the canonical Workforce detail route.
 
 ## Blocked criteria
 
-- Workforce create, revision creation, and lifecycle writes are blocked by missing Product API writes.
+- Later Workforce revision creation and lifecycle writes remain blocked by missing Product API writes.
 - Workforce-scoped Run list is blocked by missing Product API query support.
 - On September 12, 2026, the local API returned HTTP 404 `route not found` for `GET /api/v1/workforces`. The running process had neither `ACS_STATE_BACKEND=shared` nor `ACS_SH_DATABASE_URL` configured, so it did not create the `nativeCore` required to register Workforce routes. No real Workforce can be selected in the app; visible entity navigation and display-name resolution are therefore not accepted.
 - PostgreSQL-required acceptance remains blocked in this environment: the root suite has 11 skips because `ACS_SH_DATABASE_URL` is not configured.
 
-No backend contract was expanded. These gaps require a scoped Product API proposal and CTO decision before the milestone can become `COMPLETE`.
+`ACS-V2-IMP-03F-FIX-02` is implemented but not accepted end-to-end: the configured local server lacks the shared native-core database configuration required to register the route. Fresh-database persistence, real browser creation, post-create navigation, and the repository suite requirement of zero skips remain pending.

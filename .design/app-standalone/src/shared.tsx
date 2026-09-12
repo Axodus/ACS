@@ -560,6 +560,7 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate, collapsed, work
 
 function EntityContextNav({ pathname, workforceContext }: { pathname: string; workforceContext: WorkforceNavigationContext | null }) {
   if (pathname === "/agents/new") return null;
+  if (pathname === "/workforces/new") return null;
   const agentMatch = pathname.match(/^\/agents\/([^/]+)(?:\/[^/]+)?/);
   if (agentMatch) {
     const agentId = agentMatch[1];

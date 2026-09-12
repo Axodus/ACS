@@ -32,14 +32,21 @@ test("IMP-03F registers direct Workforce routes and contextual navigation", () =
   assert.match(sharedSource, /Select a Workforce/);
   assert.match(sharedSource, /sort\(\(left, right\) => right\.to\.length - left\.to\.length\)[\s\S]*?find\(child => childActive\(pathname, child\.to\)\)/);
   assert.match(appSource, /Api\.productApi\.getWorkforce\(workforceId\)/);
+  assert.match(sharedSource, /pathname === "\/workforces\/new"\) return null/);
 });
 
-test("IMP-03F reads only from accepted Workforce Product API endpoints", () => {
+test("IMP-03F-FIX-02 creates the initial Workforce only through the Product API", () => {
   for (const method of ["listWorkforces", "getWorkforce", "getWorkforceRevisions", "getRunWorkforce", "getWorkforceCoordination", "getWorkforceRuntime"]) assert.match(apiSource, new RegExp(`async ${method}`));
+  assert.match(apiSource, /async createWorkforce/);
+  assert.match(apiSource, /request<WorkforceDetail>\("\/workforces", \{ method: "POST"/);
   assert.match(apiSource, /`\/workforces\/\$\{encodeURIComponent\(workforceId\)\}`/);
-  assert.doesNotMatch(apiSource, /createWorkforce|updateWorkforce|createWorkforceRevision|archiveWorkforce/);
-  assert.match(workforceSource, /Workforce creation unavailable/);
-  assert.match(workforceSource, /does not create local state, call repository internals, or write directly to persistence/);
+  assert.match(workforceSource, /export function WorkforceCreate\(\)/);
+  assert.match(workforceSource, /Create draft r1/);
+  assert.match(workforceSource, /Api\.productApi\.createWorkforce/);
+  assert.match(workforceSource, /navigate\(`\/workforces\/\$\{encodeURIComponent\(created\.identity\.workforce_id\)\}`\)/);
+  assert.match(workforceSource, /Canonical policies/);
+  assert.doesNotMatch(workforceSource, /localStorage|fetch\(/);
+  assert.ok(appSource.indexOf('path="/workforces/new"') < appSource.indexOf('path="/workforces"'));
 });
 
 test("IMP-03F preserves revision, admission, assignment and attempt semantics", () => {

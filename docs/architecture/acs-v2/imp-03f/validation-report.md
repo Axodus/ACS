@@ -37,3 +37,13 @@ Validation completed on September 12, 2026:
 - `pnpm build` passed. The existing chunks above 500 kB remain.
 - The running application at `http://localhost:3000` was inspected at `/workforces/workforce-browser-check/members`. A direct, artificial ID rendered `All Workforces`, then `Workforce: workforce-browser-check`, followed by Overview, Members, Revisions, Runs, and Operations. `Members` was the only active local link. This verifies route wiring only; it is not acceptance evidence for an actual Workforce selected through the application.
 - The configured local API returned HTTP 404 `route not found` for `GET http://127.0.0.1:8788/api/v1/workforces`. The process serving `:8788` had `ACS_SH_DATABASE_URL` unset and no `ACS_STATE_BACKEND` value, so `nativeCore` was unavailable and Workforce routes were not registered. The collection page contains no selectable Workforce, leaving local navigation unverified in the real flow.
+
+## ACS-V2-IMP-03F-FIX-02 validation
+
+Validation completed on September 12, 2026:
+
+- `npm run build` passed.
+- `node --test tests/acs-v2-imp-03f-fix-02.test.mjs` passed: 1 test, 1 pass, 0 failed, 0 skipped. The test uses an injected native-core boundary and verifies empty list, canonical `draft r1` creation, event/outbox command values, retry with the same idempotency key, list readback, and direct detail readback.
+- `pnpm typecheck && pnpm test && pnpm build` passed for the standalone application: 13 test files, 13 passing, 0 failed, 0 skipped.
+- The running app at `http://localhost:3000/workforces/new` was inspected. The collection action opens the Create Workforce form and the create route no longer renders `Workforce: new` entity navigation.
+- This is not fresh-database or real-browser creation acceptance. The local backend process remains without `ACS_SH_DATABASE_URL`, so its Product API does not register Workforce routes. The zero-skip repository criterion remains unproven until a shared PostgreSQL configuration is available.

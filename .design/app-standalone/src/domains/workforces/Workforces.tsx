@@ -64,7 +64,7 @@ export function WorkforceInventory() {
   </>;
 }
 
-export function WorkforceCreateUnavailable() {
+export function WorkforceCreate() {
   const navigate = Router.useNavigate();
   const [workforceId, setWorkforceId] = React.useState("");
   const [displayName, setDisplayName] = React.useState("");

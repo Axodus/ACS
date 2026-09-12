@@ -7,7 +7,7 @@ import { CredentialsPage, ExecutionDetailPage, ExecutionsPage, OperationsStatusP
 import * as Shared from "./shared";
 import { Readiness, CustomerDashboard } from "./domains/dashboard/Dashboard";
 import { AgentInventory, AgentCreate, AgentEdit, AgentConfigurationView, AgentValidateView, AgentRunsView, AgentRevisionsView, AgentEvidenceView, AgentUsageCostView, AgentAdvancedView, AgentDetail, OperationalExecution } from "./domains/agents/Agents";
-import { WorkforceCreateUnavailable, WorkforceDetail, WorkforceInventory, WorkforceMembers, WorkforceOperations, WorkforceRevisions, WorkforceRuns } from "./domains/workforces/Workforces";
+import { WorkforceCreate, WorkforceDetail, WorkforceInventory, WorkforceMembers, WorkforceOperations, WorkforceRevisions, WorkforceRuns } from "./domains/workforces/Workforces";
 import { AgentCompositionView, CompositionOverview, RoleCatalog, RoleDetail, ProfileCatalog, ProfileDetail, CapabilityCatalog, CapabilityDetail, SkillCatalog, SkillDetail, ToolsPluginsCatalog, ToolDetail, PluginDetail, EngineCatalog, EngineDetail, ProviderDetail } from "./domains/composition/Composition";
 import { GenericView, Runtime, Logs, EvidenceView, AuditView } from "./domains/runtime/Runtime";
 import { EconomicsView, PaymentRailsBoundaryView, PricingInvoiceBoundaryView, BillingBoundaryView, TenantBillingBoundaryView, SettlementReconciliationBoundaryView, FinancialAuditBoundaryView, BillingUxAcceptanceView } from "./domains/economics/Economics";
@@ -90,6 +90,10 @@ export default function App() {
     }
 
     const workforceId = decodeURIComponent(match[1]);
+    if (workforceId === "new") {
+      setWorkforceContext(null);
+      return;
+    }
     let cancelled = false;
     setWorkforceContext({ workforceId, name: null });
     void Api.productApi.getWorkforce(workforceId)
@@ -111,6 +115,8 @@ export default function App() {
   const entityMatch = location.pathname.match(/^\/(agents|workforces|roles|profiles|capabilities|skills|plugins|tools|engines|providers|executions|workers)\/([^/]+)(?:\/|$)/);
   const entityLabel = location.pathname === "/agents/new"
     ? "Create agent"
+    : location.pathname === "/workforces/new"
+      ? "Create Workforce"
     : location.pathname.includes("/edit")
       ? "Edit agent"
       : entityMatch
@@ -164,8 +170,8 @@ export default function App() {
             />
             <Route path="/agents/:agentId/advanced" element={<AgentAdvancedView />} />
             <Route path="/agents/:agentId" element={<AgentDetail />} />
+            <Route path="/workforces/new" element={<WorkforceCreate />} />
             <Route path="/workforces" element={<WorkforceInventory />} />
-            <Route path="/workforces/new" element={<WorkforceCreateUnavailable />} />
             <Route path="/workforces/:workforceId/members" element={<WorkforceMembers />} />
             <Route path="/workforces/:workforceId/revisions/:revision" element={<WorkforceRevisions />} />
             <Route path="/workforces/:workforceId/revisions" element={<WorkforceRevisions />} />

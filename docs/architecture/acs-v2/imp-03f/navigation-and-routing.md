@@ -15,7 +15,7 @@ Implemented direct routes:
 /workforces/:workforceId/operations
 ```
 
-`/workforces/new` explicitly reports unavailable creation rather than returning a route miss.
+`/workforces/new` is the initial Workforce creation form. It remains collection-scoped and never renders entity-local Workforce navigation.
 
 The sidebar separates the collection and entity scopes:
 
