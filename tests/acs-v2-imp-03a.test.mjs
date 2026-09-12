@@ -447,7 +447,7 @@ test("IMP-03A PostgreSQL durable Workforce acceptance", {
   const state = new PostgresSharedAuthoritativeState({ connectionString: process.env.ACS_SH_DATABASE_URL });
   const workforceId = `workforce-imp-03a-${suffix}`;
   try {
-    assert.equal(await state.migrate(), 4);
+    assert.equal(await state.migrate(), SHARED_STATE_SCHEMA_VERSION);
     const { definition: agentDefinition, revision: agentRevision } = await createNativeAgent(state, suffix);
     const roleId = `role-imp-03a-${suffix}`;
     const roleV1 = roleInput(roleId, 1, undefined, "active", 10);
@@ -776,11 +776,13 @@ test("IMP-03A upgrades the accepted v3 schema additively and preserves legacy ro
       client.release();
     }
     assert.equal(await state.schemaVersion(), 3);
-    assert.equal(await state.migrate(), 4);
-    assert.equal(await state.migrate(), 4);
+    assert.equal(await state.migrate(), SHARED_STATE_SCHEMA_VERSION);
+    assert.equal(await state.migrate(), SHARED_STATE_SCHEMA_VERSION);
     const legacy = await pool.query("SELECT payload FROM acs_tenants WHERE tenant_id = $1", ["legacy-imp-03a"]);
     assert.deepEqual(legacy.rows[0].payload, { source: "v3" });
     const tables = await pool.query("SELECT to_regclass($1) AS relation", ["acs_workforces"]);
     assert.equal(tables.rows[0].relation, "acs_workforces");
+    const admissionTables = await pool.query("SELECT to_regclass($1) AS relation", ["acs_workforce_run_membership_snapshots"]);
+    assert.equal(admissionTables.rows[0].relation, "acs_workforce_run_membership_snapshots");
   });
 });

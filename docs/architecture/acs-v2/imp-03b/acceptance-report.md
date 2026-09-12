@@ -1,16 +1,26 @@
 # Acceptance report
 
-## Current result
+## Final result
 
-Status: PARTIAL.
+Status: COMPLETE / ACCEPTED.
 
+- PostgreSQL: reachable through ignored `.env.local`; PostgreSQL 17.6.
+- IMP-03A PostgreSQL suite: 7 passed, 0 failed, 0 skipped.
+- IMP-03B focused contract tests: 4 passed, 0 failed, 0 skipped.
+- PostgreSQL VAL-01 acceptance: 1 passed, 0 failed, 0 skipped.
+- S46 production configuration suite: 6 passed, 0 failed; repeated twice.
 - TypeScript build: passed.
-- IMP-03B focused contract tests: 4 passed, 0 failed, 0 skipped in the prior focused run.
-- IMP-03A regression: 4 passed, 0 failed, 3 skipped in the PostgreSQL-gated run.
-- Full repository suite: 705 total, 698 passed, 0 failed, 7 skipped.
-- PostgreSQL durable acceptance: blocked by missing `ACS_SH_DATABASE_URL` on September 11, 2026. The full suite's seven skipped cases are PostgreSQL-gated; no local PostgreSQL listener or server binary was available.
 - `git diff --check`: passed.
+- Full repository suite: 705 total, 705 passed, 0 failed, 0 skipped.
 
-No Cost, UI, provider, Eigent, CAMEL, task assignment, or coordination changes were introduced.
+ACS-BLOCKER-016 resolved three reproducible failures: two stale latest-schema
+expectations after canonical migration v5 and one S46 fixture using an
+obsolete runtime option. The fourth failure from the earlier reported
+705/701/4/0 snapshot did not reproduce in the authoritative current baseline
+or final canonical run and required no remediation. The complete causality
+record is maintained in the blocker README.
 
-The skipped PostgreSQL cases prevent a COMPLETE claim. Migration execution, durable reload/reconstruction, admission concurrency, failure injection, and event/outbox atomicity therefore remain unverified against the required database acceptance environment.
+No Cost, UI, provider, Eigent, CAMEL, task assignment, coordination, runtime,
+or IMP-03C changes were introduced. IMP-03B immutable admission semantics,
+PostgreSQL migration v5, legacy non-Workforce Run compatibility, and accepted
+event/outbox and idempotency contracts remain unchanged.
