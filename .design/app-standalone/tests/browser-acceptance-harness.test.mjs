@@ -31,6 +31,7 @@ test("IMP-03F Workforce direct routes are in the browser route matrix", () => {
     '"/workforces/workforce-browser-check"',
     '"/workforces/workforce-browser-check/members"',
     '"/workforces/workforce-browser-check/revisions"',
+    '"/workforces/workforce-browser-check/revisions/new"',
     '"/workforces/workforce-browser-check/revisions/1"',
     '"/workforces/workforce-browser-check/runs"',
     '"/workforces/workforce-browser-check/operations"',

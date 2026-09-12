@@ -2359,6 +2359,12 @@ export type WorkforceRevisionRef = {
   fingerprint?: string;
 };
 
+export type WorkforceEntityRef = {
+  kind: string;
+  id: string;
+  revision?: number;
+};
+
 export type WorkforceMember = {
   slot_id: string;
   agent_selector: {
@@ -2368,6 +2374,9 @@ export type WorkforceMember = {
   };
   role_ref?: WorkforceRevisionRef;
   responsibilities?: readonly string[];
+  capability_requirement_refs?: readonly WorkforceEntityRef[];
+  authority_constraint_refs?: readonly WorkforceEntityRef[];
+  participation_constraint_refs?: readonly WorkforceEntityRef[];
 };
 
 export type WorkforceRevision = {
@@ -2377,6 +2386,9 @@ export type WorkforceRevision = {
   purpose: string;
   lifecycle_status: "draft" | "active" | "disabled" | "archived";
   members: readonly WorkforceMember[];
+  composition_constraints?: readonly WorkforceEntityRef[];
+  governance?: { authority_refs: readonly WorkforceEntityRef[]; membership_policy_ref: WorkforceRevisionRef };
+  evidence?: { audit_policy_ref: WorkforceRevisionRef };
   commit: { created_by: string; committed_at: number; change_reason: string };
 };
 
@@ -2409,6 +2421,44 @@ export type WorkforceCreateInput = {
   changeReason?: string;
   idempotencyKey: string;
   requestedAt: number;
+};
+
+export type WorkforceRevisionMemberInput = WorkforceMember & {
+  capability_requirement_refs: readonly WorkforceEntityRef[];
+  authority_constraint_refs: readonly WorkforceEntityRef[];
+  participation_constraint_refs: readonly WorkforceEntityRef[];
+};
+
+export type WorkforceRevisionCreateInput = {
+  expectedRevision: number;
+  displayName: string;
+  purpose: string;
+  members: readonly WorkforceRevisionMemberInput[];
+  compositionConstraints: readonly WorkforceEntityRef[];
+  authorityRefs: readonly WorkforceEntityRef[];
+  membershipPolicyRef: WorkforceRevisionRef;
+  auditPolicyRef: WorkforceRevisionRef;
+  changeReason: string;
+  idempotencyKey: string;
+  requestedAt: number;
+};
+
+export type WorkforceLifecycleTransitionInput = {
+  expectedRevision: number;
+  targetStatus: WorkforceRevision["lifecycle_status"];
+  changeReason: string;
+  idempotencyKey: string;
+  requestedAt: number;
+};
+
+export type WorkforceRunListItem = {
+  runId: string;
+  status: string;
+  admittedWorkforceRevision: number;
+  admittedWorkforceRevisionRef: WorkforceRevisionRef;
+  admittedAt: number;
+  membershipSnapshotId?: string;
+  createdAt: number;
 };
 
 export type WorkforceRunMembership = {
@@ -2770,6 +2820,15 @@ export const productApi = {
   },
   async getWorkforceRevisions(workforceId: string) {
     return request<WorkforceRevision[]>(`/workforces/${encodeURIComponent(workforceId)}/revisions`);
+  },
+  async createWorkforceRevision(workforceId: string, input: WorkforceRevisionCreateInput) {
+    return request<WorkforceDetail>(`/workforces/${encodeURIComponent(workforceId)}/revisions`, { method: "POST", body: JSON.stringify(input) });
+  },
+  async transitionWorkforceLifecycle(workforceId: string, input: WorkforceLifecycleTransitionInput) {
+    return request<WorkforceDetail>(`/workforces/${encodeURIComponent(workforceId)}/lifecycle`, { method: "POST", body: JSON.stringify(input) });
+  },
+  async listWorkforceRuns(workforceId: string) {
+    return request<WorkforceRunListItem[]>(`/workforces/${encodeURIComponent(workforceId)}/runs`);
   },
   async getRunWorkforce(runId: string) {
     return request<RunWorkforceView>(`/runs/${encodeURIComponent(runId)}/workforce`);

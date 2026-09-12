@@ -58,3 +58,20 @@ test("IMP-03F preserves revision, admission, assignment and attempt semantics", 
   assert.match(workforceSource, /Attempt references are explicit Product API projections/);
   assert.doesNotMatch(workforceSource, /localStorage|fetch\(/);
 });
+
+test("IMP-03F consumes the accepted IMP-03E2 Workforce capabilities without inventing state", () => {
+  for (const method of ["createWorkforceRevision", "transitionWorkforceLifecycle", "listWorkforceRuns"]) {
+    assert.match(apiSource, new RegExp(`async ${method}`));
+  }
+  assert.match(appSource, /path="\/workforces\/:workforceId\/revisions\/new"/);
+  assert.ok(appSource.indexOf('path="/workforces/:workforceId/revisions/new"') < appSource.indexOf('path="/workforces/:workforceId/revisions/:revision"'));
+  assert.match(workforceSource, /export function WorkforceRevisionCreate\(\)/);
+  assert.match(workforceSource, /expected-head CAS/);
+  assert.match(workforceSource, /Api\.productApi\.createWorkforceRevision/);
+  assert.match(workforceSource, /Api\.productApi\.transitionWorkforceLifecycle/);
+  assert.match(workforceSource, /Api\.productApi\.listWorkforceRuns/);
+  assert.match(workforceSource, /View admitted revision/);
+  assert.match(workforceSource, /No Run has admitted this Workforce yet/);
+  assert.doesNotMatch(workforceSource, /Workforce-scoped Run list unavailable/);
+  assert.doesNotMatch(workforceSource, /localStorage|fetch\(/);
+});

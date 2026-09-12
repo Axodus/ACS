@@ -131,9 +131,9 @@ function useWorkforceSurface(workforceId: string) {
   return { data, loadState, loadError, refresh: () => setRefreshKey(value => value + 1) };
 }
 
-function WorkforcePageHeader({ workforceId, title, description, refresh, loadState, loadError }: { workforceId: string; title: string; description: string; refresh: () => void; loadState: Shared.DashboardLoadState; loadError: string | null }) {
+function WorkforcePageHeader({ workforceId, title, description, refresh, loadState, loadError, actions }: { workforceId: string; title: string; description: string; refresh: () => void; loadState: Shared.DashboardLoadState; loadError: string | null; actions?: React.ReactNode }) {
   return <>
-    <Shared.DomainHeader domain="Workforces" title={title} description={description} entityLabel={workforceId} actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button>} />
+    <Shared.DomainHeader domain="Workforces" title={title} description={description} entityLabel={workforceId} actions={<>{actions}<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>{loadError ? "Retry" : loadState === "refreshing" ? "Refreshing" : "Refresh"}</button></>} />
     <div className="guardrail-banner compact" role="note"><span>Workforce definition</span><span>Not a Run</span><span>Product API is authoritative</span></div>
     {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing Workforce data...</div>}
     {loadError && <div className="error-banner" role="alert">{loadError}</div>}
@@ -146,13 +146,67 @@ function WorkforceDetailLoading({ loadState, data }: { loadState: Shared.Dashboa
   return null;
 }
 
+const lifecycleTargets: Record<Api.WorkforceRevision["lifecycle_status"], readonly Api.WorkforceRevision["lifecycle_status"][]> = {
+  draft: ["active", "archived"],
+  active: ["disabled", "archived"],
+  disabled: ["active", "archived"],
+  archived: [],
+};
+
+function WorkforceLifecycleActions({ detail, refresh }: { detail: Api.WorkforceDetail; refresh: () => void }) {
+  const current = detail.identity.current_status;
+  const targets = lifecycleTargets[current];
+  const [target, setTarget] = React.useState<Api.WorkforceRevision["lifecycle_status"]>(targets[0] ?? current);
+  const [reason, setReason] = React.useState("");
+  const [idempotencyKey, setIdempotencyKey] = React.useState(() => crypto.randomUUID());
+  const [requestedAt, setRequestedAt] = React.useState(() => Date.now());
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setTarget(lifecycleTargets[current][0] ?? current);
+    setReason("");
+    setError(null);
+  }, [current, detail.identity.current_revision]);
+
+  if (targets.length === 0) return <section className="panel"><div className="panel-head"><div><h2>Lifecycle</h2><p>Archived is terminal in the canonical Workforce state machine.</p></div><WorkforceState state={current} /></div></section>;
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (submitting) return;
+    if (!reason.trim()) { setError("A change reason is required for a canonical lifecycle transition."); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await Api.productApi.transitionWorkforceLifecycle(detail.identity.workforce_id, {
+        expectedRevision: detail.identity.current_revision,
+        targetStatus: target,
+        changeReason: reason.trim(),
+        idempotencyKey,
+        requestedAt,
+      });
+      setIdempotencyKey(crypto.randomUUID());
+      setRequestedAt(Date.now());
+      refresh();
+    } catch (cause) {
+      setError(Shared.isApiConflict(cause)
+        ? "The Workforce changed after this page loaded. Refresh before attempting another lifecycle transition."
+        : Shared.apiErrorMessage(cause));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return <section className="panel"><div className="panel-head"><div><h2>Lifecycle</h2><p>Transitions create an immutable successor revision through the Product API.</p></div><WorkforceState state={current} /></div><div className="panel-body"><form className="form-grid" onSubmit={submit}><label>Canonical target state<select value={target} onChange={event => setTarget(event.target.value as Api.WorkforceRevision["lifecycle_status"])}>{targets.map(value => <option value={value} key={value}>{value}</option>)}</select></label><label>Change reason<input value={reason} onChange={event => setReason(event.target.value)} required /></label>{error && <div className="error-banner" role="alert">{error}</div>}<div className="form-actions"><button className="secondary" type="submit" disabled={submitting}>{submitting ? "Transitioning..." : `Transition to ${target}`}</button></div></form></div></section>;
+}
+
 export function WorkforceDetail() {
   const { workforceId } = Router.useParams();
   const surface = useWorkforceSurface(workforceId ?? "");
   if (!workforceId) return <Router.Navigate to="/workforces" replace />;
   const detail = surface.data?.detail;
   return <>
-    <WorkforcePageHeader workforceId={workforceId} title={detail?.currentRevision.display_name ?? "Workforce detail"} description="Current canonical Workforce definition and its reusable Agent composition." refresh={surface.refresh} loadState={surface.loadState} loadError={surface.loadError} />
+    <WorkforcePageHeader workforceId={workforceId} title={detail?.currentRevision.display_name ?? "Workforce detail"} description="Current canonical Workforce definition and its reusable Agent composition." refresh={surface.refresh} loadState={surface.loadState} loadError={surface.loadError} actions={<Router.Link className="primary action-link" to={`/workforces/${encodeURIComponent(workforceId)}/revisions/new`}>Create revision</Router.Link>} />
     <WorkforceDetailLoading loadState={surface.loadState} data={surface.data} />
     {detail && <>
       <section className="panel"><div className="panel-head"><div><h2>Current definition</h2><p>Head revision only. Historical revisions remain separately addressable and read-only.</p></div><WorkforceState state={detail.identity.current_status} /></div><div className="panel-body"><Shared.SummaryRow label="Workforce ID" value={detail.identity.workforce_id} /><Shared.SummaryRow label="Current revision" value={`r${detail.identity.current_revision}`} /><Shared.SummaryRow label="Lifecycle" value={detail.identity.current_status} /><Shared.SummaryRow label="Members" value={detail.currentComposition.length} /><Shared.SummaryRow label="Purpose" value={detail.currentRevision.purpose} /><Shared.SummaryRow label="Last updated" value={new Date(detail.identity.updated_at).toLocaleString()} /></div></section>
@@ -160,6 +214,7 @@ export function WorkforceDetail() {
         <section className="panel"><div className="panel-head"><div><h2>Composition</h2><p>Slot identity is distinct from Agent identity.</p></div><Shared.Badge tone="muted">{detail.currentComposition.length}</Shared.Badge></div><div className="panel-body">{detail.currentComposition.slice(0, 4).map(member => <div className="catalog-row" key={member.slot_id}><div className="catalog-row-main"><b>{member.slot_id}</b><small>{member.agent_selector.agent_id} · {member.agent_selector.mode === "pinned" ? `pinned ${formatRevision(member.agent_selector.pinned_revision_ref)}` : "resolve current Agent head at Run admission"}</small></div><Router.Link className="detail-link" to={`/agents/${encodeURIComponent(member.agent_selector.agent_id)}`}>agent</Router.Link></div>)}{detail.currentComposition.length === 0 && <div className="empty-state">This revision has no member slots.</div>}<Router.Link className="surface-link" to={`/workforces/${encodeURIComponent(workforceId)}/members`}>Inspect members →</Router.Link></div></section>
         <section className="panel"><div className="panel-head"><div><h2>Revision lineage</h2><p>Current and historical definitions are distinct.</p></div><Shared.Badge tone="muted">{surface.data?.revisions.length ?? 0}</Shared.Badge></div><div className="panel-body"><Shared.SummaryRow label="Current revision" value={`r${detail.currentRevision.ref.revision}`} /><Shared.SummaryRow label="Committed by" value={detail.revisionMetadata.created_by} /><Shared.SummaryRow label="Change reason" value={detail.revisionMetadata.change_reason} /><Router.Link className="surface-link" to={`/workforces/${encodeURIComponent(workforceId)}/revisions`}>View revision history →</Router.Link></div></section>
       </div>
+      <WorkforceLifecycleActions detail={detail} refresh={surface.refresh} />
       <div className="flow-group-note">A Workforce describes reusable composition. Run admission preserves an immutable snapshot and does not become the current Workforce definition.</div>
     </>}
   </>;
@@ -181,6 +236,169 @@ export function WorkforceMembers() {
   </>;
 }
 
+type WorkforceMemberDraft = {
+  slotId: string;
+  agentId: string;
+  selectorMode: "pinned" | "current_head_at_admission";
+  pinnedRevision: string;
+  pinnedFingerprint: string;
+  roleKind: string;
+  roleId: string;
+  roleRevision: string;
+  roleFingerprint: string;
+  responsibilities: string;
+  capabilityRequirementRefs: readonly Api.WorkforceEntityRef[];
+  authorityConstraintRefs: readonly Api.WorkforceEntityRef[];
+  participationConstraintRefs: readonly Api.WorkforceEntityRef[];
+};
+
+type WorkforceRevisionDraft = {
+  sourceRevision: number;
+  displayName: string;
+  purpose: string;
+  members: WorkforceMemberDraft[];
+  membershipPolicy: Api.WorkforceRevisionRef;
+  auditPolicy: Api.WorkforceRevisionRef;
+  compositionConstraints: readonly Api.WorkforceEntityRef[];
+  authorityRefs: readonly Api.WorkforceEntityRef[];
+  changeReason: string;
+};
+
+function memberDraft(member: Api.WorkforceMember): WorkforceMemberDraft {
+  const pinned = member.agent_selector.pinned_revision_ref;
+  const role = member.role_ref;
+  return {
+    slotId: member.slot_id,
+    agentId: member.agent_selector.agent_id,
+    selectorMode: member.agent_selector.mode,
+    pinnedRevision: pinned ? String(pinned.revision) : "",
+    pinnedFingerprint: pinned?.fingerprint ?? "",
+    roleKind: role?.entity_kind ?? "resource",
+    roleId: role?.entity_id ?? "",
+    roleRevision: role ? String(role.revision) : "",
+    roleFingerprint: role?.fingerprint ?? "",
+    responsibilities: member.responsibilities?.join(", ") ?? "",
+    capabilityRequirementRefs: member.capability_requirement_refs ?? [],
+    authorityConstraintRefs: member.authority_constraint_refs ?? [],
+    participationConstraintRefs: member.participation_constraint_refs ?? [],
+  };
+}
+
+function revisionDraft(revision: Api.WorkforceRevision): WorkforceRevisionDraft | null {
+  if (!revision.governance?.membership_policy_ref || !revision.evidence?.audit_policy_ref) return null;
+  return {
+    sourceRevision: revision.ref.revision,
+    displayName: revision.display_name,
+    purpose: revision.purpose,
+    members: revision.members.map(memberDraft),
+    membershipPolicy: revision.governance.membership_policy_ref,
+    auditPolicy: revision.evidence.audit_policy_ref,
+    compositionConstraints: revision.composition_constraints ?? [],
+    authorityRefs: revision.governance.authority_refs ?? [],
+    changeReason: "",
+  };
+}
+
+function validFingerprint(value: string | undefined): boolean {
+  return Boolean(value && /^[a-f0-9]{64}$/i.test(value));
+}
+
+function revisionRefInput(entityKind: string, entityId: string, revision: string, fingerprint: string, label: string): Api.WorkforceRevisionRef {
+  if (!entityId.trim() || !Number.isSafeInteger(Number(revision)) || Number(revision) < 1 || !validFingerprint(fingerprint.trim())) throw new Error(`${label} must include an ID, positive revision, and SHA-256 fingerprint.`);
+  if (!(["workforce", "agent", "policy", "resource"] as const).includes(entityKind as Api.WorkforceRevisionRef["entity_kind"])) throw new Error(`${label} has an unsupported entity kind.`);
+  return { entity_kind: entityKind as Api.WorkforceRevisionRef["entity_kind"], entity_id: entityId.trim(), revision: Number(revision), fingerprint: fingerprint.trim() };
+}
+
+function revisionMemberInput(member: WorkforceMemberDraft): Api.WorkforceRevisionMemberInput {
+  if (!Shared.SAFE_IDENTIFIER.test(member.slotId.trim()) || !Shared.SAFE_IDENTIFIER.test(member.agentId.trim())) throw new Error("Member slot and Agent IDs support letters, numbers, dots, underscores, colons and dashes only.");
+  const responsibilities = member.responsibilities.split(",").map(value => value.trim()).filter(Boolean);
+  if (!responsibilities.length) throw new Error(`Member slot ${member.slotId.trim()} requires at least one responsibility.`);
+  const agent_selector = member.selectorMode === "pinned"
+    ? { mode: "pinned" as const, agent_id: member.agentId.trim(), pinned_revision_ref: revisionRefInput("agent", member.agentId, member.pinnedRevision, member.pinnedFingerprint, `Pinned Agent for ${member.slotId.trim()}`) }
+    : { mode: "current_head_at_admission" as const, agent_id: member.agentId.trim() };
+  const roleComplete = [member.roleId, member.roleRevision, member.roleFingerprint].some(value => value.trim());
+  const role_ref = roleComplete ? revisionRefInput(member.roleKind, member.roleId, member.roleRevision, member.roleFingerprint, `Role for ${member.slotId.trim()}`) : undefined;
+  return {
+    slot_id: member.slotId.trim(),
+    agent_selector,
+    ...(role_ref ? { role_ref } : {}),
+    responsibilities,
+    capability_requirement_refs: member.capabilityRequirementRefs,
+    authority_constraint_refs: member.authorityConstraintRefs,
+    participation_constraint_refs: member.participationConstraintRefs,
+  };
+}
+
+export function WorkforceRevisionCreate() {
+  const { workforceId } = Router.useParams();
+  const navigate = Router.useNavigate();
+  const surface = useWorkforceSurface(workforceId ?? "");
+  const [draft, setDraft] = React.useState<WorkforceRevisionDraft | null>(null);
+  const [sourceRevision, setSourceRevision] = React.useState<number | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = React.useState(() => crypto.randomUUID());
+  const [requestedAt, setRequestedAt] = React.useState(() => Date.now());
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const current = surface.data?.detail.currentRevision;
+    if (current && sourceRevision !== current.ref.revision) {
+      setDraft(revisionDraft(current));
+      setSourceRevision(current.ref.revision);
+      setError(null);
+      setIdempotencyKey(crypto.randomUUID());
+      setRequestedAt(Date.now());
+    }
+  }, [sourceRevision, surface.data?.detail.currentRevision]);
+
+  if (!workforceId) return <Router.Navigate to="/workforces" replace />;
+  const workforceKey = workforceId;
+  const updateMember = (index: number, patch: Partial<WorkforceMemberDraft>) => setDraft(current => current ? { ...current, members: current.members.map((member, memberIndex) => memberIndex === index ? { ...member, ...patch } : member) } : current);
+  const updatePolicy = (key: "membershipPolicy" | "auditPolicy", patch: Partial<Api.WorkforceRevisionRef>) => setDraft(current => current ? { ...current, [key]: { ...current[key], ...patch } } : current);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!draft || submitting) return;
+    if (!draft.displayName.trim() || !draft.purpose.trim() || !draft.changeReason.trim()) { setError("Display name, purpose, and change reason are required."); return; }
+    if (!draft.members.length) { setError("A Workforce successor must retain at least one member slot."); return; }
+    if (new Set(draft.members.map(member => member.slotId.trim())).size !== draft.members.length) { setError("Member slot IDs must be unique."); return; }
+    try {
+      const membershipPolicyRef = revisionRefInput(draft.membershipPolicy.entity_kind, draft.membershipPolicy.entity_id, String(draft.membershipPolicy.revision), draft.membershipPolicy.fingerprint ?? "", "Membership policy");
+      const auditPolicyRef = revisionRefInput(draft.auditPolicy.entity_kind, draft.auditPolicy.entity_id, String(draft.auditPolicy.revision), draft.auditPolicy.fingerprint ?? "", "Audit policy");
+      const members = draft.members.map(revisionMemberInput);
+      setSubmitting(true);
+      setError(null);
+      const created = await Api.productApi.createWorkforceRevision(workforceKey, {
+        expectedRevision: draft.sourceRevision,
+        displayName: draft.displayName.trim(),
+        purpose: draft.purpose.trim(),
+        members,
+        compositionConstraints: draft.compositionConstraints,
+        authorityRefs: draft.authorityRefs,
+        membershipPolicyRef,
+        auditPolicyRef,
+        changeReason: draft.changeReason.trim(),
+        idempotencyKey,
+        requestedAt,
+      });
+      navigate(`/workforces/${encodeURIComponent(workforceKey)}/revisions/${created.identity.current_revision}`);
+    } catch (cause) {
+      setError(Shared.isApiConflict(cause)
+        ? "The Workforce head changed after this form was loaded. Return to the current revision and create a new successor from that head."
+        : Shared.apiErrorMessage(cause));
+      setSubmitting(false);
+    }
+  }
+
+  return <>
+    <Router.Link className="back" to={`/workforces/${encodeURIComponent(workforceKey)}/revisions`}>← Back to revision history</Router.Link>
+    <WorkforcePageHeader workforceId={workforceKey} title="Create Workforce revision" description="Prepare a full successor from the current canonical head. Historical revisions remain immutable." refresh={surface.refresh} loadState={surface.loadState} loadError={surface.loadError} />
+    <WorkforceDetailLoading loadState={surface.loadState} data={surface.data} />
+    {surface.data && !draft && <section className="panel"><div className="empty-state">The current revision does not expose the canonical policy references required to prepare a successor.</div></section>}
+    {draft && <form className="panel form-panel" onSubmit={submit}><div className="panel-head"><div><h2>Successor of r{draft.sourceRevision}</h2><p>Save creates a new immutable revision through expected-head CAS. It never edits r{draft.sourceRevision}.</p></div><Shared.Badge tone="muted">expected r{draft.sourceRevision}</Shared.Badge></div><div className="panel-body form-grid"><label>Display name<input value={draft.displayName} onChange={event => setDraft(current => current ? { ...current, displayName: event.target.value } : current)} required /></label><label>Purpose<input value={draft.purpose} onChange={event => setDraft(current => current ? { ...current, purpose: event.target.value } : current)} required /></label><h3>Member composition</h3>{draft.members.map((member, index) => <section className="panel" key={`${member.slotId}-${index}`}><div className="panel-head"><div><h2>Member slot {index + 1}</h2><p>Canonical constraints already attached to this slot are preserved in the successor.</p></div><button className="secondary danger" type="button" disabled={draft.members.length === 1} onClick={() => setDraft(current => current ? { ...current, members: current.members.filter((_, memberIndex) => memberIndex !== index) } : current)}>Remove</button></div><div className="panel-body form-grid"><label>Slot ID<input value={member.slotId} onChange={event => updateMember(index, { slotId: event.target.value })} required /></label><label>Agent ID<input value={member.agentId} onChange={event => updateMember(index, { agentId: event.target.value })} required /></label><label>Resolution mode<select value={member.selectorMode} onChange={event => updateMember(index, { selectorMode: event.target.value as WorkforceMemberDraft["selectorMode"] })}><option value="current_head_at_admission">Current head at admission</option><option value="pinned">Pinned revision</option></select></label>{member.selectorMode === "pinned" && <><label>Pinned Agent revision<input type="number" min="1" value={member.pinnedRevision} onChange={event => updateMember(index, { pinnedRevision: event.target.value })} required /></label><label>Pinned Agent fingerprint<input value={member.pinnedFingerprint} onChange={event => updateMember(index, { pinnedFingerprint: event.target.value })} required /></label></>}<label>Responsibilities (comma separated)<input value={member.responsibilities} onChange={event => updateMember(index, { responsibilities: event.target.value })} required /></label><label>Role kind<select value={member.roleKind} onChange={event => updateMember(index, { roleKind: event.target.value })}><option value="resource">Resource</option><option value="agent">Agent</option><option value="policy">Policy</option><option value="workforce">Workforce</option></select></label><label>Role ID (optional)<input value={member.roleId} onChange={event => updateMember(index, { roleId: event.target.value })} /></label><label>Role revision<input type="number" min="1" value={member.roleRevision} onChange={event => updateMember(index, { roleRevision: event.target.value })} /></label><label>Role fingerprint<input value={member.roleFingerprint} onChange={event => updateMember(index, { roleFingerprint: event.target.value })} /></label></div></section>)}<div className="form-actions"><button className="secondary" type="button" onClick={() => setDraft(current => current ? { ...current, members: [...current.members, { slotId: "", agentId: "", selectorMode: "current_head_at_admission", pinnedRevision: "", pinnedFingerprint: "", roleKind: "resource", roleId: "", roleRevision: "", roleFingerprint: "", responsibilities: "", capabilityRequirementRefs: [], authorityConstraintRefs: [], participationConstraintRefs: [] }] } : current)}>Add member slot</button></div><h3>Canonical policies</h3><label>Membership policy ID<input value={draft.membershipPolicy.entity_id} onChange={event => updatePolicy("membershipPolicy", { entity_id: event.target.value })} required /></label><label>Membership policy revision<input type="number" min="1" value={draft.membershipPolicy.revision} onChange={event => updatePolicy("membershipPolicy", { revision: Number(event.target.value) })} required /></label><label>Membership policy fingerprint<input value={draft.membershipPolicy.fingerprint ?? ""} onChange={event => updatePolicy("membershipPolicy", { fingerprint: event.target.value })} required /></label><label>Audit policy ID<input value={draft.auditPolicy.entity_id} onChange={event => updatePolicy("auditPolicy", { entity_id: event.target.value })} required /></label><label>Audit policy revision<input type="number" min="1" value={draft.auditPolicy.revision} onChange={event => updatePolicy("auditPolicy", { revision: Number(event.target.value) })} required /></label><label>Audit policy fingerprint<input value={draft.auditPolicy.fingerprint ?? ""} onChange={event => updatePolicy("auditPolicy", { fingerprint: event.target.value })} required /></label><label>Change reason<input value={draft.changeReason} onChange={event => setDraft(current => current ? { ...current, changeReason: event.target.value } : current)} required /></label><div className="info-banner">Review: {draft.members.length} member slot{draft.members.length === 1 ? "" : "s"}; composition constraints and authority references are preserved from canonical r{draft.sourceRevision}. No Run is created.</div>{error && <div className="error-banner" role="alert">{error}</div>}<div className="form-actions"><button className="primary" type="submit" disabled={submitting}>{submitting ? "Creating revision..." : `Create canonical r${draft.sourceRevision + 1}`}</button></div></div></form>}
+  </>;
+}
+
 export function WorkforceRevisions() {
   const { workforceId, revision } = Router.useParams();
   const surface = useWorkforceSurface(workforceId ?? "");
@@ -189,7 +407,7 @@ export function WorkforceRevisions() {
   const surfaceData = surface.data;
   const selected = surfaceData?.revisions.find(item => item.ref.revision === (selectedRevision ?? surfaceData.detail.currentRevision.ref.revision));
   return <>
-    <WorkforcePageHeader workforceId={workforceId} title={selectedRevision ? `Workforce revision r${selectedRevision}` : "Workforce revisions"} description="Immutable historical Workforce definitions. Current Agent heads never rewrite these references." refresh={surface.refresh} loadState={surface.loadState} loadError={surface.loadError} />
+    <WorkforcePageHeader workforceId={workforceId} title={selectedRevision ? `Workforce revision r${selectedRevision}` : "Workforce revisions"} description="Immutable historical Workforce definitions. Current Agent heads never rewrite these references." refresh={surface.refresh} loadState={surface.loadState} loadError={surface.loadError} actions={!selectedRevision ? <Router.Link className="primary action-link" to={`/workforces/${encodeURIComponent(workforceId)}/revisions/new`}>Create revision</Router.Link> : undefined} />
     <WorkforceDetailLoading loadState={surface.loadState} data={surface.data} />
     {surface.data && <div className="dashboard-grid execution-grid"><section className="panel"><div className="panel-head"><div><h2>Revision history</h2><p>Choose a directly addressable revision.</p></div><Shared.Badge tone="muted">{surface.data.revisions.length}</Shared.Badge></div><div className="panel-body">{surface.data.revisions.map(item => <div className="catalog-row" key={item.ref.revision}><div className="catalog-row-main"><b>Revision r{item.ref.revision}{item.ref.revision === surface.data!.detail.currentRevision.ref.revision ? " · current" : ""}</b><small>{item.lifecycle_status} · committed by {item.commit.created_by}</small><p>{item.commit.change_reason}</p></div><Router.Link className="detail-link" to={`/workforces/${encodeURIComponent(workforceId)}/revisions/${item.ref.revision}`}>Inspect</Router.Link></div>)}</div></section><section className="panel"><div className="panel-head"><div><h2>{selected ? `Revision r${selected.ref.revision}` : "Revision unavailable"}</h2><p>{selected ? "Read-only historical composition." : "The requested revision is not returned by Product API."}</p></div>{selected && <WorkforceState state={selected.lifecycle_status} />}</div><div className="panel-body">{selected ? <><Shared.SummaryRow label="Revision ref" value={formatRevision(selected.ref)} /><Shared.SummaryRow label="Supersedes" value={selected.supersedes_revision ? `r${selected.supersedes_revision}` : "none"} /><Shared.SummaryRow label="Purpose" value={selected.purpose} /><MemberRows members={selected.members} /></> : <div className="empty-state">No matching historical revision.</div>}</div></section></div>}
   </>;
@@ -198,11 +416,15 @@ export function WorkforceRevisions() {
 export function WorkforceRuns() {
   const { workforceId } = Router.useParams();
   const surface = useWorkforceSurface(workforceId ?? "");
+  const runs = Shared.useOperationalSummary<Api.WorkforceRunListItem[]>(() => Api.productApi.listWorkforceRuns(workforceId ?? ""), "Unable to load Workforce Runs from Product API", () => false);
   if (!workforceId) return <Router.Navigate to="/workforces" replace />;
   return <>
-    <WorkforcePageHeader workforceId={workforceId} title="Workforce Runs" description="Run admission is immutable and must be read from explicit Product API snapshot fields." refresh={surface.refresh} loadState={surface.loadState} loadError={surface.loadError} />
+    <WorkforcePageHeader workforceId={workforceId} title="Workforce Runs" description="Every row retains the exact Workforce revision admitted by the canonical Run." refresh={() => { surface.refresh(); runs.refresh(); }} loadState={runs.loadState === "loading" ? surface.loadState : runs.loadState} loadError={runs.loadError ?? surface.loadError} />
     <WorkforceDetailLoading loadState={surface.loadState} data={surface.data} />
-    {surface.data && <><Shared.UnsupportedPanel title="Workforce-scoped Run list unavailable" reason="The accepted Product API exposes a Run Workforce snapshot by Run ID, but does not expose a list of Runs filtered by Workforce. This screen will not infer membership from current Workforce state." note="Browse cross-Workforce Runs, then inspect a known Run and Task in Workforce Operations." /><Router.Link className="surface-link" to="/executions">Browse cross-Workforce Runs →</Router.Link></>}
+    {runs.loadState === "loading" && !runs.data && <div className="loading-screen">Loading Workforce Runs...</div>}
+    {runs.loadError && <div className="error-banner" role="alert">{runs.loadError}</div>}
+    {runs.data && runs.data.length === 0 && <section className="panel"><div className="empty-state">No Run has admitted this Workforce yet. A future admission will retain the revision that was current at that time.</div></section>}
+    {runs.data && runs.data.length > 0 && <section className="panel"><div className="panel-head"><div><h2>Admitted Runs</h2><p>Historical usage is read from canonical admission, never inferred from the current Workforce head.</p></div><Shared.Badge tone="muted">{runs.data.length}</Shared.Badge></div><div className="panel-body catalog-list">{runs.data.map(run => <div className="catalog-row" key={run.runId}><div className="catalog-row-main"><b>{run.runId}</b><small>{run.status} · admitted <Shared.Time value={run.admittedAt} /></small><p>Workforce revision r{run.admittedWorkforceRevision} · snapshot {run.membershipSnapshotId ?? "unavailable"}</p></div><div className="card-actions"><Router.Link className="detail-link" to={`/workforces/${encodeURIComponent(workforceId)}/revisions/${run.admittedWorkforceRevision}`}>View admitted revision</Router.Link><Router.Link className="detail-link" to={`/workforces/${encodeURIComponent(workforceId)}/operations?runId=${encodeURIComponent(run.runId)}`}>Investigate</Router.Link></div></div>)}</div></section>}
   </>;
 }
 

@@ -4,4 +4,4 @@
 
 The list supports loading, retryable error, intentional empty state, search, lifecycle filter, and sorting. It does not create health scores or operational quality signals.
 
-When no Workforces are returned, the page explains that a Workforce composes Agents into a reusable execution unit. It also states that creation is unavailable from the current Product API.
+When no Workforces are returned, the page explains that a Workforce composes Agents into a reusable execution unit. The current Product API supports initial creation through `POST /api/v1/workforces`; later revision and lifecycle actions are available through the IMP-03E2 write routes.

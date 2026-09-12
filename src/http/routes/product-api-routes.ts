@@ -71,7 +71,7 @@ import { createWorkforceProductApi, type WorkforceDetail } from "../../control-p
 import type { AsyncNativeCoreRepository } from "../../control-plane/shared-state/native-core-durable.js";
 import { createWorkforceDefinitionV2, createWorkforceRevisionV2, validateWorkforceMemberV2, type WorkforceLifecycleStatus, type WorkforceMemberV2 } from "../../native-core/workforce.js";
 import { createEventEnvelopeV2 } from "../../native-core/runtime.js";
-import { NativeContractValidationError, sha256Hex, stableStringify, validateRevisionRef } from "../../native-core/primitives.js";
+import { NativeContractValidationError, sha256Hex, stableStringify, validateEntityRef, validateRevisionRef } from "../../native-core/primitives.js";
 import {
   NativeIdempotencyConflictError,
   NativeWorkforceLineageIntegrityError,
@@ -2834,8 +2834,8 @@ function parseWorkforceRevisionInput(body: unknown) {
     displayName,
     purpose,
     members,
-    compositionConstraints: readRevisionRefArray(record.compositionConstraints, "compositionConstraints", false),
-    authorityRefs: readRevisionRefArray(record.authorityRefs, "authorityRefs", false),
+    compositionConstraints: readEntityRefArray(record.compositionConstraints, "compositionConstraints", false),
+    authorityRefs: readEntityRefArray(record.authorityRefs, "authorityRefs", false),
     membershipPolicyRef: validateRevisionRef(record.membershipPolicyRef, "membershipPolicyRef"),
     auditPolicyRef: validateRevisionRef(record.auditPolicyRef, "auditPolicyRef"),
     changeReason,
@@ -2866,12 +2866,12 @@ function parseWorkforceLifecycleInput(body: unknown): {
   return { expectedRevision, targetStatus: targetStatus as WorkforceLifecycleStatus, changeReason, idempotencyKey, requestedAt: record.requestedAt as number };
 }
 
-function readRevisionRefArray(value: unknown, name: string, required: boolean): readonly ReturnType<typeof validateRevisionRef>[] {
+function readEntityRefArray(value: unknown, name: string, required: boolean): readonly ReturnType<typeof validateEntityRef>[] {
   if (value === undefined && !required) return [];
-  if (!Array.isArray(value)) throw new AcsHttpValidationError(`${name} must be an array of revision references`);
+  if (!Array.isArray(value)) throw new AcsHttpValidationError(`${name} must be an array of entity references`);
   return value.map((entry, index) => {
     try {
-      return validateRevisionRef(entry, `${name}[${index}]`);
+      return validateEntityRef(entry, `${name}[${index}]`);
     } catch (error) {
       throw new AcsHttpValidationError(`${name}[${index}] is invalid`, { cause: error instanceof Error ? error.message : "invalid reference" });
     }

@@ -2,27 +2,47 @@
 
 ## Status
 
-`PARTIAL / DOMAIN ENTRY ACCEPTED / CONTEXTUAL NAVIGATION ACCEPTED IN CODE / FIRST WORKFORCE CREATION ACCEPTED`
+`COMPLETE / ACCEPTED`
 
-## Proven criteria
+## Acceptance matrix
 
-- Workforce is a first-class global application domain.
-- The implementation separates collection and entity navigation: `All Workforces` is collection-scoped, while a selected Workforce can expose Overview, Members, Revisions, Runs, and Operations.
-- The sidebar implementation marks only the current entity-local section as active.
-- Direct list, detail, member, revision, Runs, and Operations routes are registered.
-- List/detail loading, empty, error, retry, filtering, and sorting are implemented.
-- Member slots, pinned revisions, admission-time resolution, and governed role revision references are explicit.
-- Historical revisions are direct-addressable and read-only.
-- Admitted Run membership, coordination lineage, assignment history, runtime attempts, revision references, slot, generation, and recovery are available when explicit Run and Task IDs are supplied.
-- Product API remains the sole data boundary.
-- `POST /api/v1/workforces` creates the initial canonical draft `r1` through the native lineage repository, with tenant governance, idempotency, event, and outbox inputs.
-- The collection page and its empty state expose Create Workforce; successful creation navigates to the canonical Workforce detail route.
-- On September 12, 2026, a canonical shared-state HTTP host against PostgreSQL proved first-Workforce creation, same-key idempotent retry, durable collection readback, and direct-detail readback after a control-plane restart. The repository suite completed with 726 passes, 0 failures, and 0 skips.
+| Criterion | Evidence | Result |
+| --- | --- | --- |
+| Peer-level Workforce domain and collection navigation | Global sidebar and `/workforces` | PASS |
+| Entity-local Overview, Members, Revisions, Runs, Operations | Shared contextual navigation and direct routes | PASS |
+| First Workforce creation | `POST /api/v1/workforces`; FIX-02 PostgreSQL acceptance | PASS |
+| New immutable revision UX | `/workforces/:workforceId/revisions/new`; expected-head and idempotency Product API request | PASS |
+| Lifecycle action UX | Current-status target matrix and `POST /lifecycle` | PASS |
+| Workforce-scoped Runs UX | `GET /workforces/:workforceId/runs`; admitted revision links | PASS |
+| Historical revision preservation | Direct revision routes and read-only revision surface | PASS |
+| Product API remains the authority boundary | Typed client only; no client-side canonical store or direct repository calls | PASS |
+| Canonical HTTP/PostgreSQL persistence | IMP-03E2 and FIX-02 acceptance tests | PASS |
+| Full repository regression | `npm run check` with canonical PostgreSQL configuration: 731 pass, 0 fail, 0 skipped | PASS |
 
-## Remaining criteria
+## Integrated application validation
 
-- Later Workforce revision creation and lifecycle writes remain outside FIX-02 and require their own Product API mutations.
-- Workforce-scoped Run list remains blocked by missing Product API query support.
-- The existing standalone browser process on port 3000 is still configured for the separate host on port 8788, whose current process does not register Workforce routes. That process is not the canonical host used for the PostgreSQL acceptance above. A browser run against the canonical host remains useful UI evidence, but it does not invalidate the completed FIX-02 host/API persistence acceptance.
+On September 12, 2026, the standalone application ran through a same-origin Vite proxy to a schema-isolated canonical shared-state HTTP host backed by PostgreSQL. The browser showed:
 
-`ACS-V2-IMP-03F-FIX-02` is accepted for initial Workforce creation. `ACS-V2-IMP-03F` remains partial until the material revision/lifecycle and Workforce-scoped Run write/query gaps are resolved.
+- a canonical Workforce in the inventory;
+- the selected-Workforce tree with Overview, Members, Revisions, Runs, and Operations;
+- a revision successor form seeded from canonical `r3`, with expected-head `r3`, member composition, policy references, and a canonical `r4` submit action;
+- lifecycle targets valid from the active head: disabled and archived;
+- Run A admitted on Workforce `r2` and Run B admitted on Workforce `r3`, each linked to its admitted historical revision.
+
+The host fixture was isolated to a temporary PostgreSQL schema and removed after validation. No provider, CAMEL, Eigent, scheduler, or runtime dependency was introduced.
+
+## Validation
+
+```text
+pnpm typecheck && pnpm test && pnpm lint && pnpm build
+13 standalone test files passed; lint: 0 errors, 10 pre-existing Fast Refresh warnings
+pnpm test:browser: 88 route/viewport checks, 0 failures, static-preview Product API caveats only
+
+set -a; . .env.local; set +a; export ACS_SHARED_DATABASE_URL="$ACS_SH_DATABASE_URL"; npm run check
+731 tests passed, 0 failed, 0 cancelled, 0 skipped
+
+git diff --check
+PASS
+```
+
+This decision accepts only the Workforce application domain and its Product API integration. It does not change broader ACS production-readiness decisions.

@@ -2,21 +2,25 @@
 
 ## Status
 
-`PARTIAL / DOMAIN ENTRY ACCEPTED / DOMAIN NAVIGATION INCOMPLETE`
+`COMPLETE / ACCEPTED`
 
-The Workforce domain is implemented in the standalone ACS Control Plane application. It presents Workforces as a peer application domain and consumes the Product API read surface plus the authorized initial-creation route.
+The standalone ACS Control Plane now presents Workforces as a peer application domain backed only by accepted Product API and Native Core semantics.
 
-`ACS-V2-IMP-03F-FIX-02` adds `POST /api/v1/workforces` for initial canonical draft creation only. Later revision writes, lifecycle writes, and Workforce-scoped Run discovery remain unavailable because no corresponding Product API route exists. The application deliberately does not synthesize these capabilities.
+## Delivered experience
 
-`ACS-V2-IMP-03F-FIX-01` adds the entity-local navigation implementation. `All Workforces` remains a collection-level link; a selected Workforce can expose `Overview`, `Members`, `Revisions`, `Runs`, and `Operations` in the sidebar and the entity context strip. The local environment does not currently return a Workforce collection, so a real selection and its visible navigation cannot be accepted yet.
+- global Workforces entry, collection navigation, and selected-Workforce local navigation;
+- list, loading, error, retry, empty, filter, sort, and first-Workforce creation states;
+- canonical draft `r1` creation and redirect to the selected Workforce;
+- current definition, member slots, immutable history, and direct historical revision routing;
+- a successor-revision form seeded from the current canonical head, submitted with expected-head CAS, canonical policy references, idempotency, and a change reason;
+- canonical lifecycle transitions with only the accepted target states available for the current head;
+- Workforce-scoped Runs that show the exact revision admitted for each Run and link to that historical revision;
+- Run/task operations investigation using explicit admitted snapshot, coordination, assignment, and attempt projections.
 
-## Scope delivered
+The application retains URL state, form drafts, loading, errors, selection, and retry only. Product API and Native Core retain Workforce identity, revisions, lifecycle, admission, events, outbox, and historical Run semantics.
 
-- global Workforces navigation and direct routes;
-- list, loading, empty, error, retry, filtering, sorting, and Create Workforce states;
-- canonical initial Workforce creation with one eligible Agent member and draft revision `r1`;
-- current definition, member slots, immutable revision history, and direct historical revision routes;
-- Run/task investigation using explicit admitted snapshot, coordination, assignment, and attempt projections;
-- no client-side canonical inference or orchestration.
+## Acceptance boundary
 
-See the companion documents for the implemented boundary and validation evidence.
+On September 12, 2026, the full repository suite passed with 731 tests, 0 failures, and 0 skips using the canonical PostgreSQL configuration. A standalone application instance was also inspected against a schema-isolated canonical host: collection, selected-Workforce navigation, revision preparation, lifecycle actions, and historical Workforce Runs rendered from Product API data.
+
+See the companion documents for the endpoint boundary and validation evidence.

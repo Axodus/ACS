@@ -58,3 +58,16 @@ Validation completed on September 12, 2026 against the canonical PostgreSQL conf
 - `git diff --check` passed after the acceptance-record updates.
 
 This proves canonical-host and PostgreSQL acceptance for initial Workforce creation. It does not claim a browser interaction against the pre-existing standalone process on port 3000, which remains configured to use the separate host on port 8788.
+
+## ACS-V2-IMP-03F final application acceptance
+
+Validation completed on September 12, 2026.
+
+- `pnpm typecheck && pnpm test && pnpm lint && pnpm build` passed for the standalone application: 13 test files passed, 0 failed, 0 skipped; lint reported 0 errors and 10 pre-existing Fast Refresh warnings in `Agents.tsx` and `shared.tsx`; build passed.
+- The Workforce domain test now verifies typed consumption of the accepted IMP-03E2 revision, lifecycle, and Workforce-Run endpoints, direct successor-revision routing, and the absence of client-side canonical state.
+- `pnpm test:browser` passed with 88 route/viewport checks, 0 failures, 0 blocked routes, and `PASS_WITH_CAVEAT` only because the static preview intentionally has no Product API host. The matrix includes `/workforces/:workforceId/revisions/new` across all four viewports.
+- A schema-isolated canonical HTTP host using shared PostgreSQL was wired through the Vite same-origin proxy. Browser inspection showed the canonical inventory, selected-Workforce context tree, successor form from `r3`, canonical lifecycle targets from active state, and admitted Runs retaining `r2` and `r3` respectively.
+- `npm run check` passed with `ACS_SH_DATABASE_URL` configured: 731 tests, 731 passing, 0 failed, 0 skipped. This includes FIX-02 regression, IMP-03A through IMP-03E2 PostgreSQL acceptance, and `VAL-01`.
+- `git diff --check` passed after the final acceptance-record updates.
+
+`ACS-V2-IMP-03F` is accepted as the Workforce Application Domain & Experience increment.

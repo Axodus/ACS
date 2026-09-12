@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
   const baseUrl = configuredBaseUrl || (
     environment === "local" ? DEFAULT_LOCAL_API_BASE_URL : DEFAULT_DEVELOPMENT_API_BASE_URL
   );
+  const proxyTarget = env.VITE_ACS_API_PROXY_TARGET?.trim() || apiTarget(baseUrl);
 
   return {
     plugins: [react()],
@@ -23,7 +24,7 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       proxy: {
         "/api/v1": {
-          target: apiTarget(baseUrl),
+          target: proxyTarget,
           changeOrigin: true,
           secure: true,
         },

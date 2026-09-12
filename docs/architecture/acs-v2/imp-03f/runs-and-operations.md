@@ -1,6 +1,6 @@
 # Runs and Operations
 
-The accepted Product API does not provide a Workforce-filtered Run list. The Runs subsection states that limitation, links to the cross-Workforce Runs domain, and does not infer historic usage from the current Workforce definition.
+`GET /api/v1/workforces/:workforceId/runs` provides a deterministic Workforce-filtered Run list. Each row shows the admitted Workforce revision, admission timestamp, Run status, creation timestamp, and optional membership snapshot ID. The row links to the historical revision admitted by that Run and to explicit Run investigation; the application never infers historic usage from the current Workforce definition.
 
 The Operations subsection supports investigation with explicit `runId` and `taskId`:
 
@@ -8,4 +8,4 @@ The Operations subsection supports investigation with explicit `runId` and `task
 - `GET /api/v1/tasks/:taskId/coordination?runId=:runId` renders advisory proposals, canonical decisions, current assignment, and assignment history;
 - `GET /api/v1/tasks/:taskId/runtime?runId=:runId` renders explicit attempt, Agent revision, Workforce revision, slot, generation, and recovery fields.
 
-The screen rejects a supplied Run when its admitted Workforce is different from the route Workforce.
+The screen rejects a supplied Run when its admitted Workforce differs from the route Workforce.

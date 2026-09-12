@@ -10,14 +10,15 @@ Implemented direct routes:
 /workforces/:workforceId
 /workforces/:workforceId/members
 /workforces/:workforceId/revisions
+/workforces/:workforceId/revisions/new
 /workforces/:workforceId/revisions/:revision
 /workforces/:workforceId/runs
 /workforces/:workforceId/operations
 ```
 
-`/workforces/new` is the initial Workforce creation form. It remains collection-scoped and never renders entity-local Workforce navigation.
+`/workforces/new` is collection-scoped and never renders entity-local Workforce navigation. `/workforces/:workforceId/revisions/new` starts from the current canonical head and creates a successor; it does not make a historical revision editable.
 
-The sidebar separates the collection and entity scopes:
+The sidebar separates collection and entity scopes:
 
 ```text
 Workforces
@@ -35,8 +36,6 @@ Workforce: <canonical display name>
 └─ Operations
 ```
 
-The collection always displays the conceptual Workforce tree. Before an entity is selected, Overview / List is the only navigable item and the other branches state that a Workforce must be selected. The entity group is visible only on a selected Workforce route. The display name is read from the canonical Workforce detail response; the URL-safe Workforce ID remains visible as a fallback while a direct link resolves or the API reports an error. The current subsection is the single active local link.
+The entity group is visible only on a selected Workforce route. The display name is read from the canonical Workforce detail response; the URL-safe Workforce ID remains visible as a fallback while a direct link resolves or the API reports an error. The current subsection is the single active local link.
 
-Breadcrumbs resolve `Workforces / workforceId / subsection` through the shared shell.
-
-The Operations route accepts `runId` and `taskId` query parameters. They are explicit identifiers, not inferred context.
+Breadcrumbs resolve `Workforces / workforceId / subsection` through the shared shell. The Operations route accepts explicit `runId` and `taskId` query parameters and never infers them from current Workforce state.
