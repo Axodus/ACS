@@ -2,10 +2,10 @@
 
 ## STATUS
 
-`CANDIDATE / AWAITING CTO GO`
+`AUTHORIZED / GO`
 
 **Planning/documentation authority:** granted
-**Implementation authority:** none
+**Implementation authority:** granted for IMP-02 only
 **Migration authority:** none
 **Baseline commit:** `db642f5b9fbf9f932ee975da08d0cdfd567c23a4` (2026-09-13)
 
@@ -17,19 +17,18 @@ execution snapshots, and only the governed-resource history or immutable
 observation contracts required to reconstruct those snapshots.
 
 This charter consumes the accepted REQ-03 and REQ-04 direction after IMP-01's
-Native Agent seam. It does not reopen Agent identity, Profile ownership or
-Persona ownership. Those remain mandatory non-regression boundaries for all
-IMP-02 projections and resolution inputs.
+completed Native Agent seam. Profile and Persona are completed dependencies and
+mandatory non-regression boundaries, not IMP-02 implementation scope.
 
 ## DEPENDENCIES
 
 | Dependency | Current evidence | Gate disposition |
 | --- | --- | --- |
-| IMP-01 Native Agent seam | `ProductApiClient.#nativeMutateAgent` builds `AgentDefinitionV2`, `AgentRevisionV2`, CAS/idempotency input, Event and outbox command for `advanceAgentLineage`. | Available; CTO must reconcile its acceptance report before GO. |
+| IMP-01 Native Agent seam | `ProductApiClient.#nativeMutateAgent` builds `AgentDefinitionV2`, `AgentRevisionV2`, CAS/idempotency input, Event and outbox command for `advanceAgentLineage`. | `COMPLETE / CTO ACCEPTED`; reusable dependency. |
 | Canonical CAS/idempotency/events | Native durable repository and VAL-01 record PostgreSQL CAS, idempotency and Event/outbox behavior. | Available as reusable owner/convention. |
-| PostgreSQL acceptance harness | `npm run acceptance:postgres` builds and runs `scripts/acs-postgres-acceptance.mjs`. | Available; a reachable disposable PostgreSQL instance is required for durable acceptance. |
-| Full regression environment | Repository command is available; the most recent IMP-01 report records `120/130` passing, with 10 failures. | Capable but not green evidence; classify listener failures only in the listener-capable environment. |
-| IMP-01 completion | Gate README says `AUTHORIZED / GO`; the implementation acceptance report still says `IN IMPLEMENTATION / AUTHORIZED`, PostgreSQL blocked and full regression not green. | CTO must state whether this satisfies the REQ-12 dependency for IMP-02. |
+| PostgreSQL acceptance harness | `npm run acceptance:postgres` builds and runs `scripts/acs-postgres-acceptance.mjs`. | `ACS-BLOCKER-021 RESOLVED / CTO ACCEPTED`; reusable durable acceptance owner. |
+| Full regression environment | Listener-capable regression completed `720 passed / 0 failed / 14 legitimate skips`. | `ACS-BLOCKER-022 RESOLVED / CTO ACCEPTED`; required environment for listener cases. |
+| IMP-01 completion | Canonical Agent seam, Profile/Persona boundary and lifecycle history are completed. | `COMPLETE / CTO ACCEPTED`; IMP-02 dependency satisfied. |
 
 ## CURRENT STATE
 
@@ -270,22 +269,12 @@ than rewriting history.
 
 ## RISKS
 
-- The stated IMP-02 scope conflicts with REQ-12's accepted allocation of
-  Profile/Persona work to IMP-01.
-- IMP-01's latest report is not a green completion record: PostgreSQL was
-  unreachable and 10 full-regression failures were recorded.
 - Existing Profile API output is synthetic, and legacy catalog integer revisions
   do not prove durable historical content.
 - Resource history may require migration; no migration authority exists.
 
 ## DECISIONS REQUIRED FROM CTO
 
-1. Confirm whether the REQ-12 IMP-02 definition remains configuration/resource
-   history, with Profile/Persona limited to non-regression checks; or explicitly
-   amend REQ-12 before any Profile/Persona implementation is considered.
-2. Confirm whether IMP-01's current acceptance evidence satisfies IMP-02's
-   dependency despite its blocked PostgreSQL and non-green full regression.
-3. Accept or revise ADR-17-007 through ADR-17-015 and the 16 listed contract
-   deltas before code.
-4. Confirm that a future proven persistence gap returns for separate migration
-   authority rather than proceeding under this gate.
+None. The CTO accepted the scope, 16 deltas, ADR dispositions and the stop rule
+for any proven persistence insufficiency. ADR-17-013 remains to be closed from
+implementation evidence before its dependent code is finalized.

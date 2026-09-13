@@ -15,6 +15,7 @@ import {
   ValidationIssue,
 } from "./primitives.js";
 import { validateTaskAttemptV2, type TaskAttemptV2 } from "./runtime.js";
+import { validateEffectiveConfigurationSnapshotV1, type EffectiveConfigurationSnapshotV1 } from "./effective-configuration.js";
 
 export type RuntimeExecutionIntentStatus = "compiled" | "started" | "completed" | "rejected";
 
@@ -30,6 +31,8 @@ export interface RuntimeExecutionIntentV2 {
   readonly agent_revision_ref: RevisionRef;
   readonly workforce_revision_ref: RevisionRef;
   readonly runtime_configuration: Readonly<Record<string, unknown>>;
+  /** Immutable admitted configuration; absent only for pre-IMP-02 records. */
+  readonly effective_configuration_snapshot?: EffectiveConfigurationSnapshotV1;
   readonly status: RuntimeExecutionIntentStatus;
   readonly compiled_at: number;
   readonly provenance: Readonly<Record<string, unknown>>;
@@ -66,6 +69,16 @@ export function validateRuntimeExecutionIntentV2(value: unknown): RuntimeExecuti
   try { validateRevisionRef(intent.agent_revision_ref, "agent_revision_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   try { validateRevisionRef(intent.workforce_revision_ref, "workforce_revision_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   if (!intent.runtime_configuration || typeof intent.runtime_configuration !== "object" || Array.isArray(intent.runtime_configuration)) issues.push(issue("runtime_configuration", "INVALID_OBJECT", "runtime_configuration must be an object"));
+  if (intent.effective_configuration_snapshot !== undefined) {
+    try {
+      const snapshot = validateEffectiveConfigurationSnapshotV1(intent.effective_configuration_snapshot);
+      if (snapshot.run_id !== intent.run_id || snapshot.task_id !== intent.task_id || snapshot.assignment_id !== intent.assignment_id
+        || snapshot.assignment_generation !== intent.assignment_generation || snapshot.agent_revision_ref.fingerprint !== intent.agent_revision_ref?.fingerprint
+        || snapshot.workforce_revision_ref.fingerprint !== intent.workforce_revision_ref?.fingerprint) {
+        issues.push(issue("effective_configuration_snapshot", "BINDING_MISMATCH", "Snapshot does not preserve the execution intent binding"));
+      }
+    } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
+  }
   if (!["compiled", "started", "completed", "rejected"].includes(intent.status ?? "")) issues.push(issue("status", "INVALID_ENUM", "Invalid execution intent status"));
   requireSafeInteger(intent.compiled_at, "compiled_at", issues, 0);
   if (!intent.provenance || typeof intent.provenance !== "object" || Array.isArray(intent.provenance)) issues.push(issue("provenance", "INVALID_OBJECT", "provenance must be an object"));

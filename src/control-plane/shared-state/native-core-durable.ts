@@ -56,6 +56,7 @@ import {
   type RuntimeCompilationResult,
   type RuntimeExecutionIntentV2,
 } from "../../native-core/runtime-compilation.js";
+import { createAgentEffectiveConfigurationSnapshotV1 } from "../../native-core/effective-configuration.js";
 import { createTaskAttemptV2, validateTaskAttemptV2, type TaskAttemptV2 } from "../../native-core/runtime.js";
 import { validateRunV2, validateTaskV2, type RunV2, type TaskV2 } from "../../native-core/runtime.js";
 import {
@@ -1447,6 +1448,16 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       const compiledAt = input.compiled_at ?? Date.now();
       const intentId = input.intent_id ?? `execution_intent_${assignment.assignment_id}`;
       const attemptId = input.attempt_id ?? `attempt_${assignment.assignment_id}`;
+      const effectiveConfigurationSnapshot = createAgentEffectiveConfigurationSnapshotV1({
+        snapshot_id: `effective_configuration_${intentId}`,
+        run_id: assignment.run_id,
+        task_id: assignment.task_id,
+        assignment_id: assignment.assignment_id,
+        assignment_generation: assignment.generation,
+        agent_revision: agentRevision,
+        workforce_revision_ref: member.workforce_revision_ref,
+        resolved_at: compiledAt,
+      });
       const intent = createRuntimeExecutionIntentV2({
         intent_id: intentId,
         run_id: assignment.run_id,
@@ -1458,6 +1469,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
         agent_revision_ref: agentRevision.ref,
         workforce_revision_ref: member.workforce_revision_ref,
         runtime_configuration: { runtime_preferences: agentRevision.runtime_preferences },
+        effective_configuration_snapshot: effectiveConfigurationSnapshot,
         status: "compiled",
         compiled_at: compiledAt,
         provenance: {
@@ -1513,7 +1525,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
         source: "acs",
         correlation_id: input.correlation_id ?? input.idempotency.key,
         idempotency_key: input.idempotency.key,
-        payload: { intent_id: intent.intent_id, assignment_id: intent.assignment_id, assignment_generation: intent.assignment_generation, member_slot_id: intent.member_slot_id, agent_revision: intent.agent_revision_ref.revision },
+        payload: { intent_id: intent.intent_id, assignment_id: intent.assignment_id, assignment_generation: intent.assignment_generation, member_slot_id: intent.member_slot_id, agent_revision: intent.agent_revision_ref.revision, effective_configuration_snapshot_id: effectiveConfigurationSnapshot.snapshot_id, effective_configuration_fingerprint: effectiveConfigurationSnapshot.effective_fingerprint },
       };
       const event = await this.appendEvent({
         ...eventInput,

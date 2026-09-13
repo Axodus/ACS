@@ -133,6 +133,8 @@ test("IMP-03D PostgreSQL compiles, reloads, and preserves canonical assignment i
     assert.equal(first.intent.member_slot_id, "member-m3");
     assert.equal(first.intent.agent_revision_ref.revision, 5);
     assert.equal(first.intent.workforce_revision_ref.revision, 2);
+    assert.equal(first.intent.effective_configuration_snapshot.assignment_generation, 1);
+    assert.equal(first.intent.effective_configuration_snapshot.classes.find((entry) => entry.configuration_class === "memory_policy").status, "unavailable");
     assert.equal(first.attempt.execution_intent_id, first.intent.intent_id);
     const event = await state.nativeCore.getEvent(first.event_id);
     assert.equal(event.event.event_type, "execution.intent_compiled");
@@ -146,6 +148,7 @@ test("IMP-03D PostgreSQL compiles, reloads, and preserves canonical assignment i
       const restoredAttempt = await reloaded.nativeCore.getAttempt(first.attempt.attempt_id);
       assert.equal(restoredIntent.agent_revision_ref.revision, 5);
       assert.equal(restoredIntent.workforce_revision_ref.revision, 2);
+      assert.equal(restoredIntent.effective_configuration_snapshot.effective_fingerprint, first.intent.effective_configuration_snapshot.effective_fingerprint);
       assert.equal(restoredAttempt.assignment_id, "assignment-a1");
       assert.equal(restoredAttempt.assignment_generation, 1);
     } finally { await reloaded.close(); }

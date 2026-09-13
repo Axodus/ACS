@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+const distRoot = process.env.ACS_TEST_DIST_ROOT ?? "../dist";
+const { NativeContractValidationError, createAgentEffectiveConfigurationSnapshotV1, createAgentRevisionV2, reconstructEffectiveConfigurationSnapshotV1, createRuntimeExecutionIntentV2 } = await import(`${distRoot}/index.js`);
+const digest = "a".repeat(64);
+const ref = (kind, id) => ({ kind, id });
+const revision = (entity_kind, entity_id, revisionNumber) => ({ entity_kind, entity_id, revision: revisionNumber, fingerprint: digest });
+
+function agentRevision() {
+  return createAgentRevisionV2({
+    agent_id: "agent-imp-02", revision: 3, supersedes_revision: 2, instructions: "Use exact admitted configuration only.",
+    capability_requirements: [ref("capability", "agent.inspect")], constraints: [ref("constraint", "safe-output")],
+    knowledge: { allowed_scope_refs: ["knowledge:default"], denied_scope_refs: [], context_policy_ref: revision("policy", "context", 1), memory_policy_ref: revision("policy", "memory", 1) },
+    resources: { skill_refs: [revision("resource", "skill.analysis", 1)], tool_refs: [revision("resource", "tool.registry", 1)], mcp_server_refs: [] },
+    runtime_preferences: { provider_routes: [ref("provider", "provider-a")], model_requirements: [ref("model", "model-a")], harness_preferences: [ref("harness", "harness-a")], executor_preferences: [ref("executor", "executor-a")] },
+    governance: { authority_refs: [ref("authority", "tenant:authority")], permission_policy_ref: revision("policy", "permission", 1), approval_policy_ref: revision("policy", "approval", 1) },
+    economics: { cost_policy_ref: revision("policy", "cost", 1), budget_policy_ref: revision("policy", "budget", 1) },
+    evidence: { audit_policy_ref: revision("policy", "audit", 1), evaluation_refs: [ref("evaluation", "eval-a")] },
+    commit: { created_by: "test", committed_at: 100, change_reason: "IMP-02 fixture" },
+  });
+}
+
+function snapshot(overrides = {}) {
+  return createAgentEffectiveConfigurationSnapshotV1({ snapshot_id: "effective-configuration-intent-1", run_id: "run-1", task_id: "task-1", assignment_id: "assignment-1", assignment_generation: 1, agent_revision: agentRevision(), workforce_revision_ref: revision("workforce", "workforce-1", 2), resolved_at: 200, ...overrides });
+}
+
+test("IMP-02 freezes class-specific configuration without a universal override chain", () => {
+  const value = snapshot();
+  assert.equal(value.classes.length, 11);
+  assert.equal(value.classes.find((entry) => entry.configuration_class === "capability_requirements").rule, "requirements_union");
+  assert.equal(value.classes.find((entry) => entry.configuration_class === "governance_policies").rule, "policy_kind_semantics");
+  assert.equal(value.classes.find((entry) => entry.configuration_class === "memory_policy").status, "unavailable");
+});
+
+test("IMP-02 reconstructs only from an immutable verified snapshot", () => {
+  const value = snapshot();
+  assert.deepEqual(reconstructEffectiveConfigurationSnapshotV1(value), value);
+  assert.throws(() => reconstructEffectiveConfigurationSnapshotV1({ ...value, classes: value.classes.map((entry) => entry.configuration_class === "capability_requirements" ? { ...entry, resolved_refs: [] } : entry) }), NativeContractValidationError);
+});
+
+test("IMP-02 keeps Profile, credentials and presentation out of effective authority", () => {
+  const value = snapshot();
+  assert.doesNotMatch(JSON.stringify(value), /profileId|profileRevision|permissionGrant|presentationMetadata/i);
+  assert.equal(value.classes.find((entry) => entry.configuration_class === "presentation").status, "not_applicable");
+  assert.deepEqual(value.classes.find((entry) => entry.configuration_class === "credential_binding").resolved_refs, []);
+});
+
+test("IMP-02 binds a snapshot to one immutable execution intent generation", () => {
+  const value = snapshot();
+  const intent = createRuntimeExecutionIntentV2({ intent_id: "intent-1", run_id: "run-1", task_id: "task-1", assignment_id: "assignment-1", assignment_generation: 1, member_slot_id: "member-1", agent_id: "agent-imp-02", agent_revision_ref: value.agent_revision_ref, workforce_revision_ref: value.workforce_revision_ref, runtime_configuration: {}, effective_configuration_snapshot: value, status: "compiled", compiled_at: 200, provenance: {} });
+  assert.equal(intent.effective_configuration_snapshot.effective_fingerprint, value.effective_fingerprint);
+  assert.throws(() => createRuntimeExecutionIntentV2({ ...intent, assignment_generation: 2 }), NativeContractValidationError);
+});

@@ -3,18 +3,18 @@
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
 **Gate status:** `AUTHORIZED / GO`
-**Authorized implementation:** `EPIC-17-IMP-01`
-**Implementation authority:** IMP-01 only
+**Authorized implementation:** `EPIC-17-IMP-02`
+**Implementation authority:** IMP-02 only
 **Migration authority:** none
 
-This package converts the accepted REQ-12 dependency plan into the one decision
-needed before code: either authorize the bounded IMP-01 charter or keep it
-blocked with an exact remediation.
+IMP-01 is `COMPLETE / CTO ACCEPTED`. This package records the next bounded
+implementation decision: effective configuration, governed-resource resolution
+and historical configuration reconstruction only.
 
 ## Decision inputs
 
-- [Two pre-IMP blockers](pre-imp-blockers.md)
-- [Candidate IMP-01 charter](imp-01-charter.md)
+- [IMP-01 charter](imp-01-charter.md)
+- [IMP-02 charter](imp-02-charter.md)
 
 ## Current disposition
 
@@ -22,7 +22,8 @@ blocked with an exact remediation.
 | --- | --- | --- |
 | `E17-R12-B01` concrete charter | `RESOLVED / CTO ACCEPTED` | Charter accepted at gate commit `efed500224b08ab7f8b62a61b547d302f63172d7`. |
 | `E17-R12-B02` validation baseline | `RESOLVED / CTO ACCEPTED` | `ACS-BLOCKER-014` reconciled against later accepted evidence. |
-| IMP-01 execution | `AUTHORIZED / GO` | Scope is limited to the bounded IMP-01 charter. |
+| IMP-01 execution | `COMPLETE / CTO ACCEPTED` | Canonical Agent seam, Profile/Persona boundary and lifecycle history are completed dependencies. |
+| IMP-02 execution | `AUTHORIZED / GO` | Scope is limited to effective configuration, resource resolution and historical reconstruction. |
 
 ## Decision requested
 
