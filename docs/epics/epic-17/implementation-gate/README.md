@@ -2,7 +2,7 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `PARTIAL / IN PROGRESS`
+**Gate status:** `PARTIAL / NOT READY FOR CLOSURE`
 **Authorized implementation:** `EPIC-17-IMP-02`
 **Implementation authority:** IMP-02 only
 **Migration authority:** none
@@ -25,7 +25,8 @@ immutable admission observations, with no migration authority.
 | `E17-R12-B02` validation baseline | `RESOLVED / CTO ACCEPTED` | `ACS-BLOCKER-014` reconciled against later accepted evidence. |
 | IMP-01 execution | `COMPLETE / CTO ACCEPTED` | Canonical Agent seam, Profile/Persona boundary and lifecycle history are completed dependencies. |
 | IMP-02 Slice 1 | `COMPLETE / CTO ACCEPTED` | Effective configuration snapshot, Tenant binding and historical reconstruction foundation are accepted. |
-| IMP-02 Slice 2 | `CANDIDATE / AWAITING CTO REVIEW` | Resource-history closure for Skill, Tool, Capability and legacy governed preset; no new persistence or migration. |
+| IMP-02 Slice 2 | `COMPLETE / CTO ACCEPTED` | Resource-history closure for Skill, Tool, Capability and legacy governed preset; no new persistence or migration. |
+| IMP-02 closure audit | `COMPLETE / GAPS IDENTIFIED` | Matrix against 14 acceptance criteria, 16 contract deltas, 9 ADRs and consumed blockers. |
 
 ## Current implementation boundary
 
@@ -34,6 +35,9 @@ Skill, Tool, Capability and legacy-preset observations may be captured in the
 existing immutable execution snapshot. A new catalog persistence mechanism,
 schema migration, new resource revision stream or authority model remains
 closed until an exact CTO decision authorizes it.
+
+The accepted slices are complete, but the closure audit identified remaining
+charter gaps. No Slice 3 functionality is authorized by this document.
 
 Production, provider, credential, external execution and rollout authority are
 outside this gate. IMP-03+ and migration authority remain unauthorized.

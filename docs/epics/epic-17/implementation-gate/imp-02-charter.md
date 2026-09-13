@@ -7,11 +7,13 @@
 **Planning/documentation authority:** granted
 **Implementation authority:** granted for IMP-02 only
 **Migration authority:** none
-**Baseline commit:** `db642f5b9fbf9f932ee975da08d0cdfd567c23a4` (2026-09-13)
+**Baseline commit:** `fd3a02e7e33638c7c814c9360bc251ca90ec16a3` (2026-09-13)
 
 **Slice 1 — effective configuration snapshot:** `COMPLETE / CTO ACCEPTED`
 
-**Slice 2 — governed resource-history closure:** `CANDIDATE / AWAITING CTO REVIEW`
+**Slice 2 — governed resource-history closure:** `COMPLETE / CTO ACCEPTED`
+
+**Closure audit:** `COMPLETE / GAPS IDENTIFIED`; see [closure audit](imp-02-closure-audit.md).
 
 ## MISSION
 
@@ -300,6 +302,9 @@ than rewriting history.
 
 ## DECISIONS REQUIRED FROM CTO
 
-None for Slice 2 while immutable admission observations are sufficient. If a
-future class requires reconstruction without such an observation, stop that
-class and return its exact persistence delta for CTO migration authority.
+The accepted slices require no migration decision. Closure remains pending the
+gaps recorded in the closure audit: Product API source-faithful projection and
+typed errors, complete decision/availability provenance, explicit recovery/re-
+admission evidence, and final deferral/ownership for provider/model and MCP
+semantics. If any gap requires new persistence, stop at the migration gate and
+return the exact schema delta for CTO authority.
