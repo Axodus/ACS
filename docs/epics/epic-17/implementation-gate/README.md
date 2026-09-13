@@ -2,18 +2,19 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-03A — IN PROGRESS / CLOSURE VALIDATION`
-**Authorized implementation:** IMP-03A only
-**Implementation authority:** IMP-03A only
-**Migration authority:** schema version 8 only
+**Gate status:** `EPIC-17-IMP-03B — CANDIDATE / AWAITING CTO GO`
+**Authorized implementation:** none
+**Implementation authority:** none
+**Migration authority:** none
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
 configuration, immutable fingerprinted snapshots, Tenant binding,
 governed-resource observations, resolution provenance, provider/model
 observations, Product API historical projections and recovery conformance. MCP
 endpoint/configuration, Connection and Credential semantics were deferred to
-REQ-05 and are assigned to candidate [IMP-03A](imp-03-charter.md). Migration
-authority remains none.
+REQ-05 and were completed by IMP-03A. IMP-03B is the separate REQ-06 Memory
+candidate; its gate package authorizes documentation only. Migration authority
+remains none.
 
 ## Decision inputs
 
@@ -22,6 +23,8 @@ authority remains none.
 - [IMP-03A charter](imp-03-charter.md)
 - [IMP-03A persistence and migration design](imp-03-persistence-migration-design.md)
 - [IMP-03A Slice 1 regression causality review](imp-03a-slice-1-regression-causality.md)
+- [IMP-03B Memory charter](imp-03b-charter.md)
+- [IMP-03B persistence and migration design candidate](imp-03b-persistence-design-candidate.md)
 
 ## Current disposition
 
@@ -38,11 +41,13 @@ authority remains none.
 | IMP-03A Slice 1 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Schema v8 foundation, immutable lineages, CAS and Event/outbox. |
 | IMP-03A Slice 2 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Lifecycle, credential rotation, CAS/idempotency and historical lineage conformance. |
 | IMP-03A Slice 3 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Authenticated ingress reference plus atomic Event/Evidence/outbox; it stops before admission. |
-| IMP-03A Slice 4 | `IMPLEMENTED / PUBLISHED / ACCEPTANCE PENDING` | Read-only Product API head projections; historical reconstruction remains the canonical repository's exact revision/fingerprint responsibility. |
+| IMP-03A Slice 4 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Read-only Product API head projections and closure validation accepted; IMP-03A is closed. |
+| IMP-03B gate preparation | `DOCUMENTATION COMPLETE / CTO REVIEW PENDING` | REQ-06 ownership, B01–B06, deltas, ADRs, persistence candidate and migration gate require CTO decision. |
 
 ## Current implementation boundary
 
-The CTO authorized the additive PostgreSQL schema v8 and functional IMP-03A
-only. Development SQLite data is disposable: no preservation, import, backfill
-or compatibility path is permitted. Provider access, direct ingress-to-Run,
-IMP-03B and IMP-04+ remain unauthorized.
+The accepted PostgreSQL schema v8 and functional IMP-03A are closed.
+Development SQLite data remains disposable: no preservation, import, backfill
+or compatibility path is required. IMP-03B has no functional, schema, migration,
+runtime or Product API authority. Its candidate schema 9 is documentation only;
+IMP-04+ remain unauthorized.
