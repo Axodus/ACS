@@ -80,7 +80,7 @@ function event({ eventId, eventType, timestamp, sequence, workforceId, agentId, 
   });
 }
 
-async function openHost(shared, root) {
+async function openHost(shared, root, allowedOrigins = []) {
   const { server, context } = await createAcsHttpServer({
     sharedControlPlaneContext: shared,
     tenantId: scope().tenant_id,
@@ -96,6 +96,7 @@ async function openHost(shared, root) {
     secretCatalogPath: join(root, "secrets.sqlite"),
     economicStatePath: join(root, "economic.sqlite"),
     rateLimitDatabasePath: join(root, "rate-limit.sqlite"),
+    allowedOrigins,
   });
   await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   const address = server.address();
@@ -147,10 +148,10 @@ async function waitForHttp(url, timeout = 30_000) {
   throw lastError ?? new Error(`Timed out waiting for ${url}`);
 }
 
-async function openIntegratedApplication(productApiBaseUrl, tenantId) {
+async function openIntegratedApplication(productApiBaseUrl, tenantId, port = undefined) {
   const appRoot = join(process.cwd(), ".design", "app-standalone");
-  const port = await freePort();
-  const server = spawn(process.execPath, [join(appRoot, "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
+  const selectedPort = port ?? await freePort();
+  const server = spawn(process.execPath, [join(appRoot, "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1", "--port", String(selectedPort), "--strictPort"], {
     cwd: appRoot,
     env: {
       ...process.env,
@@ -161,7 +162,7 @@ async function openIntegratedApplication(productApiBaseUrl, tenantId) {
     },
     stdio: "ignore",
   });
-  const url = `http://127.0.0.1:${port}`;
+  const url = `http://127.0.0.1:${selectedPort}`;
   try {
     await waitForHttp(url);
   } catch (error) {
@@ -240,6 +241,8 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
   let app;
   let browser;
   let page;
+  const appPort = await freePort();
+  const appOrigin = `http://127.0.0.1:${appPort}`;
   try {
     await admin.query(`CREATE SCHEMA "${schema}"`);
     shared = await createSharedControlPlaneContextFromEnvironment({ instanceId: "val-03-a", environment });
@@ -247,8 +250,8 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
     const agentA1 = await advanceAgent(nativeCore, { agentId: agentA, revision: 1, expectedHead: 0, timestamp: 10 });
     await advanceAgent(nativeCore, { agentId: agentA, revision: 2, expectedHead: 1, timestamp: 20 });
     await advanceAgent(nativeCore, { agentId: agentB, revision: 1, expectedHead: 0, timestamp: 30 });
-    host = await openHost(shared, root);
-    app = await openIntegratedApplication(host.baseUrl, scope().tenant_id);
+    host = await openHost(shared, root, [appOrigin]);
+    app = await openIntegratedApplication(host.baseUrl, scope().tenant_id, appPort);
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
     page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await page.goto(`${app.url}/workforces`, { waitUntil: "domcontentloaded" });
@@ -369,11 +372,11 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
     host = undefined;
     await shared.close();
     shared = await createSharedControlPlaneContextFromEnvironment({ instanceId: "val-03-b", environment });
-    host = await openHost(shared, root);
+    host = await openHost(shared, root, [appOrigin]);
     await browser.close();
     browser = undefined;
     await closeIntegratedApplication(app);
-    app = await openIntegratedApplication(host.baseUrl, scope().tenant_id);
+    app = await openIntegratedApplication(host.baseUrl, scope().tenant_id, appPort);
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
     page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     const [detail, revisions, runs, runWorkforce, membership, coordination, assignments, runtime] = await Promise.all([
@@ -417,23 +420,28 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
 
     await page.goto(`${app.url}/workforces`, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "Workforce Inventory" }).waitFor();
-    assert.ok(await page.getByText(workforceId, { exact: true }).count());
+    await page.getByText(workforceId, { exact: true }).waitFor();
     await page.getByRole("link", { name: "Create Workforce" }).first().click();
     await page.getByRole("heading", { name: "Create Workforce" }).waitFor();
+    const availableAgentIds = await page.getByRole("combobox").locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")));
+    assert.ok(availableAgentIds.includes(agentB), `GET /api/v1/agents omitted canonical Workforce-eligible Agent ${agentB}`);
     await page.getByLabel("Workforce ID").fill("workforce-browser-val-03");
     await page.getByLabel("Display name").fill("VAL-03 Browser Workforce");
     await page.getByLabel("Purpose").fill("Integrated browser creation acceptance");
     await page.getByLabel("Ownership reference").fill(scope().owner_ref);
-    await page.getByLabel("Slot ID").fill("primary");
-    await page.getByLabel("Agent ID").fill(agentB);
+    await page.getByLabel("Slot").fill("primary");
+    await page.getByRole("combobox").selectOption(agentB);
     await page.getByLabel("Responsibilities (comma separated)").fill("review");
     await page.getByLabel("Membership policy ID").fill("membership-policy");
     await page.getByLabel("Membership policy fingerprint").fill(digest);
     await page.getByLabel("Audit policy ID").fill("audit-policy");
     await page.getByLabel("Audit policy fingerprint").fill(digest);
-    await page.getByRole("button", { name: "Create draft r1" }).click();
-    await page.waitForURL(/\/workforces\/workforce-browser-val-03$/);
-    await page.getByText("Current revision", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Create Workforce" }).click();
+    await page.waitForTimeout(500);
+    const browserErrors = await page.getByRole("alert").allTextContents();
+    assert.deepEqual(browserErrors, [], `Application creation error: ${browserErrors.join(" | ")}`);
+    await page.waitForURL(/\/workforces\/workforce-browser-val-03$/, { timeout: 10_000 });
+    await page.getByText("Current revision", { exact: true }).first().waitFor();
     assert.ok(await page.getByText("draft", { exact: true }).count());
     const lifecycleTargets = await page.locator("select").first().locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")));
     assert.deepEqual(lifecycleTargets, ["active", "archived"]);
@@ -450,7 +458,7 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
       const path = suffix ? `/workforces/${workforceId}/${suffix}` : `/workforces/${workforceId}`;
       await page.goto(`${app.url}${path}`, { waitUntil: "domcontentloaded" });
       await page.getByRole("heading", { name: heading }).waitFor();
-      assert.equal(await page.getByRole("link", { name: "All Workforces" }).getAttribute("aria-current"), null);
+      assert.equal(await page.getByRole("link", { name: "Overview / List" }).getAttribute("aria-current"), null);
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.getByRole("heading", { name: heading }).waitFor();
     }

@@ -228,6 +228,7 @@ export interface CoordinationDecisionCommandResult {
 export interface AsyncNativeCoreRepository {
   advanceAgentLineage(input: NativeAgentLineageCommand): Promise<NativeAgentLineageCommandResult>;
   getAgentLineage(agentId: string): Promise<NativeAgentLineage>;
+  listAgentDefinitions(input?: { readonly tenantId?: string }): Promise<readonly AgentDefinitionV2[]>;
   advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult>;
   getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage>;
   listWorkforceDefinitions(): Promise<readonly WorkforceDefinitionV2[]>;
@@ -701,6 +702,16 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       throw new NativeLineageIntegrityError(agentId, "head fingerprint diverges from immutable history");
     }
     return { definition, revisions };
+  }
+
+  async listAgentDefinitions(input: { readonly tenantId?: string } = {}): Promise<readonly AgentDefinitionV2[]> {
+    const result = await query<PayloadRow>(this.db, "list native agent definitions", `
+      SELECT payload FROM acs_agents
+      WHERE record_kind = 'native_v2'
+        AND ($1::text IS NULL OR tenant_id = $1)
+      ORDER BY agent_id
+    `, [input.tenantId ?? null]);
+    return result.rows.map((row) => validateAgentDefinitionV2(decode<AgentDefinitionV2>(row.payload)));
   }
 
   async advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult> {

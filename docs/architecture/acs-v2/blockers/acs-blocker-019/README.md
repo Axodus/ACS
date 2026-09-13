@@ -37,8 +37,8 @@ No Workforce semantics, Run admission rules, assignment semantics, lifecycle beh
 - VAL-03 blocker assertions reached before the later lifecycle assertion: draft admission typed error, no partial persistence, Run stream identity, sequence continuity, Agent stream isolation, reassignment compilation, and outbox uniqueness passed.
 - `git diff --check`: PASS.
 
-## ACCEPTANCE LIMIT
+## FOLLOW-UP
 
-The VAL-03 test currently stops later at an existing lifecycle expectation: the archived Workforce transition returns HTTP `400` for `Workforce reference is invalid`, while the test expects `422`. That lifecycle behavior is outside ACS-BLOCKER-019 and was left unchanged.
+The later archived-lifecycle expectation was classified as an A-class VAL-03 test expectation defect. The accepted Product API contract returns HTTP `400` with `ACS_NATIVE_WORKFORCE_REFERENCE_INVALID`; only the validation expectation changed.
 
-ACS-V2-VAL-03 remains BLOCKED until the blocker is accepted and the full transversal VAL-03 scenario is resumed.
+After this blocker, the resumed full VAL-03 scenario passed with 732 repository tests, 0 failures, and 0 skips. ACS-BLOCKER-019 remains complete and does not expand the accepted Workforce contract.

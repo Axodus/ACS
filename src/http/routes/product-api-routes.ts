@@ -122,6 +122,7 @@ export async function routeProductApiRequest(
 
   const api = new ProductApiClient({
     agentService: context.agentService,
+    ...(context.nativeCore ? { nativeCore: context.nativeCore, nativeAgentTenantId: context.isolation.scope.tenantId } : {}),
     deploymentService: context.deploymentService,
     runtimeService: context.runtimeService,
     auditService: context.auditService,

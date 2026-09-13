@@ -1,14 +1,17 @@
 # Negative cases
 
-| Case | Result | Evidence |
-| --- | --- | --- |
-| First Workforce same key, same request | PASS | same canonical r1 returned |
-| First Workforce same key, changed request | PASS | HTTP 409 idempotency conflict |
-| Draft Run admission | semantic rejection PASS; public error typing FAIL | Native cause is `ACS_NATIVE_RUN_ADMISSION_REJECTED`; PostgreSQL adapter returns `ACS_REPOSITORY_TRANSACTION_FAILED` |
-| Stale Workforce expected head | PASS | HTTP 409, no successor revision |
-| Proposal alone | PASS | no execution intent exists before Decision A |
-| Stale assignment | not reached | compiler failure occurs before reassignment |
-| Archived → active | not reached | scenario stops at first canonical invariant failure |
-| Cross-tenant isolation | reused accepted focused coverage | no new cross-contract result claimed |
+| Case | Result |
+| --- | --- |
+| Same create key and payload | PASS: same canonical r1 |
+| Same create key, changed payload | PASS: HTTP 409 |
+| Draft Run admission | PASS: `NativeRunAdmissionError`, no Run/event/outbox mutation |
+| Stale Workforce expected head | PASS: HTTP 409, no successor |
+| Proposal without Decision | PASS: no execution intent |
+| Invalid assignment generation | PASS: `NativeStaleAssignmentError` |
+| Archived → active | PASS: HTTP 400, `ACS_NATIVE_WORKFORCE_REFERENCE_INVALID`, no mutation |
+| Canonical Agent in Application create selector | FAIL: legacy `GET /api/v1/agents` omits the Native Core Agent accepted by Workforce creation |
+| Cross-tenant access | PASS by accepted focused Product API coverage |
 
-`VAL-03-DEFECT-002` is the draft admission public error masking. It is classified as D because the durable Core rejects correctly but the shared adapter does not preserve the accepted typed error at its public boundary. It does not supersede `VAL-03-DEFECT-001`, which blocks the scenario earlier at runtime compilation.
+`ACS-BLOCKER-019` closed the prior runtime stream and PostgreSQL error-typing defects. The former 422 lifecycle expectation was corrected as an A-class validation expectation defect because the accepted Product API mapping is HTTP 400.
+
+`VAL-03-DEFECT-003` is D-class and requires CTO review before a production change. VAL-03 does not select whether the remedy is a canonical Agent inventory projection, a different accepted selector surface, or a narrow UI rollback.

@@ -59,6 +59,21 @@ test("IMP-03F preserves revision, admission, assignment and attempt semantics", 
   assert.doesNotMatch(workforceSource, /localStorage|fetch\(/);
 });
 
+test("IMP-03F-FIX-03 gives Workforce creation a structured, canonical form UX", () => {
+  for (const heading of ["Basic Information", "Composition", "Governance &amp; Authority", "Runtime / Admission Configuration"]) {
+    assert.match(workforceSource, new RegExp(heading));
+  }
+  assert.match(workforceSource, /useOperationalSummary<Api\.AgentListItem\[\]>/);
+  assert.match(workforceSource, /Api\.productApi\.listAgents\(\)/);
+  assert.match(workforceSource, /<select value=\{agentId\}/);
+  assert.match(workforceSource, /Agent ID: <code>\{selectedAgent\.agentId\}<\/code>/);
+  assert.match(workforceSource, /Current revision: <code>r\{selectedAgent\.currentRevisionId\}/);
+  assert.match(workforceSource, /Slot identity is distinct from Agent identity/);
+  assert.match(workforceSource, /current Agent head at Run admission/);
+  assert.match(workforceSource, /Create draft r1/);
+  assert.match(workforceSource, /Router\.Link className="secondary action-link" to="\/workforces">Cancel/);
+});
+
 test("IMP-03F consumes the accepted IMP-03E2 Workforce capabilities without inventing state", () => {
   for (const method of ["createWorkforceRevision", "transitionWorkforceLifecycle", "listWorkforceRuns"]) {
     assert.match(apiSource, new RegExp(`async ${method}`));

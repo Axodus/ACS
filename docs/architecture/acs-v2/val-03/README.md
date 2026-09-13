@@ -2,14 +2,10 @@
 
 ## Status
 
-`BLOCKED`
+`PARTIAL`
 
-Validation ran on September 12, 2026. The first integrated canonical chain reaches runtime compilation and fails before Attempt A because the compiler computes an event sequence for the Run stream while its emitted event is classified into the Agent stream. This is recorded as `VAL-03-DEFECT-001` and is not repaired here.
+The canonical Core, Product API, runtime, persistence, and historical-chain proof completed on September 12, 2026. A later uncommitted Application change made the creation form depend on `GET /api/v1/agents`, whose legacy inventory omits canonical Native Core Agents eligible for Workforce composition.
 
-VAL-03 remains validation-only. It does not reopen accepted Workforce semantics or introduce an alternate writer, schema, provider, or frontend authority.
+VAL-03 now contains a direct browser assertion for that gap. The focused current-worktree run fails before Application creation with `GET /api/v1/agents omitted canonical Workforce-eligible Agent agent-b-val-03`. No production remediation is made by this validation milestone.
 
-## Result
-
-The accepted focused suites remain green. The full PostgreSQL-enabled repository run contains 732 tests: 731 pass, 1 fails, 0 skip. The sole failure is the new transversal VAL-03 reproduction in `tests/acs-v2-val-03-postgres.test.mjs`.
-
-See [acceptance-report.md](acceptance-report.md) for the decision record.
+See [acceptance-report.md](acceptance-report.md) for the closure evidence.

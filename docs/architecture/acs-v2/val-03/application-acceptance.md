@@ -1,19 +1,18 @@
 # Application acceptance
 
-The running application at `http://localhost:3000/workforces/new` was inspected against its connected Product API on September 12, 2026. It presented the Create Workforce form, required canonical policy references, and displayed the local Workforce tree with unavailable detail sections until a Workforce is selected.
+The integrated VAL-03 test starts the standalone Application on a temporary loopback origin, explicitly allowlists that origin in the temporary Product API host, and connects it to the canonical shared PostgreSQL Native Core.
 
-No form was submitted against the user's persistent local host. Initial creation is already proven through the schema-isolated real HTTP acceptance test.
+It proved before the current selector change:
 
-Standalone validation:
+- empty Workforce inventory is rendered before creation;
+- the actual Create Workforce form creates draft r1 through `POST /api/v1/workforces` and navigates to detail;
+- draft operations expose only `active` and `archived` lifecycle targets;
+- Overview, Members, Revisions, new revision, Runs, and Operations direct routes render and survive reload;
+- Overview / List is not marked active when a Workforce-local route is selected;
+- the Runs screen renders Run A admitted on r3 and Run B admitted on r4.
 
-| Check | Result |
-| --- | --- |
-| `pnpm typecheck` | PASS |
-| `pnpm test` | 13 pass, 0 fail, 0 skip |
-| `pnpm lint` | 0 errors; 10 pre-existing Fast Refresh warnings |
-| `pnpm build` | PASS |
-| `pnpm test:browser` | 88 `PASS_WITH_CAVEAT`, 0 failures |
+The current form uses `productApi.listAgents()` to populate its required Agent selector. `GET /api/v1/agents` is currently served from legacy `agentService`, while Workforce creation checks `nativeCore.getAgentLineage`. The browser fixture creates canonical Agents through Native Core, and the selector does not show them. Current creation acceptance is therefore blocked before submission.
 
-The browser matrix uses static preview without Product API and therefore does not replace an integrated browser proof. Full integrated Workforces → Runs → runtime presentation is blocked by VAL-03-DEFECT-001.
+Current standalone validation passes: typecheck, 13 tests, lint with 0 errors and 10 existing Fast Refresh warnings, build, and the static matrix (88 checks, 0 failures). Its Workforce caveats are expected because static preview has no Product API.
 
-Static inspection found no Workforce application import of `nativeCore`, PostgreSQL, SQLite, CAMEL, or Eigent. The application uses `product-api.ts` and HTTP fetches.
+Static inspection confirms the Application uses `product-api.ts` and does not import Native Core, access PostgreSQL, resolve membership, infer lifecycle, or determine assignment authority.

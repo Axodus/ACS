@@ -1470,6 +1470,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
         (tx) => tx.nativeCore.advanceAgentLineage(input),
       ),
       getAgentLineage: (agentId) => session.nativeCore.getAgentLineage(agentId),
+      listAgentDefinitions: (input) => session.nativeCore.listAgentDefinitions(input),
       advanceWorkforceLineage: (input) => this.withTransaction(
         "advance native workforce lineage",
         (tx) => tx.nativeCore.advanceWorkforceLineage(input),

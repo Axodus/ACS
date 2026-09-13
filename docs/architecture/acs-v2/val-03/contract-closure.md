@@ -2,33 +2,23 @@
 
 | Contract | Status |
 | --- | --- |
-| Workforce identity | PASS |
-| Immutable revisions | PASS through r3 |
-| Expected-head CAS | PASS |
-| Member slot identity | PASS |
-| Pinned Agent revision | PASS at Run A admission |
-| `current_head_at_admission` | PASS at Run A admission |
-| Governed role history | reused accepted IMP-03A coverage |
-| Lifecycle | PASS through draft → active |
-| Run admission | PASS for active; draft rejection semantics PASS |
-| Immutable Run membership | PASS at Run A admission |
-| Coordination proposal | PASS |
-| Canonical decision | PASS |
-| Assignment | PASS generation 1 |
-| Reassignment history | BLOCKED before execution |
-| Runtime compilation | FAIL — VAL-03-DEFECT-001 |
-| Attempt historical binding | BLOCKED |
-| Lease/fencing independence | reused accepted IMP-03D coverage; not re-proven transitively |
-| Recovery | BLOCKED |
-| Events/outbox | FAIL for integrated runtime event stream |
-| Idempotency | PASS for initial Workforce creation |
-| Product API | PASS for reached Workforce surfaces; runtime chain blocked |
-| Application | static and local creation UI PASS; integrated runtime chain blocked |
-| Provider neutrality | PASS by static boundary audit and accepted suites |
-| Tenant boundary | reused accepted focused coverage |
+| Workforce identity and immutable revisions | PASS |
+| Expected-head CAS and slot identity | PASS |
+| Pinned and current-head-at-admission references | PASS |
+| Governed role history | PASS through accepted IMP-03A coverage |
+| Lifecycle and draft admission rejection | PASS |
+| Immutable Run membership and historical lineage | PASS |
+| Proposal / Decision distinction | PASS |
+| Assignment and reassignment history | PASS |
+| Runtime compilation and stale-assignment rejection | PASS |
+| Attempt historical identity and recovery | PASS |
+| Lease/fencing independence | PASS through accepted IMP-03D coverage |
+| Events, outbox, and idempotency | PASS |
+| PostgreSQL reload and process recomposition | PASS |
+| Product API | PASS |
+| Application | PARTIAL: current Create Workforce selector cannot select canonical Native Core Agents |
+| Tenant, authority, and secret boundary | PASS through VAL-03 plus accepted focused coverage |
+| Provider, Eigent, and CAMEL neutrality | PASS |
+| Migration and persistence topology | PASS: no change required |
 
-No `?` is used: each unclosed item is explicitly `BLOCKED` or `FAIL`.
-
-## Required remediation decision
-
-CTO review is required for a bounded implementation remediation. The failure is in `compileTaskExecution`: it asks `nextEventSequence` for `run:<runId>` while the event it emits includes `agent_id`; `streamScope` prioritizes `agent_id`, so `appendEvent` validates the event against `agent:<agentId>`. The compiler must use one canonical stream identity consistently. VAL-03 does not select the repair.
+The Application creation path remains unresolved in the current worktree. Workforce v1 cannot be formally closed until CTO accepts a bounded remediation for VAL-03-DEFECT-003.

@@ -70,6 +70,8 @@ import type {
 import type { EconomicAuthorizationDecisionCode } from "./neurons-economic-contract.js";
 import { createCanonicalModelId } from "../intelligence/model-provider.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
+import type { AsyncNativeCoreRepository } from "./shared-state/native-core-durable.js";
+import type { AgentDefinitionV2 } from "../native-core/agent.js";
 import type { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
 import type { SecretStore } from "../intelligence/secret-store.js";
 import type { EngineService } from "../engines/engine-service.js";
@@ -102,6 +104,8 @@ import { createOperationalReliabilityReport, type OperationalReliabilityReport }
 
 export interface ProductApiClientOptions {
   readonly agentService?: AgentService;
+  readonly nativeCore?: AsyncNativeCoreRepository;
+  readonly nativeAgentTenantId?: string;
   readonly deploymentService?: DeploymentService;
   readonly runtimeService?: RuntimeLifecycleService;
   readonly auditService?: AuditService;
@@ -1541,6 +1545,8 @@ export interface GlobalReadinessSummary {
 
 export class ProductApiClient {
   readonly #agentService: AgentService | undefined;
+  readonly #nativeCore: AsyncNativeCoreRepository | undefined;
+  readonly #nativeAgentTenantId: string | undefined;
   readonly #deploymentService: DeploymentService | undefined;
   readonly #runtimeService: RuntimeLifecycleService | undefined;
   readonly #auditService: AuditService | undefined;
@@ -1565,6 +1571,8 @@ export class ProductApiClient {
 
   constructor(options: ProductApiClientOptions = {}) {
     this.#agentService = options.agentService;
+    this.#nativeCore = options.nativeCore;
+    this.#nativeAgentTenantId = options.nativeAgentTenantId;
     this.#deploymentService = options.deploymentService;
     this.#runtimeService = options.runtimeService;
     this.#auditService = options.auditService;
@@ -1603,6 +1611,11 @@ export class ProductApiClient {
   }
 
   async listAgents(): Promise<readonly AgentListItem[]> {
+    if (this.#nativeCore) {
+      const checkedAt = Date.now();
+      const definitions = await this.#nativeCore.listAgentDefinitions({ tenantId: this.#nativeAgentTenantId });
+      return definitions.map((definition) => this.#nativeListItem(definition, checkedAt));
+    }
     if (!this.#agentService) {
       return [];
     }
@@ -2599,6 +2612,23 @@ export class ProductApiClient {
       runtimeSummary: this.#runtimeSummary(revision.agentId),
       archived: revision.definition.status === "archived",
       updatedAt: revision.updatedAt,
+      checkedAt,
+    };
+  }
+
+  #nativeListItem(definition: AgentDefinitionV2, checkedAt: number): AgentListItem {
+    return {
+      agentId: definition.agent_id,
+      name: definition.name,
+      status: definition.status,
+      environment: "sandbox",
+      currentRevisionId: definition.current_revision,
+      compositionSummary: { ready: false, errorCount: 0, warningCount: 0 },
+      readinessSummary: { state: "unavailable", blockerCount: 0, warningCount: 0 },
+      deploymentSummary: { state: "none", count: 0 },
+      runtimeSummary: { state: "none", count: 0 },
+      archived: definition.status === "archived",
+      updatedAt: definition.updated_at,
       checkedAt,
     };
   }

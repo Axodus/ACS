@@ -66,6 +66,11 @@ export function WorkforceInventory() {
 
 export function WorkforceCreate() {
   const navigate = Router.useNavigate();
+  const agents = Shared.useOperationalSummary<Api.AgentListItem[]>(
+    () => Api.productApi.listAgents(),
+    "Unable to load Agents for Workforce creation",
+    () => false,
+  );
   const [workforceId, setWorkforceId] = React.useState("");
   const [displayName, setDisplayName] = React.useState("");
   const [purpose, setPurpose] = React.useState("");
@@ -99,10 +104,62 @@ export function WorkforceCreate() {
       navigate(`/workforces/${encodeURIComponent(created.identity.workforce_id)}`);
     } catch (cause) { setError(Shared.apiErrorMessage(cause)); setSubmitting(false); }
   }
+  const selectedAgent = agents.data?.find(agent => agent.agentId === agentId);
+  const canSubmit = agents.loadState === "ready" && agents.data !== null && !submitting;
   return <>
     <Router.Link className="back" to="/workforces">← Back to Workforces</Router.Link>
     <Shared.DomainHeader domain="Workforces" title="Create Workforce" description="Create the initial canonical draft revision from an existing eligible Agent." />
-    <form className="panel" onSubmit={submit}><div className="panel-head"><div><h2>Identity</h2><p>The API derives tenant scope from the selected Agent and creates draft revision r1.</p></div></div><div className="panel-body form-grid"><label>Workforce ID<input value={workforceId} onChange={event => setWorkforceId(event.target.value)} required /></label><label>Display name<input value={displayName} onChange={event => setDisplayName(event.target.value)} required /></label><label>Purpose<input value={purpose} onChange={event => setPurpose(event.target.value)} required /></label><label>Ownership reference<input value={ownershipRef} onChange={event => setOwnershipRef(event.target.value)} required /></label><h3>Basic composition</h3><label>Slot ID<input value={slotId} onChange={event => setSlotId(event.target.value)} required /></label><label>Agent ID<input value={agentId} onChange={event => setAgentId(event.target.value)} required /></label><label>Responsibilities (comma separated)<input value={responsibilities} onChange={event => setResponsibilities(event.target.value)} /></label><h3>Canonical policies</h3><label>Membership policy ID<input value={membershipPolicyId} onChange={event => setMembershipPolicyId(event.target.value)} required /></label><label>Membership policy revision<input type="number" min="1" value={membershipPolicyRevision} onChange={event => setMembershipPolicyRevision(event.target.value)} required /></label><label>Membership policy fingerprint<input value={membershipPolicyFingerprint} onChange={event => setMembershipPolicyFingerprint(event.target.value)} required /></label><label>Audit policy ID<input value={auditPolicyId} onChange={event => setAuditPolicyId(event.target.value)} required /></label><label>Audit policy revision<input type="number" min="1" value={auditPolicyRevision} onChange={event => setAuditPolicyRevision(event.target.value)} required /></label><label>Audit policy fingerprint<input value={auditPolicyFingerprint} onChange={event => setAuditPolicyFingerprint(event.target.value)} required /></label><label>Change reason<input value={changeReason} onChange={event => setChangeReason(event.target.value)} /></label>{error && <div className="error-banner" role="alert">{error}</div>}<div className="form-actions"><button className="primary" type="submit" disabled={submitting}>{submitting ? "Creating Workforce..." : "Create draft r1"}</button></div></div></form>
+    <form className="workforce-create-form" onSubmit={submit}>
+      <section className="panel workforce-create-section">
+        <div className="panel-head"><div><h2>Basic Information</h2><p>Human-facing identity for the Workforce. The API creates draft revision r1.</p></div></div>
+        <div className="panel-body form-grid">
+          <label>Workforce ID<input value={workforceId} onChange={event => setWorkforceId(event.target.value)} required aria-describedby="workforce-id-help" /><small id="workforce-id-help">Canonical identifier used for idempotency and later navigation.</small></label>
+          <label>Display name<input value={displayName} onChange={event => setDisplayName(event.target.value)} required /></label>
+          <label className="field-span-2">Purpose<textarea value={purpose} onChange={event => setPurpose(event.target.value)} required rows={3} /></label>
+        </div>
+      </section>
+
+      <section className="panel workforce-create-section">
+        <div className="panel-head"><div><h2>Composition</h2><p>Each member has its own slot. Slot identity is distinct from Agent identity.</p></div></div>
+        <div className="panel-body">
+          <article className="workforce-member-card">
+            <div className="workforce-member-head"><div><h3>Member 1</h3><p>Initial member for the canonical Workforce definition.</p></div><Shared.Badge tone="muted">required</Shared.Badge></div>
+            <div className="form-grid">
+              <label>Slot<input value={slotId} onChange={event => setSlotId(event.target.value)} required aria-describedby="slot-help" /><small id="slot-help">The same Agent may occupy more than one slot.</small></label>
+              <label>Agent<select value={agentId} onChange={event => setAgentId(event.target.value)} required disabled={agents.loadState !== "ready"} aria-describedby="agent-help"><option value="">{agents.loadState === "loading" ? "Loading Agents..." : "Select an Agent"}</option>{(agents.data ?? []).filter(agent => !agent.archived).map(agent => <option key={agent.agentId} value={agent.agentId}>{agent.name} · {agent.agentId} · r{agent.currentRevisionId}</option>)}</select><small id="agent-help">Select an existing Agent. Its canonical ID is retained in the request.</small></label>
+              <label>Responsibilities<input value={responsibilities} onChange={event => setResponsibilities(event.target.value)} placeholder="Comma-separated responsibilities" /></label>
+            </div>
+            {selectedAgent && <div className="selection-meta" aria-live="polite"><b>{selectedAgent.name}</b><span>Agent ID: <code>{selectedAgent.agentId}</code></span><span>Current revision: <code>r{selectedAgent.currentRevisionId}</code></span><span>Status: {selectedAgent.status}</span></div>}
+          </article>
+          {agents.loadError && <div className="error-banner" role="alert">{agents.loadError}. Refresh the page before creating a Workforce.</div>}
+          {agents.data?.length === 0 && <div className="empty-state">No Agents are available for Workforce composition.</div>}
+        </div>
+      </section>
+
+      <section className="panel workforce-create-section">
+        <div className="panel-head"><div><h2>Governance &amp; Authority</h2><p>Canonical policies and references required by the accepted creation contract.</p></div></div>
+        <div className="panel-body form-grid">
+          <label>Ownership reference<input value={ownershipRef} onChange={event => setOwnershipRef(event.target.value)} required aria-describedby="ownership-help" /><small id="ownership-help">No accepted authority lookup is exposed by the Product API for this form.</small></label>
+          <label>Membership policy ID<input value={membershipPolicyId} onChange={event => setMembershipPolicyId(event.target.value)} required /></label>
+          <label>Membership policy revision<input type="number" min="1" value={membershipPolicyRevision} onChange={event => setMembershipPolicyRevision(event.target.value)} required /></label>
+          <label>Membership policy fingerprint<input value={membershipPolicyFingerprint} onChange={event => setMembershipPolicyFingerprint(event.target.value)} required /></label>
+          <label>Audit policy ID<input value={auditPolicyId} onChange={event => setAuditPolicyId(event.target.value)} required /></label>
+          <label>Audit policy revision<input type="number" min="1" value={auditPolicyRevision} onChange={event => setAuditPolicyRevision(event.target.value)} required /></label>
+          <label>Audit policy fingerprint<input value={auditPolicyFingerprint} onChange={event => setAuditPolicyFingerprint(event.target.value)} required /></label>
+        </div>
+      </section>
+
+      <section className="panel workforce-create-section">
+        <div className="panel-head"><div><h2>Runtime / Admission Configuration</h2><p>Revision resolution remains governed by the Workforce contract.</p></div></div>
+        <div className="panel-body form-grid">
+          <div className="field-span-2 revision-choice"><span className="field-label">Agent revision strategy</span><label className="radio-row"><input type="radio" checked readOnly /> Current head at Run admission</label><small>The current Agent head at Run admission is resolved when a Run is admitted and preserved in that Run's immutable membership snapshot.</small></div>
+          <label className="field-span-2">Change reason<input value={changeReason} onChange={event => setChangeReason(event.target.value)} /></label>
+        </div>
+      </section>
+
+      {error && <div className="error-banner" role="alert">{error}</div>}
+      <div className="form-actions workforce-create-actions"><Router.Link className="secondary action-link" to="/workforces">Cancel</Router.Link><button className="primary" type="submit" aria-label="Create draft r1" disabled={!canSubmit}>{submitting ? "Creating Workforce..." : "Create Workforce"}</button></div>
+    </form>
   </>;
 }
 

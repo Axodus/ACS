@@ -3,15 +3,12 @@
 | Item | Value |
 | --- | --- |
 | Container | `acs-imp03a-pg` |
-| Image / server | `postgres:17.6-alpine` / PostgreSQL 17.6 |
+| PostgreSQL | 17.6 (`postgres:17.6-alpine`) |
 | Host publication | `127.0.0.1:55433 → 5432/tcp` |
 | Database | `acs_imp_03a` |
-| Schema strategy | a fresh `val03_<timestamp>_<pid>` schema per test; dropped in `finally` |
-| State configuration | `ACS_STATE_BACKEND=shared` |
-| Database configuration | `ACS_SH_DATABASE_URL` from `.env.local`; credentials intentionally omitted |
+| Configuration | `ACS_STATE_BACKEND=shared`; `ACS_SH_DATABASE_URL` from `.env.local`, credential redacted |
+| Schema strategy | fresh `val03_<timestamp>_<pid>` schema per scenario, dropped in `finally` |
 
-The validation target is the accepted loopback endpoint `127.0.0.1:55433`, not the unrelated `5433` endpoint. PostgreSQL was reachable and reported the `public` default schema before each isolated test schema was created.
+The canonical endpoint is `127.0.0.1:55433`, not `5433`. The Core/PostgreSQL baseline passed 732 / 732 with 0 skips in 117498.785661 ms before the current Application selector change. The current repository run is 731 / 732, with the sole failure `VAL-03-DEFECT-003`; PostgreSQL durability is not the failing boundary.
 
-`npm run check` with this configuration completed in 107633 ms with 731 passing, 1 failing, and 0 skipped tests. The failure is VAL-03-DEFECT-001.
-
-No migration was created. The existing `acs_native_runs_workforce_idx` index is defined on `(workforce_id, workforce_revision, run_id)`.
+No migration was required. Workforce-scoped Run reads retain the existing `acs_native_runs_workforce_idx` relationship index.
