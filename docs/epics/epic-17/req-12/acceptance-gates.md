@@ -1,5 +1,8 @@
 # EPIC-17-REQ-12 Acceptance Gates
 
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `727143e2c2453a98033ddf8323eb0d082ea001c6`
+
 ## Architecture closure
 
 - [x] REQ-01 through REQ-11 acceptance and exact commits are recorded.
@@ -38,15 +41,18 @@
 - [x] Diff contains documentation only and passes `git diff --check`.
 - [x] Existing unrelated working-tree changes remain preserved.
 
-## Proposed gate result
+## Accepted gate result
 
 ```text
 EPIC-17-REQ-12:
-COMPLETE / READY FOR CTO ACCEPTANCE
+COMPLETE / ACCEPTED
 
-Proposed EPIC-17 closure:
+EPIC-17 closure:
 ARCHITECTURE/SPECIFICATION COMPLETE
-/ READY FOR CTO IMPLEMENTATION GATE
+/ ACCEPTED
+
+Implementation readiness:
+READY FOR CTO IMPLEMENTATION GATE
 
 Implementation authority: NONE
 Migration authority: NONE

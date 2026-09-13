@@ -1,7 +1,8 @@
 # EPIC-17-REQ-12 — Cross-Domain Conformance, Closure & IMP Readiness Plan
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `727143e2c2453a98033ddf8323eb0d082ea001c6`
 **Baseline:** `50459fb27e38daabd9ea0e7905c5761316719daa`
 **Dependencies:** `REQ-01` through `REQ-11 COMPLETE / ACCEPTED`
 **Scope:** documentation and implementation-readiness planning only
@@ -10,7 +11,7 @@
 **Public contract changes:** none
 **Database changes:** none
 
-## Closure result proposed for acceptance
+## Accepted closure result
 
 ```text
 EPIC-17 architecture/specification:
@@ -106,8 +107,9 @@ dependencies remain intact.
   its own accepted authority/evidence.
 
 ```text
-REQ-12: COMPLETE / READY FOR CTO ACCEPTANCE
-EPIC-17: PROPOSED READY FOR CTO IMPLEMENTATION GATE
+REQ-12: COMPLETE / ACCEPTED
+EPIC-17 ARCHITECTURE/SPECIFICATION: COMPLETE / ACCEPTED
+EPIC-17 IMPLEMENTATION READINESS: READY FOR CTO IMPLEMENTATION GATE
 Implementation authority: NONE
 Migration authority: NONE
 ```

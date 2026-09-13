@@ -13,7 +13,9 @@
 **REQ-09:** `COMPLETE / ACCEPTED`
 **REQ-10:** `COMPLETE / ACCEPTED`
 **REQ-11:** `COMPLETE / ACCEPTED`
-**REQ-12:** `COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-12:** `COMPLETE / ACCEPTED`
+**Architecture/specification:** `COMPLETE / ACCEPTED`
+**Implementation gate:** `IMP-01 CANDIDATE / AWAITING CTO GO`
 
 ## 1. Frozen decisions
 
@@ -70,9 +72,11 @@ API, Administration, Global Settings and Control Plane boundary is recorded in
 [REQ-10 Decision Record](req-10/decision-record.md). REQ-11's accepted Genome
 trait, presentation asset, verification and performance-view boundary is
 recorded in [REQ-11 Decision Record](req-11/decision-record.md). REQ-12's
-proposed cross-domain closure and candidate IMP sequence are recorded in its
-[Decision Record](req-12/decision-record.md). All associated contract deltas
-and ADRs remain candidates.
+accepted cross-domain closure and candidate IMP sequence are recorded in its
+[Decision Record](req-12/decision-record.md). The exact first implementation
+decision inputs are in the [CTO Implementation Gate](implementation-gate/README.md).
+All associated contract deltas and ADRs remain candidates until an IMP gate
+explicitly disposes them.
 
 ## 3. Candidate ADRs
 
@@ -144,7 +148,7 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 [Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
-`REQ-01` through `REQ-11` are accepted. `REQ-12` is complete and awaits CTO
-acceptance. Its proposed closure is `EPIC-17 architecture/specification:
-READY FOR CTO IMPLEMENTATION GATE`; implementation and migration authority
-remain `NONE`.
+`REQ-01` through `REQ-12` and the EPIC-17 architecture/specification phase are
+accepted. Implementation readiness is `READY FOR CTO IMPLEMENTATION GATE`.
+`EPIC-17-IMP-01` remains a candidate awaiting explicit CTO GO; implementation
+and migration authority remain `NONE`.

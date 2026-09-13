@@ -220,3 +220,13 @@ blockers, fifteen contract deltas and eight ADRs remain planning inputs.
 Inheritance, mutation, breeding, NFT, marketplace, royalties and Genome
 economics remain rejected. Acceptance authorized REQ-12 documentation only;
 implementation and migration authority remain `NONE`.
+
+## Accepted REQ-12 and architecture gate closure
+
+The CTO accepted `EPIC-17-REQ-12` at commit
+`727143e2c2453a98033ddf8323eb0d082ea001c6`. All 76 capability dispositions,
+84 inherited blockers, 111 candidate contract deltas and 59 ADR candidates are
+reconciled without introducing a parallel canonical owner. The EPIC-17
+architecture/specification phase is `COMPLETE / ACCEPTED`, and implementation
+readiness is `READY FOR CTO IMPLEMENTATION GATE`. The two pre-IMP blockers
+remain hard gates. No IMP, implementation or migration is authorized.
