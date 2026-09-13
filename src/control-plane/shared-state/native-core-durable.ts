@@ -1458,6 +1458,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
         agent_revision: agentRevision,
         workforce_revision_ref: member.workforce_revision_ref,
         resolved_at: compiledAt,
+        resource_observations: input.resource_observations,
       });
       const intent = createRuntimeExecutionIntentV2({
         intent_id: intentId,

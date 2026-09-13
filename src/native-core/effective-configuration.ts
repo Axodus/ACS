@@ -28,6 +28,15 @@ export type EffectiveConfigurationClass =
 
 export type EffectiveConfigurationStatus = "resolved" | "not_applicable" | "unavailable";
 
+export interface GovernedResourceObservationV1 {
+  readonly kind: "skill" | "tool" | "capability" | "legacy_capability_requirement_preset";
+  readonly resource_id: string;
+  readonly revision: number;
+  readonly observed_at: number;
+  readonly content: Readonly<Record<string, unknown>>;
+  readonly content_fingerprint: string;
+}
+
 export interface EffectiveConfigurationClassResolutionV1 {
   readonly configuration_class: EffectiveConfigurationClass;
   readonly rule: string;
@@ -51,6 +60,7 @@ export interface EffectiveConfigurationSnapshotV1 {
   readonly workforce_revision_ref: RevisionRef;
   readonly resolved_at: number;
   readonly classes: readonly EffectiveConfigurationClassResolutionV1[];
+  readonly resource_observations: readonly GovernedResourceObservationV1[];
   readonly input_fingerprint: string;
   readonly effective_fingerprint: string;
   readonly predecessor_snapshot_id?: string;
@@ -81,6 +91,7 @@ function inputMaterial(snapshot: EffectiveConfigurationSnapshotV1): unknown {
     agent_revision_ref: snapshot.agent_revision_ref,
     workforce_revision_ref: snapshot.workforce_revision_ref,
     predecessor_snapshot_id: snapshot.predecessor_snapshot_id,
+    resource_observations: snapshot.resource_observations,
     classes: snapshot.classes.map((entry) => ({
       configuration_class: entry.configuration_class,
       rule: entry.rule,
@@ -96,6 +107,31 @@ function effectiveMaterial(snapshot: EffectiveConfigurationSnapshotV1): unknown 
   return content;
 }
 
+function validateHistoricalResourceCoverage(snapshot: Partial<EffectiveConfigurationSnapshotV1>, issues: ValidationIssue[]): void {
+  if (!Array.isArray(snapshot.resource_observations) || !Array.isArray(snapshot.classes)) return;
+  const hasObservation = (kinds: readonly GovernedResourceObservationV1["kind"][], resourceId: string, revision?: number): boolean => snapshot.resource_observations!.some((observation) => observation
+    && typeof observation === "object"
+    && kinds.includes((observation as GovernedResourceObservationV1).kind)
+    && (observation as GovernedResourceObservationV1).resource_id === resourceId
+    && (revision === undefined || (observation as GovernedResourceObservationV1).revision === revision));
+  const capabilities = snapshot.classes.find((entry) => entry?.configuration_class === "capability_requirements");
+  if (capabilities?.status === "resolved" && Array.isArray(capabilities.source_refs)) {
+    capabilities.source_refs.forEach((requirement: EntityRef, index: number) => {
+      if (requirement?.kind === "capability" && !hasObservation(["capability"], requirement.id, requirement.revision)) {
+        issues.push(issue(`classes.capability_requirements.source_refs[${index}]`, "HISTORICAL_OBSERVATION_MISSING", "A resolved Capability Requirement needs immutable admission evidence"));
+      }
+    });
+  }
+  const bindings = snapshot.classes.find((entry) => entry?.configuration_class === "skill_tool_binding");
+  if (bindings?.status === "resolved" && Array.isArray(bindings.resolved_revision_refs)) {
+    bindings.resolved_revision_refs.forEach((resource: RevisionRef, index: number) => {
+      if (resource?.entity_kind === "resource" && !hasObservation(["skill", "tool"], resource.entity_id, resource.revision)) {
+        issues.push(issue(`classes.skill_tool_binding.resolved_revision_refs[${index}]`, "HISTORICAL_OBSERVATION_MISSING", "A resolved Skill or Tool binding needs immutable admission evidence"));
+      }
+    });
+  }
+}
+
 export function validateEffectiveConfigurationSnapshotV1(value: unknown): EffectiveConfigurationSnapshotV1 {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new NativeContractValidationError("invalid EffectiveConfigurationSnapshot", [issue("$", "INVALID_OBJECT", "An object is required")]);
   const snapshot = value as Partial<EffectiveConfigurationSnapshotV1>;
@@ -107,6 +143,20 @@ export function validateEffectiveConfigurationSnapshotV1(value: unknown): Effect
   try { validateScope(snapshot.scope, "scope"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   requireSafeInteger(snapshot.resolved_at, "resolved_at", issues, 0);
   if (snapshot.predecessor_snapshot_id !== undefined) requireString(snapshot.predecessor_snapshot_id, "predecessor_snapshot_id", issues);
+  if (!Array.isArray(snapshot.resource_observations)) issues.push(issue("resource_observations", "INVALID_LIST", "An array is required"));
+  else {
+    const observedResources = new Set<string>();
+    snapshot.resource_observations.forEach((observation, index) => {
+      try {
+        const validated = validateGovernedResourceObservationV1(observation);
+        const key = `${validated.kind}:${validated.resource_id}:${validated.revision}`;
+        if (observedResources.has(key)) issues.push(issue(`resource_observations[${index}]`, "DUPLICATE_OBSERVATION", "Each observed resource revision may appear once"));
+        observedResources.add(key);
+      } catch (error) {
+        if (error instanceof NativeContractValidationError) issues.push(...error.issues.map((entry) => ({ ...entry, path: `resource_observations[${index}].${entry.path}` })));
+      }
+    });
+  }
   try { validateRevisionRef(snapshot.agent_revision_ref, "agent_revision_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   try { validateRevisionRef(snapshot.workforce_revision_ref, "workforce_revision_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   if (!Array.isArray(snapshot.classes) || snapshot.classes.length !== CLASSES.length) {
@@ -128,6 +178,7 @@ export function validateEffectiveConfigurationSnapshotV1(value: unknown): Effect
     });
     for (const configurationClass of CLASSES) if (!seen.has(configurationClass)) issues.push(issue("classes", "MISSING_CLASS", `Missing ${configurationClass}`));
   }
+  validateHistoricalResourceCoverage(snapshot, issues);
   requireSha256(snapshot.input_fingerprint, "input_fingerprint", issues);
   requireSha256(snapshot.effective_fingerprint, "effective_fingerprint", issues);
   assertNoSecretMaterial(value);
@@ -146,8 +197,34 @@ export function createEffectiveConfigurationSnapshotV1(input: Omit<EffectiveConf
   return validateEffectiveConfigurationSnapshotV1(freezeNative({ ...base, input_fingerprint, effective_fingerprint }));
 }
 
+export function validateGovernedResourceObservationV1(value: unknown): GovernedResourceObservationV1 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new NativeContractValidationError("invalid governed resource observation", [issue("$", "INVALID_OBJECT", "An object is required")]);
+  const observation = value as Partial<GovernedResourceObservationV1>;
+  const issues: ValidationIssue[] = [];
+  if (!["skill", "tool", "capability", "legacy_capability_requirement_preset"].includes(observation.kind ?? "")) issues.push(issue("kind", "INVALID_ENUM", "Unsupported governed resource observation kind"));
+  requireString(observation.resource_id, "resource_id", issues);
+  requireSafeInteger(observation.revision, "revision", issues, 1);
+  requireSafeInteger(observation.observed_at, "observed_at", issues, 0);
+  if (!observation.content || typeof observation.content !== "object" || Array.isArray(observation.content)) issues.push(issue("content", "INVALID_OBJECT", "An object is required"));
+  requireSha256(observation.content_fingerprint, "content_fingerprint", issues);
+  assertNoSecretMaterial(value);
+  if (!issues.length && observation.content_fingerprint !== sha256Hex(stableStringify({ kind: observation.kind, resource_id: observation.resource_id, revision: observation.revision, content: observation.content }))) issues.push(issue("content_fingerprint", "FINGERPRINT_MISMATCH", "Observation fingerprint does not match immutable resource content"));
+  return assertValid(observation as GovernedResourceObservationV1, issues);
+}
+
+export function createGovernedResourceObservationV1(input: Omit<GovernedResourceObservationV1, "content_fingerprint">): GovernedResourceObservationV1 {
+  const content_fingerprint = sha256Hex(stableStringify({ kind: input.kind, resource_id: input.resource_id, revision: input.revision, content: input.content }));
+  return freezeNative(validateGovernedResourceObservationV1({ ...input, content_fingerprint }));
+}
+
 function resolution(configuration_class: EffectiveConfigurationClass, rule: string, status: EffectiveConfigurationStatus, source_refs: readonly EntityRef[] = [], source_revision_refs: readonly RevisionRef[] = [], resolved_refs: readonly EntityRef[] = [], resolved_revision_refs: readonly RevisionRef[] = []): EffectiveConfigurationClassResolutionV1 {
   return { configuration_class, rule, status, source_refs, source_revision_refs, resolved_refs, resolved_revision_refs };
+}
+
+function hasObservation(observations: readonly GovernedResourceObservationV1[], kind: GovernedResourceObservationV1["kind"], resourceId: string, revision?: number): boolean {
+  return observations.some((observation) => observation.kind === kind
+    && observation.resource_id === resourceId
+    && (revision === undefined || observation.revision === revision));
 }
 
 export function createAgentEffectiveConfigurationSnapshotV1(input: {
@@ -160,19 +237,24 @@ export function createAgentEffectiveConfigurationSnapshotV1(input: {
   readonly agent_revision: AgentRevisionV2;
   readonly workforce_revision_ref: RevisionRef;
   readonly resolved_at: number;
+  readonly resource_observations?: readonly GovernedResourceObservationV1[];
   readonly predecessor_snapshot_id?: string;
 }): EffectiveConfigurationSnapshotV1 {
   const revision = input.agent_revision;
   const policyRefs = [revision.governance.permission_policy_ref, revision.governance.approval_policy_ref];
+  const observations = input.resource_observations ?? [];
+  const capabilityHistoryAvailable = revision.capability_requirements.every((requirement) => hasObservation(observations, "capability", requirement.id, requirement.revision));
+  const resourceHistoryAvailable = revision.resources.skill_refs.every((resource) => hasObservation(observations, "skill", resource.entity_id, resource.revision))
+    && revision.resources.tool_refs.every((resource) => hasObservation(observations, "tool", resource.entity_id, resource.revision));
   return createEffectiveConfigurationSnapshotV1({
     snapshot_id: input.snapshot_id, run_id: input.run_id, task_id: input.task_id, assignment_id: input.assignment_id,
-    assignment_generation: input.assignment_generation, scope: input.scope, agent_revision_ref: revision.ref, workforce_revision_ref: input.workforce_revision_ref,
+    assignment_generation: input.assignment_generation, scope: input.scope, agent_revision_ref: revision.ref, workforce_revision_ref: input.workforce_revision_ref, resource_observations: observations,
     resolved_at: input.resolved_at, ...(input.predecessor_snapshot_id ? { predecessor_snapshot_id: input.predecessor_snapshot_id } : {}),
     classes: [
       resolution("presentation", "projection_only", "not_applicable", [], [revision.ref]),
       resolution("model_preference", "eligible_selection", "unavailable", revision.runtime_preferences.provider_routes.concat(revision.runtime_preferences.model_requirements), [revision.ref]),
-      resolution("capability_requirements", "requirements_union", "resolved", revision.capability_requirements, [revision.ref], revision.capability_requirements),
-      resolution("skill_tool_binding", "bound_resource_subset", "resolved", [], [revision.ref, ...revision.resources.skill_refs, ...revision.resources.tool_refs], [], [...revision.resources.skill_refs, ...revision.resources.tool_refs]),
+      resolution("capability_requirements", "requirements_union", capabilityHistoryAvailable ? "resolved" : "unavailable", revision.capability_requirements, [revision.ref], capabilityHistoryAvailable ? revision.capability_requirements : []),
+      resolution("skill_tool_binding", "bound_resource_subset", resourceHistoryAvailable ? "resolved" : "unavailable", [], [revision.ref, ...revision.resources.skill_refs, ...revision.resources.tool_refs], [], resourceHistoryAvailable ? [...revision.resources.skill_refs, ...revision.resources.tool_refs] : []),
       resolution("credential_binding", "opaque_authorized_selection", "not_applicable", [], [revision.ref]),
       resolution("security_constraints", "strictest_constraint", "resolved", revision.constraints.concat(revision.governance.authority_refs), [revision.ref], revision.constraints),
       resolution("governance_policies", "policy_kind_semantics", "resolved", revision.governance.authority_refs, [revision.ref, ...policyRefs], revision.governance.authority_refs, policyRefs),

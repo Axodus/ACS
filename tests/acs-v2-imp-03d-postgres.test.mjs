@@ -12,6 +12,7 @@ const {
   createAgentDefinitionV2,
   createAgentRevisionV2,
   createEventEnvelopeV2,
+  createGovernedResourceObservationV1,
   createRunV2,
   createTaskAssignmentV2,
   createTaskV2,
@@ -47,10 +48,10 @@ function agentRevision(agentId, revision) {
     revision,
     ...(revision > 1 ? { supersedes_revision: revision - 1 } : {}),
     instructions: `durable Agent revision ${revision}`,
-    capability_requirements: [],
+    capability_requirements: [{ kind: "capability", id: "agent.inspect" }],
     constraints: [],
     knowledge: { allowed_scope_refs: [], denied_scope_refs: [], context_policy_ref: ref("policy", "context", 1), memory_policy_ref: ref("policy", "memory", 1) },
-    resources: { skill_refs: [], tool_refs: [], mcp_server_refs: [] },
+    resources: { skill_refs: [ref("resource", "skill.durable", 1)], tool_refs: [ref("resource", "tool.durable", 1)], mcp_server_refs: [] },
     runtime_preferences: { provider_routes: [], model_requirements: [], harness_preferences: [], executor_preferences: [] },
     governance: { authority_refs: [], permission_policy_ref: ref("policy", "permission", 1), approval_policy_ref: ref("policy", "approval", 1) },
     economics: { cost_policy_ref: ref("policy", "cost", 1), budget_policy_ref: ref("policy", "budget", 1) },
@@ -126,7 +127,18 @@ test("IMP-03D PostgreSQL compiles, reloads, and preserves canonical assignment i
     await state.migrate();
     const data = fixtures();
     await seedCanonical(pool, data);
-    const input = { run_id: data.run.run_id, task_id: data.task.task_run_id, assignment_id: data.assignment.assignment_id, idempotency: { key: "compile-a1", scope: `runtime:${data.task.task_run_id}`, request_hash: digest }, compiled_at: 200 };
+    const input = {
+      run_id: data.run.run_id,
+      task_id: data.task.task_run_id,
+      assignment_id: data.assignment.assignment_id,
+      idempotency: { key: "compile-a1", scope: `runtime:${data.task.task_run_id}`, request_hash: digest },
+      compiled_at: 200,
+      resource_observations: [
+        createGovernedResourceObservationV1({ kind: "capability", resource_id: "agent.inspect", revision: 1, observed_at: 200, content: { display_name: "Agent Inspect", status: "active", category: "agent" } }),
+        createGovernedResourceObservationV1({ kind: "skill", resource_id: "skill.durable", revision: 1, observed_at: 200, content: { display_name: "Durable Skill", status: "active", capability_ids: ["agent.inspect"], source: "test" } }),
+        createGovernedResourceObservationV1({ kind: "tool", resource_id: "tool.durable", revision: 1, observed_at: 200, content: { display_name: "Durable Tool", status: "active", capability_ids: ["agent.inspect"], source: "test" } }),
+      ],
+    };
     const first = await state.nativeCore.compileTaskExecution(input);
     assert.equal(first.intent.assignment_id, "assignment-a1");
     assert.equal(first.intent.assignment_generation, 1);
@@ -134,6 +146,8 @@ test("IMP-03D PostgreSQL compiles, reloads, and preserves canonical assignment i
     assert.equal(first.intent.agent_revision_ref.revision, 5);
     assert.equal(first.intent.workforce_revision_ref.revision, 2);
     assert.equal(first.intent.effective_configuration_snapshot.assignment_generation, 1);
+    assert.equal(first.intent.effective_configuration_snapshot.classes.find((entry) => entry.configuration_class === "capability_requirements").status, "resolved");
+    assert.equal(first.intent.effective_configuration_snapshot.classes.find((entry) => entry.configuration_class === "skill_tool_binding").status, "resolved");
     assert.equal(first.intent.effective_configuration_snapshot.classes.find((entry) => entry.configuration_class === "memory_policy").status, "unavailable");
     assert.equal(first.attempt.execution_intent_id, first.intent.intent_id);
     const event = await state.nativeCore.getEvent(first.event_id);
@@ -149,6 +163,7 @@ test("IMP-03D PostgreSQL compiles, reloads, and preserves canonical assignment i
       assert.equal(restoredIntent.agent_revision_ref.revision, 5);
       assert.equal(restoredIntent.workforce_revision_ref.revision, 2);
       assert.equal(restoredIntent.effective_configuration_snapshot.effective_fingerprint, first.intent.effective_configuration_snapshot.effective_fingerprint);
+      assert.deepEqual(restoredIntent.effective_configuration_snapshot.resource_observations, first.intent.effective_configuration_snapshot.resource_observations);
       assert.equal(restoredAttempt.assignment_id, "assignment-a1");
       assert.equal(restoredAttempt.assignment_generation, 1);
     } finally { await reloaded.close(); }

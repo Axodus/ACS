@@ -2,12 +2,16 @@
 
 ## STATUS
 
-`AUTHORIZED / GO`
+`PARTIAL / IN PROGRESS`
 
 **Planning/documentation authority:** granted
 **Implementation authority:** granted for IMP-02 only
 **Migration authority:** none
 **Baseline commit:** `db642f5b9fbf9f932ee975da08d0cdfd567c23a4` (2026-09-13)
+
+**Slice 1 — effective configuration snapshot:** `COMPLETE / CTO ACCEPTED`
+
+**Slice 2 — governed resource-history closure:** `CANDIDATE / AWAITING CTO REVIEW`
 
 ## MISSION
 
@@ -27,7 +31,7 @@ mandatory non-regression boundaries, not IMP-02 implementation scope.
 | IMP-01 Native Agent seam | `ProductApiClient.#nativeMutateAgent` builds `AgentDefinitionV2`, `AgentRevisionV2`, CAS/idempotency input, Event and outbox command for `advanceAgentLineage`. | `COMPLETE / CTO ACCEPTED`; reusable dependency. |
 | Canonical CAS/idempotency/events | Native durable repository and VAL-01 record PostgreSQL CAS, idempotency and Event/outbox behavior. | Available as reusable owner/convention. |
 | PostgreSQL acceptance harness | `npm run acceptance:postgres` builds and runs `scripts/acs-postgres-acceptance.mjs`. | `ACS-BLOCKER-021 RESOLVED / CTO ACCEPTED`; reusable durable acceptance owner. |
-| Full regression environment | Listener-capable regression completed `720 passed / 0 failed / 14 legitimate skips`. | `ACS-BLOCKER-022 RESOLVED / CTO ACCEPTED`; required environment for listener cases. |
+| Full regression environment | Listener-capable regression completed `727 passed / 0 failed / 14 legitimate PostgreSQL URL skips`. | `ACS-BLOCKER-022 RESOLVED / CTO ACCEPTED`; required environment for listener cases. |
 | IMP-01 completion | Canonical Agent seam, Profile/Persona boundary and lifecycle history are completed. | `COMPLETE / CTO ACCEPTED`; IMP-02 dependency satisfied. |
 
 ## CURRENT STATE
@@ -56,6 +60,21 @@ Profile presentation has no current persistence owner. A future headline/bio/
 description requirement must first prove why Agent-owned head state or a derived
 projection is insufficient. Any new persistence is outside this charter and
 requires a CTO migration decision.
+
+### Slice 2 — governed resource-history closure
+
+| Resource class | Current owner/representation | Historical gap | Slice 2 disposition |
+| --- | --- | --- | --- |
+| Skill | In-memory `CompositionResourceRegistry` record with `id`, integer `revision`, display/source metadata and `capabilityIds`. | The current record can change after admission. | Capture a fingerprinted immutable observation at admission; an Agent Skill reference without the exact `id`/`revision` observation leaves `skill_tool_binding` unavailable. |
+| Tool | In-memory `CompositionResourceRegistry` record with the same static shape. | The current record can change after admission. | Capture a fingerprinted immutable observation at admission; an Agent Tool reference without the exact `id`/`revision` observation leaves `skill_tool_binding` unavailable. |
+| Capability Definition | In-memory static registry definition with integer `revision` and category metadata. | A requirement ID alone cannot prove historical definition content. | Capture a fingerprinted immutable observation at admission; a Capability Requirement without an observation leaves `capability_requirements` unavailable. The evidence is not a grant. |
+| `GovernedProfileResource` | In-memory legacy composition preset with `capabilityIds`. | No durable lineage, and its name resembles presentation Profile. | Observe only as `legacy_capability_requirement_preset` compatibility evidence. Its content never enters capability, permission, credential, Tool or runtime authority resolution. |
+
+The observation is not a second resource store. The catalog remains the current
+owner; the immutable observation is part of the existing admitted snapshot in
+execution-intent JSON. Historical reconstruction reads the snapshot and its
+fingerprint, never a mutable current catalog record. Missing observation is an
+explicit `unavailable` result, not a latest-value fallback.
 
 ## TARGET STATE
 
@@ -110,8 +129,10 @@ of exact accepted bindings and never inputs to authority resolution.
 
 ## BLOCKERS CONSUMED
 
-These blockers are consumed as planned work only. None is resolved by this
-charter.
+These blockers record the boundary consumed by IMP-02. Slice 1 closed the
+effective-snapshot foundation; Slice 2 supplies evidence only for classes that
+carry an immutable admission observation. A missing observation remains open
+for that execution record and is not treated as blocker closure by this charter.
 
 | ID | Source REQ | Problem / affected surface | Proposed IMP-02 resolution | Acceptance evidence |
 | --- | --- | --- | --- | --- |
@@ -186,6 +207,10 @@ existing tables reused if approved: acs_agents, acs_agent_history,
 acs_native_events, acs_native_outbox, acs_native_idempotency and existing
 binding/intent/Run evidence storage
 ```
+
+Slice 2 uses the existing `RuntimeExecutionIntentV2` JSON payload to retain
+admission evidence already owned by the immutable intent. It does not add a
+catalog table, resource revision stream, database, service or migration.
 
 If the frozen contract proves existing persistence insufficient, stop before
 DDL. Return an exact additive schema delta, table/column/index ownership,
@@ -275,6 +300,6 @@ than rewriting history.
 
 ## DECISIONS REQUIRED FROM CTO
 
-None. The CTO accepted the scope, 16 deltas, ADR dispositions and the stop rule
-for any proven persistence insufficiency. ADR-17-013 remains to be closed from
-implementation evidence before its dependent code is finalized.
+None for Slice 2 while immutable admission observations are sufficient. If a
+future class requires reconstruction without such an observation, stop that
+class and return its exact persistence delta for CTO migration authority.

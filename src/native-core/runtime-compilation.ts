@@ -15,7 +15,7 @@ import {
   ValidationIssue,
 } from "./primitives.js";
 import { validateTaskAttemptV2, type TaskAttemptV2 } from "./runtime.js";
-import { validateEffectiveConfigurationSnapshotV1, type EffectiveConfigurationSnapshotV1 } from "./effective-configuration.js";
+import { validateEffectiveConfigurationSnapshotV1, validateGovernedResourceObservationV1, type EffectiveConfigurationSnapshotV1, type GovernedResourceObservationV1 } from "./effective-configuration.js";
 
 export type RuntimeExecutionIntentStatus = "compiled" | "started" | "completed" | "rejected";
 
@@ -49,6 +49,7 @@ export interface RuntimeCompilationRequest {
   readonly attempt_id?: string;
   readonly compiled_at?: number;
   readonly correlation_id?: string;
+  readonly resource_observations?: readonly GovernedResourceObservationV1[];
 }
 
 export interface RuntimeCompilationResult {
@@ -99,6 +100,22 @@ export function validateRuntimeCompilationRequest(input: RuntimeCompilationReque
   if (input.attempt_id !== undefined) requireString(input.attempt_id, "attempt_id", issues);
   if (input.compiled_at !== undefined) requireSafeInteger(input.compiled_at, "compiled_at", issues, 0);
   if (input.correlation_id !== undefined) requireString(input.correlation_id, "correlation_id", issues);
+  if (input.resource_observations !== undefined) {
+    if (!Array.isArray(input.resource_observations)) issues.push(issue("resource_observations", "INVALID_LIST", "An array is required"));
+    else {
+      const observedResources = new Set<string>();
+      input.resource_observations.forEach((observation, index) => {
+        try {
+          const validated = validateGovernedResourceObservationV1(observation);
+          const key = `${validated.kind}:${validated.resource_id}:${validated.revision}`;
+          if (observedResources.has(key)) issues.push(issue(`resource_observations[${index}]`, "DUPLICATE_OBSERVATION", "Each observed resource revision may appear once"));
+          observedResources.add(key);
+        } catch (error) {
+          if (error instanceof NativeContractValidationError) issues.push(...error.issues.map((entry) => ({ ...entry, path: `resource_observations[${index}].${entry.path}` })));
+        }
+      });
+    }
+  }
   try { validateIdempotency(input.idempotency); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   if (issues.length) throw new NativeContractValidationError("invalid runtime compilation request", issues);
 }

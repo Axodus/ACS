@@ -1,5 +1,6 @@
 import { NotFoundError } from "../errors.js";
 import { ACS_CAPABILITIES, type AcsServiceCapability } from "../capability-registry.js";
+import { createGovernedResourceObservationV1, type GovernedResourceObservationV1 } from "../native-core/effective-configuration.js";
 
 export type ResourceKind = "role" | "profile" | "skill" | "tool" | "capability";
 export type ResourceStatus = "active" | "deprecated" | "experimental";
@@ -103,6 +104,7 @@ const DEFAULT_PROFILES: readonly GovernedProfileResource[] = [
     displayName: "Default",
     status: "active",
     capabilityIds: ["agent.inspect", "deployment.sandbox"],
+    compatibilityOnly: true,
   },
 ];
 
@@ -281,6 +283,25 @@ export class CompositionResourceService {
   getSkill(id: string): GovernedSkillResource { return this.#registry.get("skill", id) as GovernedSkillResource; }
   getTool(id: string): GovernedToolResource { return this.#registry.get("tool", id) as GovernedToolResource; }
   getCapability(id: string): GovernedCapabilityResource { return this.#registry.get("capability", id) as GovernedCapabilityResource; }
+
+  observeResource(kind: "skill" | "tool" | "capability" | "profile", id: string, observedAt: number): GovernedResourceObservationV1 {
+    const resource = this.#registry.get(kind, id) as Exclude<GovernedCompositionResource, GovernedRoleResource>;
+    return createGovernedResourceObservationV1({
+      kind: kind === "profile" ? "legacy_capability_requirement_preset" : kind,
+      resource_id: resource.id,
+      revision: resource.revision,
+      observed_at: observedAt,
+      content: {
+        display_name: resource.displayName,
+        status: resource.status,
+        capability_ids: "capabilityIds" in resource ? resource.capabilityIds : [],
+        ...(resource.kind === "skill" || resource.kind === "tool" ? { source: resource.source } : {}),
+        ...(resource.kind === "capability" ? { category: resource.category } : {}),
+        ...(resource.kind === "profile" ? { compatibility_only: true } : {}),
+        ...(resource.metadata ? { metadata: resource.metadata } : {}),
+      },
+    });
+  }
 
   validateReferences(input: Parameters<CompositionResourceRegistry["validateReferences"]>[0]): readonly ResourceValidationFinding[] {
     return this.#registry.validateReferences(input);
