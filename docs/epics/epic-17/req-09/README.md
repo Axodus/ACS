@@ -1,7 +1,8 @@
 # EPIC-17-REQ-09 — Activation, Trigger, Schedule & Runtime Admission Boundary
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `8e5c60977affa299b864a42d831e79ef4339ab2a`
 **Baseline:** `0a3c590c0aa478c1485ab3e006c4ab81dfa045b4`
 **Dependencies:** `REQ-03`, `REQ-07` and `REQ-08 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -82,7 +83,7 @@ that order and rejects a competing pre-admission runtime-intent type.
 - new pricing, settlement, ledger or Genome economics.
 
 ```text
-REQ-09: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-10: BLOCKED_BY_REQ-09_ACCEPTANCE
+REQ-09: COMPLETE / ACCEPTED
+REQ-10: READY / GO
 Implementation authority: NONE
 ```

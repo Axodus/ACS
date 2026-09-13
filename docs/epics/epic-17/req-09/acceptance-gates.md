@@ -29,7 +29,7 @@ Events/Evidence correlation, Usage/Cost attribution and provider-neutral adapter
 behavior before any production claim.
 
 ```text
-REQ-09: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-10: BLOCKED_BY_REQ-09_ACCEPTANCE
+REQ-09: COMPLETE / ACCEPTED
+REQ-10: READY / GO
 Implementation authority: NONE
 ```

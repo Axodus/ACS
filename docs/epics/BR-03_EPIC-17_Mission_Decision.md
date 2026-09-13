@@ -179,3 +179,17 @@ Evidence and Usage/Cost retain their accepted ownership. Its eight blockers,
 ten contract deltas and five ADRs remain planning inputs. Acceptance authorized
 REQ-09 documentation only; implementation and migration authority remain
 `NONE`.
+
+## Accepted REQ-09 gate
+
+The CTO accepted `EPIC-17-REQ-09` at commit
+`8e5c60977affa299b864a42d831e79ef4339ab2a`. Activation is one durable causal
+occurrence with a stable idempotency claim and exact Automation revision;
+observation, Activation, admission, Assignment and
+`RuntimeExecutionIntentV2` remain distinct. Trigger and schedule retries reuse
+the same occurrence, while execution retry remains Runtime-owned. Schedule
+recovery requires durable watermarks/claims and explicit missed-work policy.
+OpenClaw remains a replaceable adapter. Its thirteen blockers, fourteen
+contract deltas and eight ADRs remain planning inputs. No incompatible Runtime
+or Workforce change was required. Acceptance authorized REQ-10 documentation
+only; implementation and migration authority remain `NONE`.
