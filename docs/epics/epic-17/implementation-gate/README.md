@@ -2,7 +2,7 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-03A — AUTHORIZED / GO`
+**Gate status:** `EPIC-17-IMP-03A — IN PROGRESS / CLOSURE VALIDATION`
 **Authorized implementation:** IMP-03A only
 **Implementation authority:** IMP-03A only
 **Migration authority:** schema version 8 only
@@ -35,7 +35,10 @@ authority remains none.
 | IMP-02 closure | `COMPLETE / CTO ACCEPTED` | CTO disposition supplied for this gate supersedes prior `READY FOR CTO CLOSURE` wording. |
 | IMP-03A gate preparation | `COMPLETE / CTO ACCEPTED` | REQ-05 assignment, ownership split, blockers and delta dispositions accepted. |
 | IMP-03A persistence design | `CTO ACCEPTED` | Schema v8, Connection/Channel lineage, migration compatibility and secret safety accepted. |
-| IMP-03A functional implementation | `AUTHORIZED / GO` | PostgreSQL schema v8 and IMP-03A only; development SQLite data is disposable with no import/backfill/compatibility work. |
+| IMP-03A Slice 1 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Schema v8 foundation, immutable lineages, CAS and Event/outbox. |
+| IMP-03A Slice 2 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Lifecycle, credential rotation, CAS/idempotency and historical lineage conformance. |
+| IMP-03A Slice 3 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Authenticated ingress reference plus atomic Event/Evidence/outbox; it stops before admission. |
+| IMP-03A Slice 4 | `IMPLEMENTED / PUBLISHED / ACCEPTANCE PENDING` | Read-only Product API head projections; historical reconstruction remains the canonical repository's exact revision/fingerprint responsibility. |
 
 ## Current implementation boundary
 
