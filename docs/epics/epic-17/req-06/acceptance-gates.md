@@ -1,5 +1,8 @@
 # EPIC-17-REQ-06 Acceptance Gates
 
+**Acceptance:** `CTO ACCEPTED`
+**Accepted commit:** `5f8fcf0f55c139f0bcb0c9d375f027329f481273`
+
 | Gate | Result |
 | --- | --- |
 | Seven assigned capability dispositions covered | `PASS` |
@@ -21,7 +24,7 @@ content-free deletion Evidence, provider replacement and historical result
 verification before any production claim.
 
 ```text
-REQ-06: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-07: BLOCKED_BY_REQ-05_AND_REQ-06_ACCEPTANCE
+REQ-06: COMPLETE / ACCEPTED
+REQ-07: READY / GO
 Implementation authority: NONE
 ```

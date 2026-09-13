@@ -1,7 +1,8 @@
 # EPIC-17-REQ-06 — Memory Policy & Memory Store Boundary
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `5f8fcf0f55c139f0bcb0c9d375f027329f481273`
 **Baseline:** `fdd0c6446491e0d367652ffd3dd081afccf0a448`
 **Dependencies:** `REQ-01 COMPLETE / ACCEPTED`; `REQ-03 COMPLETE / ACCEPTED`; `REQ-04 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -57,8 +58,8 @@ future contract decisions.
 - [Acceptance gates](acceptance-gates.md)
 
 ```text
-REQ-05: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-06: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-07: BLOCKED_BY_REQ-05_AND_REQ-06_ACCEPTANCE
+REQ-05: COMPLETE / ACCEPTED
+REQ-06: COMPLETE / ACCEPTED
+REQ-07: READY / GO
 Implementation authority: NONE
 ```

@@ -142,3 +142,15 @@ revision when available or an immutable verifiable observation defined by the
 resource owner. The six blockers, eight contract deltas and five ADRs remain
 planning inputs. Acceptance authorized parallel REQ-05 and REQ-06
 documentation only; implementation authority remains `NONE`.
+
+## Accepted REQ-05 / REQ-06 gate
+
+The CTO jointly accepted `EPIC-17-REQ-05` at commit
+`fdd0c6446491e0d367652ffd3dd081afccf0a448` and `EPIC-17-REQ-06` at commit
+`5f8fcf0f55c139f0bcb0c9d375f027329f481273`. Connector definition,
+Connection, Credential and Channel remain distinct; references and availability
+grant no authority. Governance owns Memory policy while the Memory companion
+domain owns record/store semantics; Memory remains separate from runtime state,
+checkpoints, Knowledge and Evidence. Their eleven combined blockers remain
+open for future IMP planning. Acceptance authorized REQ-07 documentation only;
+implementation and migration authority remain `NONE`.

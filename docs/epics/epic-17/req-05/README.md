@@ -1,7 +1,8 @@
 # EPIC-17-REQ-05 — Connector, Connection, Credential & Channel Boundary
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `fdd0c6446491e0d367652ffd3dd081afccf0a448`
 **Baseline:** `a86dce7312e8f8b3e125e254707fcc88656e26d0`
 **Dependencies:** `REQ-03 COMPLETE / ACCEPTED`; `REQ-04 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -47,8 +48,8 @@ Connection or credential never grants authority by existence.
 - [Acceptance gates](acceptance-gates.md)
 
 ```text
-REQ-05: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-06: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-07: BLOCKED_BY_REQ-05_AND_REQ-06_ACCEPTANCE
+REQ-05: COMPLETE / ACCEPTED
+REQ-06: COMPLETE / ACCEPTED
+REQ-07: READY / GO
 Implementation authority: NONE
 ```
