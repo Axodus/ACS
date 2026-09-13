@@ -1,6 +1,6 @@
 # EPIC-17 Architecture & Boundary Review
 
-**Status:** `COMPLETE / READY FOR REQ DECOMPOSITION`
+**Status:** `COMPLETE / ACCEPTED`
 **Authority:** documentation only
 **Implementation changes:** none
 
@@ -165,6 +165,10 @@ canonical baseline is frozen. Delegation and Automation must wait for Agent,
 authority and configuration-resolution decisions. Genome classification is
 last because it references the accepted state produced by the earlier REQs.
 
+The decomposition milestone refined this initial graph into the normative
+planning graph in [Dependency Graph](dependency-graph.md). That graph, rather
+than the original Genome request list, governs REQ numbering and unlock order.
+
 ## 9. Candidate REQ topics
 
 The review recommends deriving REQs for these dependency groups without
@@ -182,15 +186,24 @@ freezing count or identifiers yet:
 - Evidence, Cost and Genome-trait compatibility;
 - progressive and final validation.
 
-## 10. Closure
+These topics were resolved into twelve planning charters in
+[REQ Decomposition](req-decomposition.md). Their identifiers express dependency
+order only; they are not accepted contracts and grant no implementation
+authority.
+
+## 10. Acceptance and closure
 
 Every capability family and original non-goal has a disposition. Ownership
 boundaries, precedence gaps, contradictions and dependency ordering are
-explicit. No code, public contract, database or migration change is included.
+explicit. The CTO accepted the 76 dispositions as sufficient to supersede the
+original Genome attachment as the EPIC-17 planning baseline. The validation is
+accepted as documentation-only evidence; no ACS regression suite is required
+for this review closure. No code, public contract, database or migration change
+is included.
 
 ```text
 EPIC-17 ARCHITECTURE & BOUNDARY REVIEW
-COMPLETE / READY FOR REQ DECOMPOSITION
+COMPLETE / ACCEPTED
 
 Implementation authority: NONE
 CEO escalation: NONE

@@ -1,6 +1,7 @@
 # EPIC-17 Architecture Review Decision Register
 
-**Status:** `COMPLETE FOR REQ DECOMPOSITION`
+**Architecture review:** `COMPLETE / ACCEPTED`
+**REQ decomposition:** `COMPLETE / PROPOSED FOR NORMATIVE REQ AUTHORING`
 
 ## 1. Frozen decisions
 
@@ -18,6 +19,11 @@
 | E17-BR-D10 | Genome traits are descriptive references without operational or economic authority. | `FROZEN` |
 | E17-BR-D11 | `NEW` authorizes consideration only, never implementation. | `FROZEN` |
 | E17-BR-D12 | REQ count and numbering follow the dependency graph; the original eleven are candidates only. | `FROZEN` |
+| E17-BR-D13 | The 76 evidence-backed dispositions supersede the original Genome attachment as the EPIC-17 planning baseline. | `ACCEPTED` |
+| E17-BR-D14 | Structural seams and ownership decisions precede UX, Administration projections and Automation execution integration. | `ACCEPTED` |
+| E17-BR-D15 | Administration and Control Plane project accepted contracts through Product API; they do not originate domain truth. | `ACCEPTED` |
+| E17-BR-D16 | Documentation validation is sufficient for Architecture Review closure; no ACS regression run is required for this documentation-only diff. | `ACCEPTED` |
+| E17-BR-D17 | The dependency-derived planning sequence contains twelve REQs, ending with an integrated implementation-readiness gate. | `PROPOSED_FOR_REQ_AUTHORING` |
 
 ## 2. Repository contradictions and REQ gates
 
@@ -70,7 +76,7 @@ No active blocker prevents REQ decomposition. No CEO escalation is required for
 the documentation review. NFT, inheritance, mutation, marketplace, royalties
 and Genome economics remain rejected.
 
-## 5. Candidate dependency groups
+## 5. Resolved dependency plan
 
 ```text
 G1 canonical Agent seam and ownership baseline
@@ -83,5 +89,11 @@ G1 canonical Agent seam and ownership baseline
   -> G8 progressive and final validation
 ```
 
-The next planning milestone converts these groups into
-`EPIC-17-REQ-01 ... EPIC-17-REQ-N` with explicit acceptance gates.
+The planning groups are resolved by [Dependency Graph](dependency-graph.md),
+[REQ Decomposition](req-decomposition.md) and
+[Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
+is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
+
+This resolves planning order only. Every REQ remains unaccepted until its
+normative package is authored and reviewed. Implementation authority remains
+`NONE`.

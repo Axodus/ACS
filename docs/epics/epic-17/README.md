@@ -1,6 +1,7 @@
 # EPIC-17 — Agent Genome Foundations, Administration & Automation Platform
 
-**Status:** `ARCHITECTURE & BOUNDARY REVIEW COMPLETE / READY FOR REQ DECOMPOSITION`
+**Architecture & Boundary Review:** `COMPLETE / ACCEPTED`
+**REQ decomposition:** `COMPLETE / PROPOSED FOR NORMATIVE REQ AUTHORING`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
 **Scope:** documentation only
 **Implementation authority:** none
@@ -16,8 +17,9 @@ extend the canonical ACS without creating a second Agent, Workforce,
 lifecycle, runtime, persistence, Evidence, Economics or Product API model.
 
 This package records the implemented baseline, discovered gaps, prohibited
-duplication and the dependency graph required before REQ decomposition. It is
-not an implementation specification.
+duplication and the dependency-derived REQ sequence. It is the normative
+planning reference for EPIC-17 and supersedes the original Genome attachment as
+an assumed architecture. It is not an implementation specification.
 
 ## Authority boundary
 
@@ -55,6 +57,9 @@ implementation authority.
 | [Capability Inventory](capability-inventory.md) | Evidence-backed disposition of the original proposal. |
 | [Configuration Precedence Matrix](precedence-matrix.md) | Authority and historical-resolution analysis by configuration class. |
 | [Decision Register](decision-register.md) | Frozen decisions, contradictions, candidate ADRs and REQ gates. |
+| [Dependency Graph](dependency-graph.md) | Hard dependencies, parallel planning windows, blockers and unlock order. |
+| [REQ Decomposition](req-decomposition.md) | Dependency-derived `EPIC-17-REQ-01 ... REQ-12` planning charters. |
+| [Capability-to-REQ Matrix](capability-to-req-matrix.md) | Complete mapping of all 76 dispositions and rejected scope to the planned REQs. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -64,6 +69,9 @@ implementation authority.
 3. [Capability Inventory](capability-inventory.md).
 4. [Configuration Precedence Matrix](precedence-matrix.md).
 5. [Decision Register](decision-register.md).
+6. [Dependency Graph](dependency-graph.md).
+7. [REQ Decomposition](req-decomposition.md).
+8. [Capability-to-REQ Matrix](capability-to-req-matrix.md).
 
 ## Dependencies to preserve
 
@@ -126,8 +134,13 @@ override chain.
 - provider-owned Agent identity or OpenClaw-owned automation/schedules;
 - unrelated global UI redesign.
 
-## Next milestone
+## Planning closure and next milestone
 
-Derive a dependency-aware `EPIC-17-REQ-01 ... EPIC-17-REQ-N` proposal from this
-review. The eleven REQs in the original Genome material are candidate inputs,
-not a frozen count or sequence.
+The Architecture & Boundary Review is accepted. Its 76 evidence-backed
+dispositions replace the original Genome attachment as the planning baseline.
+The dependency graph derives twelve planned REQs; the original eleven-request
+list did not determine the count or sequence.
+
+The next milestone is normative authoring and review of `EPIC-17-REQ-01`.
+Neither the decomposition nor any planned REQ grants IMP, implementation,
+migration, schema, API, database or production authority.

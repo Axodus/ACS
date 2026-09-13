@@ -16,7 +16,10 @@ configuration or production state under this milestone.
 3. `capability-inventory.md`
 4. `precedence-matrix.md`
 5. `decision-register.md`
-6. Relevant ACS v2 Agent, Workforce, runtime, Evidence and persistence records
+6. `dependency-graph.md`
+7. `req-decomposition.md`
+8. `capability-to-req-matrix.md`
+9. Relevant ACS v2 Agent, Workforce, runtime, Evidence and persistence records
 
 ## Classification discipline
 
@@ -77,9 +80,11 @@ escalation at lower layers.
 
 - Preserve EPIC-16 and prior closure records.
 - Preserve independently governed VAL-03 work.
-- The Architecture & Boundary Review may authorize REQ decomposition only.
-- REQ numbering and count are derived after the dependency graph; the original
-  eleven-request list is not mandatory.
+- The Architecture & Boundary Review authorizes REQ planning only.
+- The documented dependency graph governs REQ ordering. Do not renumber, merge or
+  split a planned REQ without updating dependency and capability traceability.
+- Planned REQs are decomposition units, not accepted contracts or IMP
+  authority. Each requires separate normative authoring and acceptance.
 - NFT, inheritance, mutation, breeding, marketplace, royalties and Genome
   economics remain rejected and require a new executive decision to enter
   scope.

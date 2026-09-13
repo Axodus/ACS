@@ -25,8 +25,9 @@ or authority changes.
 
 The [EPIC-17 Architecture & Boundary Review](docs/epics/epic-17/README.md)
 classifies proposed Agent Genome, Administration and Automation capabilities
-against the implemented ACS. It authorizes REQ decomposition only and makes no
-code, contract, migration, database or production change.
+against the implemented ACS. The review is accepted and its dependency-derived
+REQ plan is the current normative planning baseline. It grants no code,
+contract, migration, database, IMP or production authority.
 
 Historical planning reset:
 

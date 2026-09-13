@@ -74,3 +74,25 @@ Closure authorizes preparation of an evidence-derived
 `EPIC-17-REQ-01 ... EPIC-17-REQ-N` decomposition. It does not authorize any
 REQ, IMP, migration or production change by itself. No CEO decision is required
 for this documentation-only milestone.
+
+## Downstream acceptance and planning authority
+
+The CTO accepted the completed review and its 76 evidence-backed dispositions
+as the normative EPIC-17 planning baseline. The original Genome attachment no
+longer carries presumed architecture authority.
+
+```text
+Architecture & Boundary Review: COMPLETE / ACCEPTED
+REQ decomposition readiness: READY
+Implementation authority: NONE
+
+REQ Decomposition & Dependency Planning:
+GO — DOCUMENTATION ONLY
+```
+
+The decomposition starts with the dependency graph and assigns REQ identifiers
+only after grouping by ownership and boundary. Structural Agent/Profile and
+configuration-snapshot seams precede Resources/Connector, Memory, Delegation
+and Automation. Administration and Control Plane remain projections of accepted
+contracts. No CEO escalation is required while the rejected Genome economic and
+genetic scope remains excluded.
