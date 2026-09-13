@@ -1454,6 +1454,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
         task_id: assignment.task_id,
         assignment_id: assignment.assignment_id,
         assignment_generation: assignment.generation,
+        scope: run.scope,
         agent_revision: agentRevision,
         workforce_revision_ref: member.workforce_revision_ref,
         resolved_at: compiledAt,

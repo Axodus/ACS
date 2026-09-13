@@ -21,8 +21,10 @@ function agentRevision() {
   });
 }
 
+const scope = { organization_id: "org-1", product_domain: "acs", tenant_id: "tenant-1", owner_ref: "owner:acs", authority_scope_ref: "authority:tenant-1", knowledge_scope_refs: ["knowledge:default"] };
+
 function snapshot(overrides = {}) {
-  return createAgentEffectiveConfigurationSnapshotV1({ snapshot_id: "effective-configuration-intent-1", run_id: "run-1", task_id: "task-1", assignment_id: "assignment-1", assignment_generation: 1, agent_revision: agentRevision(), workforce_revision_ref: revision("workforce", "workforce-1", 2), resolved_at: 200, ...overrides });
+  return createAgentEffectiveConfigurationSnapshotV1({ snapshot_id: "effective-configuration-intent-1", run_id: "run-1", task_id: "task-1", assignment_id: "assignment-1", assignment_generation: 1, scope, agent_revision: agentRevision(), workforce_revision_ref: revision("workforce", "workforce-1", 2), resolved_at: 200, ...overrides });
 }
 
 test("IMP-02 freezes class-specific configuration without a universal override chain", () => {
@@ -31,6 +33,7 @@ test("IMP-02 freezes class-specific configuration without a universal override c
   assert.equal(value.classes.find((entry) => entry.configuration_class === "capability_requirements").rule, "requirements_union");
   assert.equal(value.classes.find((entry) => entry.configuration_class === "governance_policies").rule, "policy_kind_semantics");
   assert.equal(value.classes.find((entry) => entry.configuration_class === "memory_policy").status, "unavailable");
+  assert.equal(value.scope.tenant_id, "tenant-1");
 });
 
 test("IMP-02 reconstructs only from an immutable verified snapshot", () => {

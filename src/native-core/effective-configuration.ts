@@ -9,10 +9,12 @@ import {
   requireSha256,
   requireString,
   RevisionRef,
+  Scope,
   sha256Hex,
   stableStringify,
   validateEntityRef,
   validateRevisionRef,
+  validateScope,
   ValidationIssue,
 } from "./primitives.js";
 import type { AgentRevisionV2 } from "./agent.js";
@@ -44,6 +46,7 @@ export interface EffectiveConfigurationSnapshotV1 {
   readonly task_id: string;
   readonly assignment_id: string;
   readonly assignment_generation: number;
+  readonly scope: Scope;
   readonly agent_revision_ref: RevisionRef;
   readonly workforce_revision_ref: RevisionRef;
   readonly resolved_at: number;
@@ -74,6 +77,7 @@ function inputMaterial(snapshot: EffectiveConfigurationSnapshotV1): unknown {
     task_id: snapshot.task_id,
     assignment_id: snapshot.assignment_id,
     assignment_generation: snapshot.assignment_generation,
+    scope: snapshot.scope,
     agent_revision_ref: snapshot.agent_revision_ref,
     workforce_revision_ref: snapshot.workforce_revision_ref,
     predecessor_snapshot_id: snapshot.predecessor_snapshot_id,
@@ -100,6 +104,7 @@ export function validateEffectiveConfigurationSnapshotV1(value: unknown): Effect
   if (snapshot.resolver_version !== EFFECTIVE_CONFIGURATION_RESOLVER_VERSION) issues.push(issue("resolver_version", "UNSUPPORTED_RESOLVER_VERSION", `Expected ${EFFECTIVE_CONFIGURATION_RESOLVER_VERSION}`));
   for (const key of ["snapshot_id", "run_id", "task_id", "assignment_id"] as const) requireString(snapshot[key], key, issues);
   requireSafeInteger(snapshot.assignment_generation, "assignment_generation", issues, 1);
+  try { validateScope(snapshot.scope, "scope"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   requireSafeInteger(snapshot.resolved_at, "resolved_at", issues, 0);
   if (snapshot.predecessor_snapshot_id !== undefined) requireString(snapshot.predecessor_snapshot_id, "predecessor_snapshot_id", issues);
   try { validateRevisionRef(snapshot.agent_revision_ref, "agent_revision_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
@@ -151,6 +156,7 @@ export function createAgentEffectiveConfigurationSnapshotV1(input: {
   readonly task_id: string;
   readonly assignment_id: string;
   readonly assignment_generation: number;
+  readonly scope: Scope;
   readonly agent_revision: AgentRevisionV2;
   readonly workforce_revision_ref: RevisionRef;
   readonly resolved_at: number;
@@ -160,7 +166,7 @@ export function createAgentEffectiveConfigurationSnapshotV1(input: {
   const policyRefs = [revision.governance.permission_policy_ref, revision.governance.approval_policy_ref];
   return createEffectiveConfigurationSnapshotV1({
     snapshot_id: input.snapshot_id, run_id: input.run_id, task_id: input.task_id, assignment_id: input.assignment_id,
-    assignment_generation: input.assignment_generation, agent_revision_ref: revision.ref, workforce_revision_ref: input.workforce_revision_ref,
+    assignment_generation: input.assignment_generation, scope: input.scope, agent_revision_ref: revision.ref, workforce_revision_ref: input.workforce_revision_ref,
     resolved_at: input.resolved_at, ...(input.predecessor_snapshot_id ? { predecessor_snapshot_id: input.predecessor_snapshot_id } : {}),
     classes: [
       resolution("presentation", "projection_only", "not_applicable", [], [revision.ref]),
