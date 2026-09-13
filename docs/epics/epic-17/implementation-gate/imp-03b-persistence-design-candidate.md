@@ -1,6 +1,6 @@
 # EPIC-17-IMP-03B — Persistence & Migration Design Candidate
 
-**Status:** `CANDIDATE / CTO DECISION REQUIRED`
+**Status:** `CANDIDATE / PHYSICAL SCHEMA REVIEW REQUIRED`
 **Schema authority:** none
 **Migration execution:** prohibited
 **Current schema:** 8
@@ -93,7 +93,7 @@ Any failure rolls back all mutations and idempotency completion. Same scope/key/
 
 The Event envelope has closed existing subjects and accepted Integration additions. Memory must not be represented as an Agent, Workforce, Run or Task event to reuse the store.
 
-**Recommendation for CTO decision before functional mutation:** extend the existing closed vocabulary additively with `memory_policy` and `memory_record`. Use the stable Policy/Record ID as `subject_id`; Event type expresses creation, revision, lifecycle, write, correction, expiry or deletion. This extends neither Event-store ownership nor schema structure unless the current validation/constraint requires an additive compatible update. If the vocabulary is rejected or deferred, Memory mutation is blocked; no generic fallback subject is allowed.
+**CTO decision:** extend the existing closed vocabulary additively with `memory_policy` and `memory_record`. Use the stable Policy/Record ID as `subject_id`; Event type expresses creation, revision, lifecycle, write, correction, expiry or deletion. The envelope/store change is deferred until a slice emits canonical Memory Events. It extends neither Event-store ownership nor schema structure unless the current validation/constraint requires an additive compatible update. No generic fallback subject is allowed.
 
 ## Candidate schema-9 migration plan
 

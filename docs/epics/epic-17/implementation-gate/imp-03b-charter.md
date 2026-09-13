@@ -1,8 +1,8 @@
 # EPIC-17-IMP-03B — Memory Policy & Memory Store Gate Charter
 
-**Status:** `CANDIDATE / AWAITING CTO GO`
-**Gate preparation:** `DOCUMENTATION COMPLETE / CTO REVIEW PENDING`
-**Implementation authority:** none
+**Status:** `SLICE 1 / IMPLEMENTED / ACCEPTANCE PENDING`
+**Gate preparation:** `COMPLETE / CTO ACCEPTED`
+**Implementation authority:** Slice 1 contracts only
 **Migration authority:** none
 **Predecessor:** IMP-03A `COMPLETE / CTO ACCEPTED / CLOSED`
 
@@ -108,10 +108,10 @@ No blocker is resolved by documentation. B03 does not block the four candidate c
 | ADR | Status | Required decision / timing |
 | --- | --- | --- |
 | `ADR-17-020` Policy/Store ownership | `ALREADY DECIDED` architecturally; details `REQUIRED BEFORE FUNCTIONAL WORK` | Governance owns Policy; Memory owns Store/Records. |
-| `ADR-17-021` Scopes/companion refs | `REQUIRED BEFORE FUNCTIONAL WORK` | Freeze Working/Agent/Workforce/Knowledge keys; exclude User Context. |
+| `ADR-17-021` Scopes/companion refs | `ALREADY DECIDED FOR SLICE 1` | Working/Agent/Workforce/Knowledge keys are allowed; User Context remains excluded. |
 | `ADR-17-022` Memory vs Runtime/Knowledge/Evidence | `ALREADY DECIDED` | Preserve existing owners; typed references only. |
-| `ADR-17-023` Retention/deletion/consent/history | `REQUIRED BEFORE MIGRATION` | Freeze content residence, successors/tombstones and deletion non-survival. |
-| `ADR-17-024` Retrieval/indexing adapters | `REQUIRED BEFORE FUNCTIONAL WORK` | Bounded adapter contract; no mandatory vector/RAG. |
+| `ADR-17-023` Retention/deletion/consent/history | `PARTIALLY DECIDED / REQUIRED BEFORE MIGRATION` | Tombstone/non-survival is decided; physical content residence remains open. |
+| `ADR-17-024` Retrieval/indexing adapters | `DEFERRED TO SLICE 3` | Bounded adapter contract; no mandatory vector/RAG. |
 
 ## Persistence, Event and migration candidates
 
@@ -122,7 +122,7 @@ Derived candidate positions:
 - Memory Policy requires its own immutable durable revision lineage because exact Agent references must resolve historically.
 - Memory Record requires immutable successor semantics; a current head is justified only for lifecycle and bounded current reads.
 - Retention/deletion mechanics must be frozen before migration. A tombstone preserves content-free identity, digest, decision and provenance while content is removed from every authorized residence.
-- Event subjects remain undecided. If Memory mutations use the current Event store, request additive closed `memory_policy` and `memory_record` subjects. Do not impersonate Agent, Workforce, Run or Task.
+- The CTO accepted closed `memory_policy` and `memory_record` Event subjects. Envelope/store changes remain deferred until a slice emits canonical Memory Events; no synthetic Agent, Workforce, Run or Task subject is permitted.
 
 ## Slices after a separate GO
 
@@ -159,9 +159,9 @@ Durable work requires `npm run acceptance:postgres`. Listener acceptance applies
 
 ## Gate report
 
-**Status:** `CANDIDATE / AWAITING CTO GO`
+**Status:** `GATE PREPARATION COMPLETE / CTO ACCEPTED; SLICE 1 AUTHORIZED`
 **Blockers:** six open; B03 is a hard User Context boundary.
 **Deltas:** CD01–CD07 candidate IMP-03B work; CD08 deferred to REQ-10.
-**ADRs:** 020/022 architecture decided; 021/024 before functional work; 023 before migration.
+**ADRs:** 020/022 decided; 021 decided for Slice 1; 023 partially decided and required before migration; 024 deferred to Slice 3.
 **Migration:** candidate schema 9 required for durable Store; not authorized.
-**CTO decisions required:** ADR-021/023/024, Event subjects, content residence/deletion semantics, then separate migration and functional GO.
+**CTO decisions required:** physical content residence under ADR-023 before migration, then separate schema-9 and Slice-2 GO.

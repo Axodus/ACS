@@ -2,9 +2,9 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-03B — CANDIDATE / AWAITING CTO GO`
-**Authorized implementation:** none
-**Implementation authority:** none
+**Gate status:** `EPIC-17-IMP-03B — SLICE 1 / IMPLEMENTED / ACCEPTANCE PENDING`
+**Authorized implementation:** IMP-03B Slice 1 contracts only
+**Implementation authority:** IMP-03B Slice 1 contracts only
 **Migration authority:** none
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
@@ -42,12 +42,15 @@ remains none.
 | IMP-03A Slice 2 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Lifecycle, credential rotation, CAS/idempotency and historical lineage conformance. |
 | IMP-03A Slice 3 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Authenticated ingress reference plus atomic Event/Evidence/outbox; it stops before admission. |
 | IMP-03A Slice 4 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Read-only Product API head projections and closure validation accepted; IMP-03A is closed. |
-| IMP-03B gate preparation | `DOCUMENTATION COMPLETE / CTO REVIEW PENDING` | REQ-06 ownership, B01–B06, deltas, ADRs, persistence candidate and migration gate require CTO decision. |
+| IMP-03B gate preparation | `COMPLETE / CTO ACCEPTED` | REQ-06 ownership, B01–B06, deltas, ADRs, persistence candidate and migration gate accepted. |
+| IMP-03B Slice 1 | `IMPLEMENTED / ACCEPTANCE PENDING` | Native contracts and tests only; schema 9, durable Store, runtime and Product API remain prohibited. |
+| IMP-03B Slice 1 report | `READY FOR CTO REVIEW` | [Focused contract, regression and causal evidence](imp-03b-slice-1-report.md). |
 
 ## Current implementation boundary
 
 The accepted PostgreSQL schema v8 and functional IMP-03A are closed.
 Development SQLite data remains disposable: no preservation, import, backfill
 or compatibility path is required. IMP-03B has no functional, schema, migration,
-runtime or Product API authority. Its candidate schema 9 is documentation only;
+runtime or Product API authority. Its candidate schema 9 is documentation only.
+Only IMP-03B Slice 1 native contracts are authorized; IMP-03B Slice 2+ and
 IMP-04+ remain unauthorized.
