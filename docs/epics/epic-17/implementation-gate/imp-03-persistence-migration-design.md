@@ -278,6 +278,15 @@ in that same transaction.
 
 ## Events, outbox, evidence and ingress
 
+The existing canonical Event store remains unchanged. Its subject vocabulary is
+extended compatibly for this boundary: `subject_type` and `subject_id` may
+identify `integration_connection` or `integration_channel`. Existing Agent,
+Workforce, Run and Task subjects retain their current semantics. An unknown or
+incomplete Integration subject fails closed. Connection and Channel commands
+must use their own aggregate subject and include their immutable revision and
+fingerprint in the Event payload; correlation remains mandatory. This does not
+create an Event authority, an Evidence record or a generic subject fallback.
+
 Connection/Channel create, revise, disable and revoke commands use the existing
 shared transaction pattern:
 

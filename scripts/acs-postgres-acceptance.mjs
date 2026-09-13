@@ -21,6 +21,7 @@ const pgTestFiles = [
   "tests/acs-v2-imp-03f-fix-02-postgres.test.mjs",
   "tests/acs-v2-val-01-postgres.test.mjs",
   "tests/acs-v2-val-03-postgres.test.mjs",
+  "tests/epic-17-imp-03a-slice-2-postgres.test.mjs",
   "tests/s59-post-15-5-aees-sh-shared-state.test.mjs",
 ];
 

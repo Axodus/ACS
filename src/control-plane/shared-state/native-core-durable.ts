@@ -525,9 +525,11 @@ function requireOutboxFailureCode(value: string): void {
   }
 }
 
-type EventStreamIdentity = Pick<EventEnvelopeV2, "event_type" | "agent_id" | "workforce_id" | "run_id" | "task_id">;
+type EventStreamIdentity = Pick<EventEnvelopeV2, "event_type" | "agent_id" | "workforce_id" | "run_id" | "task_id" | "subject_type" | "subject_id">;
 
 function streamScope(event: EventStreamIdentity): string {
+  if (event.subject_type === "integration_connection" && event.subject_id) return `integration-connection:${event.subject_id}`;
+  if (event.subject_type === "integration_channel" && event.subject_id) return `integration-channel:${event.subject_id}`;
   if (event.workforce_id && !event.run_id && !event.task_id) return `workforce:${event.workforce_id}`;
   if (event.event_type === "execution.intent_compiled" && event.run_id) return `run:${event.run_id}`;
   if (event.agent_id) return `agent:${event.agent_id}`;
@@ -536,7 +538,7 @@ function streamScope(event: EventStreamIdentity): string {
   throw new NativeContractValidationError("native event requires a stream subject", [{
     path: "event",
     code: "MISSING_STREAM_SUBJECT",
-    message: "Canonical event must identify Agent, Workforce, Run, or Task ownership",
+    message: "Canonical event must identify Agent, Workforce, Run, Task, Integration Connection, or Integration Channel ownership",
   }]);
 }
 
@@ -779,7 +781,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     const revision = validateIntegrationConnectionRevisionV1(input.revision);
     validateIdempotency(input.idempotency);
     const event = validateEventEnvelopeV2(input.event);
-    if (definition.connection_id !== revision.ref.entity_id || definition.current_revision !== revision.ref.revision || definition.tenant_id !== event.tenant_id || input.expectedHead !== revision.ref.revision - 1) {
+    if (definition.connection_id !== revision.ref.entity_id || definition.current_revision !== revision.ref.revision || definition.tenant_id !== event.tenant_id || event.subject_type !== "integration_connection" || event.subject_id !== definition.connection_id || event.payload.revision !== revision.ref.revision || event.payload.fingerprint !== revision.ref.fingerprint || input.expectedHead !== revision.ref.revision - 1) {
       throw new NativeIntegrationLineageIntegrityError(definition.connection_id, "command identity, tenant, or expected head is invalid");
     }
     if (input.idempotency.scope !== `integration.connection:${definition.connection_id}`) throw new NativeIntegrationLineageIntegrityError(definition.connection_id, "idempotency scope must be aggregate-specific");
@@ -823,7 +825,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     const revision = validateIntegrationChannelRevisionV1(input.revision);
     validateIdempotency(input.idempotency);
     const event = validateEventEnvelopeV2(input.event);
-    if (definition.channel_id !== revision.ref.entity_id || definition.current_revision !== revision.ref.revision || definition.tenant_id !== event.tenant_id || input.expectedHead !== revision.ref.revision - 1 || event.run_id !== undefined) throw new NativeIntegrationLineageIntegrityError(definition.channel_id, "command identity, tenant, expected head, or execution boundary is invalid");
+    if (definition.channel_id !== revision.ref.entity_id || definition.current_revision !== revision.ref.revision || definition.tenant_id !== event.tenant_id || event.subject_type !== "integration_channel" || event.subject_id !== definition.channel_id || event.payload.revision !== revision.ref.revision || event.payload.fingerprint !== revision.ref.fingerprint || input.expectedHead !== revision.ref.revision - 1 || event.run_id !== undefined) throw new NativeIntegrationLineageIntegrityError(definition.channel_id, "command identity, tenant, expected head, event ownership, provenance, or execution boundary is invalid");
     if (input.idempotency.scope !== `integration.channel:${definition.channel_id}`) throw new NativeIntegrationLineageIntegrityError(definition.channel_id, "idempotency scope must be aggregate-specific");
     return this.idempotent(input.idempotency, "native.integration.channel.lineage.advance", async () => {
       await query(this.db, "lock integration channel lineage", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`integration-channel:${definition.channel_id}`]);
