@@ -2,7 +2,8 @@
 
 **Architecture & Boundary Review:** `COMPLETE / ACCEPTED`
 **REQ decomposition:** `COMPLETE / ACCEPTED`
-**Current REQ:** `EPIC-17-REQ-01 COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-01:** `COMPLETE / ACCEPTED`
+**Current REQ:** `EPIC-17-REQ-02 COMPLETE / READY FOR CTO ACCEPTANCE`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
 **Scope:** documentation only
 **Implementation authority:** none
@@ -62,6 +63,7 @@ implementation authority.
 | [REQ Decomposition](req-decomposition.md) | Dependency-derived `EPIC-17-REQ-01 ... REQ-12` planning charters. |
 | [Capability-to-REQ Matrix](capability-to-req-matrix.md) | Complete mapping of all 76 dispositions and rejected scope to the planned REQs. |
 | [REQ-01 — Canonical Agent Seam](req-01/README.md) | Canonical Agent ownership, Native/legacy seam, compatibility and implementation gates. |
+| [REQ-02 — Profile, Persona & Presentation](req-02/README.md) | Profile projection, Persona ownership, naming conflict, provenance and implementation gates. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -75,6 +77,7 @@ implementation authority.
 7. [REQ Decomposition](req-decomposition.md).
 8. [Capability-to-REQ Matrix](capability-to-req-matrix.md).
 9. [REQ-01 — Canonical Agent Seam](req-01/README.md).
+10. [REQ-02 — Profile, Persona & Presentation](req-02/README.md).
 
 ## Dependencies to preserve
 
@@ -144,6 +147,7 @@ dispositions replace the original Genome attachment as the planning baseline.
 The accepted dependency graph derives twelve REQs; the original eleven-request
 list did not determine the count or sequence.
 
-`EPIC-17-REQ-01` is complete and ready for CTO acceptance. `REQ-02` remains
-blocked until that acceptance. Neither the decomposition nor any REQ grants
-IMP, implementation, migration, schema, API, database or production authority.
+`EPIC-17-REQ-01` is complete and accepted. `EPIC-17-REQ-02` is complete and
+ready for CTO acceptance; `REQ-03` remains blocked until that acceptance.
+Neither the decomposition nor any REQ grants IMP, implementation, migration,
+schema, API, database or production authority.

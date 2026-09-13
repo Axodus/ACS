@@ -19,9 +19,9 @@ override this package or supply presumed architecture.
 
 | REQ | Normative subject | Hard dependencies | Current state |
 | --- | --- | --- | --- |
-| `EPIC-17-REQ-01` | Canonical Agent Seam & Identity Boundary | Accepted Architecture Review and decomposition | `COMPLETE / READY FOR CTO ACCEPTANCE` |
-| `EPIC-17-REQ-02` | Profile, Persona & Presentation Ownership | `REQ-01` | `BLOCKED_BY_REQ-01_ACCEPTANCE` |
-| `EPIC-17-REQ-03` | Effective Configuration Resolution & Historical Runtime Snapshot | `REQ-01`, `REQ-02` where presentation applies | `PLANNED` |
+| `EPIC-17-REQ-01` | Canonical Agent Seam & Identity Boundary | Accepted Architecture Review and decomposition | `COMPLETE / ACCEPTED` |
+| `EPIC-17-REQ-02` | Profile, Persona & Presentation Ownership | `REQ-01` | `COMPLETE / READY FOR CTO ACCEPTANCE` |
+| `EPIC-17-REQ-03` | Effective Configuration Resolution & Historical Runtime Snapshot | `REQ-01`, `REQ-02` where presentation applies | `BLOCKED_BY_REQ-02_ACCEPTANCE` |
 | `EPIC-17-REQ-04` | Governed Resources, Models, Skills, Tools & MCP Boundary | `REQ-01`, `REQ-03` | `PLANNED` |
 | `EPIC-17-REQ-05` | Connector, Connection, Credential & Channel Boundary | `REQ-03`, `REQ-04` | `PLANNED` |
 | `EPIC-17-REQ-06` | Memory Policy & Memory Store Boundary | `REQ-01`, `REQ-03`, `REQ-04` | `PLANNED` |

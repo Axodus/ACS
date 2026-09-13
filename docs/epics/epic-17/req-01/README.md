@@ -1,7 +1,8 @@
 # EPIC-17-REQ-01 — Canonical Agent Seam & Identity Boundary
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `9696bfb37ddbaef0f59e188a1520f2016d080548`
 **Baseline:** `08b9355c41c635910bade3700f81c03d36c8db50`
 **Scope:** documentation only
 **Implementation authority:** none
@@ -89,10 +90,10 @@ destructive migration.
 
 ```text
 EPIC-17-REQ-01
-COMPLETE / READY FOR CTO ACCEPTANCE
+COMPLETE / ACCEPTED
 
 EPIC-17-REQ-02
-BLOCKED_BY_REQ-01_ACCEPTANCE
+DEPENDENCY GATE SATISFIED / DOCUMENTATION EXECUTION AUTHORIZED
 
 Implementation authority: NONE
 ```

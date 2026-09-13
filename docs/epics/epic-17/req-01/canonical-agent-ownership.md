@@ -1,6 +1,6 @@
 # REQ-01 Canonical Agent Ownership
 
-**Decision state:** `PROPOSED FOR CTO ACCEPTANCE`
+**Decision state:** `CTO ACCEPTED`
 
 ## 1. Ownership decision
 

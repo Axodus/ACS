@@ -100,3 +100,12 @@ genetic scope remains excluded.
 REQ execution follows the accepted dependency order. Each REQ receives one
 documentation commit after its validation and waits for CTO acceptance before
 dependent REQs become ready.
+
+## Accepted REQ-01 gate
+
+The CTO accepted `EPIC-17-REQ-01` at commit
+`9696bfb37ddbaef0f59e188a1520f2016d080548`. Its nine decisions freeze the
+Native Agent semantic and persistence authority for EPIC-17. Its six contract
+deltas and three ADRs remain candidates, and blockers `E17-R01-B01` through
+`B03` remain open for future IMP planning. The acceptance authorized REQ-02
+documentation only; implementation and migration authority remain `NONE`.

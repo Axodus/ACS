@@ -105,3 +105,12 @@ escalation.
 
 No graph node authorizes implementation, migration, schema, table, endpoint,
 UI, provider or production changes.
+
+## 6. Current gate
+
+```text
+REQ-01: COMPLETE / ACCEPTED
+REQ-02: COMPLETE / READY FOR CTO ACCEPTANCE
+REQ-03: BLOCKED_BY_REQ-02_ACCEPTANCE
+Implementation authority: NONE
+```

@@ -48,6 +48,6 @@ Proposed contract deltas: EXPLICIT
 Implementation blockers: EXPLICIT
 Downstream Agent reference: UNAMBIGUOUS
 
-EPIC-17-REQ-01: COMPLETE / READY FOR CTO ACCEPTANCE
+EPIC-17-REQ-01: COMPLETE / ACCEPTED
 Implementation authority: NONE
 ```
