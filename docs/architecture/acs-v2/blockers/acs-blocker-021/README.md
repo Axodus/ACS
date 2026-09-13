@@ -2,7 +2,7 @@
 
 ## STATUS
 
-`PARTIAL / BLOCKED` pending host-capable Docker execution.
+`RESOLVED / READY FOR CTO ACCEPTANCE`.
 
 ## Root cause
 
@@ -80,25 +80,54 @@ with `ACS_PG_ACCEPTANCE_*` variables, and the password is never printed.
 | Run acceptance | Existing PostgreSQL test files |
 | Shutdown | Acceptance process `finally` cleanup |
 
+## Validation run 1
+
+- PostgreSQL: `17.6` (`postgres:17.6-alpine`)
+- Docker server: `29.1.3`
+- Readiness: authenticated query passed; database `acs_acceptance` selected
+- Writable: disposable TEMP-table create/insert/select passed
+- Migrations: schema version `7`
+- Tests: `14 passed, 0 failed, 0 cancelled, 0 skipped`
+- Lifecycle: ephemeral container removed deterministically
+
+## Validation run 2
+
+- PostgreSQL: `17.6` (`postgres:17.6-alpine`)
+- Docker server: `29.1.3`
+- Readiness: authenticated query passed; database `acs_acceptance` selected
+- Writable: disposable TEMP-table create/insert/select passed
+- Migrations: schema version `7`
+- Tests: `14 passed, 0 failed, 0 cancelled, 0 skipped`
+- Lifecycle: second clean container and ephemeral port; prior run state was not reused
+
+## Regression and security
+
+- `npm run build`: passed
+- IMP-01 focused regression: `2 passed, 0 failed, 0 skipped`
+- `node --check scripts/acs-postgres-acceptance.mjs`: passed
+- `git diff --check`: passed
+- Generated credentials are process-local and never logged; connection output is redacted to host, port and database path.
+- No production database, application schema, repository boundary, transaction semantics, events/outbox behavior, idempotency, leases or fencing contract was changed.
+
 ## Acceptance criteria state
 
 | Criterion | State |
 | --- | --- |
-| AC-01–AC-11 | Implemented by the canonical entry point; regression evidence pending |
-| AC-12–AC-14 | Pending two host-capable executions |
+| AC-01–AC-11 | PASS |
+| AC-12–AC-14 | PASS: two consecutive clean executions |
 | AC-15–AC-16 | Implemented and documented |
-| AC-17 | Documented with current and historical evidence |
-| AC-18 | Pending final diff and regression review |
+| AC-17 | PASS: manual endpoint ownership and presence-only gating caused recurrence |
+| AC-18 | PASS: focused diff and regression review |
 
-## Current blocker
+## Blockers remaining
 
-The current WSL execution context cannot access the Docker daemon, so the two
-required clean acceptance cycles cannot yet be claimed. This is an external
-execution dependency, not evidence of an IMP-01 application defect.
+None for ACS-BLOCKER-021. The default execution context still cannot access
+the host Docker socket; the canonical command therefore requires a host-capable
+Docker context or equivalent CI runner. That is an execution prerequisite,
+not a manual PostgreSQL recovery step and not evidence of an IMP-01 defect.
 
-## Required completion report
+## CTO decision
 
-The final report must record both complete runs, PostgreSQL version, readiness,
-writable probe, migration version, pass/fail/skip counts, regression result,
-security review, criteria AC-01 through AC-18, commit, and any CTO decision
-required to enable host-capable Docker execution.
+Accept ACS-BLOCKER-021 as resolved and resume durable PostgreSQL acceptance for
+EPIC-17-IMP-01. The pending IMP-01 suite should be run through this canonical
+entry point before CTO acceptance of IMP-01.

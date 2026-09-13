@@ -147,7 +147,7 @@ async function acceptance() {
     fail("test", "acceptance_suite_failed", { detail: error.commandDetail, exitCode: error.code });
   });
   const output = `${result.stdout}\n${result.stderr}`;
-  const summary = output.match(/(\d+) passed, (\d+) failed, (\d+) cancelled, (\d+) skipped/);
+  const summary = output.match(/ℹ pass (\d+)[\s\S]*?ℹ fail (\d+)[\s\S]*?ℹ cancelled (\d+)[\s\S]*?ℹ skipped (\d+)/);
   if (!summary) fail("test", "summary_missing", { detail: output.slice(-2000) });
   const [, passed, failed, cancelled, skipped] = summary.map(Number);
   if (failed !== 0 || cancelled !== 0 || skipped !== 0) {
