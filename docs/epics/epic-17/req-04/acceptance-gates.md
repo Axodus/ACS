@@ -1,5 +1,8 @@
 # EPIC-17-REQ-04 Acceptance Gates
 
+**Acceptance:** `CTO ACCEPTED`
+**Accepted commit:** `a86dce7312e8f8b3e125e254707fcc88656e26d0`
+
 | Gate | Result |
 | --- | --- |
 | Six assigned capability dispositions covered | `PASS` |
@@ -18,7 +21,7 @@ Tenant isolation, compatibility selection, deprecation behavior, snapshot
 reconstruction and no authority elevation for every implemented resource kind.
 
 ```text
-EPIC-17-REQ-04: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-05 / REQ-06: BLOCKED_BY_REQ-04_ACCEPTANCE
+EPIC-17-REQ-04: COMPLETE / ACCEPTED
+REQ-05 / REQ-06: READY / GO
 Implementation authority: NONE
 ```

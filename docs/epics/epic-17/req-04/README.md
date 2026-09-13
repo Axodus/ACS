@@ -1,7 +1,8 @@
 # EPIC-17-REQ-04 — Governed Resources, Models, Skills, Tools & MCP Boundary
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `a86dce7312e8f8b3e125e254707fcc88656e26d0`
 **Baseline:** `c6d888641c882088a30add5a0de888ba08425632`
 **Dependencies:** `REQ-01 COMPLETE / ACCEPTED`; `REQ-03 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -54,8 +55,8 @@ contracts before a resource-history IMP.
 - [Acceptance gates](acceptance-gates.md)
 
 ```text
-EPIC-17-REQ-04: COMPLETE / READY FOR CTO ACCEPTANCE
-EPIC-17-REQ-05: BLOCKED_BY_REQ-04_ACCEPTANCE
-EPIC-17-REQ-06: BLOCKED_BY_REQ-04_ACCEPTANCE
+EPIC-17-REQ-04: COMPLETE / ACCEPTED
+EPIC-17-REQ-05: READY / GO
+EPIC-17-REQ-06: READY / GO
 Implementation authority: NONE
 ```

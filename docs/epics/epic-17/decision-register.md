@@ -5,7 +5,9 @@
 **REQ-01:** `COMPLETE / ACCEPTED`
 **REQ-02:** `COMPLETE / ACCEPTED`
 **REQ-03:** `COMPLETE / ACCEPTED`
-**REQ-04:** `COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-04:** `COMPLETE / ACCEPTED`
+**REQ-05:** `COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-06:** `READY / GO`
 
 ## 1. Frozen decisions
 
@@ -47,6 +49,11 @@ None of these gates authorizes code changes. They determine REQ ordering.
 REQ-02's accepted resolution and eleven decisions are recorded in
 [REQ-02 Decision Record](req-02/decision-record.md). Its contract deltas and
 ADRs remain candidates.
+
+REQ-04's accepted resource boundary and twelve decisions are recorded in
+[REQ-04 Decision Record](req-04/decision-record.md). REQ-05's proposed
+integration boundary is recorded in [REQ-05 Decision Record](req-05/decision-record.md).
+All associated contract deltas and ADRs remain candidates.
 
 ## 3. Candidate ADRs
 
@@ -107,6 +114,7 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 [Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
-This resolves planning order only. `REQ-01` through `REQ-03` are accepted.
-`REQ-04` is complete and awaits CTO acceptance; `REQ-05` and later REQs remain
-dependency-gated. Implementation authority remains `NONE`.
+This resolves planning order only. `REQ-01` through `REQ-04` are accepted.
+`REQ-05` is complete and awaits CTO acceptance; `REQ-06` is independently
+ready. `REQ-07` remains dependency-gated on acceptance of both. Implementation
+authority remains `NONE`.

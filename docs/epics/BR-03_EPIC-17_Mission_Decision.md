@@ -130,3 +130,15 @@ snapshot; retries reuse it and configuration changes require re-admission. The
 eight deltas and four ADRs remain candidates and five blockers remain open.
 `E17-R01-B02` has defined architectural treatment but pending implementation
 remediation. Acceptance authorized REQ-04 documentation only.
+
+## Accepted REQ-04 gate
+
+The CTO accepted `EPIC-17-REQ-04` at commit
+`a86dce7312e8f8b3e125e254707fcc88656e26d0`. Agents reference governed
+resources without owning their registries; resource kinds retain separate
+semantics; capability, support Evidence and authority remain distinct. Only
+Role has proven durable fingerprinted lineage, so future snapshots use an exact
+revision when available or an immutable verifiable observation defined by the
+resource owner. The six blockers, eight contract deltas and five ADRs remain
+planning inputs. Acceptance authorized parallel REQ-05 and REQ-06
+documentation only; implementation authority remains `NONE`.
