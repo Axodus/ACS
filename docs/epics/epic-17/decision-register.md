@@ -7,7 +7,7 @@
 **REQ-03:** `COMPLETE / ACCEPTED`
 **REQ-04:** `COMPLETE / ACCEPTED`
 **REQ-05:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**REQ-06:** `READY / GO`
+**REQ-06:** `COMPLETE / READY FOR CTO ACCEPTANCE`
 
 ## 1. Frozen decisions
 
@@ -53,7 +53,9 @@ ADRs remain candidates.
 REQ-04's accepted resource boundary and twelve decisions are recorded in
 [REQ-04 Decision Record](req-04/decision-record.md). REQ-05's proposed
 integration boundary is recorded in [REQ-05 Decision Record](req-05/decision-record.md).
-All associated contract deltas and ADRs remain candidates.
+REQ-06's proposed Memory boundary is recorded in
+[REQ-06 Decision Record](req-06/decision-record.md). All associated contract
+deltas and ADRs remain candidates.
 
 ## 3. Candidate ADRs
 
@@ -64,9 +66,11 @@ The REQ decomposition should decide whether these ADRs are required:
 - Persona ownership and structured behavior compilation (`ADR-17-005`, accepted as candidate by REQ-02);
 - historical presentation provenance (`ADR-17-006`, accepted as candidate by REQ-02);
 - governed resource catalog persistence and history;
-- Connector versus provider/tool/MCP/connection boundary;
+- Connector versus provider/tool/MCP/connection boundary (`ADR-17-016` through
+  `ADR-17-019`, proposed by REQ-05);
 - Global Settings ownership;
-- Memory policy/store ownership and deletion semantics;
+- Memory policy/store ownership, scopes, deletion and provider independence
+  (`ADR-17-020` through `ADR-17-024`, proposed by REQ-06);
 - delegation relationship and authority attenuation;
 - Automation identity, activation and schedule ownership;
 - class-specific resolver and immutable snapshot (`ADR-17-007` through `ADR-17-010`, proposed by REQ-03);
@@ -115,6 +119,6 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
 This resolves planning order only. `REQ-01` through `REQ-04` are accepted.
-`REQ-05` is complete and awaits CTO acceptance; `REQ-06` is independently
-ready. `REQ-07` remains dependency-gated on acceptance of both. Implementation
+Parallel `REQ-05` and `REQ-06` are complete and await separate CTO acceptance.
+`REQ-07` remains dependency-gated on acceptance of both. Implementation
 authority remains `NONE`.

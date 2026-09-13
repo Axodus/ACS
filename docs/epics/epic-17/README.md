@@ -6,7 +6,7 @@
 **REQ-02:** `COMPLETE / ACCEPTED`
 **REQ-03:** `COMPLETE / ACCEPTED`
 **REQ-04:** `COMPLETE / ACCEPTED`
-**Current REQs:** `EPIC-17-REQ-05 COMPLETE / READY FOR CTO ACCEPTANCE`; `EPIC-17-REQ-06 READY / GO`
+**Current REQs:** `EPIC-17-REQ-05 COMPLETE / READY FOR CTO ACCEPTANCE`; `EPIC-17-REQ-06 COMPLETE / READY FOR CTO ACCEPTANCE`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
 **Scope:** documentation only
 **Implementation authority:** none
@@ -70,6 +70,7 @@ implementation authority.
 | [REQ-03 — Effective Configuration & Snapshot](req-03/README.md) | Class-specific authority, admission resolution, immutable snapshot and reconstruction gates. |
 | [REQ-04 — Governed Resources](req-04/README.md) | Resource owners, exact references, models, Skills, Tools, MCP and legacy Profile preset. |
 | [REQ-05 — Connectors, Connections & Channels](req-05/README.md) | Connector projection, configured Connections, secret authority, Channels and admission boundaries. |
+| [REQ-06 — Memory Policy & Store](req-06/README.md) | Memory ownership, scopes, access, retention, deletion, provenance and reconstruction boundaries. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -87,6 +88,7 @@ implementation authority.
 11. [REQ-03 — Effective Configuration & Snapshot](req-03/README.md).
 12. [REQ-04 — Governed Resources](req-04/README.md).
 13. [REQ-05 — Connectors, Connections & Channels](req-05/README.md).
+14. [REQ-06 — Memory Policy & Store](req-06/README.md).
 
 ## Dependencies to preserve
 
@@ -156,8 +158,7 @@ dispositions replace the original Genome attachment as the planning baseline.
 The accepted dependency graph derives twelve REQs; the original eleven-request
 list did not determine the count or sequence.
 
-`EPIC-17-REQ-01` through `REQ-04` are complete and accepted. `REQ-05` is
-complete and ready for CTO acceptance. `REQ-06` remains independently ready
-for documentation execution. `REQ-07` waits for acceptance of both parallel
-REQs. No REQ grants IMP, implementation, migration, schema, API, database or
-production authority.
+`EPIC-17-REQ-01` through `REQ-04` are complete and accepted. Parallel `REQ-05`
+and `REQ-06` are complete and ready for separate CTO acceptance. `REQ-07` waits
+for acceptance of both. No REQ grants IMP, implementation, migration, schema,
+API, database or production authority.

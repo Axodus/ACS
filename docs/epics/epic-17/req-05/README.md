@@ -48,7 +48,7 @@ Connection or credential never grants authority by existence.
 
 ```text
 REQ-05: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-06: READY / GO (independent branch)
+REQ-06: COMPLETE / READY FOR CTO ACCEPTANCE
 REQ-07: BLOCKED_BY_REQ-05_AND_REQ-06_ACCEPTANCE
 Implementation authority: NONE
 ```
