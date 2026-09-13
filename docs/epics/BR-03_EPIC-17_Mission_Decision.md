@@ -154,3 +154,15 @@ domain owns record/store semantics; Memory remains separate from runtime state,
 checkpoints, Knowledge and Evidence. Their eleven combined blockers remain
 open for future IMP planning. Acceptance authorized REQ-07 documentation only;
 implementation and migration authority remain `NONE`.
+
+## Accepted REQ-07 gate
+
+The CTO accepted `EPIC-17-REQ-07` at commit
+`5dc66772e07ec3a6d00170ac622ff590301672cc`. Delegation relates canonical
+Agents through a governed attenuation of existing authority; references,
+membership and availability grant nothing; credentials and Memory never
+transfer as raw material. Grant representation remains undecided, while chain,
+depth, cycle, expiry, revocation and historical reconstruction semantics are
+required. Its seven blockers, ten contract deltas and five ADRs remain planning
+inputs. No incompatible Workforce or Runtime change was required. Acceptance
+authorized REQ-08 documentation only; implementation authority remains `NONE`.

@@ -1,5 +1,8 @@
 # EPIC-17-REQ-07 Acceptance Gates
 
+**Acceptance:** `CTO ACCEPTED`
+**Accepted commit:** `5dc66772e07ec3a6d00170ac622ff590301672cc`
+
 | Gate | Result |
 | --- | --- |
 | Seven assigned capability dispositions covered | `PASS` |
@@ -22,7 +25,7 @@ snapshot correlation, secret/Memory exclusion, cycle/depth rejection,
 idempotency, Evidence and no incompatible Workforce/runtime mutation.
 
 ```text
-REQ-07: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-08: BLOCKED_BY_REQ-07_ACCEPTANCE
+REQ-07: COMPLETE / ACCEPTED
+REQ-08: READY / GO
 Implementation authority: NONE
 ```

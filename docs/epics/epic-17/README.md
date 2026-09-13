@@ -8,7 +8,8 @@
 **REQ-04:** `COMPLETE / ACCEPTED`
 **REQ-05:** `COMPLETE / ACCEPTED`
 **REQ-06:** `COMPLETE / ACCEPTED`
-**Current REQ:** `EPIC-17-REQ-07 COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-07:** `COMPLETE / ACCEPTED`
+**Current REQ:** `EPIC-17-REQ-08 COMPLETE / READY FOR CTO ACCEPTANCE`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
 **Scope:** documentation only
 **Implementation authority:** none
@@ -74,6 +75,7 @@ implementation authority.
 | [REQ-05 — Connectors, Connections & Channels](req-05/README.md) | Connector projection, configured Connections, secret authority, Channels and admission boundaries. |
 | [REQ-06 — Memory Policy & Store](req-06/README.md) | Memory ownership, scopes, access, retention, deletion, provenance and reconstruction boundaries. |
 | [REQ-07 — Delegation](req-07/README.md) | Governed Agent-to-Agent grants, attenuation, chains, revocation and execution boundaries. |
+| [REQ-08 — Automation](req-08/README.md) | Automation identity, authored revisions, lifecycle, target, authority and attribution boundaries. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -93,6 +95,7 @@ implementation authority.
 13. [REQ-05 — Connectors, Connections & Channels](req-05/README.md).
 14. [REQ-06 — Memory Policy & Store](req-06/README.md).
 15. [REQ-07 — Delegation](req-07/README.md).
+16. [REQ-08 — Automation](req-08/README.md).
 
 ## Dependencies to preserve
 
@@ -162,7 +165,7 @@ dispositions replace the original Genome attachment as the planning baseline.
 The accepted dependency graph derives twelve REQs; the original eleven-request
 list did not determine the count or sequence.
 
-`EPIC-17-REQ-01` through `REQ-06` are complete and accepted. `REQ-07` is
-complete and ready for CTO acceptance; `REQ-08` remains dependency-gated. No
+`EPIC-17-REQ-01` through `REQ-07` are complete and accepted. `REQ-08` is
+complete and ready for CTO acceptance; `REQ-09` remains dependency-gated. No
 REQ grants IMP, implementation, migration, schema, API, database or production
 authority.

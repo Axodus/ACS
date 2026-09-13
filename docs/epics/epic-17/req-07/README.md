@@ -1,7 +1,8 @@
 # EPIC-17-REQ-07 — Delegation & Agent-to-Agent Authority Boundary
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `5dc66772e07ec3a6d00170ac622ff590301672cc`
 **Baseline:** `5f8fcf0f55c139f0bcb0c9d375f027329f481273`
 **Dependencies:** `REQ-01` through `REQ-06 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -56,7 +57,7 @@ future accepted contract decision.
 - [Acceptance gates](acceptance-gates.md)
 
 ```text
-REQ-07: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-08: BLOCKED_BY_REQ-07_ACCEPTANCE
+REQ-07: COMPLETE / ACCEPTED
+REQ-08: READY / GO
 Implementation authority: NONE
 ```
