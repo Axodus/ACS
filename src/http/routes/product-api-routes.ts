@@ -2776,7 +2776,9 @@ function parseAgentCreateInput(body: unknown): AgentCreateInput {
   const record = readBodyRecord(body);
   const definition = readAgentDefinition(record.definition, undefined);
   const createdBy = readOptionalString(record.createdBy, "createdBy");
-  return { definition, ...(createdBy ? { createdBy } : {}) };
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey");
+  const changeReason = readOptionalString(record.changeReason, "changeReason");
+  return { definition, ...(createdBy ? { createdBy } : {}), ...(idempotencyKey ? { idempotencyKey } : {}), ...(changeReason ? { changeReason } : {}) };
 }
 
 function parseWorkforceCreateInput(body: unknown) {
@@ -2972,7 +2974,9 @@ function parseAgentUpdateInput(body: unknown, agentId: string): UpdateAgentInput
   const definition = readAgentDefinition(record.definition, agentId);
   const expectedRevision = readExpectedRevision(record.expectedRevision);
   const updatedBy = readOptionalString(record.updatedBy, "updatedBy");
-  return { definition, expectedRevision, ...(updatedBy ? { updatedBy } : {}) };
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey");
+  const changeReason = readOptionalString(record.changeReason, "changeReason");
+  return { definition, expectedRevision, ...(updatedBy ? { updatedBy } : {}), ...(idempotencyKey ? { idempotencyKey } : {}), ...(changeReason ? { changeReason } : {}) };
 }
 
 function parseAgentCreateRevisionInput(body: unknown, agentId: string): AgentCreateRevisionInput {
@@ -2980,7 +2984,9 @@ function parseAgentCreateRevisionInput(body: unknown, agentId: string): AgentCre
   const definition = readAgentDefinition(record.definition, agentId);
   const expectedRevision = readExpectedRevision(record.expectedRevision);
   const actor = readOptionalString(record.actor, "actor");
-  return { definition, expectedRevision, ...(actor ? { actor } : {}) };
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey");
+  const changeReason = readOptionalString(record.changeReason, "changeReason");
+  return { definition, expectedRevision, ...(actor ? { actor } : {}), ...(idempotencyKey ? { idempotencyKey } : {}), ...(changeReason ? { changeReason } : {}) };
 }
 
 function parseAgentDuplicateInput(body: unknown): AgentDuplicateInput {
@@ -2990,7 +2996,8 @@ function parseAgentDuplicateInput(body: unknown): AgentDuplicateInput {
     : (() => { throw new AcsHttpValidationError("newAgentId is required for duplicate"); })();
   const name = readOptionalString(record.name, "name");
   const actor = readOptionalString(record.actor, "actor");
-  return { newAgentId, ...(name ? { name } : {}), ...(actor ? { actor } : {}) };
+  const idempotencyKey = readOptionalString(record.idempotencyKey, "idempotencyKey");
+  return { newAgentId, ...(name ? { name } : {}), ...(actor ? { actor } : {}), ...(idempotencyKey ? { idempotencyKey } : {}) };
 }
 
 interface EconomicAuthorizationRequest {

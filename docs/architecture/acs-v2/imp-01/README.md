@@ -2,7 +2,7 @@
 
 ## STATUS
 
-`PARTIAL`
+`IN IMPLEMENTATION / AUTHORIZED`
 
 The implementation establishes the provider-neutral native contract layer for
 the frozen REQ-03 foundations. It is independently buildable and covered by
@@ -11,8 +11,10 @@ does not add the durable Agent lineage repository or the transactional ACS
 event/outbox persistence required to claim complete native runtime
 implementation.
 
-`ACS-BLOCKER-014` remains a separate `HIGH / OPEN` blocker. This document does
-not claim a green repository-wide suite or production readiness.
+`ACS-BLOCKER-014` is reconciled as `RESOLVED / CTO ACCEPTED` for the IMP-01
+baseline. This document does not claim final IMP-01 acceptance or production
+readiness until the required PostgreSQL and repository regression evidence is
+green.
 
 ## IMPLEMENTED
 
@@ -37,6 +39,10 @@ not claim a green repository-wide suite or production readiness.
   hierarchical cost-center paths, decimal validation, evidence references, and
   explicit separation from pricing and settlement.
 - Public exports from `src/index.ts` and focused IMP-01 conformance tests.
+- Product API Agent mutations routed through the Native lineage command seam,
+  with idempotency/CAS inputs, lifecycle events, and bounded legacy adapters.
+- Profile capability presets retained for compatibility but removed from
+  effective granted capability composition.
 
 ## REUSED
 
@@ -73,6 +79,9 @@ marks persistence gaps explicitly.
 
 ## VALIDATION
 
+The current implementation evidence and the 15-criterion disposition are in
+[acceptance-report.md](./acceptance-report.md).
+
 Validation is recorded from the actual repository commands below. The focused
 suite is separate from the pre-existing full-suite blocker and must remain so.
 
@@ -99,11 +108,10 @@ baseline; it does not replace or repair the repository-wide baseline.
 
 ## BLOCKERS
 
-`ACS-BLOCKER-014` remains `HIGH / OPEN`. The documented failures are in
-operational evidence HTTP behavior, observability/rate limiting, production
-target child-process resolution, a missing economic public export, and
-usage/reservation correlation. The related `s27` and `s63` tests remain
-failing in the current repository and are not absorbed into the native core.
+`ACS-BLOCKER-014` is resolved for this gate from later accepted evidence. The
+current repository still has separate environment and regression failures; they
+are recorded in [acceptance-report.md](./acceptance-report.md) and are not
+absorbed into the native core.
 
 ## DEVIATIONS
 

@@ -15,10 +15,10 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `CTO IMPLEMENTATION GATE — IMP-01 CANDIDATE`
+**Current gate:** `EPIC-17-IMP-01 — AUTHORIZED / GO`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
-**Scope:** documentation only
-**Implementation authority:** none
+**Scope:** architecture accepted; IMP-01 implementation authorized
+**Implementation authority:** IMP-01 only
 **Migration authority:** none
 **Public contract changes:** none
 **Database changes:** none
@@ -182,8 +182,7 @@ The accepted dependency graph derives twelve REQs; the original eleven-request
 list did not determine the count or sequence.
 
 `EPIC-17-REQ-01` through `REQ-12` and the architecture/specification phase are
-complete and accepted. Implementation readiness is `READY FOR CTO
-IMPLEMENTATION GATE`. The [gate package](implementation-gate/README.md) exposes
-the two pre-IMP blockers and candidate IMP-01 charter; it does not grant GO.
-No REQ grants IMP, implementation, migration, schema, API, database or
-production authority.
+complete and accepted. The [gate package](implementation-gate/README.md)
+records the accepted pre-IMP dispositions and bounded IMP-01 authorization.
+Later IMPs and migration, schema, database or production authority remain
+outside this gate.

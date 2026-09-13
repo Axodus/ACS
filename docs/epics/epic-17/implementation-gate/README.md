@@ -2,9 +2,9 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `READY FOR CTO DECISION`
-**Candidate:** `EPIC-17-IMP-01`
-**Implementation authority:** none
+**Gate status:** `AUTHORIZED / GO`
+**Authorized implementation:** `EPIC-17-IMP-01`
+**Implementation authority:** IMP-01 only
 **Migration authority:** none
 
 This package converts the accepted REQ-12 dependency plan into the one decision
@@ -20,9 +20,9 @@ blocked with an exact remediation.
 
 | Gate | Current result | Closure needed |
 | --- | --- | --- |
-| `E17-R12-B01` concrete charter | `READY FOR CTO ACCEPTANCE` | Accept, amend or reject the linked IMP-01 charter. |
-| `E17-R12-B02` validation baseline | `BLOCKED / GOVERNING STATUS CONFLICT` | Explicitly reconcile `ACS-BLOCKER-014` using the canonical register and remediation evidence. |
-| IMP-01 execution | `NOT AUTHORIZED` | Both pre-IMP blockers must be closed by the CTO gate. |
+| `E17-R12-B01` concrete charter | `RESOLVED / CTO ACCEPTED` | Charter accepted at gate commit `efed500224b08ab7f8b62a61b547d302f63172d7`. |
+| `E17-R12-B02` validation baseline | `RESOLVED / CTO ACCEPTED` | `ACS-BLOCKER-014` reconciled against later accepted evidence. |
+| IMP-01 execution | `AUTHORIZED / GO` | Scope is limited to the bounded IMP-01 charter. |
 
 ## Decision requested
 
@@ -45,4 +45,4 @@ keeps all code, migration and mutation work closed. Silence or acceptance of
 the EPIC architecture does not constitute IMP authority.
 
 Production, provider, credential, external execution and rollout authority are
-outside this gate.
+outside this gate. IMP-02+ and migration authority remain unauthorized.

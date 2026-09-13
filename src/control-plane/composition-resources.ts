@@ -26,6 +26,8 @@ export interface GovernedProfileResource {
   readonly displayName: string;
   readonly status: ResourceStatus;
   readonly capabilityIds: readonly string[];
+  /** Compatibility preset only; never an effective capability authority. */
+  readonly compatibilityOnly?: true;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 

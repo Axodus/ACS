@@ -14,6 +14,21 @@ import type {
   CompositionFinding,
   GovernedAgentStatus,
 } from "./unified-agent-model.js";
+import {
+  createAgentDefinitionV2,
+  createAgentRevisionV2,
+  type AgentDefinitionV2,
+  type AgentRevisionV2,
+} from "../native-core/agent.js";
+import {
+  createEventEnvelopeV2,
+} from "../native-core/runtime.js";
+import {
+  sha256Hex,
+  stableStringify,
+  type RevisionRef,
+} from "../native-core/primitives.js";
+import type { NativeAgentLineage, NativeAgentLineageCommand } from "./shared-state/native-core-durable.js";
 import type { DeploymentService, DeploymentRecord, DeploymentRequest, DeploymentLifecycleStatus } from "./deployment-service.js";
 import type { ProductionGovernanceEvidence, ProductionReadinessDecision } from "./production-deployment-readiness.js";
 import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord, StartRuntimeServiceRequest } from "./runtime-lifecycle-service.js";
@@ -70,8 +85,7 @@ import type {
 import type { EconomicAuthorizationDecisionCode } from "./neurons-economic-contract.js";
 import { createCanonicalModelId } from "../intelligence/model-provider.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
-import type { AsyncNativeCoreRepository, NativeAgentLineage } from "./shared-state/native-core-durable.js";
-import type { AgentDefinitionV2, AgentRevisionV2 } from "../native-core/agent.js";
+import type { AsyncNativeCoreRepository } from "./shared-state/native-core-durable.js";
 import type { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
 import type { SecretStore } from "../intelligence/secret-store.js";
 import type { EngineService } from "../engines/engine-service.js";
@@ -1317,24 +1331,31 @@ export interface CompositionOperationResult {
 export interface AgentCreateInput {
   readonly definition: AgentDefinition;
   readonly createdBy?: string;
+  readonly idempotencyKey?: string;
+  readonly changeReason?: string;
 }
 
 export interface UpdateAgentInput {
   readonly definition: AgentDefinition;
   readonly expectedRevision: number;
   readonly updatedBy?: string;
+  readonly idempotencyKey?: string;
+  readonly changeReason?: string;
 }
 
 export interface AgentCreateRevisionInput {
   readonly definition: AgentDefinition;
   readonly expectedRevision: number;
   readonly actor?: string;
+  readonly idempotencyKey?: string;
+  readonly changeReason?: string;
 }
 
 export interface AgentDuplicateInput {
   readonly newAgentId: string;
   readonly name?: string;
   readonly actor?: string;
+  readonly idempotencyKey?: string;
 }
 
 const AGENT_SURFACE_GUARDRAILS: AgentSurfaceGuardrails = {
@@ -1386,6 +1407,14 @@ function parseRevisionId(value: string): number {
     });
   }
   return revisionNumber;
+}
+
+function nativePolicyRef(id: string): RevisionRef {
+  return { entity_kind: "policy", entity_id: id, revision: 1, fingerprint: sha256Hex(`acs-policy:${id}:1`) };
+}
+
+function nativeResourceRef(kind: "skill" | "tool", id: string): RevisionRef {
+  return { entity_kind: "resource", entity_id: `${kind}:${id}`, revision: 1, fingerprint: sha256Hex(`acs-resource:${kind}:${id}:1`) };
 }
 
 export interface DashboardSummary {
@@ -1673,6 +1702,17 @@ export class ProductApiClient {
   }
 
   async createAgent(input: AgentCreateInput): Promise<AgentOperationResult> {
+    if (this.#nativeCore) {
+      const revision = await this.#nativeMutateAgent({
+        operation: "create",
+        definition: input.definition,
+        expectedRevision: 0,
+        actor: input.createdBy,
+        idempotencyKey: input.idempotencyKey,
+        changeReason: input.changeReason,
+      });
+      return this.#okResult("create", revision);
+    }
     if (!this.#agentService) {
       return this.#unsupportedResult("create", input.definition.agentId, "Agent creation is not supported by this Product API slice.");
     }
@@ -1685,6 +1725,18 @@ export class ProductApiClient {
   }
 
   async updateAgent(agentId: string, input: UpdateAgentInput): Promise<AgentOperationResult> {
+    if (this.#nativeCore) {
+      const revision = await this.#nativeMutateAgent({
+        operation: "update",
+        agentId,
+        definition: input.definition,
+        expectedRevision: input.expectedRevision,
+        actor: input.updatedBy,
+        idempotencyKey: input.idempotencyKey,
+        changeReason: input.changeReason,
+      });
+      return this.#okResult("update", revision);
+    }
     if (!this.#agentService) {
       return this.#unsupportedResult("update", agentId, "Agent updates are not supported by this Product API slice.");
     }
@@ -1698,6 +1750,18 @@ export class ProductApiClient {
   }
 
   async createAgentRevision(agentId: string, input: AgentCreateRevisionInput): Promise<AgentOperationResult> {
+    if (this.#nativeCore) {
+      const revision = await this.#nativeMutateAgent({
+        operation: "create_revision",
+        agentId,
+        definition: input.definition,
+        expectedRevision: input.expectedRevision,
+        actor: input.actor,
+        idempotencyKey: input.idempotencyKey,
+        changeReason: input.changeReason,
+      });
+      return this.#okResult("create_revision", revision);
+    }
     if (!this.#agentService) {
       return this.#unsupportedResult("create_revision", agentId, "Revision creation is not supported by this Product API slice.");
     }
@@ -1711,6 +1775,9 @@ export class ProductApiClient {
   }
 
   async adoptAgentRevision(agentId: string, revisionId: string): Promise<AgentOperationResult> {
+    if (this.#nativeCore) {
+      return this.#nativeRevisionLifecycleMutation("adopt_revision", agentId, revisionId);
+    }
     if (!this.#agentService) {
       return this.#unsupportedResult("adopt_revision", agentId, "Revision adoption is not supported by this Product API slice.");
     }
@@ -1719,6 +1786,9 @@ export class ProductApiClient {
   }
 
   async restoreAgentRevision(agentId: string, revisionId: string): Promise<AgentOperationResult> {
+    if (this.#nativeCore) {
+      return this.#nativeRevisionLifecycleMutation("restore_revision", agentId, revisionId);
+    }
     if (!this.#agentService) {
       return this.#unsupportedResult("restore_revision", agentId, "Revision restore is not supported by this Product API slice.");
     }
@@ -1727,6 +1797,22 @@ export class ProductApiClient {
   }
 
   async duplicateAgent(agentId: string, input: AgentDuplicateInput): Promise<AgentOperationResult> {
+    if (this.#nativeCore) {
+      const source = await this.#nativeRequiredLineage(agentId);
+      const current = source.revisions.at(-1);
+      if (!current) throw new AgentLifecycleGuardError(`Native Agent ${agentId} has no current revision.`, { code: "NATIVE_LINEAGE_EMPTY", reason: "canonical lineage has no head revision" });
+      const definition = this.#nativeAgentDefinition(source.definition, current);
+      const revision = await this.#nativeMutateAgent({
+        operation: "duplicate",
+        agentId: input.newAgentId,
+        definition: { ...definition, agentId: input.newAgentId, ...(input.name ? { name: input.name } : {}) },
+        expectedRevision: 0,
+        actor: input.actor,
+        idempotencyKey: input.idempotencyKey,
+        changeReason: `Duplicated from ${agentId}`,
+      });
+      return { ...this.#okResult("duplicate", revision), entityId: input.newAgentId, message: `Agent duplicated as ${input.newAgentId}.` };
+    }
     if (!this.#agentService) {
       return this.#unsupportedResult("duplicate", agentId, "Agent duplication is not supported by this Product API slice.");
     }
@@ -1739,6 +1825,7 @@ export class ProductApiClient {
   }
 
   async archiveAgent(agentId: string): Promise<AgentOperationResult> {
+    if (this.#nativeCore) return this.#nativeStatusMutation(agentId, "archived", "archive");
     if (!this.#agentService) {
       return this.#unsupportedResult("archive", agentId, "Agent archive is not supported by this Product API slice.");
     }
@@ -1747,6 +1834,7 @@ export class ProductApiClient {
   }
 
   async restoreAgent(agentId: string): Promise<AgentOperationResult> {
+    if (this.#nativeCore) return this.#nativeStatusMutation(agentId, "active", "restore");
     if (!this.#agentService) {
       return this.#unsupportedResult("restore", agentId, "Agent restore is not supported by this Product API slice.");
     }
@@ -1755,6 +1843,12 @@ export class ProductApiClient {
   }
 
   async deleteAgent(agentId: string): Promise<AgentOperationResult> {
+    if (this.#nativeCore) {
+      throw new AgentLifecycleGuardError(`ordinary physical delete is unavailable for Native Agent ${agentId}`, {
+        code: "NATIVE_PHYSICAL_DELETE_UNAVAILABLE",
+        reason: "Use a governed archival or legal-erasure flow when that boundary is authorized.",
+      });
+    }
     if (!this.#agentService) {
       return this.#unsupportedResult("delete", agentId, "Agent deletion is not supported by this Product API slice.");
     }
@@ -2024,6 +2118,152 @@ export class ProductApiClient {
 
   async getExecutionRunReservation(runId: string): Promise<Reservation | undefined> {
     return this.#operationalEvidence.getExecutionRunReservation(runId);
+  }
+
+  async #nativeRequiredLineage(agentId: string): Promise<NativeAgentLineage> {
+    const lineage = await this.#nativeAgentLineage(agentId);
+    if (!lineage) throw new AgentLifecycleGuardError(`Native Agent ${agentId} was not found in the current tenant scope.`, { code: "AGENT_NOT_FOUND", reason: "agent is absent or outside the current tenant scope" });
+    return lineage;
+  }
+
+  async #nativeMutateAgent(input: {
+    readonly operation: string;
+    readonly agentId?: string;
+    readonly definition: AgentDefinition;
+    readonly expectedRevision: number;
+    readonly actor?: string;
+    readonly idempotencyKey?: string;
+    readonly changeReason?: string;
+  }): Promise<AgentRevision> {
+    const nativeCore = this.#nativeCore;
+    if (!nativeCore) throw new Error("Native Core is not configured");
+    const agentId = input.agentId ?? input.definition.agentId;
+    if (agentId !== input.definition.agentId) throw new AgentLifecycleGuardError("agent id must match the canonical mutation target", { code: "AGENT_ID_MISMATCH", reason: "mutation target and definition identity diverge" });
+    let currentLineage: NativeAgentLineage | undefined;
+    if (input.expectedRevision > 0) {
+      const current = await this.#nativeRequiredLineage(agentId);
+      currentLineage = current;
+      if (current.definition.current_revision !== input.expectedRevision) {
+        throw new AgentLifecycleGuardError(`expected revision ${input.expectedRevision} does not match Native Agent ${agentId}`, { code: "REVISION_CONFLICT", reason: "compare-and-swap head check failed" });
+      }
+    }
+    const committedAt = Date.now();
+    const actor = input.actor?.trim() || "product-api";
+    const key = input.idempotencyKey?.trim() || `agent:${agentId}:${input.operation}:${input.expectedRevision}:${sha256Hex(stableStringify(input.definition))}`;
+    const definition = this.#nativeDefinition(input.definition, input.expectedRevision + 1, currentLineage?.definition.created_at ?? committedAt, currentLineage?.definition);
+    const revision = createAgentRevisionV2({
+      agent_id: agentId,
+      revision: input.expectedRevision + 1,
+      ...(input.expectedRevision > 0 ? { supersedes_revision: input.expectedRevision } : {}),
+      ...(input.definition.roleId ? { role_ref: { kind: "role", id: input.definition.roleId, ...(input.definition.roleRevision ? { revision: input.definition.roleRevision } : {}) } } : {}),
+      instructions: typeof input.definition.metadata?.instructions === "string" ? input.definition.metadata.instructions : "",
+      capability_requirements: input.definition.capabilityIds.map((id) => ({ kind: "capability", id })),
+      constraints: [],
+      knowledge: {
+        allowed_scope_refs: [],
+        denied_scope_refs: [],
+        context_policy_ref: nativePolicyRef(`context:${agentId}`),
+        memory_policy_ref: nativePolicyRef(`memory:${agentId}`),
+      },
+      resources: {
+        skill_refs: input.definition.skillIds.map((id) => nativeResourceRef("skill", id)),
+        tool_refs: input.definition.toolIds.map((id) => nativeResourceRef("tool", id)),
+        mcp_server_refs: [],
+      },
+      runtime_preferences: {
+        provider_routes: input.definition.modelStrategy ? [{ kind: "provider", id: input.definition.modelStrategy.primary.providerId }] : [],
+        model_requirements: input.definition.modelStrategy ? [{ kind: "model", id: input.definition.modelStrategy.primary.modelId }] : [],
+        harness_preferences: [],
+        executor_preferences: input.definition.runnerPreferences.map((id) => ({ kind: "executor", id })),
+      },
+      governance: {
+        authority_refs: [{ kind: "authority", id: definition.scope.authority_scope_ref }],
+        permission_policy_ref: nativePolicyRef(input.definition.executionPolicyId ?? `permission:${agentId}`),
+        approval_policy_ref: nativePolicyRef(`approval:${agentId}`),
+      },
+      economics: {
+        cost_policy_ref: nativePolicyRef(`cost:${agentId}`),
+        budget_policy_ref: nativePolicyRef(`budget:${agentId}`),
+      },
+      evidence: {
+        audit_policy_ref: nativePolicyRef(`audit:${agentId}`),
+        evaluation_refs: [],
+      },
+      commit: { created_by: actor, committed_at: committedAt, change_reason: input.changeReason?.trim() || `${input.operation} via canonical Native Agent seam` },
+    });
+    const eventId = `agent-${input.operation}-${sha256Hex(`${agentId}:${revision.ref.revision}:${key}`).slice(0, 32)}`;
+    const command: NativeAgentLineageCommand = {
+      definition,
+      revision,
+      expectedHead: input.expectedRevision,
+      idempotency: { key, scope: `agent:${agentId}`, request_hash: sha256Hex(stableStringify({ operation: input.operation, definition: input.definition, expectedRevision: input.expectedRevision })) },
+      event: createEventEnvelopeV2({
+        event_id: eventId,
+        event_type: input.expectedRevision === 0
+          ? "agent.created"
+          : input.operation === "archive" || input.operation === "restore"
+            ? "agent.lifecycle.changed"
+            : "agent.revision.created",
+        timestamp: committedAt,
+        sequence: revision.ref.revision,
+        organization_id: definition.scope.organization_id,
+        product_domain: definition.scope.product_domain,
+        ...(definition.scope.tenant_id ? { tenant_id: definition.scope.tenant_id } : {}),
+        agent_id: agentId,
+        actor: { kind: "service", ref: actor },
+        source: "product",
+        correlation_id: key,
+        idempotency_key: key,
+        payload: {
+          agent_revision: revision.ref.revision,
+          agent_fingerprint: revision.ref.fingerprint,
+          head_status: definition.status,
+          lifecycle_transition: input.operation,
+        },
+      }),
+      outboxId: `outbox-${eventId}`,
+      deliveryKind: `agent.${input.operation}`,
+    };
+    const result = await nativeCore.advanceAgentLineage(command);
+    return this.#nativeAgentRevision(result.lineage.definition, result.lineage.revisions.at(-1)!);
+  }
+
+  async #nativeRevisionLifecycleMutation(operation: "adopt_revision" | "restore_revision", agentId: string, revisionId: string): Promise<AgentOperationResult> {
+    const lineage = await this.#nativeRequiredLineage(agentId);
+    const target = lineage.revisions.find((revision) => revision.ref.revision === parseRevisionId(revisionId));
+    if (!target) throw new AgentLifecycleGuardError(`revision ${revisionId} was not found for Native Agent ${agentId}`, { code: "REVISION_NOT_FOUND", reason: "requested historical revision is absent" });
+    const revision = await this.#nativeMutateAgent({ operation, agentId, definition: this.#nativeAgentDefinition(lineage.definition, target), expectedRevision: lineage.definition.current_revision, changeReason: `${operation} from r${target.ref.revision}` });
+    return this.#okResult(operation, revision);
+  }
+
+  async #nativeStatusMutation(agentId: string, status: GovernedAgentStatus, operation: "archive" | "restore"): Promise<AgentOperationResult> {
+    const lineage = await this.#nativeRequiredLineage(agentId);
+    const current = lineage.revisions.at(-1);
+    if (!current) throw new AgentLifecycleGuardError(`Native Agent ${agentId} has no current revision.`, { code: "NATIVE_LINEAGE_EMPTY", reason: "canonical lineage has no head revision" });
+    const revision = await this.#nativeMutateAgent({ operation, agentId, definition: { ...this.#nativeAgentDefinition(lineage.definition, current), status }, expectedRevision: lineage.definition.current_revision });
+    return this.#okResult(operation, revision);
+  }
+
+  #nativeDefinition(definition: AgentDefinition, currentRevision: number, createdAt: number, base?: AgentDefinitionV2): AgentDefinitionV2 {
+    const now = Date.now();
+    return createAgentDefinitionV2({
+      agent_id: definition.agentId,
+      scope: base?.scope ?? {
+        organization_id: "axodus",
+        product_domain: "acs",
+        ...(this.#nativeAgentTenantId ? { tenant_id: this.#nativeAgentTenantId } : {}),
+        owner_ref: typeof definition.metadata?.ownerRef === "string" ? definition.metadata.ownerRef : `agent:${definition.agentId}`,
+        authority_scope_ref: this.#nativeAgentTenantId ? `tenant:${this.#nativeAgentTenantId}` : `agent:${definition.agentId}`,
+        knowledge_scope_refs: [],
+      },
+      name: definition.name,
+      status: definition.status,
+      current_revision: currentRevision,
+      ownership_ref: base?.ownership_ref ?? (typeof definition.metadata?.ownerRef === "string" ? definition.metadata.ownerRef : `agent:${definition.agentId}`),
+      sharing_mode: base?.sharing_mode ?? "private",
+      created_at: createdAt,
+      updated_at: now,
+    });
   }
 
   async listUsageRecords(query?: UsageQuery): Promise<readonly UsageInspectionRecord[]> {
@@ -2676,7 +2916,7 @@ export class ProductApiClient {
       },
       auditSummary: this.#auditSummary(agentId),
       lifecycleState: this.#nativeLifecycleView(lineage.definition),
-      availableActions: this.#nativeReadOnlyActions(),
+      availableActions: this.#nativeActions(),
       guardrails: AGENT_SURFACE_GUARDRAILS,
       checkedAt: Date.now(),
       stale: false,
@@ -2720,10 +2960,11 @@ export class ProductApiClient {
     };
   }
 
-  #nativeReadOnlyActions(): readonly AgentLifecycleActionView[] {
-    const reason = "Native Core Agent mutations are not exposed by this read projection.";
+  #nativeActions(): readonly AgentLifecycleActionView[] {
     return (["update", "createRevision", "adoptRevision", "restoreRevision", "duplicate", "archive", "restore", "delete"] as const)
-      .map((action) => ({ action, label: AGENT_ACTION_LABELS[action], available: false, reason }));
+      .map((action) => action === "delete"
+        ? ({ action, label: AGENT_ACTION_LABELS[action], available: false, reason: "Ordinary physical delete is unavailable for Native Agents." })
+        : ({ action, label: AGENT_ACTION_LABELS[action], available: true }));
   }
 
   #nativeRevisionSummary(revision: AgentRevisionV2, currentRevision: number): AgentRevisionSummary {

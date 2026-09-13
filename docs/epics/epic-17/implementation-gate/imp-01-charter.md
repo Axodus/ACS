@@ -3,11 +3,11 @@
 ## Identity and decision state
 
 **Title:** Canonical Agent Seam & Profile Compatibility
-**Status:** `CANDIDATE / AWAITING CTO GO`
+**Status:** `AUTHORIZED / GO`
 **Architecture dependencies:** `EPIC-17-REQ-01`, `REQ-02`, `REQ-03`, `REQ-10`,
 `REQ-11` and `REQ-12 COMPLETE / ACCEPTED`
 **Preconditions:** `E17-R12-B01` and `E17-R12-B02` closed by the CTO gate
-**Implementation authority:** none until explicit CTO GO
+**Implementation authority:** granted for IMP-01 only
 **Migration authority:** none
 **Production authority:** none
 

@@ -1,7 +1,7 @@
 # ACS-BLOCKER-014 — Core Regression Remediation
 
-**Status:** `RESOLUTION CANDIDATE`  
-**Date:** 2026-09-10  
+**Status:** `RESOLVED / CTO ACCEPTED`
+**Date:** 2026-09-13
 **Scope:** five isolated repository regressions only
 
 ## Original baseline
@@ -29,6 +29,10 @@ No architecture change, migration, dependency, provider authority, pricing rule,
 
 ## Disposition
 
-Closure remains contingent on the isolated full-suite result in `remediation-evidence.md`.
+The accepted evidence is the later remediation baseline recorded in
+`remediation-evidence.md`: `692 total; 688 passed; 0 failed; 4 PostgreSQL
+environment-gated skips`, followed by the accepted IMP-03F integrated result
+of `731 passed; 0 failed; 0 skipped`. The stale `HIGH / OPEN` registry state is
+reconciled here for the EPIC-17-IMP-01 gate.
 
-The final isolated suite and PostgreSQL revalidation passed. Recommendation: `ACS-BLOCKER-014 → RESOLVED`, subject to CTO acceptance of this evidence.
+**CTO disposition:** `RESOLVED` for the IMP-01 baseline.

@@ -34,16 +34,16 @@ committing this documentation does not close it.
 
 ## `E17-R12-B02` — `ACS-BLOCKER-014` status conflict
 
-**Classification:** `BLOCKS FIRST IMPLEMENTATION`
-**Current state:** `BLOCKED / GOVERNING DECISION REQUIRED`
+**Classification:** `PRE-IMP BLOCKER RECONCILED`
+**Current state:** `RESOLVED / CTO ACCEPTED`
 
 ### Cause
 
 The canonical [.instructions blocker register](../../../../.instructions/BLOCKER_REGISTER.md)
-records `ACS-BLOCKER-014` as `HIGH / OPEN` based on `680 total; 673 passed; 5
-failed; 2 skipped`. The later [remediation decision record](../../../architecture/acs-v2/blockers/acs-blocker-014/README.md)
-is `RESOLUTION CANDIDATE`, and its [evidence](../../../architecture/acs-v2/blockers/acs-blocker-014/remediation-evidence.md)
-records:
+contains stale `HIGH / OPEN` metadata based on an older baseline. The later
+[remediation decision record](../../../architecture/acs-v2/blockers/acs-blocker-014/README.md)
+and its [evidence](../../../architecture/acs-v2/blockers/acs-blocker-014/remediation-evidence.md)
+are accepted for this gate and record:
 
 ```text
 isolated full suite: 692 total / 688 passed / 0 failed / 4 PostgreSQL skips

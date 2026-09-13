@@ -413,11 +413,9 @@ export class AgentService {
     const role = revision.definition.roleId ? this.#resources.getRole(revision.definition.roleId) : undefined;
     const profile = revision.definition.profileId ? this.#resources.getProfile(revision.definition.profileId) : undefined;
     const roleCapabilities = role?.capabilityIds ?? [];
-    const profileCapabilities = profile?.capabilityIds ?? [];
     const effectiveCapabilities = [...new Set([
       ...revision.definition.capabilityIds,
       ...roleCapabilities,
-      ...profileCapabilities,
     ])].sort();
     const composition = createAgentComposition({
       revision,
