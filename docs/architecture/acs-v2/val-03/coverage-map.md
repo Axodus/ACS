@@ -8,6 +8,6 @@
 | Proposal, Decision, assignment history | IMP-03C, IMP-03E | Core / Product API | yes | yes | operations UI | PASS through generation 2 |
 | Runtime intent, Attempt, stale assignment, recovery | IMP-03D | Core / Product API | yes | yes | operations UI | PASS |
 | Recomposition and historical projections | IMP-03D, IMP-03E Gate A | Core / HTTP | yes | yes | reload | PASS |
-| Workforce Application | IMP-03F | Application | shared host | API-backed | integrated and static | PARTIAL: Agent selector omits canonical Native Core Agents |
+| Workforce Application | IMP-03F, ACS-BLOCKER-020, IMP-03F-FIX-03 | Application | shared host | API-backed | integrated and static | ACCEPTED for the IMP-03F application increment |
 
 VAL-03 adds one transversal scenario and reuses lower-level evidence rather than duplicating each unit assertion.

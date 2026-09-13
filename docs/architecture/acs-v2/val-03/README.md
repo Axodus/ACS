@@ -2,10 +2,21 @@
 
 ## Status
 
-`PARTIAL`
+`INDEPENDENT TRANSVERSAL GATE`
 
-The canonical Core, Product API, runtime, persistence, and historical-chain proof completed on September 12, 2026. A later uncommitted Application change made the creation form depend on `GET /api/v1/agents`, whose legacy inventory omits canonical Native Core Agents eligible for Workforce composition.
+## Current disposition
 
-VAL-03 now contains a direct browser assertion for that gap. The focused current-worktree run fails before Application creation with `GET /api/v1/agents omitted canonical Workforce-eligible Agent agent-b-val-03`. No production remediation is made by this validation milestone.
+`DOCUMENTATION RECONCILED`
 
-See [acceptance-report.md](acceptance-report.md) for the closure evidence.
+The former `VAL-03-DEFECT-003` application mismatch was resolved and accepted by
+`ACS-BLOCKER-020`. `ACS-V2-IMP-03F-FIX-03` is also recorded as
+`COMPLETE / ACCEPTED`, and `ACS-V2-IMP-03F` is accepted as the Workforce
+Application Domain & Experience increment.
+
+VAL-03 remains an independently governed transversal acceptance gate. This
+documentation update reconciles its evidence and removes the obsolete active
+failure classification; it does not silently declare VAL-03 or the Workforce v1
+contract formally closed.
+
+See [acceptance-report.md](acceptance-report.md) for the reconciled evidence and
+the remaining closure boundary.

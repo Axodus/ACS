@@ -13,6 +13,6 @@
 9. Reassign Run A Task to generation 2; stale generation compilation is rejected; compile and create Attempt B.
 10. Archive Workforce to r5 and reject archived → active with accepted HTTP 400 typed validation error.
 11. Recompose the shared host and verify all Product API projections plus recovery views.
-12. The prior Application proof created another draft Workforce and validated contextual routes, reload, lifecycle controls, and Run history. The current Agent selector fails before creation because its Product API inventory omits the canonical Agent.
+12. The integrated Application proof creates a draft Workforce and validates contextual routes, reload, lifecycle controls, Run history, and canonical Agent selection. `ACS-BLOCKER-020` supplies the aligned Native Core inventory used by the Product API.
 
 Direct SQL is limited to schema lifecycle (`CREATE SCHEMA` / `DROP SCHEMA`).

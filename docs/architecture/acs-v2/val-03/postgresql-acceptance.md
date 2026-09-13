@@ -9,6 +9,11 @@
 | Configuration | `ACS_STATE_BACKEND=shared`; `ACS_SH_DATABASE_URL` from `.env.local`, credential redacted |
 | Schema strategy | fresh `val03_<timestamp>_<pid>` schema per scenario, dropped in `finally` |
 
-The canonical endpoint is `127.0.0.1:55433`, not `5433`. The Core/PostgreSQL baseline passed 732 / 732 with 0 skips in 117498.785661 ms before the current Application selector change. The current repository run is 731 / 732, with the sole failure `VAL-03-DEFECT-003`; PostgreSQL durability is not the failing boundary.
+The canonical endpoint is `127.0.0.1:55433`, not `5433`. The historical
+host-capable baseline recorded 732 / 732 with 0 skips before the
+`ACS-BLOCKER-020` application boundary remediation. The blocker then recorded
+the canonical Agent inventory correction and its integrated regression evidence.
+The former `VAL-03-DEFECT-003` failure was an Application/Product API boundary
+issue, not a PostgreSQL durability failure, and is now resolved.
 
 No migration was required. Workforce-scoped Run reads retain the existing `acs_native_runs_workforce_idx` relationship index.

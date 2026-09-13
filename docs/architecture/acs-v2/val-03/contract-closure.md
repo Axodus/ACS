@@ -16,9 +16,12 @@
 | Events, outbox, and idempotency | PASS |
 | PostgreSQL reload and process recomposition | PASS |
 | Product API | PASS |
-| Application | PARTIAL: current Create Workforce selector cannot select canonical Native Core Agents |
+| Application | ACCEPTED for IMP-03F: canonical Agent discovery, creation flow, contextual navigation, revisions, lifecycle, Runs, and Operations |
 | Tenant, authority, and secret boundary | PASS through VAL-03 plus accepted focused coverage |
 | Provider, Eigent, and CAMEL neutrality | PASS |
 | Migration and persistence topology | PASS: no change required |
 
-The Application creation path remains unresolved in the current worktree. Workforce v1 cannot be formally closed until CTO accepts a bounded remediation for VAL-03-DEFECT-003.
+The former Application creation mismatch was resolved by `ACS-BLOCKER-020` and
+accepted together with `ACS-V2-IMP-03F-FIX-03`. VAL-03 remains an independent
+transversal gate; this matrix records the reconciled evidence and does not by
+itself declare the full Workforce v1 contract formally closed.
