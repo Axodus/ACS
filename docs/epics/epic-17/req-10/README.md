@@ -1,7 +1,8 @@
 # EPIC-17-REQ-10 — Product API, Administration & Control Plane Projection
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `75758a752bb8ab04f1402bcd7ce9039fb623a673`
 **Baseline:** `8e5c60977affa299b864a42d831e79ef4339ab2a`
 **Dependencies:** `REQ-02` through `REQ-09 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -66,7 +67,7 @@ precedence/attenuation rule and historical source.
 - production, migration, IMP or rollout authority.
 
 ```text
-REQ-10: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-11: BLOCKED_BY_REQ-10_ACCEPTANCE
+REQ-10: COMPLETE / ACCEPTED
+REQ-11: READY / GO
 Implementation authority: NONE
 ```

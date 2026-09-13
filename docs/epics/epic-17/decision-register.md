@@ -11,7 +11,8 @@
 **REQ-07:** `COMPLETE / ACCEPTED`
 **REQ-08:** `COMPLETE / ACCEPTED`
 **REQ-09:** `COMPLETE / ACCEPTED`
-**REQ-10:** `COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-10:** `COMPLETE / ACCEPTED`
+**REQ-11:** `COMPLETE / READY FOR CTO ACCEPTANCE`
 
 ## 1. Frozen decisions
 
@@ -24,7 +25,7 @@
 | E17-BR-D05 | Automation aggregate identity/revision is a REQ decision. | `RESERVED_FOR_REQ` |
 | E17-BR-D06 | Delegation relates canonical Agents; no distinct `SubAgent` identity exists. | `FROZEN` |
 | E17-BR-D07 | Delegation representation and revision ownership are REQ decisions. | `RESERVED_FOR_REQ` |
-| E17-BR-D08 | Global Settings is a capability gap; Administration/Control Plane configuration is the owner hypothesis to test. | `RESERVED_FOR_REQ` |
+| E17-BR-D08 | Global Settings is a class-owned Administration/Product API index; it is not a transversal core or universal override authority. | `ACCEPTED` |
 | E17-BR-D09 | Configuration precedence is determined by class and lower layers cannot escalate authority. | `FROZEN` |
 | E17-BR-D10 | Genome traits are descriptive references without operational or economic authority. | `FROZEN` |
 | E17-BR-D11 | `NEW` authorizes consideration only, never implementation. | `FROZEN` |
@@ -63,10 +64,12 @@ Delegation boundary is recorded in [REQ-07 Decision Record](req-07/decision-reco
 REQ-08's accepted Automation boundary is recorded in
 [REQ-08 Decision Record](req-08/decision-record.md). REQ-09's accepted
 Activation/runtime-admission boundary is recorded in
-[REQ-09 Decision Record](req-09/decision-record.md). REQ-10's proposed Product
+[REQ-09 Decision Record](req-09/decision-record.md). REQ-10's accepted Product
 API, Administration, Global Settings and Control Plane boundary is recorded in
-[REQ-10 Decision Record](req-10/decision-record.md). All associated contract
-deltas and ADRs remain candidates.
+[REQ-10 Decision Record](req-10/decision-record.md). REQ-11's proposed Genome
+trait, presentation asset, verification and performance-view boundary is
+recorded in [REQ-11 Decision Record](req-11/decision-record.md). All associated
+contract deltas and ADRs remain candidates.
 
 ## 3. Candidate ADRs
 
@@ -79,7 +82,6 @@ The REQ decomposition should decide whether these ADRs are required:
 - governed resource catalog persistence and history;
 - Connector versus provider/tool/MCP/connection boundary (`ADR-17-016` through
   `ADR-17-019`, accepted as candidates by REQ-05);
-- Global Settings ownership;
 - Memory policy/store ownership, scopes, deletion and provider independence
   (`ADR-17-020` through `ADR-17-024`, accepted as candidates by REQ-06);
 - delegation relationship and authority attenuation (`ADR-17-025` through
@@ -91,7 +93,10 @@ The REQ decomposition should decide whether these ADRs are required:
   candidates by REQ-09);
 - Product API projections, owner-routed commands, class-owned Global Settings,
   Control Plane IA, history and Tenant-safe administration (`ADR-17-043`
-  through `ADR-17-051`, proposed by REQ-10);
+  through `ADR-17-051`, accepted as candidates by REQ-10);
+- minimal Genome classification, trait assertions, presentation assets,
+  verification, derived performance and Tenant-safe history (`ADR-17-052`
+  through `ADR-17-059`, proposed by REQ-11);
 - class-specific resolver and immutable snapshot (`ADR-17-007` through `ADR-17-010`, proposed by REQ-03);
 - Genome trait vocabulary and provenance mapping.
 
@@ -136,6 +141,6 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 [Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
-`REQ-01` through `REQ-09` are accepted. `REQ-10` is complete and awaits CTO
-acceptance; `REQ-11` remains dependency-gated. Implementation authority remains
+`REQ-01` through `REQ-10` are accepted. `REQ-11` is complete and awaits CTO
+acceptance; `REQ-12` remains dependency-gated. Implementation authority remains
 `NONE`.

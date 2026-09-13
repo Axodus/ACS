@@ -28,8 +28,8 @@ override this package or supply presumed architecture.
 | `EPIC-17-REQ-07` | Delegation & Agent-to-Agent Authority Boundary | `REQ-01`, `REQ-03`, `REQ-04`, `REQ-05`, `REQ-06` | `COMPLETE / ACCEPTED` |
 | `EPIC-17-REQ-08` | Automation Domain Identity & Revision Boundary | `REQ-01`, `REQ-03`, `REQ-04`, `REQ-07` | `COMPLETE / ACCEPTED` |
 | `EPIC-17-REQ-09` | Activation, Trigger, Schedule & Runtime Admission Boundary | `REQ-03`, `REQ-07`, `REQ-08` | `COMPLETE / ACCEPTED` |
-| `EPIC-17-REQ-10` | Product API, Administration & Control Plane Projection | `REQ-02` through `REQ-09` | `COMPLETE / READY FOR CTO ACCEPTANCE` |
-| `EPIC-17-REQ-11` | Genome Traits, Presentation Assets & Verification Semantics | `REQ-01` through `REQ-04`, `REQ-10` | `PLANNED` |
+| `EPIC-17-REQ-10` | Product API, Administration & Control Plane Projection | `REQ-02` through `REQ-09` | `COMPLETE / ACCEPTED` |
+| `EPIC-17-REQ-11` | Genome Traits, Presentation Assets & Verification Semantics | `REQ-01` through `REQ-04`, `REQ-10` | `COMPLETE / READY FOR CTO ACCEPTANCE` |
 | `EPIC-17-REQ-12` | Cross-Domain Conformance, Closure & IMP Readiness Plan | `REQ-01` through `REQ-11` accepted or explicitly blocked/deferred | `PLANNED` |
 
 ## 3. Normative charters

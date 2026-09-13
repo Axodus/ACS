@@ -193,3 +193,16 @@ OpenClaw remains a replaceable adapter. Its thirteen blockers, fourteen
 contract deltas and eight ADRs remain planning inputs. No incompatible Runtime
 or Workforce change was required. Acceptance authorized REQ-10 documentation
 only; implementation and migration authority remain `NONE`.
+
+## Accepted REQ-10 gate
+
+The CTO accepted `EPIC-17-REQ-10` at commit
+`75758a752bb8ab04f1402bcd7ce9039fb623a673`. Product API remains the single
+application boundary; Administration composes owner-routed flows and actions;
+and Control Plane presents `Flow -> Module -> Screen` without owning canonical
+state. Global Settings is a class-owned index rather than a transversal core or
+universal override layer. Historical projections remain exact, Tenant-scoped
+and redacted. Its fifteen blockers, seventeen contract deltas and nine ADRs
+remain planning inputs. The existing Administration IA divergence remains open
+for REQ-12 classification. Acceptance authorized REQ-11 documentation only;
+implementation and migration authority remain `NONE`.

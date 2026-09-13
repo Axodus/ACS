@@ -37,8 +37,8 @@ Before any corresponding IMP can be authorized, it must prove:
 ## Gate result
 
 ```text
-REQ-10: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-11: BLOCKED_BY_REQ-10_ACCEPTANCE
+REQ-10: COMPLETE / ACCEPTED
+REQ-11: READY / GO
 
 Implementation authority: NONE
 Migration authority: NONE
