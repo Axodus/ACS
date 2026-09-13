@@ -29,12 +29,26 @@ export type EffectiveConfigurationClass =
 export type EffectiveConfigurationStatus = "resolved" | "not_applicable" | "unavailable";
 
 export interface GovernedResourceObservationV1 {
-  readonly kind: "skill" | "tool" | "capability" | "legacy_capability_requirement_preset";
+  readonly kind: "skill" | "tool" | "capability" | "legacy_capability_requirement_preset" | "provider_model";
   readonly resource_id: string;
   readonly revision: number;
   readonly observed_at: number;
   readonly content: Readonly<Record<string, unknown>>;
   readonly content_fingerprint: string;
+}
+
+export type EffectiveConfigurationDecision = "selected" | "attenuated" | "rejected" | "unavailable" | "not_applicable";
+
+export interface EffectiveConfigurationDecisionProvenanceV1 {
+  readonly decision: EffectiveConfigurationDecision;
+  readonly considered_refs: readonly EntityRef[];
+  readonly selected_refs: readonly EntityRef[];
+  readonly authority_refs: readonly EntityRef[];
+  readonly attenuated_refs: readonly EntityRef[];
+  readonly rejected_refs: readonly EntityRef[];
+  readonly unavailable_refs: readonly EntityRef[];
+  readonly reason_code: string;
+  readonly observation_fingerprints: readonly string[];
 }
 
 export interface EffectiveConfigurationClassResolutionV1 {
@@ -45,6 +59,7 @@ export interface EffectiveConfigurationClassResolutionV1 {
   readonly source_revision_refs: readonly RevisionRef[];
   readonly resolved_refs: readonly EntityRef[];
   readonly resolved_revision_refs: readonly RevisionRef[];
+  readonly provenance: EffectiveConfigurationDecisionProvenanceV1;
 }
 
 export interface EffectiveConfigurationSnapshotV1 {
@@ -98,6 +113,7 @@ function inputMaterial(snapshot: EffectiveConfigurationSnapshotV1): unknown {
       status: entry.status,
       source_refs: entry.source_refs,
       source_revision_refs: entry.source_revision_refs,
+      provenance: entry.provenance,
     })),
   };
 }
@@ -129,6 +145,15 @@ function validateHistoricalResourceCoverage(snapshot: Partial<EffectiveConfigura
         issues.push(issue(`classes.skill_tool_binding.resolved_revision_refs[${index}]`, "HISTORICAL_OBSERVATION_MISSING", "A resolved Skill or Tool binding needs immutable admission evidence"));
       }
     });
+  }
+  const model = snapshot.classes.find((entry) => entry?.configuration_class === "model_preference");
+  if (model?.status === "resolved" && Array.isArray(model.provenance?.selected_refs)) {
+    const providerIds = model.provenance.selected_refs.filter((ref: EntityRef) => ref?.kind === "provider").map((ref: EntityRef) => ref.id);
+    const modelIds = model.provenance.selected_refs.filter((ref: EntityRef) => ref?.kind === "model").map((ref: EntityRef) => ref.id);
+    if (providerIds.length > 0 && modelIds.length > 0) {
+      const hasExactPair = providerIds.some((providerId: string) => modelIds.some((modelId: string) => snapshot.resource_observations!.some((observation) => observation.kind === "provider_model" && observation.resource_id === `${providerId}/${modelId}`)));
+      if (!hasExactPair) issues.push(issue("classes.model_preference.provenance", "HISTORICAL_OBSERVATION_MISSING", "A resolved provider/model selection needs exact immutable admission evidence"));
+    }
   }
 }
 
@@ -175,6 +200,22 @@ export function validateEffectiveConfigurationSnapshotV1(value: unknown): Effect
       validateRefList(entry.source_revision_refs, `${path}.source_revision_refs`, validateRevisionRef, issues);
       validateRefList(entry.resolved_refs, `${path}.resolved_refs`, validateEntityRef, issues);
       validateRefList(entry.resolved_revision_refs, `${path}.resolved_revision_refs`, validateRevisionRef, issues);
+      const provenance = entry.provenance;
+      if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) issues.push(issue(`${path}.provenance`, "INVALID_OBJECT", "A provenance object is required"));
+      else {
+        if (!["selected", "attenuated", "rejected", "unavailable", "not_applicable"].includes(provenance.decision)) issues.push(issue(`${path}.provenance.decision`, "INVALID_ENUM", "Unsupported provenance decision"));
+        for (const key of ["considered_refs", "selected_refs", "authority_refs", "attenuated_refs", "rejected_refs", "unavailable_refs", "observation_fingerprints"] as const) {
+          if (!Array.isArray(provenance[key])) issues.push(issue(`${path}.provenance.${key}`, "INVALID_LIST", "An array is required"));
+        }
+        validateRefList(provenance.considered_refs, `${path}.provenance.considered_refs`, validateEntityRef, issues);
+        validateRefList(provenance.selected_refs, `${path}.provenance.selected_refs`, validateEntityRef, issues);
+        validateRefList(provenance.authority_refs, `${path}.provenance.authority_refs`, validateEntityRef, issues);
+        validateRefList(provenance.attenuated_refs, `${path}.provenance.attenuated_refs`, validateEntityRef, issues);
+        validateRefList(provenance.rejected_refs, `${path}.provenance.rejected_refs`, validateEntityRef, issues);
+        validateRefList(provenance.unavailable_refs, `${path}.provenance.unavailable_refs`, validateEntityRef, issues);
+        (provenance.observation_fingerprints ?? []).forEach((fingerprint: unknown, fingerprintIndex: number) => requireSha256(fingerprint, `${path}.provenance.observation_fingerprints[${fingerprintIndex}]`, issues));
+        requireString(provenance.reason_code, `${path}.provenance.reason_code`, issues);
+      }
     });
     for (const configurationClass of CLASSES) if (!seen.has(configurationClass)) issues.push(issue("classes", "MISSING_CLASS", `Missing ${configurationClass}`));
   }
@@ -201,11 +242,19 @@ export function validateGovernedResourceObservationV1(value: unknown): GovernedR
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new NativeContractValidationError("invalid governed resource observation", [issue("$", "INVALID_OBJECT", "An object is required")]);
   const observation = value as Partial<GovernedResourceObservationV1>;
   const issues: ValidationIssue[] = [];
-  if (!["skill", "tool", "capability", "legacy_capability_requirement_preset"].includes(observation.kind ?? "")) issues.push(issue("kind", "INVALID_ENUM", "Unsupported governed resource observation kind"));
+  if (!["skill", "tool", "capability", "legacy_capability_requirement_preset", "provider_model"].includes(observation.kind ?? "")) issues.push(issue("kind", "INVALID_ENUM", "Unsupported governed resource observation kind"));
   requireString(observation.resource_id, "resource_id", issues);
   requireSafeInteger(observation.revision, "revision", issues, 1);
   requireSafeInteger(observation.observed_at, "observed_at", issues, 0);
   if (!observation.content || typeof observation.content !== "object" || Array.isArray(observation.content)) issues.push(issue("content", "INVALID_OBJECT", "An object is required"));
+  if (observation.kind === "provider_model" && observation.content && typeof observation.content === "object" && !Array.isArray(observation.content)) {
+    const content = observation.content as Record<string, unknown>;
+    requireString(content.provider_id, "content.provider_id", issues);
+    requireString(content.model_id, "content.model_id", issues);
+    if (!["available", "preview", "deprecated", "unavailable"].includes(String(content.availability))) issues.push(issue("content.availability", "INVALID_ENUM", "Unsupported provider/model availability"));
+    if (content.authority_grant !== false) issues.push(issue("content.authority_grant", "AUTHORITY_FORBIDDEN", "Provider/model observations cannot grant authority"));
+    if (typeof observation.resource_id === "string" && typeof content.provider_id === "string" && typeof content.model_id === "string" && observation.resource_id !== `${content.provider_id}/${content.model_id}`) issues.push(issue("resource_id", "RESOURCE_ID_MISMATCH", "Provider/model resource_id must be provider_id/model_id"));
+  }
   requireSha256(observation.content_fingerprint, "content_fingerprint", issues);
   assertNoSecretMaterial(value);
   if (!issues.length && observation.content_fingerprint !== sha256Hex(stableStringify({ kind: observation.kind, resource_id: observation.resource_id, revision: observation.revision, content: observation.content }))) issues.push(issue("content_fingerprint", "FINGERPRINT_MISMATCH", "Observation fingerprint does not match immutable resource content"));
@@ -217,8 +266,19 @@ export function createGovernedResourceObservationV1(input: Omit<GovernedResource
   return freezeNative(validateGovernedResourceObservationV1({ ...input, content_fingerprint }));
 }
 
-function resolution(configuration_class: EffectiveConfigurationClass, rule: string, status: EffectiveConfigurationStatus, source_refs: readonly EntityRef[] = [], source_revision_refs: readonly RevisionRef[] = [], resolved_refs: readonly EntityRef[] = [], resolved_revision_refs: readonly RevisionRef[] = []): EffectiveConfigurationClassResolutionV1 {
-  return { configuration_class, rule, status, source_refs, source_revision_refs, resolved_refs, resolved_revision_refs };
+function resolution(configuration_class: EffectiveConfigurationClass, rule: string, status: EffectiveConfigurationStatus, source_refs: readonly EntityRef[] = [], source_revision_refs: readonly RevisionRef[] = [], resolved_refs: readonly EntityRef[] = [], resolved_revision_refs: readonly RevisionRef[] = [], options: { readonly authority_refs?: readonly EntityRef[]; readonly attenuated_refs?: readonly EntityRef[]; readonly rejected_refs?: readonly EntityRef[]; readonly unavailable_refs?: readonly EntityRef[]; readonly observation_fingerprints?: readonly string[]; readonly reason_code?: string } = {}): EffectiveConfigurationClassResolutionV1 {
+  const decision: EffectiveConfigurationDecision = status === "resolved" ? (options.attenuated_refs?.length ? "attenuated" : "selected") : status === "unavailable" ? "unavailable" : "not_applicable";
+  return { configuration_class, rule, status, source_refs, source_revision_refs, resolved_refs, resolved_revision_refs, provenance: {
+    decision,
+    considered_refs: source_refs,
+    selected_refs: resolved_refs,
+    authority_refs: options.authority_refs ?? [],
+    attenuated_refs: options.attenuated_refs ?? [],
+    rejected_refs: options.rejected_refs ?? [],
+    unavailable_refs: options.unavailable_refs ?? (status === "unavailable" ? source_refs : []),
+    reason_code: options.reason_code ?? (status === "resolved" ? (decision === "attenuated" ? "attenuated_by_policy" : "selected") : status === "unavailable" ? "historical_observation_unavailable" : "projection_only"),
+    observation_fingerprints: options.observation_fingerprints ?? [],
+  } };
 }
 
 function hasObservation(observations: readonly GovernedResourceObservationV1[], kind: GovernedResourceObservationV1["kind"], resourceId: string, revision?: number): boolean {
@@ -238,30 +298,37 @@ export function createAgentEffectiveConfigurationSnapshotV1(input: {
   readonly workforce_revision_ref: RevisionRef;
   readonly resolved_at: number;
   readonly resource_observations?: readonly GovernedResourceObservationV1[];
+  readonly provider_model_observations?: readonly GovernedResourceObservationV1[];
   readonly predecessor_snapshot_id?: string;
 }): EffectiveConfigurationSnapshotV1 {
   const revision = input.agent_revision;
   const policyRefs = [revision.governance.permission_policy_ref, revision.governance.approval_policy_ref];
   const observations = input.resource_observations ?? [];
+  const modelObservations = input.provider_model_observations ?? observations.filter((observation) => observation.kind === "provider_model");
+  const modelRefs = revision.runtime_preferences.provider_routes.concat(revision.runtime_preferences.model_requirements);
+  const providerIds = revision.runtime_preferences.provider_routes.map((ref) => ref.id);
+  const modelIds = revision.runtime_preferences.model_requirements.map((ref) => ref.id);
+  const modelHistoryAvailable = modelRefs.length === 0 || (providerIds.length > 0 && modelIds.length > 0 && modelObservations.some((observation) => providerIds.some((providerId) => modelIds.some((modelId) => observation.resource_id === `${providerId}/${modelId}`))));
+  const modelObservationFingerprints = modelObservations.filter((observation) => providerIds.some((providerId) => modelIds.some((modelId) => observation.resource_id === `${providerId}/${modelId}`))).map((observation) => observation.content_fingerprint);
   const capabilityHistoryAvailable = revision.capability_requirements.every((requirement) => hasObservation(observations, "capability", requirement.id, requirement.revision));
   const resourceHistoryAvailable = revision.resources.skill_refs.every((resource) => hasObservation(observations, "skill", resource.entity_id, resource.revision))
     && revision.resources.tool_refs.every((resource) => hasObservation(observations, "tool", resource.entity_id, resource.revision));
   return createEffectiveConfigurationSnapshotV1({
     snapshot_id: input.snapshot_id, run_id: input.run_id, task_id: input.task_id, assignment_id: input.assignment_id,
-    assignment_generation: input.assignment_generation, scope: input.scope, agent_revision_ref: revision.ref, workforce_revision_ref: input.workforce_revision_ref, resource_observations: observations,
+    assignment_generation: input.assignment_generation, scope: input.scope, agent_revision_ref: revision.ref, workforce_revision_ref: input.workforce_revision_ref, resource_observations: [...observations, ...modelObservations.filter((observation) => !observations.some((existing) => existing.kind === observation.kind && existing.resource_id === observation.resource_id && existing.revision === observation.revision))],
     resolved_at: input.resolved_at, ...(input.predecessor_snapshot_id ? { predecessor_snapshot_id: input.predecessor_snapshot_id } : {}),
     classes: [
       resolution("presentation", "projection_only", "not_applicable", [], [revision.ref]),
-      resolution("model_preference", "eligible_selection", "unavailable", revision.runtime_preferences.provider_routes.concat(revision.runtime_preferences.model_requirements), [revision.ref]),
-      resolution("capability_requirements", "requirements_union", capabilityHistoryAvailable ? "resolved" : "unavailable", revision.capability_requirements, [revision.ref], capabilityHistoryAvailable ? revision.capability_requirements : []),
-      resolution("skill_tool_binding", "bound_resource_subset", resourceHistoryAvailable ? "resolved" : "unavailable", [], [revision.ref, ...revision.resources.skill_refs, ...revision.resources.tool_refs], [], resourceHistoryAvailable ? [...revision.resources.skill_refs, ...revision.resources.tool_refs] : []),
+      resolution("model_preference", "eligible_selection", modelHistoryAvailable ? "resolved" : "unavailable", modelRefs, [revision.ref], modelHistoryAvailable ? modelRefs : [], [], { observation_fingerprints: modelObservationFingerprints, reason_code: modelHistoryAvailable ? "provider_model_observation" : "provider_model_observation_unavailable" }),
+      resolution("capability_requirements", "requirements_union", capabilityHistoryAvailable ? "resolved" : "unavailable", revision.capability_requirements, [revision.ref], capabilityHistoryAvailable ? revision.capability_requirements : [], [], { authority_refs: revision.governance.authority_refs, observation_fingerprints: observations.filter((observation) => observation.kind === "capability").map((observation) => observation.content_fingerprint) }),
+      resolution("skill_tool_binding", "bound_resource_subset", resourceHistoryAvailable ? "resolved" : "unavailable", [], [revision.ref, ...revision.resources.skill_refs, ...revision.resources.tool_refs], [], resourceHistoryAvailable ? [...revision.resources.skill_refs, ...revision.resources.tool_refs] : [], { observation_fingerprints: observations.filter((observation) => observation.kind === "skill" || observation.kind === "tool").map((observation) => observation.content_fingerprint) }),
       resolution("credential_binding", "opaque_authorized_selection", "not_applicable", [], [revision.ref]),
-      resolution("security_constraints", "strictest_constraint", "resolved", revision.constraints.concat(revision.governance.authority_refs), [revision.ref], revision.constraints),
-      resolution("governance_policies", "policy_kind_semantics", "resolved", revision.governance.authority_refs, [revision.ref, ...policyRefs], revision.governance.authority_refs, policyRefs),
+      resolution("security_constraints", "strictest_constraint", "resolved", revision.constraints.concat(revision.governance.authority_refs), [revision.ref], revision.constraints, [], { authority_refs: revision.governance.authority_refs }),
+      resolution("governance_policies", "policy_kind_semantics", "resolved", revision.governance.authority_refs, [revision.ref, ...policyRefs], revision.governance.authority_refs, policyRefs, { authority_refs: revision.governance.authority_refs }),
       resolution("runtime_constraints", "eligible_selection", "resolved", revision.runtime_preferences.harness_preferences.concat(revision.runtime_preferences.executor_preferences), [revision.ref], revision.runtime_preferences.harness_preferences.concat(revision.runtime_preferences.executor_preferences)),
       resolution("memory_policy", "owner_required", "unavailable", [], [revision.ref, revision.knowledge.memory_policy_ref]),
       resolution("evidence_policy", "mandatory_accumulation", "resolved", revision.evidence.evaluation_refs, [revision.ref, revision.evidence.audit_policy_ref], revision.evidence.evaluation_refs, [revision.evidence.audit_policy_ref]),
-      resolution("cost_budget", "attenuating_budget", "resolved", [], [revision.ref, revision.economics.cost_policy_ref, revision.economics.budget_policy_ref].concat(revision.economics.settlement_policy_ref ? [revision.economics.settlement_policy_ref] : []), [], [revision.economics.cost_policy_ref, revision.economics.budget_policy_ref].concat(revision.economics.settlement_policy_ref ? [revision.economics.settlement_policy_ref] : [])),
+      resolution("cost_budget", "attenuating_budget", "resolved", [], [revision.ref, revision.economics.cost_policy_ref, revision.economics.budget_policy_ref].concat(revision.economics.settlement_policy_ref ? [revision.economics.settlement_policy_ref] : []), [], [revision.economics.cost_policy_ref, revision.economics.budget_policy_ref].concat(revision.economics.settlement_policy_ref ? [revision.economics.settlement_policy_ref] : []), { reason_code: "budget_attenuation" }),
     ],
   });
 }

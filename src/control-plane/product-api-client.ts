@@ -86,6 +86,7 @@ import type { EconomicAuthorizationDecisionCode } from "./neurons-economic-contr
 import { createCanonicalModelId } from "../intelligence/model-provider.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
 import type { AsyncNativeCoreRepository } from "./shared-state/native-core-durable.js";
+import type { RuntimeExecutionIntentV2 } from "../native-core/runtime-compilation.js";
 import type { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
 import type { SecretStore } from "../intelligence/secret-store.js";
 import type { EngineService } from "../engines/engine-service.js";
@@ -1650,6 +1651,14 @@ export class ProductApiClient {
     }
     const checkedAt = Date.now();
     return this.#agentService.list().map((revision) => this.#listItem(revision, checkedAt));
+  }
+
+  async getExecutionIntent(intentId: string): Promise<RuntimeExecutionIntentV2 | undefined> {
+    return this.#nativeCore?.getExecutionIntent(intentId);
+  }
+
+  async listExecutionIntents(runId: string, taskId?: string): Promise<readonly RuntimeExecutionIntentV2[]> {
+    return this.#nativeCore?.listExecutionIntents(runId, taskId) ?? [];
   }
 
   async getAgent(id: string): Promise<AgentDetail | undefined> {

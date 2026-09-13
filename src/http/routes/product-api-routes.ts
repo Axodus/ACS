@@ -1431,6 +1431,27 @@ export async function routeProductApiRequest(
       const runs = await api.listExecutionRunSummaries();
       return { status: 200, body: ok(runs, [], options.correlationId, routeMeta) };
     }
+    // Effective configuration is exposed as a read-only projection of the admitted intent.
+    if (segments[2] === "execution-intents" && segments[3] && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const intentId = readPathSegment(segments, 3, "intentId");
+      const intent = await api.getExecutionIntent(intentId);
+      if (!intent || intent.effective_configuration_snapshot?.scope.tenant_id !== context.isolation.scope.tenantId) {
+        return fail(`execution intent not found: ${intentId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      }
+      if (!intent.effective_configuration_snapshot) {
+        return fail("effective configuration snapshot is unavailable for this execution intent", 409, "effective_configuration_unavailable", options.correlationId, { intentId }, routeMeta, "historical_snapshot_unavailable", { retryable: false, severity: "warning" });
+      }
+      return { status: 200, body: ok({ intentId: intent.intent_id, snapshot: intent.effective_configuration_snapshot, provenance: intent.provenance }, [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "execution-runs" && segments[3] && segments[4] === "effective-configuration" && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const runId = readPathSegment(segments, 3, "runId");
+      const intents = (await api.listExecutionIntents(runId)).filter((intent) => intent.effective_configuration_snapshot?.scope.tenant_id === context.isolation.scope.tenantId);
+      if (intents.length === 0) return fail(`execution run configuration history not found: ${runId}`, 404, "not_found", options.correlationId, undefined, routeMeta);
+      const snapshots = intents.map((intent) => ({ intentId: intent.intent_id, compiledAt: intent.compiled_at, snapshot: intent.effective_configuration_snapshot, provenance: intent.provenance }));
+      return { status: 200, body: ok(snapshots, [], options.correlationId, routeMeta) };
+    }
     if (segments[2] === "execution-runs" && segments.length === 4 && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       const runId = readPathSegment(segments, 3, "runId");

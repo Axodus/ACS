@@ -1,12 +1,16 @@
 # EPIC-17-IMP-02 — Closure Audit
 
+> Historical pre-Slice 3 audit. This record is superseded by
+> [imp-02-final-closure-audit.md](imp-02-final-closure-audit.md), which records
+> the authorized Slice 3 implementation and current closure recommendation.
+
 ## STATUS
 
-`PARTIAL / NOT READY FOR CLOSURE`
+`SUPERSEDED / HISTORICAL GAP RECORD`
 
-Slice 1 and Slice 2 are `COMPLETE / CTO ACCEPTED`. The audit confirms the
-accepted implementation boundary and identifies remaining charter gaps. No
-functional Slice 3 was implemented by this audit.
+Slice 1 and Slice 2 are `COMPLETE / CTO ACCEPTED`. This audit confirms the
+accepted implementation boundary and records the gaps that preceded Slice 3.
+It does not represent the current milestone status.
 
 **Audit date:** 2026-09-13  
 **Baseline commit:** `fd3a02e7e33638c7c814c9360bc251ca90ec16a3`  
@@ -139,8 +143,8 @@ own implementation boundaries.
 
 ## Exact gap defining the next slice
 
-The audit does not authorize a Slice 3. If the CTO opens one, its minimum
-boundary is:
+The audit did not authorize a Slice 3 at the time it was written. The CTO later
+authorized the following minimum boundary, now covered by the final audit:
 
 1. Product API source-faithful effective snapshot/history projection, Tenant
    filtering and typed unavailable/incomplete-source errors;
@@ -161,8 +165,8 @@ EPIC-17-IMP-02
 Slice 1: COMPLETE / CTO ACCEPTED
 Slice 2: COMPLETE / CTO ACCEPTED
 Resource-history closure: COMPLETE / CTO ACCEPTED
-Milestone: PARTIAL / NOT READY FOR CLOSURE
-Closure audit: COMPLETE / GAPS IDENTIFIED
+Milestone: PARTIAL / GAPS IDENTIFIED (historical status)
+Closure audit: SUPERSEDED BY FINAL CLOSURE AUDIT
 Migration: NONE
 IMP-03+: NOT AUTHORIZED
 ```

@@ -50,6 +50,7 @@ export interface RuntimeCompilationRequest {
   readonly compiled_at?: number;
   readonly correlation_id?: string;
   readonly resource_observations?: readonly GovernedResourceObservationV1[];
+  readonly provider_model_observations?: readonly GovernedResourceObservationV1[];
 }
 
 export interface RuntimeCompilationResult {
@@ -115,6 +116,17 @@ export function validateRuntimeCompilationRequest(input: RuntimeCompilationReque
         }
       });
     }
+  }
+  if (input.provider_model_observations !== undefined) {
+    if (!Array.isArray(input.provider_model_observations)) issues.push(issue("provider_model_observations", "INVALID_LIST", "An array is required"));
+    else input.provider_model_observations.forEach((observation, index) => {
+      try {
+        const validated = validateGovernedResourceObservationV1(observation);
+        if (validated.kind !== "provider_model") issues.push(issue(`provider_model_observations[${index}].kind`, "INVALID_KIND", "Only provider_model observations are accepted here"));
+      } catch (error) {
+        if (error instanceof NativeContractValidationError) issues.push(...error.issues.map((entry) => ({ ...entry, path: `provider_model_observations[${index}].${entry.path}` })));
+      }
+    });
   }
   try { validateIdempotency(input.idempotency); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   if (issues.length) throw new NativeContractValidationError("invalid runtime compilation request", issues);

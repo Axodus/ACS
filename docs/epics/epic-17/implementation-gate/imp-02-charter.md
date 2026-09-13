@@ -2,7 +2,7 @@
 
 ## STATUS
 
-`PARTIAL / IN PROGRESS`
+`READY FOR CTO CLOSURE`
 
 **Planning/documentation authority:** granted
 **Implementation authority:** granted for IMP-02 only
@@ -13,7 +13,15 @@
 
 **Slice 2 — governed resource-history closure:** `COMPLETE / CTO ACCEPTED`
 
-**Closure audit:** `COMPLETE / GAPS IDENTIFIED`; see [closure audit](imp-02-closure-audit.md).
+**Closure audit:** `COMPLETE / CTO ACCEPTED`; the pre-Slice 3 gap record is
+[archived here](imp-02-closure-audit.md).
+
+**Slice 3 — Resolution Provenance, Product API & Runtime Reconstruction:**
+`IMPLEMENTED / AWAITING CTO CLOSURE`; see [final closure audit](imp-02-final-closure-audit.md).
+
+**MCP:** `DEFERRED BY ARCHITECTURE`; governed definitions remain REQ-04
+semantics, while endpoint/configuration/Connection/Credential implementation
+belongs to the REQ-05 boundary.
 
 ## MISSION
 
@@ -177,15 +185,15 @@ for that execution record and is not treated as blocker closure by this charter.
 
 | ADR | Disposition for IMP-02 |
 | --- | --- |
-| `ADR-17-007` class-specific resolution | REQUIRED BEFORE IMPLEMENTATION |
-| `ADR-17-008` immutable snapshot per admitted generation | REQUIRED BEFORE IMPLEMENTATION |
-| `ADR-17-009` revision/head/lifecycle separation | REQUIRED BEFORE IMPLEMENTATION |
-| `ADR-17-010` reconstruct from snapshot, not current state | REQUIRED BEFORE IMPLEMENTATION |
-| `ADR-17-011` resource exact revision semantics | REQUIRED BEFORE IMPLEMENTATION |
-| `ADR-17-012` capability requirement/support/grant separation | REQUIRED BEFORE IMPLEMENTATION |
-| `ADR-17-013` provider-neutral model identity/dynamic Evidence | REQUIRED DURING IMPLEMENTATION |
-| `ADR-17-014` Tool/Skill/MCP boundaries | REQUIRED BEFORE IMPLEMENTATION |
-| `ADR-17-015` legacy Profile preset disposition | REQUIRED BEFORE IMPLEMENTATION |
+| `ADR-17-007` class-specific resolution | SATISFIED IN SLICE 1/3; final evidence in closure audit |
+| `ADR-17-008` immutable snapshot per admitted generation | SATISFIED IN SLICE 1; final evidence in closure audit |
+| `ADR-17-009` revision/head/lifecycle separation | SATISFIED BY IMP-01; preserved in Slice 3 |
+| `ADR-17-010` reconstruct from snapshot, not current state | SATISFIED IN SLICE 1/2/3; final evidence in closure audit |
+| `ADR-17-011` resource exact revision semantics | SATISFIED IN SLICE 2/3 |
+| `ADR-17-012` capability requirement/support/grant separation | SATISFIED IN SLICE 2/3 |
+| `ADR-17-013` provider-neutral model identity/dynamic Evidence | SATISFIED IN SLICE 3; no Model revision stream |
+| `ADR-17-014` Tool/Skill/MCP boundaries | SATISFIED FOR IMP-02; MCP implementation deferred to REQ-05 |
+| `ADR-17-015` legacy Profile preset disposition | SATISFIED IN SLICE 2/3 |
 
 ## PLANNED IMPLEMENTATION SURFACES
 
@@ -210,9 +218,11 @@ acs_native_events, acs_native_outbox, acs_native_idempotency and existing
 binding/intent/Run evidence storage
 ```
 
-Slice 2 uses the existing `RuntimeExecutionIntentV2` JSON payload to retain
-admission evidence already owned by the immutable intent. It does not add a
-catalog table, resource revision stream, database, service or migration.
+Slices 2 and 3 use the existing `RuntimeExecutionIntentV2` JSON payload to
+retain admission evidence and bounded resolution provenance already owned by
+the immutable intent. Product API exposes a source-faithful read projection;
+it does not become a history or configuration authority. No catalog table,
+resource revision stream, database, service or migration is added.
 
 If the frozen contract proves existing persistence insufficient, stop before
 DDL. Return an exact additive schema delta, table/column/index ownership,
@@ -302,9 +312,8 @@ than rewriting history.
 
 ## DECISIONS REQUIRED FROM CTO
 
-The accepted slices require no migration decision. Closure remains pending the
-gaps recorded in the closure audit: Product API source-faithful projection and
-typed errors, complete decision/availability provenance, explicit recovery/re-
-admission evidence, and final deferral/ownership for provider/model and MCP
-semantics. If any gap requires new persistence, stop at the migration gate and
-return the exact schema delta for CTO authority.
+Slice 3 implementation closes the remaining Product API, provenance,
+provider/model and recovery/re-admission gaps using existing Runtime semantics
+and persistence. MCP endpoint/configuration/Connection/Credential work remains
+deferred by architecture. Final CTO action is to accept or reject the closure
+audit and preserve the MCP deferral; no migration is authorized.

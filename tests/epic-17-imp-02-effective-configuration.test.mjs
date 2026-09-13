@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 const distRoot = process.env.ACS_TEST_DIST_ROOT ?? "../dist";
-const { NativeContractValidationError, CompositionResourceRegistry, CompositionResourceService, createAgentEffectiveConfigurationSnapshotV1, createAgentRevisionV2, reconstructEffectiveConfigurationSnapshotV1, createRuntimeExecutionIntentV2 } = await import(`${distRoot}/index.js`);
+const { NativeContractValidationError, CompositionResourceRegistry, CompositionResourceService, createAgentEffectiveConfigurationSnapshotV1, createAgentRevisionV2, reconstructEffectiveConfigurationSnapshotV1, createRuntimeExecutionIntentV2, createGovernedResourceObservationV1 } = await import(`${distRoot}/index.js`);
+const { ProductApiClient } = await import(`${distRoot}/control-plane/product-api-client.js`);
 const digest = "a".repeat(64);
 const ref = (kind, id) => ({ kind, id });
 const revision = (entity_kind, entity_id, revisionNumber) => ({ entity_kind, entity_id, revision: revisionNumber, fingerprint: digest });
@@ -79,6 +80,34 @@ test("IMP-02 marks resource-dependent classes unavailable without historical evi
   const value = snapshot({ resource_observations: [] });
   assert.equal(value.classes.find((entry) => entry.configuration_class === "capability_requirements").status, "unavailable");
   assert.equal(value.classes.find((entry) => entry.configuration_class === "skill_tool_binding").status, "unavailable");
+});
+
+test("IMP-02 exposes bounded decision provenance and immutable provider/model observations", () => {
+  const providerModel = createGovernedResourceObservationV1({ kind: "provider_model", resource_id: "provider-a/model-a", revision: 1, observed_at: 200, content: { provider_id: "provider-a", model_id: "model-a", availability: "available", authority_grant: false } });
+  const value = snapshot({ provider_model_observations: [providerModel] });
+  const model = value.classes.find((entry) => entry.configuration_class === "model_preference");
+  assert.equal(model.status, "resolved");
+  assert.equal(model.provenance.decision, "selected");
+  assert.deepEqual(model.provenance.selected_refs, [ref("provider", "provider-a"), ref("model", "model-a")]);
+  assert.deepEqual(model.provenance.observation_fingerprints, [providerModel.content_fingerprint]);
+  assert.equal(value.resource_observations.some((entry) => entry.kind === "provider_model"), true);
+  assert.equal(model.provenance.authority_refs.length, 0);
+});
+
+test("IMP-02 fails closed when provider/model historical observation is unavailable", () => {
+  const value = snapshot();
+  const model = value.classes.find((entry) => entry.configuration_class === "model_preference");
+  assert.equal(model.status, "unavailable");
+  assert.equal(model.provenance.decision, "unavailable");
+  assert.equal(model.provenance.reason_code, "provider_model_observation_unavailable");
+});
+
+test("IMP-02 exposes snapshot/history reads through the existing Product API boundary", async () => {
+  const value = snapshot({ provider_model_observations: [createGovernedResourceObservationV1({ kind: "provider_model", resource_id: "provider-a/model-a", revision: 1, observed_at: 200, content: { provider_id: "provider-a", model_id: "model-a", availability: "available", authority_grant: false } })] });
+  const intent = createRuntimeExecutionIntentV2({ intent_id: "intent-api-1", run_id: "run-1", task_id: "task-1", assignment_id: "assignment-1", assignment_generation: 1, member_slot_id: "member-api-1", agent_id: "agent-imp-02", agent_revision_ref: value.agent_revision_ref, workforce_revision_ref: value.workforce_revision_ref, runtime_configuration: {}, effective_configuration_snapshot: value, status: "compiled", compiled_at: 200, provenance: { source: "test" } });
+  const api = new ProductApiClient({ nativeCore: { getExecutionIntent: async () => intent, listExecutionIntents: async () => [intent] } });
+  assert.equal((await api.getExecutionIntent(intent.intent_id)).effective_configuration_snapshot.effective_fingerprint, value.effective_fingerprint);
+  assert.deepEqual((await api.listExecutionIntents(intent.run_id)).map((entry) => entry.intent_id), [intent.intent_id]);
 });
 
 test("IMP-02 records a legacy preset as compatibility evidence without creating authority", () => {
