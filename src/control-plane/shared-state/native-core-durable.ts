@@ -298,8 +298,10 @@ export interface AsyncNativeCoreRepository {
   listAgentDefinitions(input?: { readonly tenantId?: string }): Promise<readonly AgentDefinitionV2[]>;
   advanceIntegrationConnectionLineage(input: NativeIntegrationConnectionLineageCommand): Promise<NativeIntegrationLineageCommandResult<NativeIntegrationConnectionLineage>>;
   getIntegrationConnectionLineage(connectionId: string): Promise<NativeIntegrationConnectionLineage>;
+  listIntegrationConnectionDefinitions(input: { readonly tenantId: string }): Promise<readonly IntegrationConnectionDefinitionV1[]>;
   advanceIntegrationChannelLineage(input: NativeIntegrationChannelLineageCommand): Promise<NativeIntegrationLineageCommandResult<NativeIntegrationChannelLineage>>;
   getIntegrationChannelLineage(channelId: string): Promise<NativeIntegrationChannelLineage>;
+  listIntegrationChannelDefinitions(input: { readonly tenantId: string }): Promise<readonly IntegrationChannelDefinitionV1[]>;
   recordAuthenticatedIntegrationIngress(input: NativeAuthenticatedIntegrationIngressCommand): Promise<NativeAuthenticatedIntegrationIngressResult>;
   advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult>;
   getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage>;
@@ -840,6 +842,11 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     return { definition, revisions: history };
   }
 
+  async listIntegrationConnectionDefinitions(input: { readonly tenantId: string }): Promise<readonly IntegrationConnectionDefinitionV1[]> {
+    const result = await query<PayloadRow>(this.db, "list integration Connection definitions", "SELECT payload FROM acs_integration_connections WHERE tenant_id=$1 ORDER BY connection_id", [input.tenantId]);
+    return result.rows.map((row) => validateIntegrationConnectionDefinitionV1(decode(row.payload)));
+  }
+
   async advanceIntegrationChannelLineage(input: NativeIntegrationChannelLineageCommand): Promise<NativeIntegrationLineageCommandResult<NativeIntegrationChannelLineage>> {
     const definition = validateIntegrationChannelDefinitionV1(input.definition);
     const revision = validateIntegrationChannelRevisionV1(input.revision);
@@ -892,6 +899,11 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       if (revision.ref.entity_id !== channelId || revision.ref.revision !== index + 1 || (index === 0 ? revision.supersedes_revision !== undefined : revision.supersedes_revision !== index)) throw new NativeIntegrationLineageIntegrityError(channelId, "revision history is not contiguous");
     });
     return { definition, revisions: history };
+  }
+
+  async listIntegrationChannelDefinitions(input: { readonly tenantId: string }): Promise<readonly IntegrationChannelDefinitionV1[]> {
+    const result = await query<PayloadRow>(this.db, "list integration Channel definitions", "SELECT payload FROM acs_integration_channels WHERE tenant_id=$1 ORDER BY channel_id", [input.tenantId]);
+    return result.rows.map((row) => validateIntegrationChannelDefinitionV1(decode(row.payload)));
   }
 
   async recordAuthenticatedIntegrationIngress(input: NativeAuthenticatedIntegrationIngressCommand): Promise<NativeAuthenticatedIntegrationIngressResult> {

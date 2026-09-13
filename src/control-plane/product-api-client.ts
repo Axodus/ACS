@@ -28,7 +28,7 @@ import {
   stableStringify,
   type RevisionRef,
 } from "../native-core/primitives.js";
-import type { NativeAgentLineage, NativeAgentLineageCommand } from "./shared-state/native-core-durable.js";
+import type { NativeAgentLineage, NativeAgentLineageCommand, NativeIntegrationChannelLineage, NativeIntegrationConnectionLineage } from "./shared-state/native-core-durable.js";
 import type { DeploymentService, DeploymentRecord, DeploymentRequest, DeploymentLifecycleStatus } from "./deployment-service.js";
 import type { ProductionGovernanceEvidence, ProductionReadinessDecision } from "./production-deployment-readiness.js";
 import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord, StartRuntimeServiceRequest } from "./runtime-lifecycle-service.js";
@@ -882,6 +882,29 @@ export interface AgentDetail {
   readonly stale: boolean;
 }
 
+export interface IntegrationConnectionProjection {
+  readonly connectionId: string;
+  readonly tenantId: string;
+  readonly lifecycle: string;
+  readonly currentRevision: number;
+  readonly fingerprint: string;
+  readonly connectorDefinitionRef: string;
+  readonly credential: { readonly configured: boolean; readonly version?: string; readonly secretStoreRef?: string };
+  readonly updatedAt: number;
+}
+
+export interface IntegrationChannelProjection {
+  readonly channelId: string;
+  readonly tenantId: string;
+  readonly lifecycle: string;
+  readonly currentRevision: number;
+  readonly fingerprint: string;
+  readonly connectionRevisionRef: { readonly connectionId: string; readonly revision: number; readonly fingerprint: string };
+  readonly direction: string;
+  readonly endpoint: { readonly kind: string; readonly uri: string };
+  readonly updatedAt: number;
+}
+
 export interface AgentRevisionSummary {
   readonly revisionId: string;
   readonly revisionNumber: number;
@@ -1651,6 +1674,28 @@ export class ProductApiClient {
     }
     const checkedAt = Date.now();
     return this.#agentService.list().map((revision) => this.#listItem(revision, checkedAt));
+  }
+
+  async listIntegrationConnections(tenantId: string): Promise<readonly IntegrationConnectionProjection[]> {
+    if (!this.#nativeCore) return [];
+    const definitions = await this.#nativeCore.listIntegrationConnectionDefinitions({ tenantId });
+    return Promise.all(definitions.map(async (definition) => this.#integrationConnectionProjection(await this.#nativeCore!.getIntegrationConnectionLineage(definition.connection_id))));
+  }
+
+  async getIntegrationConnection(connectionId: string, tenantId: string): Promise<IntegrationConnectionProjection | undefined> {
+    if (!this.#nativeCore) return undefined;
+    try { const lineage = await this.#nativeCore.getIntegrationConnectionLineage(connectionId); return lineage.definition.tenant_id === tenantId ? this.#integrationConnectionProjection(lineage) : undefined; } catch { return undefined; }
+  }
+
+  async listIntegrationChannels(tenantId: string): Promise<readonly IntegrationChannelProjection[]> {
+    if (!this.#nativeCore) return [];
+    const definitions = await this.#nativeCore.listIntegrationChannelDefinitions({ tenantId });
+    return Promise.all(definitions.map(async (definition) => this.#integrationChannelProjection(await this.#nativeCore!.getIntegrationChannelLineage(definition.channel_id))));
+  }
+
+  async getIntegrationChannel(channelId: string, tenantId: string): Promise<IntegrationChannelProjection | undefined> {
+    if (!this.#nativeCore) return undefined;
+    try { const lineage = await this.#nativeCore.getIntegrationChannelLineage(channelId); return lineage.definition.tenant_id === tenantId ? this.#integrationChannelProjection(lineage) : undefined; } catch { return undefined; }
   }
 
   async getExecutionIntent(intentId: string): Promise<RuntimeExecutionIntentV2 | undefined> {
@@ -2876,6 +2921,16 @@ export class ProductApiClient {
       updatedAt: revision.updatedAt,
       checkedAt,
     };
+  }
+
+  #integrationConnectionProjection(lineage: NativeIntegrationConnectionLineage): IntegrationConnectionProjection {
+    const revision = lineage.revisions.at(-1)!;
+    return { connectionId: lineage.definition.connection_id, tenantId: lineage.definition.tenant_id, lifecycle: lineage.definition.lifecycle, currentRevision: revision.ref.revision, fingerprint: revision.ref.fingerprint, connectorDefinitionRef: revision.connector_definition_ref, credential: { configured: revision.credential_ref !== undefined, ...(revision.credential_ref?.credential_version ? { version: revision.credential_ref.credential_version } : {}), ...(revision.credential_ref?.secret_store_ref ? { secretStoreRef: revision.credential_ref.secret_store_ref } : {}) }, updatedAt: lineage.definition.updated_at };
+  }
+
+  #integrationChannelProjection(lineage: NativeIntegrationChannelLineage): IntegrationChannelProjection {
+    const revision = lineage.revisions.at(-1)!;
+    return { channelId: lineage.definition.channel_id, tenantId: lineage.definition.tenant_id, lifecycle: lineage.definition.lifecycle, currentRevision: revision.ref.revision, fingerprint: revision.ref.fingerprint, connectionRevisionRef: { connectionId: revision.connection_revision_ref.entity_id, revision: revision.connection_revision_ref.revision, fingerprint: revision.connection_revision_ref.fingerprint }, direction: revision.direction, endpoint: { kind: revision.endpoint.kind, uri: revision.endpoint.uri }, updatedAt: lineage.definition.updated_at };
   }
 
   #nativeListItem(definition: AgentDefinitionV2, checkedAt: number): AgentListItem {

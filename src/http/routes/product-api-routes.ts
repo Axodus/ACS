@@ -723,6 +723,26 @@ export async function routeProductApiRequest(
       return methodNotAllowed(options.correlationId, routeMeta, "GET");
     }
 
+    if (apiPath === "integrations/connections" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(await api.listIntegrationConnections(context.isolation.scope.tenantId), [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "integrations" && segments[3] === "connections" && segments[4] && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const connection = await api.getIntegrationConnection(readPathSegment(segments, 4, "connectionId"), context.isolation.scope.tenantId);
+      return connection ? { status: 200, body: ok(connection, [], options.correlationId, routeMeta) } : fail("integration connection not found", 404, "not_found", options.correlationId, undefined, routeMeta, "integration_connection_not_found");
+    }
+    if (apiPath === "integrations/channels" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(await api.listIntegrationChannels(context.isolation.scope.tenantId), [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "integrations" && segments[3] === "channels" && segments[4] && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const channel = await api.getIntegrationChannel(readPathSegment(segments, 4, "channelId"), context.isolation.scope.tenantId);
+      return channel ? { status: 200, body: ok(channel, [], options.correlationId, routeMeta) } : fail("integration channel not found", 404, "not_found", options.correlationId, undefined, routeMeta, "integration_channel_not_found");
+    }
+    if (apiPath.startsWith("integrations/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
+
     // Agent inventory (read-only list with governed search/filter/sort)
     if (segments[2] === "agents" && segments.length === 3 && request.method === "GET") {
       assertAllowedQueryParams(url, ["search", "status", "environment", "sort"]);
