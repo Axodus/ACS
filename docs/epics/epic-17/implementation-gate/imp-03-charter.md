@@ -5,8 +5,9 @@
 **Canonical milestone:** `EPIC-17-IMP-03A`  
 **User-facing gate label:** `EPIC-17-IMP-03`  
 **Title:** Integration Definition, Connection/Credential Projection and Channel Boundary  
-**Status:** `CANDIDATE / AWAITING CTO GO`  
-**Planning/documentation authority:** granted  
+**Status:** `CANDIDATE / PERSISTENCE DESIGN GATE`
+**Gate preparation:** `COMPLETE / CTO ACCEPTED`
+**Persistence/migration design authority:** granted
 **Implementation authority:** none  
 **Migration authority:** none  
 **Baseline commit:** `cd8fed7c08c75b54b5aa290db73ed9d28bede535`
@@ -14,6 +15,15 @@
 REQ-12 splits the candidate `IMP-03` window into two independent branches:
 Integration (`IMP-03A`) and Memory (`IMP-03B`). This charter covers the
 Integration branch only; it does not merge Memory work into this gate.
+
+## CTO gate review disposition
+
+The CTO accepted the `IMP-03A` / `IMP-03B` operational split, the REQ-05
+ownership model, all seven contract-delta dispositions and the ADR
+classification. Functional implementation remains blocked because the required
+durable model needs a schema migration. The authorized next deliverable is the
+[Persistence & Migration Design](imp-03-persistence-migration-design.md), not
+migration execution or functional code.
 
 ## Canonical IMP-03 assignment from REQ-12
 
@@ -160,7 +170,7 @@ No blocker is declared resolved by this charter.
 | `ADR-17-019` | `REQUIRED BEFORE IMPLEMENTATION` | operation authority and secret-safe snapshot/reference contract. |
 | `ADR-17-014` | `ALREADY DECIDED` | IMP-02 retains governed Skill/Tool/MCP definition semantics; this charter consumes only REQ-05 endpoint/configuration work. |
 
-## Planned slices after CTO GO
+## Planned functional slices after migration authorization and CTO GO
 
 | Slice | Scope and dependencies | Blockers/deltas/ADRs | Surfaces, acceptance and rollback |
 | --- | --- | --- | --- |
@@ -255,7 +265,7 @@ Channel metadata never grant authority.
 14. Full regression is green or every unrelated environmental failure is
     faithfully classified; no accepted architecture invariant is violated.
 
-## CTO decisions required before authorization
+## CTO decisions required before functional authorization
 
 1. Confirm `IMP-03A` as the Integration branch and retain `IMP-03B` as the
    separate, parallel Memory charter.
@@ -267,10 +277,9 @@ Channel metadata never grant authority.
 
 ```text
 EPIC-17-IMP-03A
-STATUS: CANDIDATE / AWAITING CTO GO
-Architecture: RECONCILED
-Dependencies: SATISFIED FOR PLANNING
-Scope: CONCRETE
-Implementation authority: NONE
-Migration authority: NONE
+STATUS: CANDIDATE / PERSISTENCE DESIGN GATE
+Gate preparation: COMPLETE / CTO ACCEPTED
+Persistence/migration design authority: GRANTED
+Functional implementation authority: NONE
+Migration execution authority: NONE
 ```

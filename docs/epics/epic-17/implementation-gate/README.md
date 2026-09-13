@@ -2,7 +2,7 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-03A — CANDIDATE / AWAITING CTO GO`
+**Gate status:** `EPIC-17-IMP-03A — CANDIDATE / PERSISTENCE DESIGN GATE`
 **Authorized implementation:** none
 **Implementation authority:** none
 **Migration authority:** none
@@ -20,6 +20,7 @@ authority remains none.
 - [IMP-01 charter](imp-01-charter.md)
 - [IMP-02 charter](imp-02-charter.md)
 - [IMP-03A charter](imp-03-charter.md)
+- [IMP-03A persistence and migration design](imp-03-persistence-migration-design.md)
 
 ## Current disposition
 
@@ -31,20 +32,13 @@ authority remains none.
 | IMP-02 Slice 1 | `COMPLETE / CTO ACCEPTED` | Effective configuration snapshot, Tenant binding and historical reconstruction foundation are accepted. |
 | IMP-02 Slice 2 | `COMPLETE / CTO ACCEPTED` | Resource-history closure for Skill, Tool, Capability and legacy governed preset; no new persistence or migration. |
 | IMP-02 closure | `COMPLETE / CTO ACCEPTED` | CTO disposition supplied for this gate supersedes prior `READY FOR CTO CLOSURE` wording. |
-| IMP-03A charter | `CANDIDATE / AWAITING CTO GO` | REQ-05 Integration: Connector/MCP definition boundary, Connection/Credential projection, Channel identity/history and ingress reference semantics. |
+| IMP-03A gate preparation | `COMPLETE / CTO ACCEPTED` | REQ-05 assignment, ownership split, blockers and delta dispositions accepted. |
+| IMP-03A persistence design | `CANDIDATE / PERSISTENCE DESIGN GATE` | Proposed schema v8, Connection/Channel lineage, migration compatibility, secret safety and acceptance plan await CTO review. |
 
 ## Current implementation boundary
 
-The CTO authorized only the bounded IMP-02 work described in the charter.
-Skill, Tool, Capability and legacy-preset observations may be captured in the
-existing immutable execution snapshot. A new catalog persistence mechanism,
-schema migration, new resource revision stream or authority model remains
-closed until an exact CTO decision authorizes it.
-
-The accepted slices and Slice 3 implementation are complete for the authorized
-scope, pending CTO closure decision. MCP endpoint/configuration/Connection/Credential semantics remain
-`DEFERRED BY ARCHITECTURE` to REQ-05. Slice 3 must stop if it requires new
-persistence or Runtime semantic redesign.
-
-Production, provider, credential, external execution and rollout authority are
-outside this gate. IMP-03+ and migration authority remain unauthorized.
+The CTO accepted gate preparation and authorized the persistence/migration
+design only. The design proposes an additive PostgreSQL schema v8 because
+Channel requires canonical durable identity/history. It does not authorize a
+migration, functional implementation, provider access, ingress activation or
+external execution. IMP-03B and IMP-04+ remain unauthorized.

@@ -15,9 +15,9 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `EPIC-17-IMP-03A — CANDIDATE / AWAITING CTO GO`
+**Current gate:** `EPIC-17-IMP-03A — CANDIDATE / PERSISTENCE DESIGN GATE`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
-**Scope:** architecture accepted; IMP-03A gate preparation complete
+**Scope:** architecture accepted; IMP-03A persistence/migration design authorized
 **Implementation authority:** none
 **Migration authority:** none
 **Public contract changes:** none
