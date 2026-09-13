@@ -1,7 +1,8 @@
 # EPIC-17-REQ-03 — Effective Configuration Resolution & Historical Runtime Snapshot
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `c6d888641c882088a30add5a0de888ba08425632`
 **Baseline:** `0c8234a5f52d56a09da8c7b7f1e0f0b03cb8ba41`
 **Dependencies:** `REQ-01 COMPLETE / ACCEPTED`; `REQ-02 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -101,7 +102,7 @@ Immutable snapshot boundary: DEFINED
 Historical reconstruction: DEFINED WITH EXPLICIT SOURCE GAPS
 Runtime/Run ownership: PRESERVED
 
-EPIC-17-REQ-03: COMPLETE / READY FOR CTO ACCEPTANCE
-EPIC-17-REQ-04: BLOCKED_BY_REQ-03_ACCEPTANCE
+EPIC-17-REQ-03: COMPLETE / ACCEPTED
+EPIC-17-REQ-04: DEPENDENCY GATE SATISFIED / DOCUMENTATION EXECUTION AUTHORIZED
 Implementation authority: NONE
 ```

@@ -30,7 +30,7 @@ membership snapshots, leases, fencing, checkpoints, Evidence and Usage/Cost.
 PostgreSQL tests are mandatory if the accepted snapshot becomes durable.
 
 ```text
-EPIC-17-REQ-03: COMPLETE / READY FOR CTO ACCEPTANCE
-EPIC-17-REQ-04: BLOCKED_BY_REQ-03_ACCEPTANCE
+EPIC-17-REQ-03: COMPLETE / ACCEPTED
+EPIC-17-REQ-04: DEPENDENCY GATE SATISFIED / DOCUMENTATION EXECUTION AUTHORIZED
 Implementation authority: NONE
 ```

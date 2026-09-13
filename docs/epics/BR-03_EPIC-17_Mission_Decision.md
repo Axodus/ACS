@@ -120,3 +120,13 @@ stream; Persona remains revision-bearing Agent behavior; and the implemented
 REQ-04 disposition. Its eight deltas and three ADRs remain candidates, and
 blockers `E17-R02-B01` through `B04` remain open. The acceptance authorized
 REQ-03 documentation only; implementation authority remains `NONE`.
+
+## Accepted REQ-03 gate
+
+The CTO accepted `EPIC-17-REQ-03` at commit
+`c6d888641c882088a30add5a0de888ba08425632`. Admission owns deterministic
+class-specific resolution; each admitted binding generation uses an immutable
+snapshot; retries reuse it and configuration changes require re-admission. The
+eight deltas and four ADRs remain candidates and five blockers remain open.
+`E17-R01-B02` has defined architectural treatment but pending implementation
+remediation. Acceptance authorized REQ-04 documentation only.

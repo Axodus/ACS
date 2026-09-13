@@ -4,7 +4,8 @@
 **REQ decomposition:** `COMPLETE / ACCEPTED`
 **REQ-01:** `COMPLETE / ACCEPTED`
 **REQ-02:** `COMPLETE / ACCEPTED`
-**REQ-03:** `COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-03:** `COMPLETE / ACCEPTED`
+**REQ-04:** `COMPLETE / READY FOR CTO ACCEPTANCE`
 
 ## 1. Frozen decisions
 
@@ -106,6 +107,6 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 [Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
-This resolves planning order only. `REQ-01` and `REQ-02` are accepted. `REQ-03`
-is complete and awaits CTO acceptance; `REQ-04` and later REQs remain
+This resolves planning order only. `REQ-01` through `REQ-03` are accepted.
+`REQ-04` is complete and awaits CTO acceptance; `REQ-05` and later REQs remain
 dependency-gated. Implementation authority remains `NONE`.
