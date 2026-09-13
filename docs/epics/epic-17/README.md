@@ -15,10 +15,10 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `EPIC-17-IMP-01 — AUTHORIZED / GO`
+**Current gate:** `EPIC-17-IMP-03A — CANDIDATE / AWAITING CTO GO`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
-**Scope:** architecture accepted; IMP-01 implementation authorized
-**Implementation authority:** IMP-01 only
+**Scope:** architecture accepted; IMP-03A gate preparation complete
+**Implementation authority:** none
 **Migration authority:** none
 **Public contract changes:** none
 **Database changes:** none

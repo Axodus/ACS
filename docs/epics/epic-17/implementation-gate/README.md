@@ -2,25 +2,24 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `READY FOR CTO CLOSURE`
-**Authorized implementation:** `EPIC-17-IMP-02`
-**Implementation authority:** IMP-02 only
+**Gate status:** `EPIC-17-IMP-03A — CANDIDATE / AWAITING CTO GO`
+**Authorized implementation:** none
+**Implementation authority:** none
 **Migration authority:** none
 
-IMP-01 is `COMPLETE / CTO ACCEPTED`. IMP-02 Slice 1 — effective configuration
-snapshot and Tenant-bound historical reconstruction — and Slice 2 — governed
-resource-history closure through immutable admission observations — are
-`COMPLETE / CTO ACCEPTED`. Slice 3 is `AUTHORIZED / GO` for bounded
-resolution provenance, Product API snapshot/history projection, provider/model
-observations and runtime reconstruction conformance. Migration authority
-remains none. Slice 3 implementation and final validation are recorded in the
-[final closure audit](imp-02-final-closure-audit.md); CTO acceptance is still
-pending.
+IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
+configuration, immutable fingerprinted snapshots, Tenant binding,
+governed-resource observations, resolution provenance, provider/model
+observations, Product API historical projections and recovery conformance. MCP
+endpoint/configuration, Connection and Credential semantics were deferred to
+REQ-05 and are assigned to candidate [IMP-03A](imp-03-charter.md). Migration
+authority remains none.
 
 ## Decision inputs
 
 - [IMP-01 charter](imp-01-charter.md)
 - [IMP-02 charter](imp-02-charter.md)
+- [IMP-03A charter](imp-03-charter.md)
 
 ## Current disposition
 
@@ -31,9 +30,8 @@ pending.
 | IMP-01 execution | `COMPLETE / CTO ACCEPTED` | Canonical Agent seam, Profile/Persona boundary and lifecycle history are completed dependencies. |
 | IMP-02 Slice 1 | `COMPLETE / CTO ACCEPTED` | Effective configuration snapshot, Tenant binding and historical reconstruction foundation are accepted. |
 | IMP-02 Slice 2 | `COMPLETE / CTO ACCEPTED` | Resource-history closure for Skill, Tool, Capability and legacy governed preset; no new persistence or migration. |
-| IMP-02 closure audit | `COMPLETE / GAPS IDENTIFIED` | Matrix against 14 acceptance criteria, 16 contract deltas, 9 ADRs and consumed blockers. |
-| IMP-02 Slice 3 | `AUTHORIZED / GO` | Resolution provenance, Product API projection/history, typed errors, provider/model observations and retry/recovery/re-admission evidence where existing Runtime semantics suffice. |
-| IMP-02 final closure audit | `READY FOR CTO CLOSURE` | 14/14 acceptance criteria, 16 contract deltas reconciled, MCP deferred by architecture, no migration. |
+| IMP-02 closure | `COMPLETE / CTO ACCEPTED` | CTO disposition supplied for this gate supersedes prior `READY FOR CTO CLOSURE` wording. |
+| IMP-03A charter | `CANDIDATE / AWAITING CTO GO` | REQ-05 Integration: Connector/MCP definition boundary, Connection/Credential projection, Channel identity/history and ingress reference semantics. |
 
 ## Current implementation boundary
 
