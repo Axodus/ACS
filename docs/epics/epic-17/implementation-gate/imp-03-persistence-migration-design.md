@@ -402,7 +402,7 @@ implemented.
 | Connector distinct definition need remains evidence-dependent | retain the accepted projection/discriminator unless later evidence requires a new owner. |
 | Legacy SQLite Connection records | Removed from scope by CTO disposable-development-data policy. |
 | Secret reference referential integrity | implement logical/validated reference integrity rather than a foreign key to a possibly external SecretStore. |
-| Channel endpoint uniqueness | define final endpoint/source normalization before adding a broader uniqueness constraint; current index is a lookup aid, not an exclusivity claim. |
+| Channel endpoint uniqueness | Slice 2 treats active identity as `Tenant + stable Connection + normalized endpoint kind/URI`; the URI is never globally unique and distinct Connections may use the same service endpoint. |
 | Authority vocabulary | define exact governance operation names and typed error codes with the authority slice. |
 
 ```text

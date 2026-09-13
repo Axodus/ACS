@@ -21,6 +21,7 @@ import {
   type AgentRevisionV2,
 } from "../../native-core/agent.js";
 import {
+  assertIntegrationLifecycleTransition,
   validateIntegrationChannelDefinitionV1,
   validateIntegrationChannelRevisionV1,
   validateIntegrationConnectionDefinitionV1,
@@ -781,11 +782,16 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     if (definition.connection_id !== revision.ref.entity_id || definition.current_revision !== revision.ref.revision || definition.tenant_id !== event.tenant_id || input.expectedHead !== revision.ref.revision - 1) {
       throw new NativeIntegrationLineageIntegrityError(definition.connection_id, "command identity, tenant, or expected head is invalid");
     }
+    if (input.idempotency.scope !== `integration.connection:${definition.connection_id}`) throw new NativeIntegrationLineageIntegrityError(definition.connection_id, "idempotency scope must be aggregate-specific");
     return this.idempotent(input.idempotency, "native.integration.connection.lineage.advance", async () => {
       await query(this.db, "lock integration connection lineage", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`integration-connection:${definition.connection_id}`]);
       const head = await query<HeadRow>(this.db, "read integration connection head", "SELECT current_revision AS revision, current_fingerprint AS native_fingerprint FROM acs_integration_connections WHERE connection_id = $1 FOR UPDATE", [definition.connection_id]);
       const current = head.rows[0] ? Number(head.rows[0].revision) : 0;
       if (current !== input.expectedHead) throw new RevisionConflictError(`integration-connection:${definition.connection_id}`, input.expectedHead, current);
+      if (current > 0) {
+        const prior = await this.getIntegrationConnectionLineage(definition.connection_id);
+        assertIntegrationLifecycleTransition("connection", prior.definition.lifecycle, definition.lifecycle);
+      }
       const durableEvent = await this.appendEvent(event);
       if (current === 0) {
         await query(this.db, "create integration connection head", `INSERT INTO acs_integration_connections (connection_id, tenant_id, current_revision, current_lifecycle, current_fingerprint, connector_definition_ref, payload, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,to_timestamp($8/1000.0),to_timestamp($9/1000.0))`, [definition.connection_id, definition.tenant_id, definition.current_revision, definition.lifecycle, revision.ref.fingerprint, definition.connector_definition_ref, serialize(definition), definition.created_at, definition.updated_at]);
@@ -805,7 +811,10 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     const definition = validateIntegrationConnectionDefinitionV1(decode(head.rows[0].payload));
     const history = revisions.rows.map((row) => validateIntegrationConnectionRevisionV1(decode(row.payload)));
     const current = history.at(-1);
-    if (!current || definition.current_revision !== current.ref.revision || definition.connection_id !== current.ref.entity_id) throw new NativeIntegrationLineageIntegrityError(connectionId, "head and immutable history diverge");
+    if (!current || definition.current_revision !== current.ref.revision || definition.connection_id !== current.ref.entity_id || definition.lifecycle !== current.lifecycle) throw new NativeIntegrationLineageIntegrityError(connectionId, "head and immutable history diverge");
+    history.forEach((revision, index) => {
+      if (revision.ref.entity_id !== connectionId || revision.ref.revision !== index + 1 || (index === 0 ? revision.supersedes_revision !== undefined : revision.supersedes_revision !== index)) throw new NativeIntegrationLineageIntegrityError(connectionId, "revision history is not contiguous");
+    });
     return { definition, revisions: history };
   }
 
@@ -815,6 +824,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     validateIdempotency(input.idempotency);
     const event = validateEventEnvelopeV2(input.event);
     if (definition.channel_id !== revision.ref.entity_id || definition.current_revision !== revision.ref.revision || definition.tenant_id !== event.tenant_id || input.expectedHead !== revision.ref.revision - 1 || event.run_id !== undefined) throw new NativeIntegrationLineageIntegrityError(definition.channel_id, "command identity, tenant, expected head, or execution boundary is invalid");
+    if (input.idempotency.scope !== `integration.channel:${definition.channel_id}`) throw new NativeIntegrationLineageIntegrityError(definition.channel_id, "idempotency scope must be aggregate-specific");
     return this.idempotent(input.idempotency, "native.integration.channel.lineage.advance", async () => {
       await query(this.db, "lock integration channel lineage", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`integration-channel:${definition.channel_id}`]);
       const connection = await query<{ readonly tenant_id: string; readonly fingerprint: string } & QueryResultRow>(this.db, "validate channel connection historical reference", "SELECT tenant_id, fingerprint FROM acs_integration_connection_revisions WHERE connection_id=$1 AND revision=$2 AND fingerprint=$3", [revision.connection_revision_ref.entity_id, revision.connection_revision_ref.revision, revision.connection_revision_ref.fingerprint]);
@@ -822,6 +832,23 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       const head = await query<HeadRow>(this.db, "read integration channel head", "SELECT current_revision AS revision, current_fingerprint AS native_fingerprint FROM acs_integration_channels WHERE channel_id = $1 FOR UPDATE", [definition.channel_id]);
       const current = head.rows[0] ? Number(head.rows[0].revision) : 0;
       if (current !== input.expectedHead) throw new RevisionConflictError(`integration-channel:${definition.channel_id}`, input.expectedHead, current);
+      if (current > 0) {
+        const prior = await this.getIntegrationChannelLineage(definition.channel_id);
+        assertIntegrationLifecycleTransition("channel", prior.definition.lifecycle, definition.lifecycle);
+      }
+      if (definition.lifecycle === "active") {
+        const duplicate = await query<{ readonly channel_id: string } & QueryResultRow>(this.db, "check active Channel endpoint uniqueness", `
+          SELECT h.channel_id
+          FROM acs_integration_channels h
+          JOIN acs_integration_channel_revisions r
+            ON r.channel_id = h.channel_id AND r.revision = h.current_revision AND r.fingerprint = h.current_fingerprint
+          WHERE h.tenant_id = $1 AND h.current_lifecycle = 'active'
+            AND r.connection_id = $2 AND r.endpoint_kind = $3 AND r.endpoint_uri = $4 AND h.channel_id <> $5
+          LIMIT 1
+          FOR SHARE
+        `, [definition.tenant_id, revision.connection_revision_ref.entity_id, revision.endpoint.kind, revision.endpoint.uri, definition.channel_id]);
+        if (duplicate.rows[0]) throw new NativeIntegrationLineageIntegrityError(definition.channel_id, `active endpoint is already owned by Channel ${duplicate.rows[0].channel_id}`);
+      }
       const durableEvent = await this.appendEvent(event);
       if (current === 0) await query(this.db, "create integration channel head", `INSERT INTO acs_integration_channels (channel_id,tenant_id,current_revision,current_lifecycle,current_fingerprint,payload,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6::jsonb,to_timestamp($7/1000.0),to_timestamp($8/1000.0))`, [definition.channel_id, definition.tenant_id, definition.current_revision, definition.lifecycle, revision.ref.fingerprint, serialize(definition), definition.created_at, definition.updated_at]);
       else await query(this.db, "advance integration channel head", `UPDATE acs_integration_channels SET current_revision=$2,current_lifecycle=$3,current_fingerprint=$4,payload=$5::jsonb,updated_at=to_timestamp($6/1000.0) WHERE channel_id=$1`, [definition.channel_id, definition.current_revision, definition.lifecycle, revision.ref.fingerprint, serialize(definition), definition.updated_at]);
@@ -838,7 +865,10 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     const definition = validateIntegrationChannelDefinitionV1(decode(head.rows[0].payload));
     const history = revisions.rows.map((row) => validateIntegrationChannelRevisionV1(decode(row.payload)));
     const current = history.at(-1);
-    if (!current || definition.current_revision !== current.ref.revision || definition.channel_id !== current.ref.entity_id) throw new NativeIntegrationLineageIntegrityError(channelId, "head and immutable history diverge");
+    if (!current || definition.current_revision !== current.ref.revision || definition.channel_id !== current.ref.entity_id || definition.lifecycle !== current.lifecycle) throw new NativeIntegrationLineageIntegrityError(channelId, "head and immutable history diverge");
+    history.forEach((revision, index) => {
+      if (revision.ref.entity_id !== channelId || revision.ref.revision !== index + 1 || (index === 0 ? revision.supersedes_revision !== undefined : revision.supersedes_revision !== index)) throw new NativeIntegrationLineageIntegrityError(channelId, "revision history is not contiguous");
+    });
     return { definition, revisions: history };
   }
 

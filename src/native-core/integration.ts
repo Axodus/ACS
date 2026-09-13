@@ -18,6 +18,29 @@ export type IntegrationConnectionLifecycle = "draft" | "active" | "disabled" | "
 export type IntegrationChannelLifecycle = "draft" | "active" | "disabled" | "revoked" | "archived";
 export type IntegrationChannelDirection = "ingress" | "egress" | "bidirectional";
 
+export class IntegrationLifecycleTransitionError extends Error {
+  readonly code = "ACS_INTEGRATION_LIFECYCLE_TRANSITION";
+  constructor(readonly aggregate: "connection" | "channel", readonly from: string, readonly to: string) {
+    super(`invalid ${aggregate} lifecycle transition: ${from} -> ${to}`);
+    this.name = "IntegrationLifecycleTransitionError";
+  }
+}
+
+export function assertIntegrationLifecycleTransition(
+  aggregate: "connection" | "channel",
+  from: IntegrationConnectionLifecycle | IntegrationChannelLifecycle,
+  to: IntegrationConnectionLifecycle | IntegrationChannelLifecycle,
+): void {
+  if (from === to) return;
+  const allowed = new Set([
+    "draft->active", "draft->archived", "draft->disabled",
+    "active->disabled", "active->revoked", "active->archived",
+    "disabled->active", "disabled->revoked", "disabled->archived",
+    "revoked->archived", "archived->disabled",
+  ]);
+  if (!allowed.has(`${from}->${to}`)) throw new IntegrationLifecycleTransitionError(aggregate, from, to);
+}
+
 export interface IntegrationRevisionRef {
   readonly entity_kind: "integration_connection" | "integration_channel";
   readonly entity_id: string;

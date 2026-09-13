@@ -5,6 +5,7 @@ import test from "node:test";
 const distRoot = process.env.ACS_TEST_DIST_ROOT ?? "../dist";
 const {
   ACS_NATIVE_SCHEMA_VERSION,
+  IntegrationLifecycleTransitionError,
   NativeContractValidationError,
   SHARED_STATE_MIGRATIONS,
   SHARED_STATE_SCHEMA_VERSION,
@@ -12,6 +13,7 @@ const {
   createIntegrationChannelRevisionV1,
   createIntegrationConnectionDefinitionV1,
   createIntegrationConnectionRevisionV1,
+  assertIntegrationLifecycleTransition,
 } = await import(`${distRoot}/index.js`);
 
 const connectionRevision = () => createIntegrationConnectionRevisionV1({
@@ -83,6 +85,38 @@ test("IMP-03A rejects secret material and unsafe endpoint credentials in canonic
     lifecycle: "active",
     commit: { created_by: "principal:admin", committed_at: 100, change_reason: "unsafe" },
   }), NativeContractValidationError);
+});
+
+test("IMP-03A lifecycle semantics permit disable, restore, archive and reject resurrection", () => {
+  assert.doesNotThrow(() => assertIntegrationLifecycleTransition("connection", "active", "disabled"));
+  assert.doesNotThrow(() => assertIntegrationLifecycleTransition("connection", "disabled", "active"));
+  assert.doesNotThrow(() => assertIntegrationLifecycleTransition("channel", "archived", "disabled"));
+  assert.throws(() => assertIntegrationLifecycleTransition("channel", "archived", "active"), IntegrationLifecycleTransitionError);
+  assert.throws(() => assertIntegrationLifecycleTransition("connection", "revoked", "active"), IntegrationLifecycleTransitionError);
+});
+
+test("IMP-03A credential rotation creates a successor revision without mutating historical credential provenance", () => {
+  const first = connectionRevision();
+  const rotated = createIntegrationConnectionRevisionV1({
+    connection_id: "connection-1",
+    revision: 2,
+    supersedes_revision: 1,
+    connector_definition_ref: first.connector_definition_ref,
+    configuration: first.configuration,
+    credential_ref: { credential_ref: "credential:tenant-1:provider-1", credential_version: "v4", secret_store_ref: "secret-store:primary" },
+    lifecycle: "active",
+    commit: { created_by: "principal:admin", committed_at: 200, change_reason: "credential reference rotation" },
+  });
+  assert.equal(first.credential_ref.credential_version, "v3");
+  assert.equal(rotated.credential_ref.credential_version, "v4");
+  assert.notEqual(first.ref.fingerprint, rotated.ref.fingerprint);
+  assert.equal(rotated.supersedes_revision, 1);
+});
+
+test("IMP-03A endpoint identity is scoped by stable Connection, never globally by URI", async () => {
+  const source = await readFile(new URL("../src/control-plane/shared-state/native-core-durable.ts", import.meta.url), "utf8");
+  assert.match(source, /r\.connection_id = \$2 AND r\.endpoint_kind = \$3 AND r\.endpoint_uri = \$4/);
+  assert.doesNotMatch(source, /r\.endpoint_kind = \$2 AND r\.endpoint_uri = \$3/);
 });
 
 test("IMP-03A schema version 8 adds exactly the four additive Integration tables", () => {
