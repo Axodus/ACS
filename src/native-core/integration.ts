@@ -162,8 +162,8 @@ function validateEndpoint(value: unknown, path: string, issues: ValidationIssue[
   if (typeof endpoint.uri === "string") {
     try {
       const parsed = new URL(endpoint.uri);
-      if (!parsed.protocol || parsed.username || parsed.password) {
-        issues.push({ path: `${path}.uri`, code: "UNSAFE_ENDPOINT_URI", message: "Endpoint URI cannot include user info" });
+      if (!parsed.protocol || parsed.username || parsed.password || parsed.search || parsed.hash) {
+        issues.push({ path: `${path}.uri`, code: "UNSAFE_ENDPOINT_URI", message: "Endpoint URI cannot include user info, query parameters, or fragments" });
       }
     } catch {
       issues.push({ path: `${path}.uri`, code: "INVALID_ENDPOINT_URI", message: "Endpoint URI must be absolute" });

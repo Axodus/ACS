@@ -33,6 +33,7 @@ export interface EvidenceRecordV2 {
   readonly source: EvidenceSource;
   readonly classification: EvidenceClassification;
   readonly payload_digest: string;
+  readonly provenance?: Readonly<Record<string, unknown>>;
   readonly created_at: number;
   readonly correction_of?: string;
 }
@@ -107,6 +108,7 @@ export function validateEvidenceRecordV2(value: unknown): EvidenceRecordV2 {
   if (!evidence.subject_ref) issues.push({ path: "subject_ref", code: "REQUIRED_REFERENCE", message: "subject_ref is required" });
   if (!evidence.event_ref) issues.push({ path: "event_ref", code: "REQUIRED_REFERENCE", message: "event_ref is required" });
   requireSha256(evidence.payload_digest, "payload_digest", issues);
+  if (evidence.provenance !== undefined && (!evidence.provenance || typeof evidence.provenance !== "object" || Array.isArray(evidence.provenance))) issues.push({ path: "provenance", code: "INVALID_OBJECT", message: "provenance must be an object when supplied" });
   requireSafeInteger(evidence.created_at, "created_at", issues, 0);
   for (const key of ["run_id", "task_id", "correction_of"] as const) if (evidence[key] !== undefined) requireString(evidence[key], key, issues);
   assertNoSecretMaterial(value);

@@ -32,6 +32,10 @@ import {
   type IntegrationConnectionRevisionV1,
 } from "../../native-core/integration.js";
 import {
+  validateAuthenticatedIntegrationIngressReferenceV1,
+  type AuthenticatedIntegrationIngressReferenceV1,
+} from "../../native-core/integration-ingress.js";
+import {
   validateWorkforceDefinitionV2,
   validateWorkforceRevisionV2,
   type WorkforceDefinitionV2,
@@ -206,6 +210,21 @@ export interface NativeIntegrationLineageCommandResult<T> {
   readonly outbox: NativeOutboxRecord;
 }
 
+export interface NativeAuthenticatedIntegrationIngressCommand {
+  readonly reference: AuthenticatedIntegrationIngressReferenceV1;
+  readonly event: EventEnvelopeV2;
+  readonly evidence: EvidenceRecordV2;
+  readonly outboxId?: string;
+  readonly deliveryKind?: string;
+}
+
+export interface NativeAuthenticatedIntegrationIngressResult {
+  readonly reference: AuthenticatedIntegrationIngressReferenceV1;
+  readonly event: NativeDurableEvent;
+  readonly evidence: EvidenceRecordV2;
+  readonly outbox: NativeOutboxRecord;
+}
+
 export interface NativeWorkforceRunSummary {
   readonly run: RunV2;
   readonly membership_snapshot_id?: string;
@@ -281,6 +300,7 @@ export interface AsyncNativeCoreRepository {
   getIntegrationConnectionLineage(connectionId: string): Promise<NativeIntegrationConnectionLineage>;
   advanceIntegrationChannelLineage(input: NativeIntegrationChannelLineageCommand): Promise<NativeIntegrationLineageCommandResult<NativeIntegrationChannelLineage>>;
   getIntegrationChannelLineage(channelId: string): Promise<NativeIntegrationChannelLineage>;
+  recordAuthenticatedIntegrationIngress(input: NativeAuthenticatedIntegrationIngressCommand): Promise<NativeAuthenticatedIntegrationIngressResult>;
   advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult>;
   getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage>;
   listWorkforceDefinitions(): Promise<readonly WorkforceDefinitionV2[]>;
@@ -872,6 +892,25 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       if (revision.ref.entity_id !== channelId || revision.ref.revision !== index + 1 || (index === 0 ? revision.supersedes_revision !== undefined : revision.supersedes_revision !== index)) throw new NativeIntegrationLineageIntegrityError(channelId, "revision history is not contiguous");
     });
     return { definition, revisions: history };
+  }
+
+  async recordAuthenticatedIntegrationIngress(input: NativeAuthenticatedIntegrationIngressCommand): Promise<NativeAuthenticatedIntegrationIngressResult> {
+    const reference = validateAuthenticatedIntegrationIngressReferenceV1(input.reference);
+    const event = validateEventEnvelopeV2(input.event);
+    const evidence = validateEvidenceRecordV2(input.evidence);
+    if (event.event_type !== "integration.channel.ingress_authenticated" || event.subject_type !== "integration_channel" || event.subject_id !== reference.channel_revision_ref.entity_id || event.tenant_id !== reference.tenant_id || event.run_id !== undefined || event.task_id !== undefined || event.agent_id !== undefined || event.workforce_id !== undefined) {
+      throw new NativeContractValidationError("authenticated integration ingress command validation failed", [{ path: "event", code: "INGRESS_EVENT_BOUNDARY", message: "Ingress observation must be Channel-scoped and cannot carry an execution subject" }]);
+    }
+    if (event.payload.ingress_ref !== reference.ingress_ref || event.payload.channel_revision_ref !== serialize(reference.channel_revision_ref) || event.payload.connection_revision_ref !== serialize(reference.connection_revision_ref) || event.payload.payload_digest !== reference.payload_digest || event.payload.authentication_method !== reference.authentication_method) {
+      throw new NativeContractValidationError("authenticated integration ingress command validation failed", [{ path: "event.payload", code: "INGRESS_PROVENANCE_MISMATCH", message: "Event must carry exact safe ingress provenance" }]);
+    }
+    if (evidence.event_ref.id !== event.event_id || evidence.subject_ref.kind !== "integration_channel" || evidence.subject_ref.id !== reference.channel_revision_ref.entity_id || evidence.payload_digest !== reference.payload_digest || evidence.run_id !== undefined || evidence.task_id !== undefined || evidence.provenance?.ingress_ref !== reference.ingress_ref || evidence.provenance?.authentication_method !== reference.authentication_method) {
+      throw new NativeContractValidationError("authenticated integration ingress command validation failed", [{ path: "evidence", code: "INGRESS_EVIDENCE_MISMATCH", message: "Evidence must describe the same safe authenticated ingress observation" }]);
+    }
+    const durableEvent = await this.appendEvent(event);
+    const persistedEvidence = await this.recordEvidence(evidence);
+    const outbox = await this.insertOutbox(durableEvent.event.event_id, input.outboxId, input.deliveryKind, event.timestamp);
+    return { reference, event: durableEvent, evidence: persistedEvidence, outbox };
   }
 
   async advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult> {

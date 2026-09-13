@@ -1487,6 +1487,10 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
         "read integration Channel lineage",
         (tx) => tx.nativeCore.getIntegrationChannelLineage(channelId),
       ),
+      recordAuthenticatedIntegrationIngress: (input) => this.withTransaction(
+        "record authenticated integration ingress",
+        (tx) => tx.nativeCore.recordAuthenticatedIntegrationIngress(input),
+      ),
       advanceWorkforceLineage: (input) => this.withTransaction(
         "advance native workforce lineage",
         (tx) => tx.nativeCore.advanceWorkforceLineage(input),

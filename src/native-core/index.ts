@@ -9,3 +9,4 @@ export * from "./coordination.js";
 export * from "./runtime-compilation.js";
 export * from "./effective-configuration.js";
 export * from "./integration.js";
+export * from "./integration-ingress.js";
