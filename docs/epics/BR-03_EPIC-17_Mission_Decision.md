@@ -166,3 +166,16 @@ depth, cycle, expiry, revocation and historical reconstruction semantics are
 required. Its seven blockers, ten contract deltas and five ADRs remain planning
 inputs. No incompatible Workforce or Runtime change was required. Acceptance
 authorized REQ-08 documentation only; implementation authority remains `NONE`.
+
+## Accepted REQ-08 gate
+
+The CTO accepted `EPIC-17-REQ-08` at commit
+`0a3c590c0aa478c1485ab3e006c4ab81dfa045b4`. Automation has stable identity,
+immutable authored revision history, separate lifecycle and explicit target
+semantics, while remaining distinct from Activation, Run, Workflow, Trigger,
+Schedule, scheduler and executor. Its representation and persistence topology
+remain undecided. Delegated authority must be revalidated at Activation, and
+Evidence and Usage/Cost retain their accepted ownership. Its eight blockers,
+ten contract deltas and five ADRs remain planning inputs. Acceptance authorized
+REQ-09 documentation only; implementation and migration authority remain
+`NONE`.

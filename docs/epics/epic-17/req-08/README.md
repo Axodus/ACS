@@ -1,7 +1,8 @@
 # EPIC-17-REQ-08 — Automation Domain Identity & Revision Boundary
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `0a3c590c0aa478c1485ab3e006c4ab81dfa045b4`
 **Baseline:** `5dc66772e07ec3a6d00170ac622ff590301672cc`
 **Dependencies:** `REQ-01`, `REQ-03`, `REQ-04` and `REQ-07 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -67,7 +68,7 @@ authorize a separate aggregate, repository, table, API or revision store.
 - new pricing, budget, settlement or Automation economics.
 
 ```text
-REQ-08: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-09: BLOCKED_BY_REQ-08_ACCEPTANCE
+REQ-08: COMPLETE / ACCEPTED
+REQ-09: READY / GO
 Implementation authority: NONE
 ```

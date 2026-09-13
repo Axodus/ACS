@@ -21,7 +21,7 @@ REQ-03 snapshot resolution, Evidence/outbox correlation, Usage/Cost attribution
 and no execution bypass before any production claim.
 
 ```text
-REQ-08: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-09: BLOCKED_BY_REQ-08_ACCEPTANCE
+REQ-08: COMPLETE / ACCEPTED
+REQ-09: READY / GO
 Implementation authority: NONE
 ```

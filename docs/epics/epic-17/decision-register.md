@@ -9,7 +9,8 @@
 **REQ-05:** `COMPLETE / ACCEPTED`
 **REQ-06:** `COMPLETE / ACCEPTED`
 **REQ-07:** `COMPLETE / ACCEPTED`
-**REQ-08:** `COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-08:** `COMPLETE / ACCEPTED`
+**REQ-09:** `COMPLETE / READY FOR CTO ACCEPTANCE`
 
 ## 1. Frozen decisions
 
@@ -58,8 +59,10 @@ accepted integration and Memory boundaries are recorded in their
 [REQ-05 Decision Record](req-05/decision-record.md) and
 [REQ-06 Decision Record](req-06/decision-record.md). REQ-07's accepted
 Delegation boundary is recorded in [REQ-07 Decision Record](req-07/decision-record.md).
-REQ-08's proposed Automation boundary is recorded in
-[REQ-08 Decision Record](req-08/decision-record.md). All associated contract
+REQ-08's accepted Automation boundary is recorded in
+[REQ-08 Decision Record](req-08/decision-record.md). REQ-09's proposed
+Activation/runtime-admission boundary is recorded in
+[REQ-09 Decision Record](req-09/decision-record.md). All associated contract
 deltas and ADRs remain candidates.
 
 ## 3. Candidate ADRs
@@ -79,9 +82,11 @@ The REQ decomposition should decide whether these ADRs are required:
 - delegation relationship and authority attenuation (`ADR-17-025` through
   `ADR-17-029`, accepted as candidates by REQ-07);
 - Automation identity, revision, target, authority and attribution
-  (`ADR-17-030` through `ADR-17-034`, proposed by REQ-08);
+  (`ADR-17-030` through `ADR-17-034`, accepted as candidates by REQ-08);
+- Activation identity, occurrence idempotency, schedule recovery, admission,
+  OpenClaw and attribution (`ADR-17-035` through `ADR-17-042`, proposed by
+  REQ-09);
 - class-specific resolver and immutable snapshot (`ADR-17-007` through `ADR-17-010`, proposed by REQ-03);
-- OpenClaw Automation adapter boundary;
 - Genome trait vocabulary and provenance mapping.
 
 ## 4. Blocker policy
@@ -125,6 +130,6 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 [Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
-`REQ-01` through `REQ-07` are accepted. `REQ-08` is complete and awaits CTO
-acceptance; `REQ-09` remains dependency-gated. Implementation authority remains
+`REQ-01` through `REQ-08` are accepted. `REQ-09` is complete and awaits CTO
+acceptance; `REQ-10` remains dependency-gated. Implementation authority remains
 `NONE`.
