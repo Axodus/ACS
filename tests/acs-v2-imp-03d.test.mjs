@@ -86,7 +86,7 @@ test("IMP-03D recovery validation preserves historical identity after reassignme
 });
 
 test("IMP-03D migration is additive and separates assignment generation from runtime state", () => {
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 7);
+  assert.equal(SHARED_STATE_SCHEMA_VERSION, 8);
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 7);
   assert.ok(migration);
   const sql = migration.statements.join("\n");
@@ -104,4 +104,3 @@ test("IMP-03D implementation remains provider neutral and does not introduce ext
   ]);
   assert.doesNotMatch(sources.join("\n"), /camel|eigent|openclaw|scheduler|supervisor/i);
 });
-

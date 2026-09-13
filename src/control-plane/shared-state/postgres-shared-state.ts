@@ -1471,6 +1471,22 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       ),
       getAgentLineage: (agentId) => session.nativeCore.getAgentLineage(agentId),
       listAgentDefinitions: (input) => session.nativeCore.listAgentDefinitions(input),
+      advanceIntegrationConnectionLineage: (input) => this.withTransaction(
+        "advance integration Connection lineage",
+        (tx) => tx.nativeCore.advanceIntegrationConnectionLineage(input),
+      ),
+      getIntegrationConnectionLineage: (connectionId) => this.withTransaction(
+        "read integration Connection lineage",
+        (tx) => tx.nativeCore.getIntegrationConnectionLineage(connectionId),
+      ),
+      advanceIntegrationChannelLineage: (input) => this.withTransaction(
+        "advance integration Channel lineage",
+        (tx) => tx.nativeCore.advanceIntegrationChannelLineage(input),
+      ),
+      getIntegrationChannelLineage: (channelId) => this.withTransaction(
+        "read integration Channel lineage",
+        (tx) => tx.nativeCore.getIntegrationChannelLineage(channelId),
+      ),
       advanceWorkforceLineage: (input) => this.withTransaction(
         "advance native workforce lineage",
         (tx) => tx.nativeCore.advanceWorkforceLineage(input),

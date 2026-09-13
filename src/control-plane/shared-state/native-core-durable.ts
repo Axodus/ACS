@@ -21,6 +21,16 @@ import {
   type AgentRevisionV2,
 } from "../../native-core/agent.js";
 import {
+  validateIntegrationChannelDefinitionV1,
+  validateIntegrationChannelRevisionV1,
+  validateIntegrationConnectionDefinitionV1,
+  validateIntegrationConnectionRevisionV1,
+  type IntegrationChannelDefinitionV1,
+  type IntegrationChannelRevisionV1,
+  type IntegrationConnectionDefinitionV1,
+  type IntegrationConnectionRevisionV1,
+} from "../../native-core/integration.js";
+import {
   validateWorkforceDefinitionV2,
   validateWorkforceRevisionV2,
   type WorkforceDefinitionV2,
@@ -159,6 +169,42 @@ export interface NativeWorkforceLineageCommandResult {
   readonly outbox: NativeOutboxRecord;
 }
 
+export interface NativeIntegrationConnectionLineage {
+  readonly definition: IntegrationConnectionDefinitionV1;
+  readonly revisions: readonly IntegrationConnectionRevisionV1[];
+}
+
+export interface NativeIntegrationChannelLineage {
+  readonly definition: IntegrationChannelDefinitionV1;
+  readonly revisions: readonly IntegrationChannelRevisionV1[];
+}
+
+export interface NativeIntegrationConnectionLineageCommand {
+  readonly definition: IntegrationConnectionDefinitionV1;
+  readonly revision: IntegrationConnectionRevisionV1;
+  readonly expectedHead: number;
+  readonly idempotency: Idempotency;
+  readonly event: EventEnvelopeV2;
+  readonly outboxId?: string;
+  readonly deliveryKind?: string;
+}
+
+export interface NativeIntegrationChannelLineageCommand {
+  readonly definition: IntegrationChannelDefinitionV1;
+  readonly revision: IntegrationChannelRevisionV1;
+  readonly expectedHead: number;
+  readonly idempotency: Idempotency;
+  readonly event: EventEnvelopeV2;
+  readonly outboxId?: string;
+  readonly deliveryKind?: string;
+}
+
+export interface NativeIntegrationLineageCommandResult<T> {
+  readonly lineage: T;
+  readonly event: NativeDurableEvent;
+  readonly outbox: NativeOutboxRecord;
+}
+
 export interface NativeWorkforceRunSummary {
   readonly run: RunV2;
   readonly membership_snapshot_id?: string;
@@ -230,6 +276,10 @@ export interface AsyncNativeCoreRepository {
   advanceAgentLineage(input: NativeAgentLineageCommand): Promise<NativeAgentLineageCommandResult>;
   getAgentLineage(agentId: string): Promise<NativeAgentLineage>;
   listAgentDefinitions(input?: { readonly tenantId?: string }): Promise<readonly AgentDefinitionV2[]>;
+  advanceIntegrationConnectionLineage(input: NativeIntegrationConnectionLineageCommand): Promise<NativeIntegrationLineageCommandResult<NativeIntegrationConnectionLineage>>;
+  getIntegrationConnectionLineage(connectionId: string): Promise<NativeIntegrationConnectionLineage>;
+  advanceIntegrationChannelLineage(input: NativeIntegrationChannelLineageCommand): Promise<NativeIntegrationLineageCommandResult<NativeIntegrationChannelLineage>>;
+  getIntegrationChannelLineage(channelId: string): Promise<NativeIntegrationChannelLineage>;
   advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult>;
   getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage>;
   listWorkforceDefinitions(): Promise<readonly WorkforceDefinitionV2[]>;
@@ -280,6 +330,14 @@ export class NativeLineageIntegrityError extends Error {
   constructor(readonly agentId: string, detail: string) {
     super(`native agent lineage integrity failure for ${agentId}: ${detail}`);
     this.name = "NativeLineageIntegrityError";
+  }
+}
+
+export class NativeIntegrationLineageIntegrityError extends Error {
+  readonly code = "ACS_NATIVE_INTEGRATION_LINEAGE_INTEGRITY";
+  constructor(readonly entityId: string, detail: string) {
+    super(`native integration lineage integrity failure for ${entityId}: ${detail}`);
+    this.name = "NativeIntegrationLineageIntegrityError";
   }
 }
 
@@ -713,6 +771,75 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       ORDER BY agent_id
     `, [input.tenantId ?? null]);
     return result.rows.map((row) => validateAgentDefinitionV2(decode<AgentDefinitionV2>(row.payload)));
+  }
+
+  async advanceIntegrationConnectionLineage(input: NativeIntegrationConnectionLineageCommand): Promise<NativeIntegrationLineageCommandResult<NativeIntegrationConnectionLineage>> {
+    const definition = validateIntegrationConnectionDefinitionV1(input.definition);
+    const revision = validateIntegrationConnectionRevisionV1(input.revision);
+    validateIdempotency(input.idempotency);
+    const event = validateEventEnvelopeV2(input.event);
+    if (definition.connection_id !== revision.ref.entity_id || definition.current_revision !== revision.ref.revision || definition.tenant_id !== event.tenant_id || input.expectedHead !== revision.ref.revision - 1) {
+      throw new NativeIntegrationLineageIntegrityError(definition.connection_id, "command identity, tenant, or expected head is invalid");
+    }
+    return this.idempotent(input.idempotency, "native.integration.connection.lineage.advance", async () => {
+      await query(this.db, "lock integration connection lineage", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`integration-connection:${definition.connection_id}`]);
+      const head = await query<HeadRow>(this.db, "read integration connection head", "SELECT current_revision AS revision, current_fingerprint AS native_fingerprint FROM acs_integration_connections WHERE connection_id = $1 FOR UPDATE", [definition.connection_id]);
+      const current = head.rows[0] ? Number(head.rows[0].revision) : 0;
+      if (current !== input.expectedHead) throw new RevisionConflictError(`integration-connection:${definition.connection_id}`, input.expectedHead, current);
+      const durableEvent = await this.appendEvent(event);
+      if (current === 0) {
+        await query(this.db, "create integration connection head", `INSERT INTO acs_integration_connections (connection_id, tenant_id, current_revision, current_lifecycle, current_fingerprint, connector_definition_ref, payload, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,to_timestamp($8/1000.0),to_timestamp($9/1000.0))`, [definition.connection_id, definition.tenant_id, definition.current_revision, definition.lifecycle, revision.ref.fingerprint, definition.connector_definition_ref, serialize(definition), definition.created_at, definition.updated_at]);
+      } else {
+        await query(this.db, "advance integration connection head", `UPDATE acs_integration_connections SET current_revision=$2,current_lifecycle=$3,current_fingerprint=$4,connector_definition_ref=$5,payload=$6::jsonb,updated_at=to_timestamp($7/1000.0) WHERE connection_id=$1`, [definition.connection_id, definition.current_revision, definition.lifecycle, revision.ref.fingerprint, definition.connector_definition_ref, serialize(definition), definition.updated_at]);
+      }
+      await query(this.db, "append integration connection revision", `INSERT INTO acs_integration_connection_revisions (connection_id,tenant_id,revision,fingerprint,supersedes_revision,lifecycle,connector_definition_ref,credential_ref,credential_version,secret_store_ref,payload,created_by,committed_at,change_reason,correlation_id,event_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,to_timestamp($13/1000.0),$14,$15,$16)`, [definition.connection_id, definition.tenant_id, revision.ref.revision, revision.ref.fingerprint, revision.supersedes_revision ?? null, revision.lifecycle, revision.connector_definition_ref, revision.credential_ref?.credential_ref ?? null, revision.credential_ref?.credential_version ?? null, revision.credential_ref?.secret_store_ref ?? null, serialize(revision), revision.commit.created_by, revision.commit.committed_at, revision.commit.change_reason, event.correlation_id, event.event_id]);
+      const outbox = await this.insertOutbox(durableEvent.event.event_id, input.outboxId, input.deliveryKind, event.timestamp);
+      return { lineage: await this.getIntegrationConnectionLineage(definition.connection_id), event: durableEvent, outbox };
+    });
+  }
+
+  async getIntegrationConnectionLineage(connectionId: string): Promise<NativeIntegrationConnectionLineage> {
+    const head = await query<PayloadRow>(this.db, "get integration connection head", "SELECT payload FROM acs_integration_connections WHERE connection_id=$1", [connectionId]);
+    const revisions = await query<PayloadRow>(this.db, "get integration connection history", "SELECT payload FROM acs_integration_connection_revisions WHERE connection_id=$1 ORDER BY revision", [connectionId]);
+    if (!head.rows[0] || revisions.rows.length === 0) throw new NativeIntegrationLineageIntegrityError(connectionId, "canonical head or immutable history is missing");
+    const definition = validateIntegrationConnectionDefinitionV1(decode(head.rows[0].payload));
+    const history = revisions.rows.map((row) => validateIntegrationConnectionRevisionV1(decode(row.payload)));
+    const current = history.at(-1);
+    if (!current || definition.current_revision !== current.ref.revision || definition.connection_id !== current.ref.entity_id) throw new NativeIntegrationLineageIntegrityError(connectionId, "head and immutable history diverge");
+    return { definition, revisions: history };
+  }
+
+  async advanceIntegrationChannelLineage(input: NativeIntegrationChannelLineageCommand): Promise<NativeIntegrationLineageCommandResult<NativeIntegrationChannelLineage>> {
+    const definition = validateIntegrationChannelDefinitionV1(input.definition);
+    const revision = validateIntegrationChannelRevisionV1(input.revision);
+    validateIdempotency(input.idempotency);
+    const event = validateEventEnvelopeV2(input.event);
+    if (definition.channel_id !== revision.ref.entity_id || definition.current_revision !== revision.ref.revision || definition.tenant_id !== event.tenant_id || input.expectedHead !== revision.ref.revision - 1 || event.run_id !== undefined) throw new NativeIntegrationLineageIntegrityError(definition.channel_id, "command identity, tenant, expected head, or execution boundary is invalid");
+    return this.idempotent(input.idempotency, "native.integration.channel.lineage.advance", async () => {
+      await query(this.db, "lock integration channel lineage", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`integration-channel:${definition.channel_id}`]);
+      const connection = await query<{ readonly tenant_id: string; readonly fingerprint: string } & QueryResultRow>(this.db, "validate channel connection historical reference", "SELECT tenant_id, fingerprint FROM acs_integration_connection_revisions WHERE connection_id=$1 AND revision=$2 AND fingerprint=$3", [revision.connection_revision_ref.entity_id, revision.connection_revision_ref.revision, revision.connection_revision_ref.fingerprint]);
+      if (!connection.rows[0] || connection.rows[0].tenant_id !== definition.tenant_id) throw new NativeIntegrationLineageIntegrityError(definition.channel_id, "referenced Connection revision is unavailable or cross-tenant");
+      const head = await query<HeadRow>(this.db, "read integration channel head", "SELECT current_revision AS revision, current_fingerprint AS native_fingerprint FROM acs_integration_channels WHERE channel_id = $1 FOR UPDATE", [definition.channel_id]);
+      const current = head.rows[0] ? Number(head.rows[0].revision) : 0;
+      if (current !== input.expectedHead) throw new RevisionConflictError(`integration-channel:${definition.channel_id}`, input.expectedHead, current);
+      const durableEvent = await this.appendEvent(event);
+      if (current === 0) await query(this.db, "create integration channel head", `INSERT INTO acs_integration_channels (channel_id,tenant_id,current_revision,current_lifecycle,current_fingerprint,payload,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6::jsonb,to_timestamp($7/1000.0),to_timestamp($8/1000.0))`, [definition.channel_id, definition.tenant_id, definition.current_revision, definition.lifecycle, revision.ref.fingerprint, serialize(definition), definition.created_at, definition.updated_at]);
+      else await query(this.db, "advance integration channel head", `UPDATE acs_integration_channels SET current_revision=$2,current_lifecycle=$3,current_fingerprint=$4,payload=$5::jsonb,updated_at=to_timestamp($6/1000.0) WHERE channel_id=$1`, [definition.channel_id, definition.current_revision, definition.lifecycle, revision.ref.fingerprint, serialize(definition), definition.updated_at]);
+      await query(this.db, "append integration channel revision", `INSERT INTO acs_integration_channel_revisions (channel_id,tenant_id,revision,fingerprint,supersedes_revision,lifecycle,connection_id,connection_revision,connection_fingerprint,direction,endpoint_kind,endpoint_uri,admission_policy_ref,payload,created_by,committed_at,change_reason,correlation_id,event_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,to_timestamp($16/1000.0),$17,$18,$19)`, [definition.channel_id, definition.tenant_id, revision.ref.revision, revision.ref.fingerprint, revision.supersedes_revision ?? null, revision.lifecycle, revision.connection_revision_ref.entity_id, revision.connection_revision_ref.revision, revision.connection_revision_ref.fingerprint, revision.direction, revision.endpoint.kind, revision.endpoint.uri, revision.admission_policy_ref ?? null, serialize(revision), revision.commit.created_by, revision.commit.committed_at, revision.commit.change_reason, event.correlation_id, event.event_id]);
+      const outbox = await this.insertOutbox(durableEvent.event.event_id, input.outboxId, input.deliveryKind, event.timestamp);
+      return { lineage: await this.getIntegrationChannelLineage(definition.channel_id), event: durableEvent, outbox };
+    });
+  }
+
+  async getIntegrationChannelLineage(channelId: string): Promise<NativeIntegrationChannelLineage> {
+    const head = await query<PayloadRow>(this.db, "get integration channel head", "SELECT payload FROM acs_integration_channels WHERE channel_id=$1", [channelId]);
+    const revisions = await query<PayloadRow>(this.db, "get integration channel history", "SELECT payload FROM acs_integration_channel_revisions WHERE channel_id=$1 ORDER BY revision", [channelId]);
+    if (!head.rows[0] || revisions.rows.length === 0) throw new NativeIntegrationLineageIntegrityError(channelId, "canonical head or immutable history is missing");
+    const definition = validateIntegrationChannelDefinitionV1(decode(head.rows[0].payload));
+    const history = revisions.rows.map((row) => validateIntegrationChannelRevisionV1(decode(row.payload)));
+    const current = history.at(-1);
+    if (!current || definition.current_revision !== current.ref.revision || definition.channel_id !== current.ref.entity_id) throw new NativeIntegrationLineageIntegrityError(channelId, "head and immutable history diverge");
+    return { definition, revisions: history };
   }
 
   async advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult> {

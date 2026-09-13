@@ -2,14 +2,14 @@
 
 ## Identity and decision state
 
-**Canonical milestone:** `EPIC-17-IMP-03A`  
-**User-facing gate label:** `EPIC-17-IMP-03`  
-**Title:** Integration Definition, Connection/Credential Projection and Channel Boundary  
-**Status:** `CANDIDATE / PERSISTENCE DESIGN GATE`
+**Canonical milestone:** `EPIC-17-IMP-03A`
+**User-facing gate label:** `EPIC-17-IMP-03`
+**Title:** Integration Definition, Connection/Credential Projection and Channel Boundary
+**Status:** `AUTHORIZED / GO`
 **Gate preparation:** `COMPLETE / CTO ACCEPTED`
 **Persistence/migration design authority:** granted
-**Implementation authority:** none  
-**Migration authority:** none  
+**Implementation authority:** granted for IMP-03A only
+**Migration authority:** granted for schema version 8 only
 **Baseline commit:** `cd8fed7c08c75b54b5aa290db73ed9d28bede535`
 
 REQ-12 splits the candidate `IMP-03` window into two independent branches:
@@ -19,22 +19,22 @@ Integration branch only; it does not merge Memory work into this gate.
 ## CTO gate review disposition
 
 The CTO accepted the `IMP-03A` / `IMP-03B` operational split, the REQ-05
-ownership model, all seven contract-delta dispositions and the ADR
-classification. Functional implementation remains blocked because the required
-durable model needs a schema migration. The authorized next deliverable is the
-[Persistence & Migration Design](imp-03-persistence-migration-design.md), not
-migration execution or functional code.
+ownership model, all seven contract-delta dispositions, the persistence design
+and schema migration `7 -> 8`. Development SQLite data is disposable: no
+legacy preservation, import, backfill, read-through or compatibility layer is
+authorized. Functional work is limited to IMP-03A; IMP-03B and later IMPs
+remain unauthorized.
 
 ## Canonical IMP-03 assignment from REQ-12
 
 **Exact scope:** Connector/MCP definition boundary, Connection/Credential
-projection, Channel identity/history, and ingress reference semantics.  
+projection, Channel identity/history, and ingress reference semantics.
 **Source:** [REQ-12 candidate IMP dependency plan](../req-12/candidate-imp-dependency-plan.md),
 row `EPIC-17-IMP-03A`; [REQ-12 delta and ADR plan](../req-12/contract-delta-and-adr-plan.md),
-row `IMP-03A`.  
+row `IMP-03A`.
 **Dependencies:** `IMP-02 COMPLETE / CTO ACCEPTED`; accepted REQ-03, REQ-04,
 REQ-05; existing Native Agent seam, shared-state transaction, Events/outbox,
-idempotency and Tenant governance.  
+idempotency and Tenant governance.
 **Primary REQs consumed:** `REQ-05`; `REQ-03` and `REQ-04` only for accepted
 reference, snapshot and governed-definition conventions.
 
@@ -164,10 +164,10 @@ No blocker is declared resolved by this charter.
 
 | ADR | Disposition | Decision required |
 | --- | --- | --- |
-| `ADR-17-016` | `REQUIRED BEFORE IMPLEMENTATION` | Connector projection/discriminator versus proven distinct reusable definition. |
-| `ADR-17-017` | `REQUIRED BEFORE IMPLEMENTATION` | Connection/Credential separation, history strategy and migration owner. |
-| `ADR-17-018` | `REQUIRED BEFORE IMPLEMENTATION` | Channel contract/repository/lifecycle/history and IMP-06 activation boundary. |
-| `ADR-17-019` | `REQUIRED BEFORE IMPLEMENTATION` | operation authority and secret-safe snapshot/reference contract. |
+| `ADR-17-016` | `ALREADY DECIDED` | Connector remains a projection/discriminator over a governed Provider, Tool or MCP definition; no Connector table. |
+| `ADR-17-017` | `ALREADY DECIDED` | Connection is the Tenant-scoped configured integration instance with immutable history and opaque credential references. |
+| `ADR-17-018` | `ALREADY DECIDED` | Channel is a separate Tenant-scoped endpoint identity with exact Connection revision/fingerprint provenance; it does not admit or execute. |
+| `ADR-17-019` | `ALREADY DECIDED` | authority, secret-safe reference and lease provenance remain separate from secret material and execution permission. |
 | `ADR-17-014` | `ALREADY DECIDED` | IMP-02 retains governed Skill/Tool/MCP definition semantics; this charter consumes only REQ-05 endpoint/configuration work. |
 
 ## Planned functional slices after migration authorization and CTO GO
@@ -265,21 +265,22 @@ Channel metadata never grant authority.
 14. Full regression is green or every unrelated environmental failure is
     faithfully classified; no accepted architecture invariant is violated.
 
-## CTO decisions required before functional authorization
+## CTO decisions recorded for functional authorization
 
-1. Confirm `IMP-03A` as the Integration branch and retain `IMP-03B` as the
-   separate, parallel Memory charter.
-2. Approve or reject ADR-17-016 through ADR-17-019.
-3. Approve the minimal durable PostgreSQL schema delta, migration owner and
-   rollback/roll-forward plan; grant migration authority if approved.
-4. Confirm the IMP-03A/IMP-06 boundary: authenticated ingress reference/Evidence
-   here; Activation claim and execution admission in IMP-06.
+1. `IMP-03A` is the Integration branch; `IMP-03B` remains a separate,
+   unauthorized Memory charter.
+2. ADR-17-016 through ADR-17-019 are closed by the persistence design.
+3. PostgreSQL schema version 8 and migration execution are authorized.
+4. The IMP-03A/IMP-06 boundary remains: authenticated ingress reference/Evidence
+   here; occurrence claim, Activation and execution admission in IMP-06.
 
 ```text
 EPIC-17-IMP-03A
-STATUS: CANDIDATE / PERSISTENCE DESIGN GATE
+STATUS: AUTHORIZED / GO
 Gate preparation: COMPLETE / CTO ACCEPTED
-Persistence/migration design authority: GRANTED
-Functional implementation authority: NONE
-Migration execution authority: NONE
+Persistence/migration design: CTO ACCEPTED
+Functional implementation authority: GRANTED FOR IMP-03A ONLY
+Migration execution authority: GRANTED FOR SCHEMA VERSION 8 ONLY
+Legacy SQLite preservation/import/backfill: NOT AUTHORIZED / NOT IN SCOPE
+IMP-03B: NOT AUTHORIZED
 ```

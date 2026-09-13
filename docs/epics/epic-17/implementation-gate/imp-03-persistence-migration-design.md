@@ -2,15 +2,15 @@
 
 ## Decision state
 
-**Status:** `CANDIDATE / PERSISTENCE DESIGN GATE`  
-**Gate preparation:** `COMPLETE / CTO ACCEPTED`  
-**Persistence/migration design authority:** granted  
-**Functional implementation authority:** none  
-**Migration execution authority:** none  
-**Baseline implementation commit:** `1de54343f25c3f43d3194ebd4942e9f34b310aa7`  
-**Current shared schema version:** `7`  
-**Proposed target schema version:** `8`  
-**Scope:** design only; SQL below is proposed and must not be applied.
+**Status:** `AUTHORIZED / GO`
+**Gate preparation:** `COMPLETE / CTO ACCEPTED`
+**Persistence/migration design authority:** granted
+**Functional implementation authority:** granted for IMP-03A only
+**Migration execution authority:** granted for schema version 8 only
+**Baseline implementation commit:** `1de54343f25c3f43d3194ebd4942e9f34b310aa7`
+**Current shared schema version:** `7`
+**Proposed target schema version:** `8`
+**Scope:** IMP-03A implementation; no legacy SQLite preservation, import or backfill.
 
 ## Accepted operational decomposition
 
@@ -23,6 +23,23 @@ IMP-03A consumes Connector/MCP definition boundaries, Tenant-scoped Connection,
 opaque Credential references, Channel identity/history and bounded ingress
 reference/Evidence semantics. IMP-03B, IMP-04 and later milestones remain out
 of scope and unauthorized.
+
+## CTO legacy-data policy
+
+```text
+Environment: DEVELOPMENT / PRE-PRODUCTION
+Legacy SQLite data: DISPOSABLE
+Legacy preservation/import/backfill: NOT REQUIRED
+Historical compatibility with development SQLite data: NOT REQUIRED
+PostgreSQL schema migration: 7 -> 8 AUTHORIZED
+Development state reset/recreation: PERMITTED when required for validation
+```
+
+No implementation mechanism may map, import, read-through, preserve or derive
+canonical provenance from `SqliteSecretCatalog.credential_connections`.
+Architecture remains production-grade: Tenant isolation, authority boundaries,
+secret safety, historical semantics, CAS, idempotency and canonical contracts
+remain mandatory.
 
 ## Final ADR dispositions
 
@@ -62,10 +79,10 @@ activation.
 | `RuntimeExecutionIntentV2` JSON | admitted immutable snapshot path | consumes exact Connection/Channel refs after admission; it is not a mutable configuration catalog or Channel owner. |
 | Trinity intake protocols | source/request vocabulary | an untrusted-source boundary only; no Channel identity/history or authorization. |
 
-The existing SQLite Connection record is retained as an explicit legacy
-compatibility input until a separately authorized cutover. It cannot be
-silently treated as canonical for IMP-03A. There will be no dual canonical
-writes.
+Legacy SQLite Connection data is disposable and removed from scope. The new
+PostgreSQL Integration repository becomes the only canonical owner when its
+functional command path is enabled. There is no SQLite adapter, read-through,
+import pipeline, provenance mapping, backfill or dual canonical write.
 
 ## Proposed canonical durable model
 
@@ -105,7 +122,7 @@ writes.
 ## Proposed PostgreSQL schema delta — version 8
 
 ```sql
--- Proposed only. Do not execute without CTO migration authorization.
+-- Authorized only for EPIC-17-IMP-03A schema version 8.
 -- SHARED_STATE_SCHEMA_VERSION: 7 -> 8
 
 CREATE TABLE acs_integration_connections (
@@ -128,7 +145,7 @@ CREATE TABLE acs_integration_connections (
   payload JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
-  UNIQUE (connection_id, tenant_id, current_revision),
+  UNIQUE (connection_id, tenant_id),
   UNIQUE (connection_id, current_fingerprint),
   CHECK ((credential_ref_id IS NULL AND credential_backend IS NULL
     AND credential_key_version IS NULL AND credential_purpose IS NULL)
@@ -168,7 +185,9 @@ CREATE TABLE acs_integration_connection_revisions (
   PRIMARY KEY (connection_id, revision),
   UNIQUE (connection_id, fingerprint),
   UNIQUE (connection_id, tenant_id, revision),
-  FOREIGN KEY (connection_id) REFERENCES acs_integration_connections(connection_id),
+  UNIQUE (connection_id, tenant_id, revision, fingerprint),
+  FOREIGN KEY (connection_id, tenant_id)
+    REFERENCES acs_integration_connections(connection_id, tenant_id),
   CHECK ((revision = 1 AND supersedes_revision IS NULL)
     OR (revision > 1 AND supersedes_revision = revision - 1)),
   CHECK ((credential_ref_id IS NULL AND credential_backend IS NULL
@@ -193,10 +212,10 @@ CREATE TABLE acs_integration_channels (
   payload JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
-  UNIQUE (channel_id, tenant_id, current_revision),
+  UNIQUE (channel_id, tenant_id),
   UNIQUE (channel_id, current_fingerprint),
-  FOREIGN KEY (connection_id, tenant_id, connection_revision)
-    REFERENCES acs_integration_connection_revisions(connection_id, tenant_id, revision)
+  FOREIGN KEY (connection_id, tenant_id, connection_revision, connection_fingerprint)
+    REFERENCES acs_integration_connection_revisions(connection_id, tenant_id, revision, fingerprint)
 );
 
 CREATE INDEX acs_integration_channels_tenant_idx
@@ -228,9 +247,10 @@ CREATE TABLE acs_integration_channel_revisions (
   event_id TEXT NOT NULL,
   PRIMARY KEY (channel_id, revision),
   UNIQUE (channel_id, fingerprint),
-  FOREIGN KEY (channel_id) REFERENCES acs_integration_channels(channel_id),
-  FOREIGN KEY (connection_id, tenant_id, connection_revision)
-    REFERENCES acs_integration_connection_revisions(connection_id, tenant_id, revision),
+  FOREIGN KEY (channel_id, tenant_id)
+    REFERENCES acs_integration_channels(channel_id, tenant_id),
+  FOREIGN KEY (connection_id, tenant_id, connection_revision, connection_fingerprint)
+    REFERENCES acs_integration_connection_revisions(connection_id, tenant_id, revision, fingerprint),
   CHECK ((revision = 1 AND supersedes_revision IS NULL)
     OR (revision > 1 AND supersedes_revision = revision - 1))
 );
@@ -247,6 +267,14 @@ implementation must validate it with an allowlist and reject known secret keys
 before persistence, Event creation, Evidence creation and Product API output.
 The SQL constraints prevent missing paired reference metadata but cannot by
 themselves detect all secret-shaped JSON; the application contract is required.
+
+The functional contract must also reject endpoint URIs with user-info and any
+query/header/value field carrying credentials, signed URLs, bearer material or
+callback secrets. `source_identity` is a normalized non-secret identifier;
+`endpoint_fingerprint` is computed from the validated, secret-free endpoint
+configuration. A repository transaction must verify that every head's
+`current_revision` and `current_fingerprint` equal the immutable row committed
+in that same transaction.
 
 ## Events, outbox, evidence and ingress
 
@@ -306,15 +334,21 @@ idempotency remain `IMP-06`.
 | Current/target schema | `7` to proposed `8`, registered through `SHARED_STATE_MIGRATIONS`. |
 | Forward migration | one transactional additive migration: create four tables, constraints and indexes. No alteration or deletion of current tables. |
 | Bootstrap | new databases apply migrations 1–8 in order. Existing schema-7 databases apply version 8 once under existing advisory migration lock. |
-| Existing data | no automatic import from SQLite `credential_connections`; it lacks verified shared durability, exact history and complete semantics. |
-| Backfill | `NO` for the initial migration. Any legacy import requires a separate CTO decision, source audit, Tenant mapping, fingerprint verification and idempotent checkpoints. |
+| Existing data | disposable development SQLite data is ignored. |
+| Backfill | `NO`; legacy import is removed from scope. |
 | Compatibility during migration | schema addition is deploy-compatible; no active reader/writer changes until functional GO. |
 | Old code/new schema | compatible: old code ignores additive tables and continues its existing behavior. |
-| New code/old schema | incompatible by design: new functional Integration repository must refuse startup/command execution if schema version is below 8. |
-| Cutover | later functional deployment enables one canonical Connection/Channel command path; legacy SQLite stays compatibility input only until a later authorized contraction. |
-| Rollback | before functional cutover, deploy prior code; retain version-8 tables/data. After a command writes canonical v8 state, stop affected mutations and roll forward; do not route writes to SQLite and create dual authority. |
+| New code/old schema | incompatible by design: new functional Integration repository must refuse startup/command execution if schema version is below 8. It must use a non-migrating schema check. |
+| Cutover | functional deployment enables one canonical PostgreSQL Connection/Channel command path; no SQLite compatibility path exists. |
+| Rollback | before command exposure, deploy prior code or reset disposable development state. After a command writes canonical v8 state, stop affected mutations and roll forward; do not route writes to SQLite. |
 | Failure atomicity | migration runs inside existing PostgreSQL transaction; command writes use one shared transaction. Failed migration/command rolls back fully. |
-| Deployment ordering | apply migration, verify schema/constraints, deploy repository disabled by feature boundary, run shadow/read verification, authorize command exposure separately. |
+| Deployment ordering | run the authorized migration runner, verify schema/constraints, deploy repository disabled by feature boundary, run shadow/read verification, authorize command exposure separately. The normal shared-context bootstrap currently calls `migrate()` unless `migrate: false`; functional implementation must not rely on that default for v8 rollout. |
+
+The functional change must provide a separately governed migration-runner entry
+point and construct service/runtime contexts with `migrate: false` during
+normal startup. Startup then reads `schemaVersion()` and fails closed when the
+required version is absent. This prevents a newly deployed application binary
+from applying schema v8 as an incidental side effect.
 
 ## PostgreSQL acceptance and migration-specific tests
 
@@ -334,40 +368,49 @@ The acceptance expansion must prove:
 11. authenticated ingress reference/Evidence correlation with no Run creation;
 12. listener-capable validation for ingress-facing HTTP/process cases.
 
+## Technical review disposition
+
+| Finding | Severity | Resolution incorporated in this design |
+| --- | --- | --- |
+| Exact Connection fingerprint was not enforced by the proposed Channel FK. | `MUST FIX` | Channel head and revision FKs now reference `(connection_id, tenant_id, revision, fingerprint)`; a Channel cannot bind a mismatched fingerprint. |
+| Connection/Channel revision rows did not enforce the same Tenant as their heads. | `MUST FIX` | Composite unique keys and composite FKs now bind each revision to its same-Tenant head. |
+| Shared context defaults to `migrate()` and could apply v8 on normal startup. | `MUST FIX` | Migration runner and ordinary startup are explicitly separated; normal functional startup uses `migrate: false` plus a fail-closed schema-version check. |
+| JSON payload could hide endpoint or secret material. | `MUST FIX` | The contract adds endpoint normalization and secret-key/value rejection before persistence, Event, Evidence and API projection. |
+| Head/revision coherence cannot be fully expressed by static FKs. | `REQUIRED REPOSITORY INVARIANT` | The write transaction must verify head revision/fingerprint against the committed immutable row, with CAS and rollback tests. |
+
 Docker unavailability remains an environment constraint only when reported by
 the canonical acceptance harness; it cannot be converted to a silent skip.
 
-## Files that functional implementation would modify
+## Files modified by Slice 1
 
 | Surface | Likely file(s) |
 | --- | --- |
-| migration registration | `src/control-plane/shared-state/migrations.ts` |
-| durable repository | `src/control-plane/shared-state/native-core-durable.ts` or a focused integration repository composed by it |
-| Integration contracts | new `src/native-core/integration.ts` and exports |
-| credentials compatibility adapter | `src/intelligence/credential-connection.ts`, `credential-registry.ts`, `credential-provider.ts` |
-| Product API | `src/control-plane/product-api-client.ts`, `src/http/routes/product-api-routes.ts` |
-| ingress boundary | `src/trinity-intake-boundary.ts`, `src/trinity-acs-roundtrip-protocol.ts` only for bounded reference/Evidence contract |
-| tests | new Integration contract/PostgreSQL/listener tests and `scripts/acs-postgres-acceptance.mjs` acceptance list |
+| migration registration | `src/control-plane/shared-state/migrations.ts` — schema v8 and four additive tables. |
+| durable repository | `src/control-plane/shared-state/native-core-durable.ts` — Connection/Channel CAS, idempotency, Event and outbox lineage. |
+| shared state composition | `src/control-plane/shared-state/postgres-shared-state.ts` — transactional repository exposure. |
+| Integration contracts | `src/native-core/integration.ts` and `src/native-core/index.ts`. |
+| focused tests | `tests/epic-17-imp-03a-integration-foundation.test.mjs` and schema-version assertions. |
 
-No files are changed by this design gate except EPIC-17 documentation.
+Credential compatibility, Product API and bounded ingress/Evidence remain later
+authorized IMP-03A slices; no SQLite import, backfill or legacy read-through is
+implemented.
 
-## Risks and CTO decisions still required
+## Risks and decisions carried into later authorized slices
 
-| Risk / decision | Required CTO action before functional GO |
+| Risk / decision | Required action |
 | --- | --- |
-| Connector distinct definition need remains evidence-dependent | confirm projection/discriminator remains sufficient, or approve a new owner with evidence. |
-| Legacy SQLite Connection records | decide whether they remain unavailable to the new model or authorize a separately designed import. |
-| Secret reference referential integrity | accept logical/validated reference integrity rather than a foreign key to a possibly external SecretStore. |
-| Channel endpoint uniqueness | approve final endpoint/source normalization before adding a broader uniqueness constraint; current partial index is a lookup aid, not an exclusivity claim. |
-| Authority vocabulary | approve exact governance operation names and typed error codes with functional contracts. |
-| Migration execution | grant `MIGRATION AUTHORIZED` only after reviewing this delta and acceptance implementation plan. |
+| Connector distinct definition need remains evidence-dependent | retain the accepted projection/discriminator unless later evidence requires a new owner. |
+| Legacy SQLite Connection records | Removed from scope by CTO disposable-development-data policy. |
+| Secret reference referential integrity | implement logical/validated reference integrity rather than a foreign key to a possibly external SecretStore. |
+| Channel endpoint uniqueness | define final endpoint/source normalization before adding a broader uniqueness constraint; current index is a lookup aid, not an exclusivity claim. |
+| Authority vocabulary | define exact governance operation names and typed error codes with the authority slice. |
 
 ```text
 EPIC-17-IMP-03A
-STATUS: CANDIDATE / PERSISTENCE DESIGN GATE
-Persistence design: COMPLETE / AWAITING CTO REVIEW
-Functional implementation authority: NONE
-Migration execution authority: NONE
+STATUS: AUTHORIZED / GO
+Persistence design: CTO ACCEPTED
+Functional implementation authority: GRANTED FOR IMP-03A ONLY
+Migration execution authority: GRANTED FOR SCHEMA VERSION 8 ONLY
 IMP-03B: NOT AUTHORIZED
 IMP-04+: NOT AUTHORIZED
 ```

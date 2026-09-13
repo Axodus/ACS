@@ -15,11 +15,11 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `EPIC-17-IMP-03A — CANDIDATE / PERSISTENCE DESIGN GATE`
+**Current gate:** `EPIC-17-IMP-03A — AUTHORIZED / GO`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
-**Scope:** architecture accepted; IMP-03A persistence/migration design authorized
-**Implementation authority:** none
-**Migration authority:** none
+**Scope:** architecture accepted; IMP-03A Integration implementation authorized
+**Implementation authority:** IMP-03A only
+**Migration authority:** schema version 8 only
 **Public contract changes:** none
 **Database changes:** none
 

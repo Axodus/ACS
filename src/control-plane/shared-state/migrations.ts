@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 7;
+export const SHARED_STATE_SCHEMA_VERSION = 8;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -521,6 +521,107 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
         UNIQUE (intent_id)
       )`,
       `CREATE INDEX IF NOT EXISTS acs_runtime_attempts_task_idx ON acs_runtime_attempts (run_id, task_id, created_at, attempt_id)`,
+    ],
+  },
+  {
+    version: 8,
+    name: "integration_connection_and_channel_immutable_history",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_integration_connections (
+        connection_id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES acs_tenants(tenant_id),
+        current_revision INTEGER NOT NULL CHECK (current_revision > 0),
+        current_lifecycle TEXT NOT NULL CHECK (current_lifecycle IN ('draft', 'active', 'disabled', 'revoked', 'archived')),
+        current_fingerprint TEXT NOT NULL,
+        connector_definition_ref TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS acs_integration_connections_identity_idx
+        ON acs_integration_connections (connection_id, tenant_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_integration_connection_revisions (
+        connection_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        fingerprint TEXT NOT NULL,
+        supersedes_revision INTEGER,
+        lifecycle TEXT NOT NULL CHECK (lifecycle IN ('draft', 'active', 'disabled', 'revoked', 'archived')),
+        connector_definition_ref TEXT NOT NULL,
+        credential_ref TEXT,
+        credential_version TEXT,
+        secret_store_ref TEXT,
+        payload JSONB NOT NULL,
+        created_by TEXT NOT NULL,
+        committed_at TIMESTAMPTZ NOT NULL,
+        change_reason TEXT NOT NULL,
+        correlation_id TEXT NOT NULL,
+        event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        PRIMARY KEY (connection_id, revision),
+        UNIQUE (connection_id, tenant_id, revision, fingerprint),
+        UNIQUE (connection_id, fingerprint),
+        FOREIGN KEY (connection_id, tenant_id) REFERENCES acs_integration_connections(connection_id, tenant_id),
+        FOREIGN KEY (connection_id, supersedes_revision) REFERENCES acs_integration_connection_revisions(connection_id, revision),
+        CHECK ((revision = 1 AND supersedes_revision IS NULL) OR (revision > 1 AND supersedes_revision = revision - 1)),
+        CHECK ((credential_ref IS NULL AND credential_version IS NULL AND secret_store_ref IS NULL) OR (credential_ref IS NOT NULL AND secret_store_ref IS NOT NULL))
+      )`,
+      `ALTER TABLE acs_integration_connections ADD CONSTRAINT acs_integration_connection_head_fk
+        FOREIGN KEY (connection_id, tenant_id, current_revision, current_fingerprint)
+        REFERENCES acs_integration_connection_revisions(connection_id, tenant_id, revision, fingerprint)
+        DEFERRABLE INITIALLY DEFERRED`,
+      `CREATE INDEX IF NOT EXISTS acs_integration_connections_tenant_lifecycle_idx
+        ON acs_integration_connections (tenant_id, current_lifecycle, connection_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_integration_channels (
+        channel_id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES acs_tenants(tenant_id),
+        current_revision INTEGER NOT NULL CHECK (current_revision > 0),
+        current_lifecycle TEXT NOT NULL CHECK (current_lifecycle IN ('draft', 'active', 'disabled', 'revoked', 'archived')),
+        current_fingerprint TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS acs_integration_channels_identity_idx
+        ON acs_integration_channels (channel_id, tenant_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_integration_channel_revisions (
+        channel_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        fingerprint TEXT NOT NULL,
+        supersedes_revision INTEGER,
+        lifecycle TEXT NOT NULL CHECK (lifecycle IN ('draft', 'active', 'disabled', 'revoked', 'archived')),
+        connection_id TEXT NOT NULL,
+        connection_revision INTEGER NOT NULL CHECK (connection_revision > 0),
+        connection_fingerprint TEXT NOT NULL,
+        direction TEXT NOT NULL CHECK (direction IN ('ingress', 'egress', 'bidirectional')),
+        endpoint_kind TEXT NOT NULL,
+        endpoint_uri TEXT NOT NULL,
+        admission_policy_ref TEXT,
+        payload JSONB NOT NULL,
+        created_by TEXT NOT NULL,
+        committed_at TIMESTAMPTZ NOT NULL,
+        change_reason TEXT NOT NULL,
+        correlation_id TEXT NOT NULL,
+        event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        PRIMARY KEY (channel_id, revision),
+        UNIQUE (channel_id, tenant_id, revision, fingerprint),
+        UNIQUE (channel_id, fingerprint),
+        FOREIGN KEY (channel_id, tenant_id) REFERENCES acs_integration_channels(channel_id, tenant_id),
+        FOREIGN KEY (channel_id, supersedes_revision) REFERENCES acs_integration_channel_revisions(channel_id, revision),
+        FOREIGN KEY (connection_id, tenant_id, connection_revision, connection_fingerprint)
+          REFERENCES acs_integration_connection_revisions(connection_id, tenant_id, revision, fingerprint),
+        CHECK ((revision = 1 AND supersedes_revision IS NULL) OR (revision > 1 AND supersedes_revision = revision - 1))
+      )`,
+      `ALTER TABLE acs_integration_channels ADD CONSTRAINT acs_integration_channel_head_fk
+        FOREIGN KEY (channel_id, tenant_id, current_revision, current_fingerprint)
+        REFERENCES acs_integration_channel_revisions(channel_id, tenant_id, revision, fingerprint)
+        DEFERRABLE INITIALLY DEFERRED`,
+      `CREATE INDEX IF NOT EXISTS acs_integration_channels_tenant_lifecycle_idx
+        ON acs_integration_channels (tenant_id, current_lifecycle, channel_id)`,
+      `CREATE INDEX IF NOT EXISTS acs_integration_channel_connection_idx
+        ON acs_integration_channel_revisions (connection_id, tenant_id, connection_revision, channel_id)`,
     ],
   },
 ];

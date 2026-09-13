@@ -2,10 +2,10 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-03A — CANDIDATE / PERSISTENCE DESIGN GATE`
-**Authorized implementation:** none
-**Implementation authority:** none
-**Migration authority:** none
+**Gate status:** `EPIC-17-IMP-03A — AUTHORIZED / GO`
+**Authorized implementation:** IMP-03A only
+**Implementation authority:** IMP-03A only
+**Migration authority:** schema version 8 only
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
 configuration, immutable fingerprinted snapshots, Tenant binding,
@@ -21,6 +21,7 @@ authority remains none.
 - [IMP-02 charter](imp-02-charter.md)
 - [IMP-03A charter](imp-03-charter.md)
 - [IMP-03A persistence and migration design](imp-03-persistence-migration-design.md)
+- [IMP-03A Slice 1 regression causality review](imp-03a-slice-1-regression-causality.md)
 
 ## Current disposition
 
@@ -33,12 +34,12 @@ authority remains none.
 | IMP-02 Slice 2 | `COMPLETE / CTO ACCEPTED` | Resource-history closure for Skill, Tool, Capability and legacy governed preset; no new persistence or migration. |
 | IMP-02 closure | `COMPLETE / CTO ACCEPTED` | CTO disposition supplied for this gate supersedes prior `READY FOR CTO CLOSURE` wording. |
 | IMP-03A gate preparation | `COMPLETE / CTO ACCEPTED` | REQ-05 assignment, ownership split, blockers and delta dispositions accepted. |
-| IMP-03A persistence design | `CANDIDATE / PERSISTENCE DESIGN GATE` | Proposed schema v8, Connection/Channel lineage, migration compatibility, secret safety and acceptance plan await CTO review. |
+| IMP-03A persistence design | `CTO ACCEPTED` | Schema v8, Connection/Channel lineage, migration compatibility and secret safety accepted. |
+| IMP-03A functional implementation | `AUTHORIZED / GO` | PostgreSQL schema v8 and IMP-03A only; development SQLite data is disposable with no import/backfill/compatibility work. |
 
 ## Current implementation boundary
 
-The CTO accepted gate preparation and authorized the persistence/migration
-design only. The design proposes an additive PostgreSQL schema v8 because
-Channel requires canonical durable identity/history. It does not authorize a
-migration, functional implementation, provider access, ingress activation or
-external execution. IMP-03B and IMP-04+ remain unauthorized.
+The CTO authorized the additive PostgreSQL schema v8 and functional IMP-03A
+only. Development SQLite data is disposable: no preservation, import, backfill
+or compatibility path is permitted. Provider access, direct ingress-to-Run,
+IMP-03B and IMP-04+ remain unauthorized.
