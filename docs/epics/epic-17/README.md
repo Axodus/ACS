@@ -12,7 +12,8 @@
 **REQ-08:** `COMPLETE / ACCEPTED`
 **REQ-09:** `COMPLETE / ACCEPTED`
 **REQ-10:** `COMPLETE / ACCEPTED`
-**Current REQ:** `EPIC-17-REQ-11 COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-11:** `COMPLETE / ACCEPTED`
+**Current REQ:** `EPIC-17-REQ-12 COMPLETE / READY FOR CTO ACCEPTANCE`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
 **Scope:** documentation only
 **Implementation authority:** none
@@ -82,6 +83,7 @@ implementation authority.
 | [REQ-09 — Activation & Runtime Admission](req-09/README.md) | Trigger/Schedule observations, idempotent Activation, recovery, admission, runtime and attribution boundaries. |
 | [REQ-10 — Product API, Administration & Control Plane](req-10/README.md) | Domain projections, owner-routed actions, class-owned settings and Control Plane information architecture. |
 | [REQ-11 — Genome Traits, Assets & Verification](req-11/README.md) | Descriptive traits, presentation assets, Evidence-backed verification and performance-view boundaries. |
+| [REQ-12 — Cross-Domain Conformance & IMP Readiness](req-12/README.md) | Canonical ownership audit, 76-disposition closure, blocker consolidation and dependency-ordered candidate IMP plan. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -105,6 +107,7 @@ implementation authority.
 17. [REQ-09 — Activation & Runtime Admission](req-09/README.md).
 18. [REQ-10 — Product API, Administration & Control Plane](req-10/README.md).
 19. [REQ-11 — Genome Traits, Assets & Verification](req-11/README.md).
+20. [REQ-12 — Cross-Domain Conformance & IMP Readiness](req-12/README.md).
 
 ## Dependencies to preserve
 
@@ -174,7 +177,8 @@ dispositions replace the original Genome attachment as the planning baseline.
 The accepted dependency graph derives twelve REQs; the original eleven-request
 list did not determine the count or sequence.
 
-`EPIC-17-REQ-01` through `REQ-10` are complete and accepted. `REQ-11` is
-complete and ready for CTO acceptance; `REQ-12` remains dependency-gated. No
-REQ grants IMP, implementation, migration, schema, API, database or production
-authority.
+`EPIC-17-REQ-01` through `REQ-11` are complete and accepted. `REQ-12` is
+complete and ready for CTO acceptance. It proposes the maximum closure state
+`EPIC-17 architecture/specification: READY FOR CTO IMPLEMENTATION GATE`; it
+does not pass that gate. No REQ grants IMP, implementation, migration, schema,
+API, database or production authority.

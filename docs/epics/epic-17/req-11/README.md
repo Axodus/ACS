@@ -1,7 +1,8 @@
 # EPIC-17-REQ-11 — Genome Traits, Presentation Assets & Verification Semantics
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `50459fb27e38daabd9ea0e7905c5761316719daa`
 **Baseline:** `75758a752bb8ab04f1402bcd7ce9039fb623a673`
 **Dependencies:** `REQ-01` through `REQ-04` and `REQ-10 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -87,7 +88,7 @@ effective configuration or change runtime truth.
 - resolution of the REQ-10 Administration IA divergence.
 
 ```text
-REQ-11: COMPLETE / READY FOR CTO ACCEPTANCE
-REQ-12: BLOCKED_BY_REQ-11_ACCEPTANCE
+REQ-11: COMPLETE / ACCEPTED
+REQ-12: READY / GO
 Implementation authority: NONE
 ```

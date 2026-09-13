@@ -206,3 +206,17 @@ and redacted. Its fifteen blockers, seventeen contract deltas and nine ADRs
 remain planning inputs. The existing Administration IA divergence remains open
 for REQ-12 classification. Acceptance authorized REQ-11 documentation only;
 implementation and migration authority remain `NONE`.
+
+## Accepted REQ-11 gate
+
+The CTO accepted `EPIC-17-REQ-11` at commit
+`50459fb27e38daabd9ea0e7905c5761316719daa`. Genome is limited to descriptive
+trait vocabulary, assertions and exact references over canonical ACS state. It
+owns no Agent identity/lineage, operational authority, capability registry,
+reputation or economic rights. Presentation assets remain digest-addressed
+references outside `AgentRevisionV2`; verified badges reference Evidence and
+Governance decisions; performance remains a bounded projection. Its twelve
+blockers, fifteen contract deltas and eight ADRs remain planning inputs.
+Inheritance, mutation, breeding, NFT, marketplace, royalties and Genome
+economics remain rejected. Acceptance authorized REQ-12 documentation only;
+implementation and migration authority remain `NONE`.

@@ -12,7 +12,8 @@
 **REQ-08:** `COMPLETE / ACCEPTED`
 **REQ-09:** `COMPLETE / ACCEPTED`
 **REQ-10:** `COMPLETE / ACCEPTED`
-**REQ-11:** `COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-11:** `COMPLETE / ACCEPTED`
+**REQ-12:** `COMPLETE / READY FOR CTO ACCEPTANCE`
 
 ## 1. Frozen decisions
 
@@ -66,10 +67,12 @@ REQ-08's accepted Automation boundary is recorded in
 Activation/runtime-admission boundary is recorded in
 [REQ-09 Decision Record](req-09/decision-record.md). REQ-10's accepted Product
 API, Administration, Global Settings and Control Plane boundary is recorded in
-[REQ-10 Decision Record](req-10/decision-record.md). REQ-11's proposed Genome
+[REQ-10 Decision Record](req-10/decision-record.md). REQ-11's accepted Genome
 trait, presentation asset, verification and performance-view boundary is
-recorded in [REQ-11 Decision Record](req-11/decision-record.md). All associated
-contract deltas and ADRs remain candidates.
+recorded in [REQ-11 Decision Record](req-11/decision-record.md). REQ-12's
+proposed cross-domain closure and candidate IMP sequence are recorded in its
+[Decision Record](req-12/decision-record.md). All associated contract deltas
+and ADRs remain candidates.
 
 ## 3. Candidate ADRs
 
@@ -96,7 +99,7 @@ The REQ decomposition should decide whether these ADRs are required:
   through `ADR-17-051`, accepted as candidates by REQ-10);
 - minimal Genome classification, trait assertions, presentation assets,
   verification, derived performance and Tenant-safe history (`ADR-17-052`
-  through `ADR-17-059`, proposed by REQ-11);
+  through `ADR-17-059`, accepted as candidates by REQ-11);
 - class-specific resolver and immutable snapshot (`ADR-17-007` through `ADR-17-010`, proposed by REQ-03);
 - Genome trait vocabulary and provenance mapping.
 
@@ -141,6 +144,7 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 [Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
-`REQ-01` through `REQ-10` are accepted. `REQ-11` is complete and awaits CTO
-acceptance; `REQ-12` remains dependency-gated. Implementation authority remains
-`NONE`.
+`REQ-01` through `REQ-11` are accepted. `REQ-12` is complete and awaits CTO
+acceptance. Its proposed closure is `EPIC-17 architecture/specification:
+READY FOR CTO IMPLEMENTATION GATE`; implementation and migration authority
+remain `NONE`.
