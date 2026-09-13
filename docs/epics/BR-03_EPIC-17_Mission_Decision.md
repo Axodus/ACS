@@ -1,0 +1,76 @@
+# BR-03 — EPIC-17 Mission Decision
+
+**Status:** `APPROVE`
+**Date:** 2026-09-13
+**Decision authority:** CTO
+**Nature:** strategic and normative documentation decision
+**Implementation authority:** none
+**Migration authority:** none
+**Public contract changes:** none
+**Database changes:** none
+
+## Decision
+
+```text
+EPIC-17 = Agent Genome Foundations,
+Administration & Automation Platform
+```
+
+EPIC-17 extends the implemented ACS. It does not create a second canonical
+Agent, Workforce, lifecycle, runtime, persistence, Evidence, Economics or
+Product API model.
+
+This decision supersedes the prior `EPIC-17: UNASSIGNED` planning state and the
+choice between the former Enterprise Identity and Reliability/Fleet candidate
+missions. It does not reopen or rename EPIC-16 — Production Financial
+Operations, and it does not rewrite the historical post-15.5 closure.
+
+## First authorized milestone
+
+```text
+EPIC-17 Architecture & Boundary Review
+GO — DOCUMENTATION ONLY
+```
+
+The milestone must compare every proposed Genome, Administration and
+Automation capability with current repository evidence and classify it as
+`REUSE`, `ADAPT`, `EXTEND`, `NEW` or `REJECT`.
+
+`NEW` identifies a demonstrated gap. It authorizes consideration during later
+REQ work only; it does not authorize an entity, aggregate, schema, table, API,
+service, migration or implementation.
+
+## Frozen boundaries
+
+- Native Agent identity, revision lineage and lifecycle remain canonical.
+- Workforce v1, membership, admission, Assignment, Run, Task and Attempt remain
+  canonical.
+- Runtime, recovery, Evidence, Usage/Cost, Economics, shared PostgreSQL,
+  events, outbox, idempotency, Product API and Control Plane are reused.
+- External providers and executors, including OpenClaw, remain replaceable and
+  non-canonical.
+- Automation remains conceptually separate from execution.
+- Delegation always relates canonical ACS Agents; no second `SubAgent` identity
+  is authorized.
+- Genome traits carry no operational, governance or economic authority.
+
+## Explicit non-goals
+
+No final Genome schema, inheritance, crossover, mutation, fitness algorithm,
+autonomous evolution, breeding, tokenization, NFT representation, ownership
+economics, royalties, marketplace, on-chain storage or secondary-market
+mechanism is authorized.
+
+## Closure and next authority
+
+The review may close as:
+
+```text
+ARCHITECTURE & BOUNDARY REVIEW COMPLETE
+/ READY FOR REQ DECOMPOSITION
+```
+
+Closure authorizes preparation of an evidence-derived
+`EPIC-17-REQ-01 ... EPIC-17-REQ-N` decomposition. It does not authorize any
+REQ, IMP, migration or production change by itself. No CEO decision is required
+for this documentation-only milestone.

@@ -23,6 +23,11 @@ planning artifact: it does not adopt Agenta, Eigent, CAMEL, Codex, OpenClaw, or
 any other provider, and it does not authorize runtime, production, financial,
 or authority changes.
 
+The [EPIC-17 Architecture & Boundary Review](docs/epics/epic-17/README.md)
+classifies proposed Agent Genome, Administration and Automation capabilities
+against the implemented ACS. It authorizes REQ decomposition only and makes no
+code, contract, migration, database or production change.
+
 Historical planning reset:
 
 - ACS was documented as the tenant-aware Autonomous Coordination System for Core, Service, and Product consumption.

@@ -1,12 +1,18 @@
 # EPIC-16 / EPIC-17 Post-15.5 Boundary Review
 
-**Status:** `PLANNING_ONLY`
+**Status:** `PLANNING_ONLY / EPIC-17 MISSION RECONCILED`
 
 **Review date:** 2026-08-17
 
 **Imported baseline:** `4006e6c`
 
 **Implementation authorization:** none
+
+**EPIC-17 reconciliation:** BR-03 approved `EPIC-17 — Agent Genome
+Foundations, Administration & Automation Platform` on 2026-09-13. The original
+source-recovery findings below remain historical evidence; current mission and
+authority are governed by [BR-03](./BR-03_EPIC-17_Mission_Decision.md) and the
+[EPIC-17 Architecture & Boundary Review](./epic-17/README.md).
 
 ## 1. Executive conclusion
 
@@ -53,7 +59,7 @@ Accordingly:
 EPIC-16 canonical mission: NOT FOUND
 EPIC-16 strongest hypothesis: Production Financial Operations
 EPIC-16 hypothesis status: SUPPORTED_HYPOTHESIS / NOT_CANONICAL
-EPIC-17 mission: UNASSIGNED
+EPIC-17 mission at source-recovery time: UNASSIGNED — superseded by BR-03
 ```
 
 See the complete search log and provenance in
@@ -247,9 +253,10 @@ The repository evidence supports the following planning recommendation:
    EPIC-16 hypothesis because it has the oldest and most complete dedicated
    boundary package, explicit open decisions and clear unfinished operator
    value.
-2. Do not assign EPIC-17 yet. Choose between **Candidate B** and **Candidate C**
-   using the current product roadmap; combining them would create an incoherent
-   identity-plus-infrastructure EPIC.
+2. Historical recommendation: do not assign EPIC-17 until a mission is
+   approved. BR-03 subsequently selected **Agent Genome Foundations,
+   Administration & Automation Platform**; Candidate B and Candidate C remain
+   unassigned future work.
 3. Keep marketplace, exchange, generic workflow, multi-region and global HA
    claims unassigned until a dedicated mission is approved.
 
@@ -285,8 +292,8 @@ Until missions are approved:
 | physical multi-host evidence, partitions, host failover and provider HA | POST-15.5 / AEES-MH resumed from `4006e6c` |
 | shared-state regressions required by new features | continuous hardening in the active functional EPIC |
 | production financial operations | EPIC-16 candidate |
-| enterprise identity lifecycle/provisioning | EPIC-17 candidate option |
-| incident/SLO/fleet automation | EPIC-17 candidate option |
+| enterprise identity lifecycle/provisioning | unassigned future candidate; not EPIC-17 scope |
+| incident/SLO/fleet automation | unassigned future candidate; not EPIC-17 scope |
 | existing runtime, readiness, diagnostics, deployment and Tenant journeys | consolidated platform capability |
 
 EPIC-16/17 acceptance may run on the certified bounded topology. It must report
@@ -311,7 +318,7 @@ Before mission approval, do not:
 | --- | --- | --- |
 | BR-01 | Import an external canonical EPIC-16/17 roadmap, if one exists | `COMPLETE_NO_EXTERNAL_CANONICAL_ROADMAP_FOUND` |
 | BR-02 | Approve or reject Production Financial Operations as EPIC-16 mission | `APPROVE` — see [BR-02 mission decision](./BR-02_EPIC-16_Mission_Decision.md) |
-| BR-03 | Select Enterprise Identity Lifecycle or Reliability/Fleet Operations as the next independent mission | `OPEN` |
+| BR-03 | Assign Agent Genome Foundations, Administration & Automation Platform as EPIC-17 | `APPROVE` — see [BR-03 mission decision](./BR-03_EPIC-17_Mission_Decision.md) |
 | BR-04 | Decide whether any financial provider, money movement, tax or accounting scope is authorized | `OPEN` |
 | BR-05 | Confirm MH03 remains a lateral infrastructure-gated certification line | `PROPOSED_CONFIRMED_BY_BASELINE` |
 
@@ -338,21 +345,22 @@ domains, preserve explicit executive decisions and name the first bounded
 milestone. Code implementation remains unauthorized until that package is
 approved.
 
-EPIC-17 should receive its own package only after its mission is selected. It
-must not be created as a placeholder containing both remaining candidate
-clusters.
+BR-03 selected the EPIC-17 mission. Its first package is the documentation-only
+[Architecture & Boundary Review](./epic-17/README.md); it does not contain the
+former Enterprise Identity or Reliability/Fleet candidate clusters.
 
 ## 15. Review result
 
 ```text
 EPIC-16 canonical mission recovered: NO
-EPIC-17 canonical mission recovered: NO
+EPIC-17 canonical mission recovered by BR-01: NO
 BR-01 terminal status: NO_EXTERNAL_CANONICAL_ROADMAP_FOUND
 BR-02 terminal status: APPROVE
+BR-03 terminal status: APPROVE
 EPIC-16 mission: Production Financial Operations
-EPIC-17 mission: UNASSIGNED
+EPIC-17 mission: Agent Genome Foundations, Administration & Automation Platform
 Post-15.5 boundary review: COMPLETE
 Functional implementation authorized: NO
 MH03 resumed: NO
-Authorized next step: Create EPIC-16 Normative Package (planning only)
+Authorized EPIC-17 milestone: Architecture & Boundary Review — documentation only
 ```

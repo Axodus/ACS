@@ -100,6 +100,7 @@ for compatibility.
 | [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md) | PostgreSQL execution evidence for IMP-01B; PASS after IMP-01C preserved canonical native idempotency and fencing errors at the public boundary. |
 | [IMP-01C typed durable error surface completion](imp-01c/README.md) | Selective public error propagation repair for canonical native idempotency conflicts and stale-fencing rejections, with PostgreSQL revalidation. |
 | [ACS-BLOCKER-014 remediation](blockers/acs-blocker-014/README.md) | Root-cause remediation and validation evidence for the five isolated repository regressions. |
+| [EPIC-17 Architecture & Boundary Review](../../epics/epic-17/README.md) | Documentation-only review that classifies Agent Genome, Administration and Automation proposals against the canonical implemented ACS and authorizes REQ decomposition only. |
 
 ## Existing foundations to preserve
 
@@ -146,6 +147,7 @@ separate implementation and governance authorization.
 11. [REQ-06 Workforce Core contract completion](req-06/README.md)
 12. [VAL-01 PostgreSQL durable foundations acceptance](val-01/README.md)
 13. [IMP-01C typed durable error surface completion](imp-01c/README.md)
+14. [EPIC-17 Architecture & Boundary Review](../../epics/epic-17/README.md)
 
 ## Non-goals
 
