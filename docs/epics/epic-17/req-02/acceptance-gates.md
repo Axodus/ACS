@@ -56,6 +56,6 @@ Presentation history/provenance: BOUNDED
 REQ-01 B02 consequence: EXPLICIT INPUT TO REQ-03
 Implementation blockers: EXPLICIT
 
-EPIC-17-REQ-02: COMPLETE / READY FOR CTO ACCEPTANCE
+EPIC-17-REQ-02: COMPLETE / ACCEPTED
 Implementation authority: NONE
 ```

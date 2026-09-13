@@ -1,6 +1,6 @@
 # REQ-02 Persona and Behavioral Ownership
 
-**Decision state:** `PROPOSED FOR CTO ACCEPTANCE`
+**Decision state:** `CTO ACCEPTED`
 
 ## 1. Persona decision
 

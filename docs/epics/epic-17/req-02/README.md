@@ -1,7 +1,8 @@
 # EPIC-17-REQ-02 — Profile, Persona & Presentation Ownership
 
-**Status:** `COMPLETE / READY FOR CTO ACCEPTANCE`
-**Decision state:** `PROPOSED`
+**Status:** `COMPLETE / ACCEPTED`
+**Decision state:** `CTO ACCEPTED`
+**Accepted commit:** `0c8234a5f52d56a09da8c7b7f1e0f0b03cb8ba41`
 **Baseline:** `9696bfb37ddbaef0f59e188a1520f2016d080548`
 **Dependency:** `EPIC-17-REQ-01 COMPLETE / ACCEPTED`
 **Scope:** documentation only
@@ -98,10 +99,10 @@ EPIC-17-REQ-01
 COMPLETE / ACCEPTED
 
 EPIC-17-REQ-02
-COMPLETE / READY FOR CTO ACCEPTANCE
+COMPLETE / ACCEPTED
 
 EPIC-17-REQ-03
-BLOCKED_BY_REQ-02_ACCEPTANCE
+DEPENDENCY GATE SATISFIED / DOCUMENTATION EXECUTION AUTHORIZED
 
 Implementation authority: NONE
 ```

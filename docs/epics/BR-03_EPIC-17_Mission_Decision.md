@@ -109,3 +109,14 @@ Native Agent semantic and persistence authority for EPIC-17. Its six contract
 deltas and three ADRs remain candidates, and blockers `E17-R01-B01` through
 `B03` remain open for future IMP planning. The acceptance authorized REQ-02
 documentation only; implementation and migration authority remain `NONE`.
+
+## Accepted REQ-02 gate
+
+The CTO accepted `EPIC-17-REQ-02` at commit
+`0c8234a5f52d56a09da8c7b7f1e0f0b03cb8ba41`. Profile is a derived Agent
+presentation projection without independent identity, aggregate or revision
+stream; Persona remains revision-bearing Agent behavior; and the implemented
+`GovernedProfileResource` remains a legacy operational composition preset for
+REQ-04 disposition. Its eight deltas and three ADRs remain candidates, and
+blockers `E17-R02-B01` through `B04` remain open. The acceptance authorized
+REQ-03 documentation only; implementation authority remains `NONE`.

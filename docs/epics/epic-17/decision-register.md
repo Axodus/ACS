@@ -3,7 +3,8 @@
 **Architecture review:** `COMPLETE / ACCEPTED`
 **REQ decomposition:** `COMPLETE / ACCEPTED`
 **REQ-01:** `COMPLETE / ACCEPTED`
-**REQ-02:** `COMPLETE / READY FOR CTO ACCEPTANCE`
+**REQ-02:** `COMPLETE / ACCEPTED`
+**REQ-03:** `COMPLETE / READY FOR CTO ACCEPTANCE`
 
 ## 1. Frozen decisions
 
@@ -34,7 +35,7 @@
 | --- | --- | --- | --- |
 | E17-BR-G01 | Native and legacy Control Plane Agent representations coexist. | `src/native-core/agent.ts`; `src/control-plane/unified-agent-model.ts` | Every REQ must name the canonical Native seam and required compatibility projection; no third model. |
 | E17-BR-G02 | Governed Profile currently contributes capability IDs to effective Agent composition. | `AgentService.compose` in `src/control-plane/agent-service.ts` | REQ-02 proposes Profile as a derived presentation projection and routes the legacy capability preset to REQ-04; future implementation remains blocked until accepted resource/configuration contracts resolve it. |
-| E17-BR-G03 | Runtime configuration snapshot is structurally generic. | `RuntimeExecutionIntentV2.runtime_configuration` | Typed effective-configuration references require a later additive contract decision. |
+| E17-BR-G03 | Runtime configuration snapshot is structurally generic. | `RuntimeExecutionIntentV2.runtime_configuration` | REQ-03 proposes class-specific admission resolution and one immutable snapshot per binding generation; future implementation remains blocked pending accepted contract deltas and downstream owner history. |
 | E17-BR-G04 | Memory has a policy reference and UI vocabulary but no canonical policy/store owner. | `AgentRevisionV2.knowledge.memory_policy_ref`; Control Plane navigation | Memory ownership, retention, deletion, retrieval and isolation must be frozen before implementation. |
 | E17-BR-G05 | Automation is visible only as blocked/manual/disabled capability and readiness state. | `src/capability-registry.ts`; `src/http/services/operational-status-service.ts`; Product API summaries | Domain identity, activation and schedule semantics remain unimplemented. |
 | E17-BR-G06 | Connector overlaps provider, tool, MCP and credential concepts. | Native Agent resource refs; `src/intelligence/`; governed composition resources | A Connector entity cannot be proposed until a distinct responsibility is proven. |
@@ -42,25 +43,25 @@
 
 None of these gates authorizes code changes. They determine REQ ordering.
 
-REQ-02's proposed resolution and eleven decisions are recorded in
-[REQ-02 Decision Record](req-02/decision-record.md). They remain pending CTO
-acceptance.
+REQ-02's accepted resolution and eleven decisions are recorded in
+[REQ-02 Decision Record](req-02/decision-record.md). Its contract deltas and
+ADRs remain candidates.
 
 ## 3. Candidate ADRs
 
 The REQ decomposition should decide whether these ADRs are required:
 
 - canonical Native/legacy Agent compatibility seam;
-- Profile projection ownership and overloaded legacy naming (`ADR-17-004`, proposed by REQ-02);
-- Persona ownership and structured behavior compilation (`ADR-17-005`, proposed by REQ-02);
-- historical presentation provenance (`ADR-17-006`, proposed by REQ-02);
+- Profile projection ownership and overloaded legacy naming (`ADR-17-004`, accepted as candidate by REQ-02);
+- Persona ownership and structured behavior compilation (`ADR-17-005`, accepted as candidate by REQ-02);
+- historical presentation provenance (`ADR-17-006`, accepted as candidate by REQ-02);
 - governed resource catalog persistence and history;
 - Connector versus provider/tool/MCP/connection boundary;
 - Global Settings ownership;
 - Memory policy/store ownership and deletion semantics;
 - delegation relationship and authority attenuation;
 - Automation identity, activation and schedule ownership;
-- typed effective-configuration snapshot;
+- class-specific resolver and immutable snapshot (`ADR-17-007` through `ADR-17-010`, proposed by REQ-03);
 - OpenClaw Automation adapter boundary;
 - Genome trait vocabulary and provenance mapping.
 
@@ -105,6 +106,6 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 [Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
-This resolves planning order only. `REQ-01` is accepted. `REQ-02` is complete
-and awaits CTO acceptance; `REQ-03` and later REQs remain dependency-gated.
-Implementation authority remains `NONE`.
+This resolves planning order only. `REQ-01` and `REQ-02` are accepted. `REQ-03`
+is complete and awaits CTO acceptance; `REQ-04` and later REQs remain
+dependency-gated. Implementation authority remains `NONE`.

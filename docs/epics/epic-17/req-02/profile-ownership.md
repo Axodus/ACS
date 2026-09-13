@@ -1,6 +1,6 @@
 # REQ-02 Profile Ownership and Naming Resolution
 
-**Decision state:** `PROPOSED FOR CTO ACCEPTANCE`
+**Decision state:** `CTO ACCEPTED`
 
 ## 1. Presentation Profile owner
 
