@@ -70,8 +70,8 @@ import type {
 import type { EconomicAuthorizationDecisionCode } from "./neurons-economic-contract.js";
 import { createCanonicalModelId } from "../intelligence/model-provider.js";
 import type { AgentRunnerService } from "../intelligence/agent-runner-service.js";
-import type { AsyncNativeCoreRepository } from "./shared-state/native-core-durable.js";
-import type { AgentDefinitionV2 } from "../native-core/agent.js";
+import type { AsyncNativeCoreRepository, NativeAgentLineage } from "./shared-state/native-core-durable.js";
+import type { AgentDefinitionV2, AgentRevisionV2 } from "../native-core/agent.js";
 import type { CredentialConnectionRegistry } from "../intelligence/credential-registry.js";
 import type { SecretStore } from "../intelligence/secret-store.js";
 import type { EngineService } from "../engines/engine-service.js";
@@ -1624,6 +1624,10 @@ export class ProductApiClient {
   }
 
   async getAgent(id: string): Promise<AgentDetail | undefined> {
+    if (this.#nativeCore) {
+      const lineage = await this.#nativeAgentLineage(id);
+      return lineage ? this.#nativeAgentDetail(lineage) : undefined;
+    }
     if (!this.#agentService) {
       return undefined;
     }
@@ -1639,6 +1643,11 @@ export class ProductApiClient {
   }
 
   async getAgentRevisions(agentId: string): Promise<readonly AgentRevisionSummary[]> {
+    if (this.#nativeCore) {
+      const lineage = await this.#nativeAgentLineage(agentId);
+      if (!lineage) return [];
+      return lineage.revisions.map((revision) => this.#nativeRevisionSummary(revision, lineage.definition.current_revision));
+    }
     if (!this.#agentService) {
       return [];
     }
@@ -1649,6 +1658,10 @@ export class ProductApiClient {
   }
 
   async getAgentLifecycle(agentId: string): Promise<AgentLifecycleStateView | undefined> {
+    if (this.#nativeCore) {
+      const lineage = await this.#nativeAgentLineage(agentId);
+      return lineage ? this.#nativeLifecycleView(lineage.definition) : undefined;
+    }
     if (!this.#agentService) {
       return undefined;
     }
@@ -2630,6 +2643,104 @@ export class ProductApiClient {
       archived: definition.status === "archived",
       updatedAt: definition.updated_at,
       checkedAt,
+    };
+  }
+
+  async #nativeAgentLineage(agentId: string): Promise<NativeAgentLineage | undefined> {
+    const nativeCore = this.#nativeCore;
+    if (!nativeCore) return undefined;
+    try {
+      const lineage = await nativeCore.getAgentLineage(agentId);
+      if (this.#nativeAgentTenantId && lineage.definition.scope.tenant_id !== this.#nativeAgentTenantId) return undefined;
+      return lineage;
+    } catch {
+      return undefined;
+    }
+  }
+
+  #nativeAgentDetail(lineage: NativeAgentLineage): AgentDetail {
+    const current = lineage.revisions.at(-1);
+    if (!current) throw new Error(`Native Agent ${lineage.definition.agent_id} has no current revision.`);
+    const agentId = lineage.definition.agent_id;
+    return {
+      agentId,
+      agentDefinition: this.#nativeAgentDefinition(lineage.definition, current),
+      currentRevision: this.#nativeAgentRevision(lineage.definition, current),
+      compositionUnavailableReason: "Native Core composition is not projected by this Agent read surface.",
+      readinessSummary: { state: "unavailable", blockerCount: 0, warningCount: 0 },
+      deploymentSummary: this.#deploymentSummary(agentId),
+      runtimeSummary: this.#runtimeSummary(agentId),
+      economicSummary: {
+        state: "unavailable",
+        message: "Economic summaries are not exposed per agent in this slice.",
+      },
+      auditSummary: this.#auditSummary(agentId),
+      lifecycleState: this.#nativeLifecycleView(lineage.definition),
+      availableActions: this.#nativeReadOnlyActions(),
+      guardrails: AGENT_SURFACE_GUARDRAILS,
+      checkedAt: Date.now(),
+      stale: false,
+    };
+  }
+
+  #nativeAgentDefinition(definition: AgentDefinitionV2, revision: AgentRevisionV2): AgentDefinition {
+    return {
+      agentId: definition.agent_id,
+      name: definition.name,
+      status: definition.status,
+      ...(revision.role_ref ? { roleId: revision.role_ref.id } : {}),
+      capabilityIds: revision.capability_requirements.map((ref) => ref.id),
+      skillIds: revision.resources.skill_refs.map((ref) => ref.entity_id),
+      toolIds: revision.resources.tool_refs.map((ref) => ref.entity_id),
+      credentialConnectionIds: [],
+      runnerPreferences: revision.runtime_preferences.executor_preferences.map((ref) => ref.id),
+      executionPolicyId: revision.governance.permission_policy_ref.entity_id,
+    };
+  }
+
+  #nativeAgentRevision(definition: AgentDefinitionV2, revision: AgentRevisionV2): AgentRevision {
+    return {
+      agentId: definition.agent_id,
+      revision: revision.ref.revision,
+      fingerprint: revision.ref.fingerprint,
+      definition: this.#nativeAgentDefinition(definition, revision),
+      createdAt: revision.commit.committed_at,
+      updatedAt: definition.updated_at,
+      createdBy: revision.commit.created_by,
+    };
+  }
+
+  #nativeLifecycleView(definition: AgentDefinitionV2): AgentLifecycleStateView {
+    return {
+      agentId: definition.agent_id,
+      currentRevision: definition.current_revision,
+      status: definition.status,
+      archived: definition.status === "archived",
+      protected: false,
+    };
+  }
+
+  #nativeReadOnlyActions(): readonly AgentLifecycleActionView[] {
+    const reason = "Native Core Agent mutations are not exposed by this read projection.";
+    return (["update", "createRevision", "adoptRevision", "restoreRevision", "duplicate", "archive", "restore", "delete"] as const)
+      .map((action) => ({ action, label: AGENT_ACTION_LABELS[action], available: false, reason }));
+  }
+
+  #nativeRevisionSummary(revision: AgentRevisionV2, currentRevision: number): AgentRevisionSummary {
+    const current = revision.ref.revision === currentRevision;
+    const reason = "Native Core Agent revisions are read-only through this Product API projection.";
+    return {
+      revisionId: `r${revision.ref.revision}`,
+      revisionNumber: revision.ref.revision,
+      status: current ? "current" : "historical",
+      createdAt: revision.commit.committed_at,
+      adoptedAt: revision.commit.committed_at,
+      compositionHash: revision.ref.fingerprint,
+      changeSummary: revision.commit.change_reason,
+      availableActions: [
+        { action: "adopt", available: false, reason },
+        { action: "restore", available: false, reason },
+      ],
     };
   }
 

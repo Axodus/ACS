@@ -4,7 +4,7 @@
 
 `AUTHORIZED` on September 12, 2026.
 
-`PARTIAL — UI REFINEMENT COMPLETE; LOOKUP GAPS REMAIN` on September 12, 2026.
+`ACCEPTED` on September 12, 2026, after `ACS-BLOCKER-020` was accepted and the canonical tenant-scoped Agent discovery surface became available to the Workforce form.
 
 ## Before / problem
 
@@ -39,7 +39,7 @@ Agent selection is human-facing and retains the canonical ID internally. The sel
 
 ## Governance and role decisions
 
-The accepted `WorkforceCreateInput` has no governed `roleRef` or authority selection field. The UI does not invent either field. There is a Product API role listing surface used by Agent configuration, but it is not part of this Workforce creation contract. Authority and policy fields remain explicit canonical fallbacks until a narrow Product API read capability is authorized.
+The accepted `WorkforceCreateInput` has no governed `roleRef` or authority selection field. The UI does not invent either field. There is a Product API role listing surface used by Agent configuration, but it is not part of this Workforce creation contract. Ownership and policy references remain explicit canonical fallbacks because the accepted Workforce create flow exposes no corresponding listing/read capability. These are bounded contract limitations, not a blocker to the FIX-03 UI correction.
 
 ## Validation
 
@@ -47,20 +47,24 @@ The accepted `WorkforceCreateInput` has no governed `roleRef` or authority selec
 - Typecheck: passed.
 - Lint: passed.
 - Build: passed; Vite emitted the existing large-chunk warning.
+- Browser acceptance: 88 route/viewport checks completed; `/workforces/new` passed at 1440x900, 1280x800, 768x1024, and 390x844. The overall harness retained its existing fixture caveat on unrelated Workforce routes.
 - `git diff --check`: passed.
-
-Browser route validation was not executed in this change because the acceptance script requires a running standalone host and its external Product API fixture. The route remains covered by the existing browser harness and route matrix source assertions.
+- Current local root rerun: `npm test` completed with 718 passed, 0 failed, and 14 PostgreSQL-gated skips because `ACS_SH_DATABASE_URL` was not configured in this shell.
+- Integrated repository validation supplied with `ACS-BLOCKER-020`: `npm test` 732 passed, 0 failed, 0 skipped; Product API build passed; VAL-03 passed 1/1.
 
 ## Lookup capability gaps
 
 | Field | Canonical entity | Existing backend primitive | Missing Product API capability | UX impact |
 | --- | --- | --- | --- | --- |
-| Ownership reference | Governance / authority reference | Create contract accepts `ownershipRef` | Read/list authority lookup for Workforce creation | Opaque reference remains a required fallback input |
-| Membership policy | Policy revision reference | Create contract accepts policy ID, revision, fingerprint | Read/list policy revisions for selection | Opaque policy reference fields remain visible |
-| Audit policy | Policy revision reference | Create contract accepts policy ID, revision, fingerprint | Read/list policy revisions for selection | Opaque policy reference fields remain visible |
+| Ownership reference | Governance / authority reference | Create contract accepts `ownershipRef` | No accepted authority read/list surface for Workforce creation | Opaque reference remains a required canonical fallback input |
+| Membership policy | Policy revision reference | Create contract accepts policy ID, revision, fingerprint | No accepted policy read/list surface for Workforce creation | Opaque policy reference fields remain visible and canonical |
+| Audit policy | Policy revision reference | Create contract accepts policy ID, revision, fingerprint | No accepted policy read/list surface for Workforce creation | Opaque policy reference fields remain visible and canonical |
 | Governed role | Role revision reference | Role catalog exists for other surfaces; create input has no role field | Authorized Workforce create role field and lookup path | No role control is rendered |
 
 ## Boundary and regression statement
 
 The form continues to call only `Application → Product API → Native Core`. No backend, persistence, lifecycle, revision, governance authority, idempotency, or request payload semantics changed. Creation still navigates to `/workforces/:id` after the canonical Product API response.
 
+## Recommendation
+
+`ACS-V2-IMP-03F-FIX-03 CAN BE ACCEPTED`

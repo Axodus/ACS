@@ -58,8 +58,8 @@ function agentRevision(agentId, revision, timestamp) {
   });
 }
 
-function event({ eventId, eventType, timestamp, sequence, workforceId, agentId, runId, taskId, key, payload = {} }) {
-  const currentScope = scope();
+function event({ eventId, eventType, timestamp, sequence, workforceId, agentId, runId, taskId, key, payload = {}, eventScope = scope() }) {
+  const currentScope = eventScope;
   return createEventEnvelopeV2({
     event_id: eventId,
     event_type: eventType,
@@ -178,8 +178,8 @@ async function closeIntegratedApplication(app) {
   await new Promise((resolve) => app.server.once("exit", resolve));
 }
 
-async function advanceAgent(nativeCore, { agentId, revision, expectedHead, timestamp }) {
-  const currentScope = scope();
+async function advanceAgent(nativeCore, { agentId, revision, expectedHead, timestamp, agentScope = scope() }) {
+  const currentScope = agentScope;
   const created = agentRevision(agentId, revision, timestamp);
   const eventSequence = (await nativeCore.replayEvents({ streamScope: `agent:${agentId}` })).length + 1;
   const result = await nativeCore.advanceAgentLineage({
@@ -187,7 +187,7 @@ async function advanceAgent(nativeCore, { agentId, revision, expectedHead, times
     revision: created,
     expectedHead,
     idempotency: { key: `agent-${agentId}-${revision}`, scope: `agent:${agentId}`, request_hash: digest },
-    event: event({ eventId: `event-agent-${agentId}-${revision}`, eventType: "agent.revision.created", timestamp, sequence: eventSequence, agentId, key: `agent-${agentId}-${revision}`, payload: { agent_revision: revision } }),
+    event: event({ eventId: `event-agent-${agentId}-${revision}`, eventType: "agent.revision.created", timestamp, sequence: eventSequence, agentId, key: `agent-${agentId}-${revision}`, payload: { agent_revision: revision }, eventScope: currentScope }),
     outboxId: `outbox-agent-${agentId}-${revision}`,
     deliveryKind: "agent.revision.created",
   });
@@ -233,6 +233,7 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
   const workforceId = "workforce-val-03";
   const agentA = "agent-a-val-03";
   const agentB = "agent-b-val-03";
+  const foreignAgent = "agent-foreign-val-03";
   const runAId = "run-a-val-03";
   const runBId = "run-b-val-03";
   const taskId = "task-val-03";
@@ -250,6 +251,7 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
     const agentA1 = await advanceAgent(nativeCore, { agentId: agentA, revision: 1, expectedHead: 0, timestamp: 10 });
     await advanceAgent(nativeCore, { agentId: agentA, revision: 2, expectedHead: 1, timestamp: 20 });
     await advanceAgent(nativeCore, { agentId: agentB, revision: 1, expectedHead: 0, timestamp: 30 });
+    await advanceAgent(nativeCore, { agentId: foreignAgent, revision: 1, expectedHead: 0, timestamp: 40, agentScope: { ...scope(), tenant_id: "tenant-foreign-val-03" } });
     host = await openHost(shared, root, [appOrigin]);
     app = await openIntegratedApplication(host.baseUrl, scope().tenant_id, appPort);
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
@@ -334,6 +336,21 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
 
     await advanceAgent(nativeCore, { agentId: agentA, revision: 3, expectedHead: 2, timestamp: 180 });
     await advanceAgent(nativeCore, { agentId: agentB, revision: 2, expectedHead: 1, timestamp: 190 });
+    const [agentInventory, agentDetail, agentRevisions, agentLifecycle] = await Promise.all([
+      host.request("/api/v1/agents"),
+      host.request(`/api/v1/agents/${agentB}`),
+      host.request(`/api/v1/agents/${agentB}/revisions`),
+      host.request(`/api/v1/agents/${agentB}/lifecycle`),
+    ]);
+    for (const response of [agentInventory, agentDetail, agentRevisions, agentLifecycle]) assert.equal(response.status, 200, JSON.stringify(response.body));
+    assert.equal(agentInventory.body.data.find((entry) => entry.agentId === agentB)?.currentRevisionId, 2);
+    assert.equal(agentInventory.body.data.some((entry) => entry.agentId === foreignAgent), false);
+    assert.equal(agentDetail.body.data.agentId, agentB);
+    assert.equal(agentDetail.body.data.currentRevision.revision, 2);
+    assert.deepEqual(agentRevisions.body.data.map((entry) => entry.revisionNumber), [1, 2]);
+    assert.equal(agentLifecycle.body.data.status, "active");
+    const foreignAgentDetail = await host.request(`/api/v1/agents/${foreignAgent}`);
+    assert.equal(foreignAgentDetail.status, 404, JSON.stringify(foreignAgentDetail.body));
     const r4 = await host.request(`/api/v1/workforces/${workforceId}/revisions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(revisionInput({ expectedRevision: 3, members: membersR3, displayName: "VAL-03 Workforce r4", idempotencyKey: "revision-r4", requestedAt: 200 })) });
     assert.equal(r4.status, 201, JSON.stringify(r4.body));
     assert.equal(r4.body.data.identity.current_revision, 4);
@@ -431,12 +448,12 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
     await page.getByLabel("Ownership reference").fill(scope().owner_ref);
     await page.getByLabel("Slot").fill("primary");
     await page.getByRole("combobox").selectOption(agentB);
-    await page.getByLabel("Responsibilities (comma separated)").fill("review");
+    await page.getByLabel("Responsibilities").fill("review");
     await page.getByLabel("Membership policy ID").fill("membership-policy");
     await page.getByLabel("Membership policy fingerprint").fill(digest);
     await page.getByLabel("Audit policy ID").fill("audit-policy");
     await page.getByLabel("Audit policy fingerprint").fill(digest);
-    await page.getByRole("button", { name: "Create Workforce" }).click();
+    await page.getByRole("button", { name: "Create draft r1" }).click();
     await page.waitForTimeout(500);
     const browserErrors = await page.getByRole("alert").allTextContents();
     assert.deepEqual(browserErrors, [], `Application creation error: ${browserErrors.join(" | ")}`);
