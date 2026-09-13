@@ -19,7 +19,8 @@ configuration or production state under this milestone.
 6. `dependency-graph.md`
 7. `req-decomposition.md`
 8. `capability-to-req-matrix.md`
-9. Relevant ACS v2 Agent, Workforce, runtime, Evidence and persistence records
+9. The current `req-NN/README.md` package
+10. Relevant ACS v2 Agent, Workforce, runtime, Evidence and persistence records
 
 ## Classification discipline
 
@@ -81,10 +82,14 @@ escalation at lower layers.
 - Preserve EPIC-16 and prior closure records.
 - Preserve independently governed VAL-03 work.
 - The Architecture & Boundary Review authorizes REQ planning only.
-- The documented dependency graph governs REQ ordering. Do not renumber, merge or
+- The accepted dependency graph governs REQ ordering. Do not renumber, merge or
   split a planned REQ without updating dependency and capability traceability.
-- Planned REQs are decomposition units, not accepted contracts or IMP
-  authority. Each requires separate normative authoring and acceptance.
+- Queue presence does not mean execution readiness. A REQ starts only when all
+  dependencies are accepted or explicitly resolved by the governing gate.
+- Complete and validate one REQ per commit. Do not combine two REQ closures in
+  one commit. A dependent REQ waits for CTO acceptance of its predecessor.
+- REQs are documentation units, not IMP authority. Each requires separate
+  normative authoring and acceptance.
 - NFT, inheritance, mutation, breeding, marketplace, royalties and Genome
   economics remain rejected and require a new executive decision to enter
   scope.

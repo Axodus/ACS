@@ -87,7 +87,7 @@ REQ decomposition readiness: READY
 Implementation authority: NONE
 
 REQ Decomposition & Dependency Planning:
-GO — DOCUMENTATION ONLY
+COMPLETE / ACCEPTED
 ```
 
 The decomposition starts with the dependency graph and assigns REQ identifiers
@@ -96,3 +96,7 @@ configuration-snapshot seams precede Resources/Connector, Memory, Delegation
 and Automation. Administration and Control Plane remain projections of accepted
 contracts. No CEO escalation is required while the rejected Genome economic and
 genetic scope remains excluded.
+
+REQ execution follows the accepted dependency order. Each REQ receives one
+documentation commit after its validation and waits for CTO acceptance before
+dependent REQs become ready.

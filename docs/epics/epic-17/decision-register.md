@@ -1,7 +1,8 @@
 # EPIC-17 Architecture Review Decision Register
 
 **Architecture review:** `COMPLETE / ACCEPTED`
-**REQ decomposition:** `COMPLETE / PROPOSED FOR NORMATIVE REQ AUTHORING`
+**REQ decomposition:** `COMPLETE / ACCEPTED`
+**REQ-01:** `COMPLETE / READY FOR CTO ACCEPTANCE`
 
 ## 1. Frozen decisions
 
@@ -23,7 +24,8 @@
 | E17-BR-D14 | Structural seams and ownership decisions precede UX, Administration projections and Automation execution integration. | `ACCEPTED` |
 | E17-BR-D15 | Administration and Control Plane project accepted contracts through Product API; they do not originate domain truth. | `ACCEPTED` |
 | E17-BR-D16 | Documentation validation is sufficient for Architecture Review closure; no ACS regression run is required for this documentation-only diff. | `ACCEPTED` |
-| E17-BR-D17 | The dependency-derived planning sequence contains twelve REQs, ending with an integrated implementation-readiness gate. | `PROPOSED_FOR_REQ_AUTHORING` |
+| E17-BR-D17 | The dependency-derived sequence contains twelve REQs, ending with an integrated implementation-readiness gate. | `ACCEPTED` |
+| E17-BR-D18 | Each REQ closes in its own validated documentation commit; dependent REQs wait for CTO acceptance. | `ACCEPTED` |
 
 ## 2. Repository contradictions and REQ gates
 
@@ -79,14 +81,17 @@ and Genome economics remain rejected.
 ## 5. Resolved dependency plan
 
 ```text
-G1 canonical Agent seam and ownership baseline
-  -> G2 Profile / Persona / presentation
-  -> G3 Administration / settings / catalogs / connections / channels / memory
-  -> G4 Delegation and Automation semantics
-  -> G5 activation / runtime resolution / adapters / recovery
-  -> G6 Product API / Control Plane / Evidence / Cost projections
-  -> G7 Genome trait compatibility
-  -> G8 progressive and final validation
+REQ-01 canonical Agent seam
+  -> REQ-02 Profile / Persona
+  -> REQ-03 effective configuration / snapshot
+  -> REQ-04 governed resources
+       -> REQ-05 Connectors --+
+       -> REQ-06 Memory -------+-> REQ-07 Delegation
+                                    -> REQ-08 Automation
+                                    -> REQ-09 Activation / Runtime
+                                    -> REQ-10 API / Administration
+                                    -> REQ-11 Genome semantics
+                                    -> REQ-12 Conformance / IMP plan
 ```
 
 The planning groups are resolved by [Dependency Graph](dependency-graph.md),
@@ -94,6 +99,6 @@ The planning groups are resolved by [Dependency Graph](dependency-graph.md),
 [Capability-to-REQ Matrix](capability-to-req-matrix.md). The resulting sequence
 is `EPIC-17-REQ-01 ... EPIC-17-REQ-12`.
 
-This resolves planning order only. Every REQ remains unaccepted until its
-normative package is authored and reviewed. Implementation authority remains
-`NONE`.
+This resolves planning order only. `REQ-01` is complete and awaits CTO
+acceptance; all later REQs remain blocked by the queue policy. Implementation
+authority remains `NONE`.

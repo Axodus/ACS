@@ -1,7 +1,8 @@
 # EPIC-17 — Agent Genome Foundations, Administration & Automation Platform
 
 **Architecture & Boundary Review:** `COMPLETE / ACCEPTED`
-**REQ decomposition:** `COMPLETE / PROPOSED FOR NORMATIVE REQ AUTHORING`
+**REQ decomposition:** `COMPLETE / ACCEPTED`
+**Current REQ:** `EPIC-17-REQ-01 COMPLETE / READY FOR CTO ACCEPTANCE`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
 **Scope:** documentation only
 **Implementation authority:** none
@@ -60,6 +61,7 @@ implementation authority.
 | [Dependency Graph](dependency-graph.md) | Hard dependencies, parallel planning windows, blockers and unlock order. |
 | [REQ Decomposition](req-decomposition.md) | Dependency-derived `EPIC-17-REQ-01 ... REQ-12` planning charters. |
 | [Capability-to-REQ Matrix](capability-to-req-matrix.md) | Complete mapping of all 76 dispositions and rejected scope to the planned REQs. |
+| [REQ-01 — Canonical Agent Seam](req-01/README.md) | Canonical Agent ownership, Native/legacy seam, compatibility and implementation gates. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -72,6 +74,7 @@ implementation authority.
 6. [Dependency Graph](dependency-graph.md).
 7. [REQ Decomposition](req-decomposition.md).
 8. [Capability-to-REQ Matrix](capability-to-req-matrix.md).
+9. [REQ-01 — Canonical Agent Seam](req-01/README.md).
 
 ## Dependencies to preserve
 
@@ -138,9 +141,9 @@ override chain.
 
 The Architecture & Boundary Review is accepted. Its 76 evidence-backed
 dispositions replace the original Genome attachment as the planning baseline.
-The dependency graph derives twelve planned REQs; the original eleven-request
+The accepted dependency graph derives twelve REQs; the original eleven-request
 list did not determine the count or sequence.
 
-The next milestone is normative authoring and review of `EPIC-17-REQ-01`.
-Neither the decomposition nor any planned REQ grants IMP, implementation,
-migration, schema, API, database or production authority.
+`EPIC-17-REQ-01` is complete and ready for CTO acceptance. `REQ-02` remains
+blocked until that acceptance. Neither the decomposition nor any REQ grants
+IMP, implementation, migration, schema, API, database or production authority.

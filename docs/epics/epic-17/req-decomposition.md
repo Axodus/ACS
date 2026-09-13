@@ -1,248 +1,206 @@
 # EPIC-17 REQ Decomposition
 
-**Status:** `COMPLETE / PROPOSED FOR NORMATIVE REQ AUTHORING`
+**Status:** `COMPLETE / ACCEPTED`
+**Baseline:** `08b9355c41c635910bade3700f81c03d36c8db50`
 **Scope:** dependency planning only
-**Accepted REQs:** none
 **Implementation authority:** none
 
-## 1. Numbering decision
+## 1. Execution and commit policy
 
-The accepted Architecture & Boundary Review yields twelve REQ planning units.
-The count follows ownership seams and dependency gates. It is independent of
-the eleven requests in the original Genome attachment.
+The twelve REQs follow the accepted dependency graph. Queue presence does not
+mean execution readiness. A REQ becomes `READY` only after every hard
+dependency is accepted or explicitly resolved by the governing gate.
 
-Numbering expresses the earliest safe normative order. A higher-numbered REQ
-may begin discovery when its listed prerequisites are stable, but it cannot be
-accepted before its hard dependencies.
+Each REQ is executed, validated and committed separately. Its dependent REQ
+remains blocked until CTO acceptance. The original Genome attachment does not
+override this package or supply presumed architecture.
 
-## 2. Planned sequence
+## 2. Accepted sequence
 
-| Planned REQ | Normative subject | Canonical owner preserved | Hard dependencies | Planning state |
-| --- | --- | --- | --- | --- |
-| `EPIC-17-REQ-01` | Canonical Agent Compatibility, Profile, Persona & Presentation Ownership | Native Agent Core and immutable Agent lineage | Accepted Architecture Review | `PLANNED` |
-| `EPIC-17-REQ-02` | Effective Configuration Resolution & Historical Snapshot | Agent/Workforce revisions, governance and runtime compilation | `REQ-01` | `PLANNED` |
-| `EPIC-17-REQ-03` | Governed Resources, Models, Connector, Connection & Channel Boundaries | Governed catalogs, provider registry, credential/secret owners | `REQ-02` | `PLANNED` |
-| `EPIC-17-REQ-04` | Memory Policy, Store, Scope & Deletion Boundary | Agent memory-policy reference, Tenant/governance, Knowledge and Evidence boundaries | `REQ-02` | `PLANNED` |
-| `EPIC-17-REQ-05` | Agent Delegation Relationship & Authority Attenuation | Canonical Agents, governance and existing Run/Task/Assignment machinery | `REQ-03`, `REQ-04` | `PLANNED` |
-| `EPIC-17-REQ-06` | Automation Domain, Identity, Lifecycle & Target Semantics | New owner to decide; existing Workflow/Run/Workforce references preserved | `REQ-03`, `REQ-05` | `PLANNED` |
-| `EPIC-17-REQ-07` | Activation, Trigger, Schedule & Admission Integration | Automation activation plus existing admission, events and idempotency | `REQ-02`, `REQ-03`, `REQ-06` | `PLANNED` |
-| `EPIC-17-REQ-08` | Runtime Integration, Recovery & Replaceable Executor Boundary | Runtime compilation, workers, leases, fencing and engine adapters | `REQ-02`, `REQ-03`, `REQ-07` | `PLANNED` |
-| `EPIC-17-REQ-09` | Evidence, Provenance, Usage & Cost Correlation | Existing Evidence and Economics authorities | `REQ-04`, `REQ-05`, `REQ-06`, `REQ-07`, `REQ-08` | `PLANNED` |
-| `EPIC-17-REQ-10` | Product API, Administration & Control Plane Projections | Existing Product API and Control Plane | `REQ-03`, `REQ-04`, `REQ-05`, `REQ-06`, `REQ-07`, `REQ-09` | `PLANNED` |
-| `EPIC-17-REQ-11` | Genome Trait Classification & Provenance Mapping | Canonical Agent lineage and accepted domain references | `REQ-01`, `REQ-03`, `REQ-04`, `REQ-05`, `REQ-06`, `REQ-09` | `PLANNED` |
-| `EPIC-17-REQ-12` | Integrated Conformance & Implementation Readiness Gate | All accepted ACS and EPIC-17 owners | `REQ-01` through `REQ-11` | `PLANNED` |
+| REQ | Normative subject | Hard dependencies | Current state |
+| --- | --- | --- | --- |
+| `EPIC-17-REQ-01` | Canonical Agent Seam & Identity Boundary | Accepted Architecture Review and decomposition | `COMPLETE / READY FOR CTO ACCEPTANCE` |
+| `EPIC-17-REQ-02` | Profile, Persona & Presentation Ownership | `REQ-01` | `BLOCKED_BY_REQ-01_ACCEPTANCE` |
+| `EPIC-17-REQ-03` | Effective Configuration Resolution & Historical Runtime Snapshot | `REQ-01`, `REQ-02` where presentation applies | `PLANNED` |
+| `EPIC-17-REQ-04` | Governed Resources, Models, Skills, Tools & MCP Boundary | `REQ-01`, `REQ-03` | `PLANNED` |
+| `EPIC-17-REQ-05` | Connector, Connection, Credential & Channel Boundary | `REQ-03`, `REQ-04` | `PLANNED` |
+| `EPIC-17-REQ-06` | Memory Policy & Memory Store Boundary | `REQ-01`, `REQ-03`, `REQ-04` | `PLANNED` |
+| `EPIC-17-REQ-07` | Delegation & Agent-to-Agent Authority Boundary | `REQ-01`, `REQ-03`, `REQ-04`, `REQ-05`, `REQ-06` | `PLANNED` |
+| `EPIC-17-REQ-08` | Automation Domain Identity & Revision Boundary | `REQ-01`, `REQ-03`, `REQ-04`, `REQ-07` | `PLANNED` |
+| `EPIC-17-REQ-09` | Activation, Trigger, Schedule & Runtime Admission Boundary | `REQ-03`, `REQ-07`, `REQ-08` | `PLANNED` |
+| `EPIC-17-REQ-10` | Product API, Administration & Control Plane Projection | `REQ-02` through `REQ-09` | `PLANNED` |
+| `EPIC-17-REQ-11` | Genome Traits, Presentation Assets & Verification Semantics | `REQ-01` through `REQ-04`, `REQ-10` | `PLANNED` |
+| `EPIC-17-REQ-12` | Cross-Domain Conformance, Closure & IMP Readiness Plan | `REQ-01` through `REQ-11` accepted or explicitly blocked/deferred | `PLANNED` |
 
-## 3. REQ charters
+## 3. Normative charters
 
-### EPIC-17-REQ-01 — Canonical Agent Compatibility, Profile, Persona & Presentation Ownership
+### EPIC-17-REQ-01 — Canonical Agent Seam & Identity Boundary
 
-Freeze the Native-to-legacy Agent compatibility seam and decide where Profile,
-Persona, name/role/mission, presentation assets and badges live and revision.
-Resolve the current Profile-to-effective-capability contribution explicitly.
+Resolve the seam between Native/current Agent and legacy representations.
+Freeze one canonical identity, lifecycle, immutable revision and lineage
+authority. Classify every other representation as projection, adapter, legacy
+compatibility surface or deprecation candidate.
 
-- **Primary inputs:** capabilities `E17-C12` through `E17-C21`, `E17-C27` and
-  `E17-C28`; gates `E17-BR-G01`, `E17-BR-G02`, `E17-BR-G07`.
-- **Required decisions:** canonical write path; compatibility projection;
-  Profile revision owner; presentation versus operational truth; Persona
-  relationship to `role_ref`, instructions, constraints and policies.
-- **Acceptance gate:** one canonical Agent identity/lineage remains; Profile and
-  badges grant no capability or authority; historical references are explicit.
-- **Non-goals:** third Agent model, parallel lifecycle, provider prompt as
-  canonical state, schema or implementation.
+- **Required outputs:** ownership decision; seam map; compatibility rules;
+  migration/deprecation candidates; proposed contract deltas; blockers/ADRs;
+  IMP acceptance criteria.
+- **Acceptance:** one unambiguous canonical Agent and revision authority; every
+  relevant legacy representation has a destination; no `GenomeAgent`,
+  `SubAgent` or provider/executor identity becomes canonical.
+- **Authority:** documentation only; no implementation, migration or schema.
 
-### EPIC-17-REQ-02 — Effective Configuration Resolution & Historical Snapshot
+### EPIC-17-REQ-02 — Profile, Persona & Presentation Ownership
 
-Freeze class-specific resolution for presentation, model, capabilities,
-skills/tools, credentials, security, governance, runtime, Memory, Evidence and
-Cost/budget. Specify the typed effective snapshot boundary and reconstruction
-sources without replacing runtime compilation.
+Resolve Profile, Persona and presentation without turning display state into
+operational capability. Separate identity, behavioral semantics, presentation
+and permission. Decide Profile owner/revision, AgentRevision content,
+presentation resources, history/provenance and the Profile capability naming
+conflict.
 
-- **Primary inputs:** `E17-C11`, `E17-C29`, `E17-C50`, `E17-C58`; precedence
-  matrix; gate `E17-BR-G03`.
-- **Required decisions:** authority by class; allowed override; attenuation;
-  deterministic conflict/rejection; exact Run snapshot; secret-free capture;
-  historical reconstruction.
-- **Acceptance gate:** no universal override chain; lower layers cannot exceed
-  upper authority; the same accepted inputs reconstruct the same effective
-  configuration.
-- **Non-goals:** new runtime owner, raw credentials in snapshots, implementation
-  or migration.
+- **Requires:** accepted `REQ-01`.
+- **Acceptance:** ownership and deltas are frozen; Persona remains subordinate
+  to canonical Agent revision; presentation grants no capability or authority.
 
-### EPIC-17-REQ-03 — Governed Resources, Models, Connector, Connection & Channel Boundaries
+### EPIC-17-REQ-03 — Effective Configuration Resolution & Historical Runtime Snapshot
 
-Reconcile capabilities, Skills, Tools, MCP references, models, connections,
-credentials, Connector definitions and Channels under their current owners.
-Prove any distinct Connector or Channel responsibility before proposing an
-additive contract.
+Define class-specific global, Agent, Workforce and operation authority for
+presentation, model, capabilities, resources, credentials, security,
+governance, runtime, Memory, Evidence and Cost/budget. Freeze deterministic
+resolution, attenuation, immutable execution snapshot, provenance,
+fingerprinting, reconstruction and failure semantics.
 
-- **Primary inputs:** `E17-C03` through `E17-C10`, `E17-C22` through
-  `E17-C25`; gate `E17-BR-G06`.
-- **Required decisions:** catalog durability/history; requirement versus grant;
-  provider-neutral model identity; Connector overlap test; connection and lease
-  references; Channel owner and permission relationship.
-- **Acceptance gate:** no embedded resource catalog in Agent; no raw secret;
-  Connector does not duplicate provider/tool/MCP/connection authority.
-- **Non-goals:** provider-owned Agent identity, parallel credential store,
-  provider-specific canonical model identity.
+- **Requires:** accepted `REQ-01`; accepted `REQ-02` where presentation or
+  Persona ownership affects resolution.
+- **Acceptance:** no universal override chain; lower layers cannot exceed upper
+  authority; runtime/Run are not redefined.
 
-### EPIC-17-REQ-04 — Memory Policy, Store, Scope & Deletion Boundary
+### EPIC-17-REQ-04 — Governed Resources, Models, Skills, Tools & MCP Boundary
 
-Define Memory ownership, taxonomy, authority, isolation, retention, deletion,
-retrieval provenance and historical capture while preserving existing
-`memory_policy_ref` and keeping Memory distinct from Run State, checkpoints,
-Knowledge, Evidence and event history.
+Freeze canonical owners, stable identity, revision semantics, Agent references,
+governance, provenance, compatibility selection and history for models, Skills,
+Tools, MCP and capability requirements.
 
-- **Primary inputs:** `E17-C26`, `E17-C30` through `E17-C35`; gate
-  `E17-BR-G04`.
-- **Required decisions:** policy owner; store owner candidates; working, Agent,
-  Workforce-shared and user/context scope; consent and deletion; retrieval
-  evidence; companion ownership outside Workforce Core.
-- **Acceptance gate:** no aliasing of Evidence/history as mutable Memory; no
-  cross-Tenant or delegated access without explicit authority; deletion and
-  reconstruction semantics are compatible.
-- **Non-goals:** relabeling checkpoints or Knowledge as Memory, storage schema or
-  provider selection.
+- **Requires:** accepted `REQ-01` and `REQ-03`.
+- **Acceptance:** Agent references resources and does not own provider
+  registries; Skill is not Profile; Tool availability is not permission; MCP
+  endpoint is not provider identity.
 
-### EPIC-17-REQ-05 — Agent Delegation Relationship & Authority Attenuation
+### EPIC-17-REQ-05 — Connector, Connection, Credential & Channel Boundary
 
-Freeze delegation as a bounded relationship from one canonical Agent to
-another and define its authority, recursion, revision, audit and execution
-references.
+Separate integration definition, configured Connection, credential/secret
+authority and interaction Channel. Test whether Connector needs a distinct
+contract and freeze Channel owner, Tenant/authorization boundary,
+lifecycle/revision expectations and relation to governed resources.
 
-- **Primary inputs:** `E17-C36` through `E17-C42`.
-- **Required decisions:** relation versus companion entity; owning revision;
-  authority intersection; resource/credential/Memory attenuation; depth and
-  cycle rules; Evidence subject/reference.
-- **Acceptance gate:** both endpoints are canonical Agents; delegated execution
-  uses existing Run/Task/Assignment; any Workforce incompatibility is a
-  blocker; `SubAgent` identity is rejected.
-- **Non-goals:** new Agent lifecycle, delegated self-grant, new execution
-  machinery.
+- **Requires:** accepted `REQ-03` and `REQ-04`.
+- **Acceptance:** ownership is explicit; raw credentials never enter Agent
+  history or Product API; insufficient evidence may defer representation but
+  cannot leave boundary ambiguity.
 
-### EPIC-17-REQ-06 — Automation Domain, Identity, Lifecycle & Target Semantics
+### EPIC-17-REQ-06 — Memory Policy & Memory Store Boundary
 
-Define the Automation ownership boundary before selecting aggregate identity,
-revision or persistence. Keep Automation as configuration that targets
-canonical Agent, Workforce, Workflow or Run admission references.
+Define Memory policy and store authority, Agent/Workforce/operation influence,
+read/write permission, retention, deletion, reconstruction, provenance and
+provider independence. Memory remains distinct from Run State, checkpoints,
+Knowledge, Evidence and Agent identity.
 
-- **Primary inputs:** `E17-C43` through `E17-C45`, `E17-C49`, `E17-C56`,
-  `E17-C57`; gate `E17-BR-G05`.
-- **Required decisions:** owner; identity/revision necessity; lifecycle;
-  authority; target references; change concurrency; deletion/disable semantics.
-- **Acceptance gate:** Automation remains separate from execution; no Task or
-  schedule is redefined; target references are canonical and reconstructable.
-- **Non-goals:** OpenClaw-owned Automation, provider-owned schedules, runtime
-  queue or Workflow replacement.
+- **Requires:** accepted `REQ-01`, `REQ-03` and `REQ-04`.
+- **Acceptance:** canonical boundary and contract candidates are explicit; no
+  database/store is chosen without demonstrated need.
 
-### EPIC-17-REQ-07 — Activation, Trigger, Schedule & Admission Integration
+### EPIC-17-REQ-07 — Delegation & Agent-to-Agent Authority Boundary
 
-Freeze normalized trigger observations, schedule evaluation, activation
-identity, idempotency, concurrency, retry, recovery and the exact handoff into
-existing admission.
+Define bounded authority from canonical Agent A to canonical Agent B, including
+scope, attenuation, depth, cycle prevention, expiry, revocation, chain,
+provenance, Workforce interaction, admission and Evidence.
 
-- **Primary inputs:** `E17-C46` through `E17-C48`, `E17-C51` through
-  `E17-C55`.
-- **Required decisions:** trigger normalization; schedule version/reference;
-  activation key; due-work transaction; trigger retry versus execution retry;
-  correlation with admitted Run/Workflow targets.
-- **Acceptance gate:** `Automation -> Activation -> execution intent -> existing
-  admission -> Run/Workflow`; duplicate observations do not duplicate admitted
-  work; recovery does not create a second execution recovery system.
-- **Non-goals:** scheduled Task identity, direct provider dispatch or bypass of
-  governance/admission.
+- **Requires:** accepted `REQ-01`, `REQ-03`, `REQ-04`, `REQ-05` and `REQ-06`.
+- **Acceptance:** authority boundary and representation candidate are explicit;
+  delegated execution uses existing Run/Task/Assignment; distinct `SubAgent`
+  identity is rejected.
+- **Blocker:** any incompatible Workforce, membership, admission, Assignment,
+  Run, Task or Attempt change requires architecture escalation.
 
-### EPIC-17-REQ-08 — Runtime Integration, Recovery & Replaceable Executor Boundary
+### EPIC-17-REQ-08 — Automation Domain Identity & Revision Boundary
 
-Specify how accepted activations and effective configuration enter existing
-runtime compilation and how OpenClaw or another executor receives ACS-owned
-intent and returns normalized observations.
+Define the minimum ACS Automation domain, testing the need for stable identity,
+lifecycle, revision, owner, Tenant scope, target, configuration, enable/disable,
+history, provenance, Evidence and Cost correlation. An independent aggregate
+must be proved rather than assumed.
 
-- **Primary inputs:** `E17-C59`, `E17-C60`, `E17-C65`, `E17-C66`; supporting
-  input from `E17-C58` and `E17-C54`.
-- **Required decisions:** adapter input/output; execution correlation; lease and
-  fencing ownership; restart reconciliation; event/outbox transaction use;
-  provider capability rejection.
-- **Acceptance gate:** executor replacement does not change canonical state;
-  runtime remains owner of execution, leases, fencing and recovery; shared
-  PostgreSQL/events/outbox/idempotency are reused.
-- **Non-goals:** executor-owned identity, scheduling or Evidence authority; new
-  runtime or persistence subsystem.
+- **Requires:** accepted `REQ-01`, `REQ-03`, `REQ-04` and `REQ-07`.
+- **Acceptance:** Automation remains separate from Run, Workflow, scheduler and
+  executor; alternatives and rejected ownership models are recorded.
 
-### EPIC-17-REQ-09 — Evidence, Provenance, Usage & Cost Correlation
+### EPIC-17-REQ-09 — Activation, Trigger, Schedule & Runtime Admission Boundary
 
-Define additive subject and correlation requirements for Profile, Memory,
-Delegation, Automation and Activation while preserving existing Evidence,
-Usage, Cost and Economics authority.
+Define durable idempotent Activation from triggers, schedules, external events
+and manual requests through execution intent into existing admission. Cover
+deduplication, retry, missed execution, cancellation, recovery, snapshot,
+Evidence and Usage/Cost correlation.
 
-- **Primary inputs:** `E17-C61` through `E17-C64`, `E17-C69`, `E17-C70`;
-  supporting history inputs `E17-C39`, `E17-C53`, `E17-C55`.
-- **Required decisions:** subject/reference sufficiency; source and artifact
-  provenance; activation-to-Run correlation; cost attribution; retention and
-  Tenant visibility; mandatory negative evidence.
-- **Acceptance gate:** no new Evidence ledger or economic model; all
-  correlations are historically reconstructable and Tenant-isolated; traits or
-  presentation cannot claim authority from evidence.
-- **Non-goals:** Genome economics, royalties, settlement reinterpretation or
-  fabricated performance/reputation.
+```text
+Automation -> Activation -> execution intent
+           -> existing admission -> Run / Workflow target
+```
 
-### EPIC-17-REQ-10 — Product API, Administration & Control Plane Projections
+- **Requires:** accepted `REQ-03`, `REQ-07` and `REQ-08`.
+- **Acceptance:** existing Run, Workflow, Task, Assignment, Attempt, workers,
+  leases, fencing and recovery remain authoritative. OpenClaw receives ACS
+  intent and returns normalized observations only.
 
-Define additive Product API projections and operator journeys for accepted
-EPIC-17 contracts. Administration and Control Plane consume and govern those
-contracts; they do not originate Agent, resource, Memory, Delegation,
-Automation, runtime, Evidence or Cost truth.
+### EPIC-17-REQ-10 — Product API, Administration & Control Plane Projection
 
-- **Primary inputs:** `E17-C01`, `E17-C02`, `E17-C67`, `E17-C68`.
-- **Required decisions:** Global Settings owner by configuration class; API
-  resources/commands; authorization and conflict semantics; historical views;
-  unavailable/degraded states; operator flow and evidence links.
-- **Acceptance gate:** one Product API authority; no frontend domain truth;
-  every mutation maps to an accepted owner; no universal Global Settings core.
-- **Non-goals:** parallel API, unrelated UI redesign, UI-first domain contracts
-  or implementation.
+Define future projections for accepted Agent/Profile, resources, Connector,
+Connection, Channel, Memory, Delegation, Automation, configuration and history
+boundaries. Resolve Global Settings ownership by configuration class.
 
-### EPIC-17-REQ-11 — Genome Trait Classification & Provenance Mapping
+- **Requires:** accepted `REQ-02` through `REQ-09`.
+- **Acceptance:** existing Product API remains the application boundary;
+  Control Plane follows `Flow -> Module -> Screen`; no frontend truth, parallel
+  API or convenience Global Settings core.
 
-Define a descriptive trait vocabulary and references over canonical accepted
-state. Decide whether any representation is needed only after Agent, resources,
-Memory, Delegation, Automation and Evidence boundaries are frozen.
+### EPIC-17-REQ-11 — Genome Traits, Presentation Assets & Verification Semantics
 
-- **Primary inputs:** `E17-C71` through `E17-C76`.
-- **Required decisions:** vocabulary owner; trait identity/version; source and
-  evidence references; historical view; projection semantics; representation
-  compatibility constraints.
-- **Acceptance gate:** `Trait != capability`, permission, credential,
-  reputation, economic right or NFT; a trait grants no authority and alters no
-  operational truth.
-- **Non-goals:** DNA schema, inheritance, crossover, mutation, breeding,
-  fitness, autonomous evolution, tokenization, marketplace, royalties or
-  on-chain storage.
+Define the minimum descriptive Genome layer over canonical ACS state. Freeze
+trait identity/classification, references, compatibility, provenance,
+historical resolution, Agent/Profile relations, assets, badges and
+Evidence-backed verification.
 
-### EPIC-17-REQ-12 — Integrated Conformance & Implementation Readiness Gate
+```text
+Trait != capability
+Trait != permission
+Trait != credential
+Trait != reputation
+Trait != economic right
+Trait != NFT
+```
 
-Prove that the accepted REQ contracts compose through the canonical ACS without
-creating duplicate truth or weakening authority. Produce the evidence needed
-for a later decision on an implementation plan.
+- **Requires:** accepted `REQ-01` through `REQ-04` and `REQ-10`.
+- **Acceptance:** Genome remains metadata/classification; no inheritance,
+  mutation, breeding, NFT, marketplace, royalties or Genome economics.
 
-- **Primary inputs:** all 76 capability dispositions, all rejected scope and
-  accepted `REQ-01` through `REQ-11` contracts.
-- **Required decisions:** cross-contract traceability; compatibility strategy;
-  persistence/API/migration impact inventory; security and Tenant negative
-  cases; historical reconstruction scenarios; incremental IMP slicing.
-- **Acceptance gate:** every disposition maps to an accepted owner and contract
-  or remains explicitly deferred/rejected; all blocker rules are tested in the
-  plan; no IMP authority is inferred.
-- **Non-goals:** implementation, migration, provider activation, production
-  readiness claim or automatic IMP authorization.
+### EPIC-17-REQ-12 — Cross-Domain Conformance, Closure & IMP Readiness Plan
 
-## 4. Normative authoring rule
+Reconcile canonical ownership, provider independence, persistence, historical
+reconstruction, security and all 76 dispositions across accepted REQs. Only
+then produce a dependency-ordered candidate IMP plan, test strategy,
+PostgreSQL/migration/rollback constraints, conformance gates and blockers.
 
-Each future REQ package must contain its evidence baseline, owner and authority
-matrix, contract decisions, compatibility impact, persistence/API/UI impact,
-security and Tenant constraints, acceptance gates, blockers, non-goals and
-explicit decision state. A REQ may close `ACCEPTED` while retaining
-`Implementation authority: NONE`.
+- **Requires:** `REQ-01` through `REQ-11` accepted or explicitly
+  blocked/deferred.
+- **Acceptance:** 76/76 dispositions reconciled; no parallel architecture;
+  blockers and material CEO decisions explicit; candidate IMP sequence ready
+  for a separate CTO gate.
+- **Prohibited result:** `IMPLEMENTATION AUTHORIZED`.
 
-`EPIC-17-REQ-01` is the first package eligible for normative authoring. This
-decomposition does not authorize that package to change source, tests, schema,
-migrations, API, UI, database or production state.
+## 4. Common REQ package requirements
+
+Every REQ package records repository evidence, canonical owner, boundary and
+contract decisions, compatibility impact, persistence/API/UI impact, security
+and Tenant constraints, acceptance gates, blockers, non-goals and decision
+state. Every package closes with:
+
+```text
+Implementation authority: NONE
+```
