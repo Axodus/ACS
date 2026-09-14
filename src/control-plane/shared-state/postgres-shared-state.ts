@@ -1507,6 +1507,8 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       getMemoryPolicyLineage: (memoryPolicyId) => this.withTransaction("read Memory Policy lineage", (tx) => tx.nativeCore.getMemoryPolicyLineage(memoryPolicyId)),
       createMemoryRecord: (input) => this.withTransaction("create encrypted Memory Record", (tx) => tx.nativeCore.createMemoryRecord(input)),
       getMemoryRecordState: (memoryId) => this.withTransaction("read Memory Record state", (tx) => tx.nativeCore.getMemoryRecordState(memoryId)),
+      listMemoryRecords: (input) => this.withTransaction("list bounded Memory Records", (tx) => tx.nativeCore.listMemoryRecords(input)),
+      readMemoryRecordContent: (input) => this.withTransaction("read governed Memory content", (tx) => tx.nativeCore.readMemoryRecordContent(input)),
       tombstoneMemoryRecord: (input) => this.withTransaction("tombstone Memory Record", (tx) => tx.nativeCore.tombstoneMemoryRecord(input)),
       advanceWorkforceLineage: (input) => this.withTransaction(
         "advance native workforce lineage",

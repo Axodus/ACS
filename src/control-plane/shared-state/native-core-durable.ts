@@ -233,6 +233,8 @@ export interface NativeMemoryRecordCommandResult { readonly record: MemoryRecord
 export interface NativeMemoryTombstoneCommand { readonly tombstone: MemoryTombstoneV1; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly outboxId?: string; readonly deliveryKind?: string; }
 export interface NativeMemoryTombstoneCommandResult { readonly tombstone: MemoryTombstoneV1; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
 export interface NativeMemoryRecordState { readonly record?: MemoryRecordV1; readonly tombstone?: MemoryTombstoneV1; }
+export interface NativeMemoryContentRead { readonly record: MemoryRecordV1; readonly plaintext: string; }
+export interface NativeMemoryRecordQuery { readonly tenantId: string; readonly policyRef: MemoryRecordV1["policy_ref"]; readonly scope: MemoryRecordV1["scope"]; readonly limit: number; }
 
 export interface NativeAuthenticatedIntegrationIngressCommand {
   readonly reference: AuthenticatedIntegrationIngressReferenceV1;
@@ -331,6 +333,8 @@ export interface AsyncNativeCoreRepository {
   getMemoryPolicyLineage(memoryPolicyId: string): Promise<NativeMemoryPolicyLineage>;
   createMemoryRecord(input: NativeMemoryRecordCommand): Promise<NativeMemoryRecordCommandResult>;
   getMemoryRecordState(memoryId: string): Promise<NativeMemoryRecordState | undefined>;
+  listMemoryRecords(input: NativeMemoryRecordQuery): Promise<readonly MemoryRecordV1[]>;
+  readMemoryRecordContent(input: { readonly memoryRef: MemoryRecordV1["ref"]; readonly policyRef: MemoryRecordV1["policy_ref"] }): Promise<NativeMemoryContentRead>;
   tombstoneMemoryRecord(input: NativeMemoryTombstoneCommand): Promise<NativeMemoryTombstoneCommandResult>;
   advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult>;
   getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage>;
@@ -1067,6 +1071,38 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     const content = contentResult.rows[0];
     if (!content) throw new NativeMemoryRecordIntegrityError(memoryId, "active Record has no encrypted content");
     return { record: validateMemoryRecordV1({ ...metadata, content: { content_ref:`memory-content:${memoryId}`,content_digest:content.content_digest,media_type:content.media_type } }) };
+  }
+
+  async listMemoryRecords(input: NativeMemoryRecordQuery): Promise<readonly MemoryRecordV1[]> {
+    if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 1000) throw new NativeContractValidationError("Memory query validation failed", [{ path:"limit",code:"INVALID_LIMIT",message:"Memory retrieval must have a bounded positive limit" }]);
+    const scope = memoryScopeColumns({ ref:{memory_id:"memory-query",tenant_id:input.tenantId,fingerprint:"0".repeat(64)}, memory_type:"agent", scope:input.scope } as MemoryRecordV1);
+    const result = await query<{ readonly memory_id: string } & QueryResultRow>(this.db, "list bounded Memory Records", `
+      SELECT memory_id FROM acs_memory_records
+      WHERE tenant_id=$1 AND policy_id=$2 AND policy_revision=$3 AND policy_fingerprint=$4
+        AND scope_kind=$5 AND scope_owner_id=$6 AND scope_owner_revision IS NOT DISTINCT FROM $7
+        AND scope_owner_fingerprint IS NOT DISTINCT FROM $8 AND scope_run_id IS NOT DISTINCT FROM $9
+      ORDER BY created_at DESC, memory_id
+      LIMIT $10
+    `, [input.tenantId,input.policyRef.ref.entity_id,input.policyRef.ref.revision,input.policyRef.ref.fingerprint,input.scope.kind,scope.ownerId,scope.ownerRevision,scope.ownerFingerprint,scope.runId,input.limit]);
+    const records: MemoryRecordV1[] = [];
+    for (const row of result.rows) {
+      const state = await this.getMemoryRecordState(row.memory_id);
+      if (state?.record && serialize(state.record.scope) === serialize(input.scope)) records.push(state.record);
+    }
+    return records;
+  }
+
+  async readMemoryRecordContent(input: { readonly memoryRef: MemoryRecordV1["ref"]; readonly policyRef: MemoryRecordV1["policy_ref"] }): Promise<NativeMemoryContentRead> {
+    if (!this.options.memoryCryptoProvider) throw new MemoryCryptoUnavailableError();
+    const state = await this.getMemoryRecordState(input.memoryRef.memory_id);
+    const record = state?.record;
+    if (!record || record.ref.tenant_id !== input.memoryRef.tenant_id || record.ref.fingerprint !== input.memoryRef.fingerprint || serialize(record.policy_ref) !== serialize(input.policyRef)) throw new NativeMemoryRecordIntegrityError(input.memoryRef.memory_id, "exact active Record or Policy reference is unavailable");
+    const encrypted = await query<{ readonly content_ciphertext: Buffer; readonly encryption_backend: string; readonly encryption_key_ref: string; readonly encryption_key_version: string; readonly cipher_suite: string; readonly encryption_context_digest: string } & QueryResultRow>(this.db, "read encrypted Memory content", "SELECT content_ciphertext,encryption_backend,encryption_key_ref,encryption_key_version,cipher_suite,encryption_context_digest FROM acs_memory_contents WHERE memory_id=$1 AND tenant_id=$2", [record.ref.memory_id,record.ref.tenant_id]);
+    const row = encrypted.rows[0];
+    if (!row) throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "active Record content is unavailable");
+    const plaintext = await this.options.memoryCryptoProvider.unprotect({ protected:{ciphertext:Buffer.from(row.content_ciphertext).toString("base64"),encryption_backend:row.encryption_backend,encryption_key_ref:row.encryption_key_ref,encryption_key_version:row.encryption_key_version,cipher_suite:row.cipher_suite,encryption_context_digest:row.encryption_context_digest}, context:{tenant_id:record.ref.tenant_id,memory_ref:record.ref,policy_ref:record.policy_ref,purpose:"acs.memory.content"} });
+    if (sha256Hex(plaintext) !== record.content.content_digest) throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "decrypted content digest does not match immutable Record metadata");
+    return { record, plaintext };
   }
 
   async tombstoneMemoryRecord(input: NativeMemoryTombstoneCommand): Promise<NativeMemoryTombstoneCommandResult> {

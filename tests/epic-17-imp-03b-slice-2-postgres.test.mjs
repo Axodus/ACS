@@ -15,7 +15,7 @@ async function isolated(run) {
   try { await admin.query(`CREATE SCHEMA "${schema}"`); await state.migrate(); await pool.query("INSERT INTO acs_tenants (tenant_id, revision, payload) VALUES ('tenant-m', 1, '{}'::jsonb), ('tenant-other', 1, '{}'::jsonb)"); await run(state, noCrypto, pool); }
   finally { await state.close().catch(() => undefined); await noCrypto.close().catch(() => undefined); await pool.end().catch(() => undefined); await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`); await admin.end(); }
 }
-function policy(revision = 1) { return api.createMemoryPolicyRevisionV1({ memory_policy_id:"policy-a",revision,...(revision>1?{supersedes_revision:revision-1}:{}),tenant_id:"tenant-m",lifecycle:"active",allowed_memory_types:["agent"],allowed_scope_kinds:["agent"],allowed_operations:["write","forget","expire"],max_retrieval_results:2,retention:{max_age_ms:1000,deletion_action:"tombstone",retain_content_digest:true},provenance_required:true,evidence_required:true,created_by:"governance",created_at:revision,change_reason:"test" }); }
+function policy(revision = 1) { return api.createMemoryPolicyRevisionV1({ memory_policy_id:"policy-a",revision,...(revision>1?{supersedes_revision:revision-1}:{}),tenant_id:"tenant-m",lifecycle:"active",allowed_memory_types:["agent"],allowed_scope_kinds:["agent"],allowed_operations:["read","write","forget","expire"],max_retrieval_results:2,retention:{max_age_ms:1000,deletion_action:"tombstone",retain_content_digest:true},provenance_required:true,evidence_required:true,created_by:"governance",created_at:revision,change_reason:"test" }); }
 function head(revision) { const r=policy(revision); return api.validateMemoryPolicyHeadV1({schema_version:api.ACS_NATIVE_SCHEMA_VERSION,memory_policy_id:"policy-a",tenant_id:"tenant-m",current_revision:revision,current_fingerprint:r.ref.fingerprint,lifecycle:"active",created_at:1,updated_at:revision}); }
 function event(id,seq,subject,idSubject,payload) { return api.createEventEnvelopeV2({event_id:id,event_type:`memory.${subject}.changed`,timestamp:seq,sequence:seq,organization_id:"org",product_domain:"acs",tenant_id:"tenant-m",subject_type:subject,subject_id:idSubject,actor:{kind:"service",ref:"test"},source:"acs",correlation_id:id,idempotency_key:id,payload}); }
 function policyCommand(revision,key) { const r=policy(revision); return {head:head(revision),revision:r,expectedHead:revision-1,idempotency:{scope:"memory.policy:policy-a",key,request_hash:hash()},event:{...event(`policy-${key}`,revision,"memory_policy","policy-a",{revision,fingerprint:r.ref.fingerprint}),idempotency_key:key},outboxId:`outbox-policy-${key}`}; }
@@ -44,5 +44,22 @@ test("Slice 2 PostgreSQL encrypts Memory content, preserves policy history, succ
     const after=await pool.query("SELECT (SELECT count(*) FROM acs_memory_tombstones)::int AS tombstones,(SELECT count(*) FROM acs_native_events)::int AS events,(SELECT count(*) FROM acs_native_outbox)::int AS outbox"); assert.deepEqual(after.rows[0],before.rows[0]);
     await assert.rejects(() => pool.query("UPDATE acs_memory_records SET created_by='x' WHERE memory_id='memory-b'"));
     await assert.rejects(() => pool.query("DELETE FROM acs_memory_policy_revisions WHERE memory_policy_id='policy-a' AND revision=1"));
+  });
+});
+
+test("Slice 3 PostgreSQL governed Memory retrieval enforces exact Tenant, scope, Policy, bound, and tombstone behavior", {skip:process.env.ACS_SH_DATABASE_URL?false:"ACS_SH_DATABASE_URL is not configured"}, async () => {
+  await isolated(async(state,_noCrypto) => {
+    await state.nativeCore.advanceMemoryPolicy(policyCommand(1,"governed-policy"));
+    const original=record("memory-governed");
+    const service=new api.GovernedMemoryService(state.nativeCore,{async validate({tenantId,scope}) { if (tenantId!=="tenant-m" || scope.kind!=="agent" || scope.agent_ref?.ref.id!=="agent-a") throw new Error("canonical owner mismatch"); }});
+    const writeDecision=api.createMemoryPolicyAccessDecisionV1({decision_id:"write-governed",tenant_id:"tenant-m",policy_ref:original.policy_ref,memory_type:"agent",scope:original.scope,operation:"write",purpose:"test",outcome:"allowed",authority_basis_refs:[],provenance_refs:[],decided_at:1});
+    await service.write({command:recordCommand(original,"governed-write",1),decision:writeDecision});
+    const readDecision=api.createMemoryPolicyAccessDecisionV1({...writeDecision,decision_id:"read-governed",operation:"read"});
+    const found=await service.retrieve({decision:readDecision,memoryType:"agent",scope:original.scope,policyRef:original.policy_ref,limit:1});
+    assert.equal(found.length,1); assert.equal(found[0].plaintext,"content:memory-governed");
+    await assert.rejects(()=>service.retrieve({decision:readDecision,memoryType:"agent",scope:original.scope,policyRef:original.policy_ref,limit:3}),api.GovernedMemoryAccessError);
+    const tombstone=api.createMemoryTombstoneV1({memory_ref:original.ref,memory_type:"agent",scope:original.scope,policy_ref:original.policy_ref,deleted_at:3,deletion_reason:"policy_forget",digest_retention:"policy_permitted",retained_content_digest:original.content.content_digest,provenance_refs:[]});
+    await state.nativeCore.tombstoneMemoryRecord({tombstone,idempotency:{scope:"memory.retention:memory-governed",key:"governed-delete",request_hash:hash("f")},event:{...event("governed-delete",2,"memory_record","memory-governed",{fingerprint:original.ref.fingerprint,assurance:"ACTIVE_STORE_DELETED"}),idempotency_key:"governed-delete"},outboxId:"outbox-governed-delete"});
+    assert.deepEqual(await service.retrieve({decision:readDecision,memoryType:"agent",scope:original.scope,policyRef:original.policy_ref,limit:1}),[]);
   });
 });
