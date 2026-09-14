@@ -230,8 +230,8 @@ export interface NativeMemoryPolicyCommand { readonly head: MemoryPolicyHeadV1; 
 export interface NativeMemoryPolicyCommandResult { readonly lineage: NativeMemoryPolicyLineage; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
 export interface NativeMemoryRecordCommand { readonly record: MemoryRecordV1; readonly plaintext: string; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly outboxId?: string; readonly deliveryKind?: string; }
 export interface NativeMemoryRecordCommandResult { readonly record: MemoryRecordV1; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
-export interface NativeMemoryTombstoneCommand { readonly tombstone: MemoryTombstoneV1; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly outboxId?: string; readonly deliveryKind?: string; }
-export interface NativeMemoryTombstoneCommandResult { readonly tombstone: MemoryTombstoneV1; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
+export interface NativeMemoryTombstoneCommand { readonly tombstone: MemoryTombstoneV1; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly evidence?: EvidenceRecordV2; readonly outboxId?: string; readonly deliveryKind?: string; }
+export interface NativeMemoryTombstoneCommandResult { readonly tombstone: MemoryTombstoneV1; readonly event: NativeDurableEvent; readonly evidence?: EvidenceRecordV2; readonly outbox: NativeOutboxRecord; }
 export interface NativeMemoryRecordState { readonly record?: MemoryRecordV1; readonly tombstone?: MemoryTombstoneV1; }
 export interface NativeMemoryContentRead { readonly record: MemoryRecordV1; readonly plaintext: string; }
 export interface NativeMemoryRecordQuery { readonly tenantId: string; readonly policyRef: MemoryRecordV1["policy_ref"]; readonly scope: MemoryRecordV1["scope"]; readonly limit: number; }
@@ -537,6 +537,13 @@ function serialize(value: unknown): string {
 
 function decode<T>(value: unknown): T {
   return typeof value === "string" ? JSON.parse(value) as T : value as T;
+}
+
+function containsUnsafeMemoryProof(value: unknown): boolean {
+  const forbidden = new Set(["plaintext", "ciphertext", "content", "raw_content", "secret", "token", "authorization", "signature", "credential", "key_material", "key_ref"]);
+  if (Array.isArray(value)) return value.some((item) => containsUnsafeMemoryProof(item));
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value as Record<string, unknown>).some(([key, nested]) => forbidden.has(key.toLowerCase()) || containsUnsafeMemoryProof(nested));
 }
 
 function asMillis(value: unknown): number | undefined {
@@ -1108,9 +1115,12 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
   async tombstoneMemoryRecord(input: NativeMemoryTombstoneCommand): Promise<NativeMemoryTombstoneCommandResult> {
     const tombstone = validateMemoryTombstoneV1(input.tombstone);
     const event = validateEventEnvelopeV2(input.event);
+    const evidence = input.evidence ? validateEvidenceRecordV2(input.evidence) : undefined;
     validateIdempotency(input.idempotency);
     const memoryId = tombstone.memory_ref.memory_id;
-    if (input.idempotency.scope !== `memory.retention:${memoryId}` || event.tenant_id !== tombstone.memory_ref.tenant_id || event.subject_type !== "memory_record" || event.subject_id !== memoryId || event.idempotency_key !== input.idempotency.key || JSON.stringify(event.payload).match(/plaintext|ciphertext|secret|token|key_ref|authorization/i)) throw new NativeMemoryRecordIntegrityError(memoryId, "unsafe or inconsistent tombstone Event");
+    const allowedEventPayloadKeys = new Set(["fingerprint", "policy_fingerprint", "assurance", "deletion_reason"]);
+    if (input.idempotency.scope !== `memory.retention:${memoryId}` || event.tenant_id !== tombstone.memory_ref.tenant_id || event.subject_type !== "memory_record" || event.subject_id !== memoryId || event.idempotency_key !== input.idempotency.key || event.payload.fingerprint !== tombstone.memory_ref.fingerprint || event.payload.assurance !== "ACTIVE_STORE_DELETED" || Object.keys(event.payload).some((key) => !allowedEventPayloadKeys.has(key))) throw new NativeMemoryRecordIntegrityError(memoryId, "unsafe or inconsistent tombstone Event");
+    if (evidence && (evidence.event_ref.id !== event.event_id || evidence.subject_ref.kind !== "memory_record" || evidence.subject_ref.id !== memoryId || evidence.payload_digest !== (tombstone.retained_content_digest ?? tombstone.memory_ref.fingerprint) || containsUnsafeMemoryProof(evidence.provenance ?? {}))) throw new NativeMemoryRecordIntegrityError(memoryId, "unsafe or inconsistent tombstone Evidence");
     return this.idempotent(input.idempotency, "native.memory.record.tombstone", async () => {
       await query(this.db, "lock Memory tombstone", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`memory-record:${memoryId}`]);
       const state = await this.getMemoryRecordState(memoryId);
@@ -1123,8 +1133,9 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       const durableEvent = await this.appendEvent(event);
       await query(this.db, "create content-free Memory tombstone", `INSERT INTO acs_memory_tombstones (memory_id,tenant_id,deleted_at,deletion_reason,policy_id,policy_revision,policy_fingerprint,digest_retention,retained_content_digest,payload,event_id) VALUES ($1,$2,to_timestamp($3/1000.0),$4,$5,$6,$7,$8,$9,$10::jsonb,$11)`, [memoryId,tombstone.memory_ref.tenant_id,tombstone.deleted_at,tombstone.deletion_reason,tombstone.policy_ref.ref.entity_id,tombstone.policy_ref.ref.revision,tombstone.policy_ref.ref.fingerprint,tombstone.digest_retention,tombstone.retained_content_digest ?? null,serialize(tombstone),event.event_id]);
       await query(this.db, "physically delete encrypted Memory content", "DELETE FROM acs_memory_contents WHERE memory_id=$1 AND tenant_id=$2", [memoryId,tombstone.memory_ref.tenant_id]);
+      const persistedEvidence = evidence ? await this.recordEvidence(evidence) : undefined;
       const outbox = await this.insertOutbox(durableEvent.event.event_id,input.outboxId,input.deliveryKind,event.timestamp);
-      return { tombstone,event:durableEvent,outbox };
+      return { tombstone,event:durableEvent,...(persistedEvidence ? { evidence:persistedEvidence } : {}),outbox };
     });
   }
 

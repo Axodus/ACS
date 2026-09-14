@@ -63,3 +63,46 @@ test("Slice 3 PostgreSQL governed Memory retrieval enforces exact Tenant, scope,
     assert.deepEqual(await service.retrieve({decision:readDecision,memoryType:"agent",scope:original.scope,policyRef:original.policy_ref,limit:1}),[]);
   });
 });
+
+test("Slice 4 PostgreSQL retention is governed, idempotent, content-free, and atomic", {skip:process.env.ACS_SH_DATABASE_URL?false:"ACS_SH_DATABASE_URL is not configured"}, async () => {
+  await isolated(async(state,_noCrypto,pool) => {
+    await state.nativeCore.advanceMemoryPolicy(policyCommand(1,"retention-policy"));
+    const service=new api.GovernedMemoryService(state.nativeCore,{async validate({tenantId,scope}) { if (tenantId!=="tenant-m" || scope.kind!=="agent" || scope.agent_ref?.ref.id!=="agent-a") throw new Error("canonical owner mismatch"); }});
+    const original=record("memory-retention");
+    const writeDecision=api.createMemoryPolicyAccessDecisionV1({decision_id:"write-retention",tenant_id:"tenant-m",policy_ref:original.policy_ref,memory_type:"agent",scope:original.scope,operation:"write",purpose:"test",outcome:"allowed",authority_basis_refs:[],provenance_refs:[],decided_at:1});
+    await service.write({command:recordCommand(original,"retention-write",1),decision:writeDecision});
+    const expireDecision=api.createMemoryPolicyAccessDecisionV1({...writeDecision,decision_id:"expire-retention",operation:"expire"});
+    const dueEvent={...event("retention-due",2,"memory_record",original.ref.memory_id,{fingerprint:original.ref.fingerprint,policy_fingerprint:original.policy_ref.ref.fingerprint,assurance:"ACTIVE_STORE_DELETED"}),event_type:"memory.record.retention_expired",idempotency_key:"retention-due"};
+    const earlyEvent={...dueEvent,event_id:"retention-early",correlation_id:"retention-early",idempotency_key:"retention-early"};
+    const before=await pool.query("SELECT (SELECT count(*) FROM acs_memory_tombstones)::int AS tombstones,(SELECT count(*) FROM acs_native_events)::int AS events,(SELECT count(*) FROM acs_native_outbox)::int AS outbox");
+    await assert.rejects(() => service.applyRetention({memoryRef:original.ref,decision:expireDecision,at:1009,idempotency:{scope:"memory.retention:memory-retention",key:"retention-early",request_hash:hash("a")},event:earlyEvent,evidenceId:"evidence-early",outboxId:"outbox-retention-early"}),api.GovernedMemoryAccessError);
+    const afterEarly=await pool.query("SELECT (SELECT count(*) FROM acs_memory_tombstones)::int AS tombstones,(SELECT count(*) FROM acs_native_events)::int AS events,(SELECT count(*) FROM acs_native_outbox)::int AS outbox");
+    assert.deepEqual(afterEarly.rows[0],before.rows[0]);
+    const command={memoryRef:original.ref,decision:expireDecision,at:1010,idempotency:{scope:"memory.retention:memory-retention",key:"retention-due",request_hash:hash("b")},event:dueEvent,evidenceId:"evidence-retention",outboxId:"outbox-retention-due"};
+    const deleted=await service.applyRetention(command);
+    const replay=await service.applyRetention(command);
+    assert.equal(deleted.tombstone.deletion_reason,"retention_expired"); assert.equal(replay.tombstone.memory_ref.memory_id,original.ref.memory_id);
+    await assert.rejects(() => service.applyRetention({...command,idempotency:{scope:"memory.retention:memory-retention",key:"retention-new",request_hash:hash("c")},event:{...dueEvent,event_id:"retention-new",correlation_id:"retention-new",idempotency_key:"retention-new"},evidenceId:"evidence-retention-new",outboxId:"outbox-retention-new"}),api.NativeMemoryRecordIntegrityError);
+    assert.equal((await pool.query("SELECT count(*)::int AS count FROM acs_memory_contents WHERE memory_id='memory-retention'")).rows[0].count,0);
+    assert.equal((await pool.query("SELECT count(*)::int AS count FROM acs_memory_tombstones WHERE memory_id='memory-retention'")).rows[0].count,1);
+    const persisted=await pool.query("SELECT payload::text AS payload FROM acs_native_events UNION ALL SELECT payload::text AS payload FROM acs_native_evidence");
+    for (const row of persisted.rows) assert.doesNotMatch(row.payload,/content:memory-retention/);
+    assert.equal((await pool.query("SELECT count(*)::int AS count FROM acs_native_outbox WHERE event_id='retention-due'")).rows[0].count,1);
+    const readDecision=api.createMemoryPolicyAccessDecisionV1({...writeDecision,decision_id:"read-retention",operation:"read"});
+    assert.deepEqual(await service.retrieve({decision:readDecision,memoryType:"agent",scope:original.scope,policyRef:original.policy_ref,limit:1}),[]);
+    await assert.rejects(() => service.applyRetention({...command,memoryRef:{...original.ref,tenant_id:"tenant-other"}}),api.GovernedMemoryAccessError);
+    const workforceScope={tenant_id:"tenant-m",kind:"workforce_shared",run_ref:{tenant_id:"tenant-m",ref:{kind:"run",id:"run-a"}},workforce_revision_ref:{tenant_id:"tenant-m",ref:{entity_kind:"workforce",entity_id:"workforce-a",revision:1,fingerprint:hash("d")}}};
+    const substituted=api.createMemoryPolicyAccessDecisionV1({...expireDecision,decision_id:"expire-substituted",memory_type:"workforce_shared",scope:workforceScope});
+    await assert.rejects(() => service.applyRetention({...command,decision:substituted}),api.GovernedMemoryAccessError);
+
+    const rollback=record("memory-retention-rollback");
+    await service.write({command:recordCommand(rollback,"retention-rollback-write",1),decision:api.createMemoryPolicyAccessDecisionV1({...writeDecision,decision_id:"write-retention-rollback"})});
+    const rollbackDecision=api.createMemoryPolicyAccessDecisionV1({...expireDecision,decision_id:"expire-retention-rollback"});
+    const rollbackEvent={...event("retention-rollback",2,"memory_record",rollback.ref.memory_id,{fingerprint:rollback.ref.fingerprint,policy_fingerprint:rollback.policy_ref.ref.fingerprint,assurance:"ACTIVE_STORE_DELETED"}),event_type:"memory.record.retention_expired",idempotency_key:"retention-rollback"};
+    await assert.rejects(() => service.applyRetention({memoryRef:rollback.ref,decision:rollbackDecision,at:1010,idempotency:{scope:"memory.retention:memory-retention-rollback",key:"retention-rollback",request_hash:hash("c")},event:rollbackEvent,evidenceId:"evidence-retention-rollback",outboxId:"outbox-retention-due"}));
+    const rollbackState=await state.nativeCore.getMemoryRecordState(rollback.ref.memory_id);
+    assert.equal(rollbackState.record?.ref.memory_id,rollback.ref.memory_id);
+    assert.equal((await pool.query("SELECT count(*)::int AS count FROM acs_memory_contents WHERE memory_id='memory-retention-rollback'")).rows[0].count,1);
+    assert.equal((await pool.query("SELECT count(*)::int AS count FROM acs_memory_tombstones WHERE memory_id='memory-retention-rollback'")).rows[0].count,0);
+  });
+});

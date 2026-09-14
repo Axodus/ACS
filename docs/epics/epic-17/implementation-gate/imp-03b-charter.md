@@ -1,9 +1,9 @@
 # EPIC-17-IMP-03B — Memory Policy & Memory Store Gate Charter
 
-**Status:** `SLICE 1 / COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL DESIGN / COMPLETE / CTO ACCEPTED / PUBLISHED; ADR-023 / COMPLETE / CTO ACCEPTED; SLICE 2 / AUTHORIZED / GO`
+**Status:** `SLICE 1 / COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL DESIGN / COMPLETE / CTO ACCEPTED / PUBLISHED; ADR-023 / COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 2 / COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 3 / COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 4 / COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 5 / AUTHORIZED / GO`
 **Gate preparation:** `COMPLETE / CTO ACCEPTED`
-**Implementation authority:** Slice 3 Governed Write & Retrieval only
-**Migration authority:** schema 8 -> 9 only
+**Implementation authority:** Slice 5 Product API, Administration projection and cross-domain conformance only
+**Migration authority:** schema 8 -> 9 consumed; no further schema change
 **Predecessor:** IMP-03A `COMPLETE / CTO ACCEPTED / CLOSED`
 
 ## Canonical assignment
@@ -84,7 +84,7 @@ Raw Memory content is prohibited from effective-configuration snapshots, Events,
 | `E17-R06-B01` | No canonical versioned Policy owner/history | `OPEN` | Slice 1 / migration gate | Typed policy, resolver and historical revision proof. |
 | `E17-R06-B02` | No Record/Store contract or persistence | `OPEN` | Slice 2 | Canonical Tenant-safe Store/repository. |
 | `E17-R06-B03` | No human identity, consent or privacy-deletion authority | `OPEN / HARD BOUNDARY` | User Context Memory only | Separate owning-domain decision; no inference. |
-| `E17-R06-B04` | Deletion can conflict with reproducible history | `PARTIALLY RESOLVED` | Slice 4 | Slice 2 validates transactionally atomic tombstone/content exclusion and `ACTIVE_STORE_DELETED`; cryptographic and backup erasure remain unclaimed. |
+| `E17-R06-B04` | Deletion can conflict with reproducible history | `RESOLVED` | Slice 4 | Exact Policy eligibility, idempotent retention, transactional tombstone/content exclusion, safe Event/Evidence/outbox and `ACTIVE_STORE_DELETED` are validated; cryptographic and backup erasure remain unclaimed. |
 | `E17-R06-B05` | Workforce deliberately has no Memory field | `OPEN` | Slice 1 / Slice 3 | Companion refs/access without Workforce change. |
 | `E17-R06-B06` | IMP-02 snapshot has primitives but no typed Memory refs/results | `OPEN / PARTIALLY REDUCED` | Slice 3 | Exact policy/result refs; no raw content. |
 
@@ -110,8 +110,8 @@ No blocker is resolved by documentation. B03 does not block the four candidate c
 | `ADR-17-020` Policy/Store ownership | `ALREADY DECIDED` architecturally; details `REQUIRED BEFORE FUNCTIONAL WORK` | Governance owns Policy; Memory owns Store/Records. |
 | `ADR-17-021` Scopes/companion refs | `ALREADY DECIDED FOR SLICE 1` | Working/Agent/Workforce/Knowledge keys are allowed; User Context remains excluded. |
 | `ADR-17-022` Memory vs Runtime/Knowledge/Evidence | `ALREADY DECIDED` | Preserve existing owners; typed references only. |
-| `ADR-17-023` Retention/deletion/consent/history | `PARTIALLY DECIDED / REQUIRED BEFORE MIGRATION` | Tombstone/non-survival is decided; physical content residence remains open. |
-| `ADR-17-024` Retrieval/indexing adapters | `DEFERRED TO SLICE 3` | Bounded adapter contract; no mandatory vector/RAG. |
+| `ADR-17-023` Retention/deletion/consent/history | `ALREADY DECIDED` | Crypto metadata, active-store deletion boundary and non-claims for backup/WAL erasure are accepted. |
+| `ADR-17-024` Retrieval/indexing adapters | `DECIDED FOR SLICE 3` | Bounded Store query/retrieval contract; no mandatory vector/RAG. |
 
 ## Persistence, Event and migration candidates
 
@@ -129,10 +129,10 @@ Derived candidate positions:
 | Slice | Scope | Preconditions / closure |
 | --- | --- | --- |
 | 1 — Contracts & Policy | Taxonomy, Policy/Record contracts, scope semantics, typed errors and ADR closure | `COMPLETE / CTO ACCEPTED / PUBLISHED`; no schema. |
-| 2 — Durable Store | Authorized schema, Policy lineage, immutable Record successors, Tenant isolation, idempotency, Event/outbox, tombstone-capable storage | Separate migration GO. |
-| 3 — Governed operations | Effective Policy resolution, bounded write/retrieval, exact snapshot refs, Knowledge refs and provenance | No vector platform. |
-| 4 — Retention & deletion | Enforce expiry/forget/delete, content deletion, tombstone and redacted proof | Storage mechanics must precede Slice 2. |
-| 5 — Projections & closure | Safe read/admin projection, typed errors, Tenant isolation, conformance and docs | Product API owner decision; no parallel API. |
+| 2 — Durable Store | Authorized schema, Policy lineage, immutable Record successors, Tenant isolation, idempotency, Event/outbox, tombstone-capable storage | `COMPLETE / CTO ACCEPTED / PUBLISHED`. |
+| 3 — Governed operations | Effective Policy resolution, bounded write/retrieval, exact snapshot refs, Knowledge refs and provenance | `COMPLETE / CTO ACCEPTED / PUBLISHED`; no vector platform. |
+| 4 — Retention & deletion | Enforce expiry/forget/delete, content deletion, tombstone and redacted proof | `COMPLETE / CTO ACCEPTED / PUBLISHED`; no scheduler or Automation owner. |
+| 5 — Projections & closure | Safe read/admin projection, typed errors, Tenant isolation, conformance and docs | `AUTHORIZED / GO`; no parallel API, Runtime integration or User Context implementation. |
 
 No slice authorizes admission, Activation, Run creation or execution. User Context Memory awaits B03.
 
@@ -142,7 +142,7 @@ Future tests must prove Tenant isolation; scope/Agent/Workforce substitution rej
 
 After admission, change the current policy or add record successors and reconstruct the earlier snapshot: it must retain the original exact policy and result ref/digest. After deletion, prove raw content is absent from records, history, Event/Evidence/outbox payloads and diagnostics while content-free proof remains.
 
-Durable work requires `npm run acceptance:postgres`. Listener acceptance applies only to later HTTP/process surfaces. Slice 1 established a current regression baseline of `127 passed / 10 failed`, with `A = 0`, `B = 0`, `C = 10`, `D = 0`; the ten failures reached listener `EPERM` before tested logic. Future durable work must classify against its actual baseline and keep `A = 0` and `D = 0`.
+Durable work requires `npm run acceptance:postgres`. Slice 4 validation passed schema 9 PostgreSQL acceptance with `19 passed / 0 failed / 0 skipped`. A restricted sandbox still reports `129 passed / 10 failed` at the listener boundary, but the listener-capable local environment completed `750 passed / 0 failed / 19 skipped`; those skips are PostgreSQL tests without `ACS_SH_DATABASE_URL` and are independently covered by acceptance. The authoritative Slice 4 causality result is `A = 0`, `B = 0`, `C = 0`, `D = 0`.
 
 ### Gate acceptance criteria
 
@@ -159,9 +159,9 @@ Durable work requires `npm run acceptance:postgres`. Listener acceptance applies
 
 ## Gate report
 
-**Status:** `GATE PREPARATION COMPLETE / CTO ACCEPTED; SLICE 1 COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL SCHEMA-9 DESIGN COMPLETE / CTO ACCEPTED / PUBLISHED; ADR-023 COMPLETE / CTO ACCEPTED; SLICE 2 AUTHORIZED / GO`
+**Status:** `GATE PREPARATION COMPLETE / CTO ACCEPTED; SLICE 1 COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL SCHEMA-9 DESIGN COMPLETE / CTO ACCEPTED / PUBLISHED; ADR-023 COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 2 COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 3 COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 4 COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 5 AUTHORIZED / GO`
 **Blockers:** six open; B03 is a hard User Context boundary.
 **Deltas:** CD01–CD07 candidate IMP-03B work; CD08 deferred to REQ-10.
 **ADRs:** 020/022 decided; 021 decided for Slice 1; 023 partially decided and required before migration; 024 deferred to Slice 3.
 **Migration:** schema 8 -> 9 additive migration is authorized; no legacy import or backfill.
-**CTO decisions required:** none before Slice 2. A validated external KMS/Transit integration remains required before production Memory enablement.
+**CTO decisions required:** Slice 5 acceptance/closure. A validated external KMS/Transit integration remains required before production Memory enablement.
