@@ -27,6 +27,7 @@ const pgTestFiles = [
   "tests/epic-17-imp-04-slice-2-postgres.test.mjs",
   "tests/epic-17-imp-04-slice-5-postgres.test.mjs",
   "tests/epic-17-imp-06-slice-2-postgres.test.mjs",
+  "tests/epic-17-imp-06-slice-3-postgres.test.mjs",
   "tests/s59-post-15-5-aees-sh-shared-state.test.mjs",
 ];
 

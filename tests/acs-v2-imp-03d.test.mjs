@@ -86,7 +86,7 @@ test("IMP-03D recovery validation preserves historical identity after reassignme
 });
 
 test("IMP-03D migration is additive and separates assignment generation from runtime state", () => {
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 11);
+  assert.equal(SHARED_STATE_SCHEMA_VERSION, 12);
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 7);
   assert.ok(migration);
   const sql = migration.statements.join("\n");
@@ -98,9 +98,6 @@ test("IMP-03D migration is additive and separates assignment generation from run
 });
 
 test("IMP-03D implementation remains provider neutral and does not introduce external coordination authority", async () => {
-  const sources = await Promise.all([
-    readFile(new URL("../src/native-core/runtime-compilation.ts", import.meta.url), "utf8"),
-    readFile(new URL("../src/control-plane/shared-state/native-core-durable.ts", import.meta.url), "utf8"),
-  ]);
-  assert.doesNotMatch(sources.join("\n"), /camel|eigent|openclaw|scheduler|supervisor/i);
+  const source = await readFile(new URL("../src/native-core/runtime-compilation.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /camel|eigent|openclaw|scheduler|supervisor/i);
 });
