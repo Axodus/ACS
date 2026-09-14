@@ -2,7 +2,7 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-03B — COMPLETE / CTO ACCEPTED / PUBLISHED`
+**Gate status:** `EPIC-17-IMP-04 — COMPLETE / CTO ACCEPTED`
 **Authorized implementation:** none
 **Implementation authority:** none
 **Migration authority:** schema 9 is canonical; no further schema change is authorized
@@ -28,6 +28,7 @@ projection are complete. No schema change beyond v9 is authorized.
 - [IMP-03B schema 9 physical design](imp-03b-schema-9-physical-design.md)
 - [ADR-023 Memory protection and deletion package](imp-03b-adr-023-encryption-erasure.md)
 - [IMP-03B closure and REQ-12 next-milestone reconciliation](imp-03b-closure-and-next-milestone.md)
+- [IMP-04 Delegation Grant & Authority Boundary charter](imp-04-charter.md)
 
 ## Current disposition
 
@@ -56,14 +57,16 @@ projection are complete. No schema change beyond v9 is authorized.
 | IMP-03B Slice 3 report | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Governed operation validation and boundary closure](imp-03b-slice-3-report.md). |
 | IMP-03B Slice 4 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Governed retention/deletion closure package](imp-03b-slice-4-report.md); B04 is resolved for `ACTIVE_STORE_DELETED`. |
 | IMP-03B Slice 5 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Read-only Product API projections and final conformance package](imp-03b-slice-5-report.md); no new domain owner, Runtime integration or User Context Memory. |
+| IMP-04 Delegation gate preparation | `COMPLETE / CTO ACCEPTED` | [Delegation Grant & Authority Boundary charter](imp-04-charter.md) reconciles REQ-07 blockers, deltas, ADRs and proposed slices. Functional implementation has not started; schema 10 remains `CANDIDATE / HOLD`. |
 
 ## Current implementation boundary
 
 The accepted PostgreSQL schema v8 and functional IMP-03A are closed.
 Development SQLite data remains disposable: no preservation, import, backfill
 or compatibility path is required. Schema 9 is implemented and validated.
-IMP-03B is closed. The next structurally eligible node is IMP-04 Delegation,
-which is `CANDIDATE / READY FOR CTO GATE PREPARATION` only. IMP-04 functional
-implementation, Runtime integration and User Context Memory remain
-unauthorized. Production Memory enablement remains blocked until a validated
-external KMS/Transit integration.
+IMP-03B is closed. `EPIC-17-IMP-04` gate preparation is
+`COMPLETE / CTO ACCEPTED`. Functional implementation has not started; schema 10
+is `CANDIDATE / HOLD`. No Slice 1, migration, persistence, Runtime or admission
+integration, Product API change, or User Context Memory work is authorized.
+Production Memory enablement remains blocked until a validated external
+KMS/Transit integration.
