@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 10;
+export const SHARED_STATE_SCHEMA_VERSION = 11;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -893,6 +893,22 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
         FOR EACH ROW EXECUTE FUNCTION acs_reject_delegation_immutable_row_mutation()`,
       `CREATE TRIGGER acs_delegation_grant_revocation_immutable BEFORE UPDATE OR DELETE ON acs_delegation_grant_revocations
         FOR EACH ROW EXECUTE FUNCTION acs_reject_delegation_immutable_row_mutation()`,
+    ],
+  },
+  {
+    version: 11,
+    name: "automation_identity_revision_and_lifecycle_history",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_automations (automation_id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL REFERENCES acs_tenants(tenant_id), current_revision INTEGER NOT NULL CHECK (current_revision > 0), current_fingerprint TEXT NOT NULL, lifecycle TEXT NOT NULL CHECK (lifecycle IN ('draft','enabled','disabled','archived')), lifecycle_sequence INTEGER NOT NULL CHECK (lifecycle_sequence > 0), payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL, UNIQUE (automation_id,tenant_id), UNIQUE (automation_id,tenant_id,current_revision,current_fingerprint))`,
+      `CREATE TABLE IF NOT EXISTS acs_automation_revisions (automation_id TEXT NOT NULL, tenant_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision > 0), fingerprint TEXT NOT NULL, target_mode TEXT NOT NULL CHECK (target_mode IN ('PINNED','RESOLVED_AT_ACTIVATION')), pinned_target JSONB, resolution_policy JSONB, definitions JSONB NOT NULL CHECK (jsonb_typeof(definitions)='array'), external_refs JSONB NOT NULL CHECK (jsonb_typeof(external_refs)='object'), delegation_requirement_refs JSONB NOT NULL CHECK (jsonb_typeof(delegation_requirement_refs)='array'), governing_refs JSONB NOT NULL CHECK (jsonb_typeof(governing_refs)='array'), payload JSONB NOT NULL, event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED, recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(), PRIMARY KEY (automation_id,revision), UNIQUE (automation_id,tenant_id,revision,fingerprint), FOREIGN KEY (automation_id,tenant_id) REFERENCES acs_automations(automation_id,tenant_id), CHECK ((target_mode='PINNED' AND pinned_target IS NOT NULL AND resolution_policy IS NULL) OR (target_mode='RESOLVED_AT_ACTIVATION' AND pinned_target IS NULL AND resolution_policy IS NOT NULL)))`,
+      `ALTER TABLE acs_automations ADD CONSTRAINT acs_automation_head_fk FOREIGN KEY (automation_id,tenant_id,current_revision,current_fingerprint) REFERENCES acs_automation_revisions(automation_id,tenant_id,revision,fingerprint) DEFERRABLE INITIALLY DEFERRED`,
+      `CREATE TABLE IF NOT EXISTS acs_automation_lifecycle_events (lifecycle_event_id TEXT PRIMARY KEY, automation_id TEXT NOT NULL, tenant_id TEXT NOT NULL, lifecycle_sequence INTEGER NOT NULL CHECK (lifecycle_sequence > 0), observed_revision INTEGER NOT NULL, observed_fingerprint TEXT NOT NULL, from_lifecycle TEXT, to_lifecycle TEXT NOT NULL CHECK (to_lifecycle IN ('draft','enabled','disabled','archived')), event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED, payload JSONB NOT NULL, recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(), UNIQUE (automation_id,lifecycle_sequence), FOREIGN KEY (automation_id,tenant_id) REFERENCES acs_automations(automation_id,tenant_id), FOREIGN KEY (automation_id,tenant_id,observed_revision,observed_fingerprint) REFERENCES acs_automation_revisions(automation_id,tenant_id,revision,fingerprint))`,
+      `CREATE INDEX IF NOT EXISTS acs_automation_head_tenant_idx ON acs_automations (tenant_id,lifecycle,updated_at,automation_id)`,
+      `CREATE FUNCTION acs_reject_automation_immutable_row_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'immutable Automation row cannot be updated or deleted'; END; $$`,
+      `CREATE TRIGGER acs_automation_revision_immutable BEFORE UPDATE OR DELETE ON acs_automation_revisions FOR EACH ROW EXECUTE FUNCTION acs_reject_automation_immutable_row_mutation()`,
+      `CREATE TRIGGER acs_automation_lifecycle_immutable BEFORE UPDATE OR DELETE ON acs_automation_lifecycle_events FOR EACH ROW EXECUTE FUNCTION acs_reject_automation_immutable_row_mutation()`,
+      `ALTER TABLE acs_native_events DROP CONSTRAINT IF EXISTS acs_native_event_subject_type_check`,
+      `ALTER TABLE acs_native_events ADD CONSTRAINT acs_native_event_subject_type_check CHECK (subject_type IS NULL OR subject_type IN ('agent','workforce','run','task','integration_connection','integration_channel','memory_policy','memory_record','delegation_grant','automation'))`,
     ],
   },
 ];

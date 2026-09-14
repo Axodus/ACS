@@ -83,6 +83,7 @@ import {
 } from "./contracts.js";
 import {
   NativeFencingError,
+  NativeAutomationIntegrityError,
   NativeIdempotencyConflictError,
   NativeDelegationGrantIntegrityError,
   NativeMemoryPolicyIntegrityError,
@@ -151,6 +152,7 @@ function mapRepositoryError(operation: string, error: unknown): Error {
     || error instanceof RuntimeStateConflictError
     || error instanceof RuntimeWorkerIdentityError
     || error instanceof NativeIdempotencyConflictError
+    || error instanceof NativeAutomationIntegrityError
     || error instanceof NativeDelegationGrantIntegrityError
     || error instanceof DelegationResolutionError
     || error instanceof NativeMemoryPolicyIntegrityError
@@ -1508,6 +1510,9 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
         (tx) => tx.nativeCore.recordAuthenticatedIntegrationIngress(input),
       ),
       advanceMemoryPolicy: (input) => this.withTransaction("advance Memory Policy", (tx) => tx.nativeCore.advanceMemoryPolicy(input)),
+      advanceAutomationRevision: (input) => this.withTransaction("advance Automation revision", (tx) => tx.nativeCore.advanceAutomationRevision(input)),
+      transitionAutomationLifecycle: (input) => this.withTransaction("transition Automation lifecycle", (tx) => tx.nativeCore.transitionAutomationLifecycle(input)),
+      getAutomationLineage: (automationId) => this.withTransaction("read Automation lineage", (tx) => tx.nativeCore.getAutomationLineage(automationId)),
       advanceDelegationGrant: (input) => this.withTransaction("advance Delegation Grant", (tx) => tx.nativeCore.advanceDelegationGrant(input)),
       revokeDelegationGrant: (input) => this.withTransaction("revoke Delegation Grant", (tx) => tx.nativeCore.revokeDelegationGrant(input)),
       getDelegationGrantLineage: (grantId) => this.withTransaction("read Delegation Grant lineage", (tx) => tx.nativeCore.getDelegationGrantLineage(grantId)),

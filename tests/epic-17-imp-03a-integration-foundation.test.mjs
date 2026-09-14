@@ -120,7 +120,7 @@ test("IMP-03A endpoint identity is scoped by stable Connection, never globally b
 });
 
 test("IMP-03A schema version 8 remains additive when later schemas extend Memory and Delegation", () => {
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 10);
+  assert.equal(SHARED_STATE_SCHEMA_VERSION, 11);
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 8);
   assert.ok(migration);
   const sql = migration.statements.join("\n");

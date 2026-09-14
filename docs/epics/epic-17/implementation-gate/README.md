@@ -3,9 +3,9 @@
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
 **Gate status:** `EPIC-17-IMP-05 — GATE PREPARATION COMPLETE / CTO ACCEPTED`
-**Current authorized work:** IMP-05 Slice 2 Schema 11 migration and durable Automation identity/history only; Product API, Activation, scheduler and runtime hold
-**Implementation authority:** none
-**Migration authority:** none
+**Current work:** IMP-05 Slice 2 accepted for publication; Slice 3 governed Automation service authorized after publication
+**Implementation authority:** Slice 3 service, idempotency and lifecycle only; Product API, Activation, scheduler and runtime remain hold
+**Migration authority:** Schema 11 accepted and promoted with Slice 2 publication; no Schema 12 authority
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
 configuration, immutable fingerprinted snapshots, Tenant binding,
@@ -36,6 +36,7 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 - [IMP-05 Schema 11 physical design](imp-05-schema-11-physical-design.md)
 - [IMP-05 definitive blocker and delta slice mapping](imp-05-slice-mapping.md)
 - [IMP-05 Slice 1 Automation contracts report](imp-05-slice-1-report.md)
+- [IMP-05 Slice 2 durable identity/history report](imp-05-slice-2-report.md)
 
 ## Current disposition
 
@@ -74,6 +75,7 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 | IMP-05 Automation Identity & History gate preparation | `COMPLETE / CTO ACCEPTED` | [REQ-08 reconciliation, inventory, frozen ADRs and boundaries](imp-05-charter.md); functional implementation remains hold. |
 | IMP-05 Schema 11 physical design | `COMPLETE / CTO ACCEPTED` | [Approved head/revision/lifecycle shape, CAS, reference boundary, Event/outbox and migration acceptance package](imp-05-schema-11-physical-design.md); migration remains hold. |
 | IMP-05 blocker and delta mapping | `COMPLETE / CTO ACCEPTED` | [Definitive B01–B08 and CD01–CD10 mapping to Slices 1–5](imp-05-slice-mapping.md). |
+| IMP-05 Slice 2 — Schema 11 and durable Automation identity/history | COMPLETE / CTO ACCEPTED / PUBLISHED | [PostgreSQL 17.6 schema-11 acceptance, CAS, idempotency, immutable history and atomicity package](imp-05-slice-2-report.md); Schema 11 canonical and Schema 10 superseded. |
 | IMP-05 Slice 1 — Automation contracts, lifecycle and target semantics | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Native contract, focused test and full-regression causality package](imp-05-slice-1-report.md); no schema/migration/persistence/runtime expansion. |
 
 ## Current implementation boundary
