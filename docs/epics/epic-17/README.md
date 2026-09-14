@@ -15,11 +15,11 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `EPIC-17-IMP-03A — AUTHORIZED / GO`
+**Current gate:** `EPIC-17-IMP-05 — SLICE 1 COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 2 AUTHORIZED / GO`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
-**Scope:** architecture accepted; IMP-03A Integration implementation authorized
-**Implementation authority:** IMP-03A only
-**Migration authority:** schema version 8 only
+**Scope:** architecture accepted; IMP-01 through IMP-04 closed; IMP-05 gate and Schema 11 physical design accepted; Slice 1 contracts accepted and published; Slice 2 Schema 11 migration/durable persistence authorized
+**Implementation authority:** IMP-05 Slice 2 only
+**Migration authority:** schema 10 canonical; Schema 11 migration authorized for IMP-05 Slice 2 only
 **Public contract changes:** none
 **Database changes:** none
 
@@ -86,7 +86,7 @@ implementation authority.
 | [REQ-10 — Product API, Administration & Control Plane](req-10/README.md) | Domain projections, owner-routed actions, class-owned settings and Control Plane information architecture. |
 | [REQ-11 — Genome Traits, Assets & Verification](req-11/README.md) | Descriptive traits, presentation assets, Evidence-backed verification and performance-view boundaries. |
 | [REQ-12 — Cross-Domain Conformance & IMP Readiness](req-12/README.md) | Canonical ownership audit, 76-disposition closure, blocker consolidation and dependency-ordered candidate IMP plan. |
-| [CTO Implementation Gate](implementation-gate/README.md) | Exact pre-IMP blockers and bounded candidate IMP-01 charter for CTO decision. |
+| [CTO Implementation Gate](implementation-gate/README.md) | Accepted IMP-01 through IMP-04 closure and IMP-05 Automation Identity & History gate preparation. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order

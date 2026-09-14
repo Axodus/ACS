@@ -2,8 +2,8 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-04 — COMPLETE / CTO ACCEPTED / PUBLISHED`
-**Next canonical node:** IMP-05 `CANDIDATE / READY FOR CTO GATE PREPARATION`
+**Gate status:** `EPIC-17-IMP-05 — GATE PREPARATION COMPLETE / CTO ACCEPTED`
+**Current authorized work:** IMP-05 Slice 2 Schema 11 migration and durable Automation identity/history only; Product API, Activation, scheduler and runtime hold
 **Implementation authority:** none
 **Migration authority:** none
 
@@ -32,6 +32,10 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 - [IMP-04 Delegation Grant & Authority Boundary charter](imp-04-charter.md)
 - [IMP-04 schema 10 physical-design candidate](imp-04-schema-10-physical-design.md)
 - [IMP-04 closure and REQ-12 next-milestone reconciliation](imp-04-closure-and-next-milestone.md)
+- [IMP-05 Automation Identity & History gate preparation](imp-05-charter.md)
+- [IMP-05 Schema 11 physical design](imp-05-schema-11-physical-design.md)
+- [IMP-05 definitive blocker and delta slice mapping](imp-05-slice-mapping.md)
+- [IMP-05 Slice 1 Automation contracts report](imp-05-slice-1-report.md)
 
 ## Current disposition
 
@@ -67,16 +71,21 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 | IMP-04 Slice 3 — Authority Resolution & Delegation Usability | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `e830edb` supplies exact-chain resolution, attenuation and current usability. |
 | IMP-04 Slice 4 — Admission Integration & Authority Snapshot | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `9aa37d5` resolves Delegation before admission and embeds a redacted immutable snapshot. |
 | IMP-04 Slice 5 — Product API / Administration & Conformance | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [GET-only Tenant-bound Grant projections and conformance package](imp-04-slice-5-report.md); implementation commit `c8c653b`; PostgreSQL schema 10 acceptance: `22 pass / 0 fail / 0 skip`. |
+| IMP-05 Automation Identity & History gate preparation | `COMPLETE / CTO ACCEPTED` | [REQ-08 reconciliation, inventory, frozen ADRs and boundaries](imp-05-charter.md); functional implementation remains hold. |
+| IMP-05 Schema 11 physical design | `COMPLETE / CTO ACCEPTED` | [Approved head/revision/lifecycle shape, CAS, reference boundary, Event/outbox and migration acceptance package](imp-05-schema-11-physical-design.md); migration remains hold. |
+| IMP-05 blocker and delta mapping | `COMPLETE / CTO ACCEPTED` | [Definitive B01–B08 and CD01–CD10 mapping to Slices 1–5](imp-05-slice-mapping.md). |
+| IMP-05 Slice 1 — Automation contracts, lifecycle and target semantics | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Native contract, focused test and full-regression causality package](imp-05-slice-1-report.md); no schema/migration/persistence/runtime expansion. |
 
 ## Current implementation boundary
 
 The accepted PostgreSQL schema v8 and functional IMP-03A are closed.
 Development SQLite data remains disposable: no preservation, import, backfill
 or compatibility path is required. Schema 9 is implemented and validated.
-IMP-03B is closed. `EPIC-17-IMP-04` Slices 1 through 4 are
+IMP-03B is closed. `EPIC-17-IMP-04` Slices 1 through 5 are
 `COMPLETE / CTO ACCEPTED / PUBLISHED`; schema 10 is canonical and IMP-04 is
-closed. Its Product API projection is read-only and Tenant-bound. The next DAG
-node, IMP-05, is ready only for CTO gate preparation. Schema 11, Workforce
+closed. Its Product API projection is read-only and Tenant-bound. IMP-05 gate
+preparation and Slice 1 are CTO accepted and published. Slice 2 migration and
+durable persistence are authorized; Workforce
 mutation, credential or Memory execution, and any direct Grant-to-Run path
 remain unauthorized.
 Production Memory enablement remains blocked until a validated external
