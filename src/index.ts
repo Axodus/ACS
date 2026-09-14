@@ -80,6 +80,7 @@ export {
 export * from "./control-plane/composition-resources.js";
 export * from "./control-plane/agent-service.js";
 export * from "./control-plane/durable-agent-state.js";
+export * from "./control-plane/delegation-authority-resolver.js";
 export * from "./control-plane/neurons-economic-contract.js";
 export * from "./control-plane/durable-economic-state.js";
 export * from "./control-plane/tenant-membership.js";
