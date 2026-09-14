@@ -58,9 +58,10 @@ projection are complete. No schema change beyond v9 is authorized.
 | IMP-03B Slice 3 report | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Governed operation validation and boundary closure](imp-03b-slice-3-report.md). |
 | IMP-03B Slice 4 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Governed retention/deletion closure package](imp-03b-slice-4-report.md); B04 is resolved for `ACTIVE_STORE_DELETED`. |
 | IMP-03B Slice 5 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Read-only Product API projections and final conformance package](imp-03b-slice-5-report.md); no new domain owner, Runtime integration or User Context Memory. |
-| IMP-04 Delegation gate preparation | `COMPLETE / CTO ACCEPTED` | [Delegation Grant & Authority Boundary charter](imp-04-charter.md) reconciles REQ-07 blockers, deltas, ADRs and proposed slices. Slice 1 is published; schema 10 is `REQUIRED / HOLD`. |
-| IMP-04 Slice 1 — Delegation Contracts & Authority Model | `COMPLETE / CTO ACCEPTED` | Commit `e6db696` adds native contracts, attenuation, chain validation, typed failures and the approved Event subject. Slice 2 remains unauthorized. |
+| IMP-04 Delegation gate preparation | `COMPLETE / CTO ACCEPTED` | [Delegation Grant & Authority Boundary charter](imp-04-charter.md) reconciles REQ-07 blockers, deltas, ADRs and proposed slices. Slice 1 is published; schema 10 is canonical after Slice 2 publication. |
+| IMP-04 Slice 1 — Delegation Contracts & Authority Model | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `e6db696` adds native contracts, attenuation, chain validation, typed failures and the approved Event subject. |
 | IMP-04 schema 10 physical design | `COMPLETE / CTO ACCEPTED` | [Physical design](imp-04-schema-10-physical-design.md) is accepted; schema 10 migration and Slice 2 durable persistence are authorized. |
+| IMP-04 Slice 2 — Durable Delegation Grant Persistence | `COMPLETE / CTO ACCEPTED` | [Schema 10 persistence, CAS, revocation and PostgreSQL evidence](imp-04-slice-2-report.md). Slice 3 authority resolution is authorized; admission remains held. |
 
 ## Current implementation boundary
 
@@ -69,8 +70,8 @@ Development SQLite data remains disposable: no preservation, import, backfill
 or compatibility path is required. Schema 9 is implemented and validated.
 IMP-03B is closed. `EPIC-17-IMP-04` gate preparation and Slice 1 are
 `COMPLETE / CTO ACCEPTED`. Schema 10 physical design is `COMPLETE / CTO ACCEPTED`.
-Migration 9 -> 10 and Slice 2 durable Delegation persistence are authorized.
-Runtime/admission integration, Product API change, Workforce mutation, and User
+Schema 10 is canonical after Slice 2 publication. Slice 3 durable authority
+resolution is authorized. Runtime/admission integration, Product API change, Workforce mutation, and User
 Context Memory work remain unauthorized.
 Production Memory enablement remains blocked until a validated external
 KMS/Transit integration.

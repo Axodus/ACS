@@ -97,6 +97,22 @@ export interface DelegationGrantHeadV1 {
   readonly updated_at: number;
 }
 
+/**
+ * An immutable governance fact.  It never changes a historical grant
+ * revision; the durable head records the resulting current usability.
+ */
+export interface DelegationGrantRevocationV1 {
+  readonly schema_version: typeof ACS_NATIVE_SCHEMA_VERSION;
+  readonly revocation_id: string;
+  readonly grant_ref: DelegationGrantRevisionRefV1;
+  readonly revoked_at: number;
+  readonly revoked_by: string;
+  readonly reason: string;
+  readonly governing_authority_refs: readonly EntityRef[];
+  readonly approval_refs: readonly EntityRef[];
+  readonly provenance_refs: readonly EntityRef[];
+}
+
 export interface DelegationAuthoritySourceV1 {
   readonly tenant_id: string;
   readonly authority_bounds: DelegationAuthorityBoundsV1;
@@ -290,7 +306,7 @@ export function createDelegationGrantRevisionV1(input: Omit<DelegationGrantRevis
   const candidate = { ...content, schema_version: ACS_NATIVE_SCHEMA_VERSION };
   return validateDelegationGrantRevisionV1(freezeNative({
     ...candidate,
-    ref: { grant_id, tenant_id, revision, fingerprint: fingerprintDelegationGrantRevisionV1(candidate) },
+    ref: { grant_id, tenant_id, revision, fingerprint: sha256Hex(stableStringify({ grant_id, tenant_id, revision, ...candidate })) },
   }));
 }
 
@@ -314,6 +330,27 @@ export function validateDelegationGrantHeadV1(value: unknown): DelegationGrantHe
   if (head.revocation_reason !== undefined) requireString(head.revocation_reason, "revocation_reason", issues);
   assertNoSecretMaterial(value);
   return assertValid(head as DelegationGrantHeadV1, issues);
+}
+
+export function validateDelegationGrantRevocationV1(value: unknown): DelegationGrantRevocationV1 {
+  const issues: ValidationIssue[] = [];
+  const revocation = object(value, "$", issues) as Partial<DelegationGrantRevocationV1>;
+  if (revocation.schema_version !== ACS_NATIVE_SCHEMA_VERSION) issues.push(issue("schema_version", "UNSUPPORTED_SCHEMA_VERSION", "Unsupported native schema version"));
+  requireString(revocation.revocation_id, "revocation_id", issues);
+  let grantRef: DelegationGrantRevisionRefV1 | undefined;
+  try { grantRef = validateDelegationGrantRevisionRefV1(revocation.grant_ref, "grant_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
+  requireSafeInteger(revocation.revoked_at, "revoked_at", issues, 0);
+  requireString(revocation.revoked_by, "revoked_by", issues);
+  requireString(revocation.reason, "reason", issues);
+  const authority = entityList(revocation.governing_authority_refs, "governing_authority_refs", issues);
+  const approvals = entityList(revocation.approval_refs, "approval_refs", issues);
+  const provenance = entityList(revocation.provenance_refs, "provenance_refs", issues);
+  assertNoSecretMaterial(value);
+  return assertValid({ ...revocation, grant_ref: grantRef, governing_authority_refs: authority, approval_refs: approvals, provenance_refs: provenance } as DelegationGrantRevocationV1, issues);
+}
+
+export function createDelegationGrantRevocationV1(input: Omit<DelegationGrantRevocationV1, "schema_version">): DelegationGrantRevocationV1 {
+  return validateDelegationGrantRevocationV1(freezeNative({ ...input, schema_version: ACS_NATIVE_SCHEMA_VERSION }));
 }
 
 function key(value: EntityRef | RevisionRef): string {

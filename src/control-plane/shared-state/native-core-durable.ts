@@ -46,6 +46,16 @@ import {
   type MemoryTombstoneV1,
 } from "../../native-core/memory.js";
 import {
+  assertDelegationAuthorityAttenuationV1,
+  DelegationResolutionError,
+  validateDelegationGrantHeadV1,
+  validateDelegationGrantRevisionV1,
+  validateDelegationGrantRevocationV1,
+  type DelegationGrantHeadV1,
+  type DelegationGrantRevisionV1,
+  type DelegationGrantRevocationV1,
+} from "../../native-core/delegation.js";
+import {
   memoryEncryptionContextDigestV1,
   MemoryCryptoUnavailableError,
   type MemoryCryptoProviderV1,
@@ -228,6 +238,10 @@ export interface NativeIntegrationLineageCommandResult<T> {
 export interface NativeMemoryPolicyLineage { readonly head: MemoryPolicyHeadV1; readonly revisions: readonly MemoryPolicyRevisionV1[]; }
 export interface NativeMemoryPolicyCommand { readonly head: MemoryPolicyHeadV1; readonly revision: MemoryPolicyRevisionV1; readonly expectedHead: number; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly outboxId?: string; readonly deliveryKind?: string; }
 export interface NativeMemoryPolicyCommandResult { readonly lineage: NativeMemoryPolicyLineage; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
+export interface NativeDelegationGrantLineage { readonly head: DelegationGrantHeadV1; readonly revisions: readonly DelegationGrantRevisionV1[]; readonly revocations: readonly DelegationGrantRevocationV1[]; }
+export interface NativeDelegationGrantCommand { readonly head: DelegationGrantHeadV1; readonly revision: DelegationGrantRevisionV1; readonly expectedHead: number; readonly expectedFingerprint?: string; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly evidence?: EvidenceRecordV2; readonly outboxId?: string; readonly deliveryKind?: string; }
+export interface NativeDelegationGrantRevocationCommand { readonly head: DelegationGrantHeadV1; readonly revocation: DelegationGrantRevocationV1; readonly expectedHead: number; readonly expectedFingerprint: string; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly evidence?: EvidenceRecordV2; readonly outboxId?: string; readonly deliveryKind?: string; }
+export interface NativeDelegationGrantCommandResult { readonly lineage: NativeDelegationGrantLineage; readonly event: NativeDurableEvent; readonly evidence?: EvidenceRecordV2; readonly outbox: NativeOutboxRecord; }
 export interface NativeMemoryRecordCommand { readonly record: MemoryRecordV1; readonly plaintext: string; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly outboxId?: string; readonly deliveryKind?: string; }
 export interface NativeMemoryRecordCommandResult { readonly record: MemoryRecordV1; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
 export interface NativeMemoryTombstoneCommand { readonly tombstone: MemoryTombstoneV1; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly evidence?: EvidenceRecordV2; readonly outboxId?: string; readonly deliveryKind?: string; }
@@ -332,6 +346,10 @@ export interface AsyncNativeCoreRepository {
   listIntegrationChannelDefinitions(input: { readonly tenantId: string }): Promise<readonly IntegrationChannelDefinitionV1[]>;
   recordAuthenticatedIntegrationIngress(input: NativeAuthenticatedIntegrationIngressCommand): Promise<NativeAuthenticatedIntegrationIngressResult>;
   advanceMemoryPolicy(input: NativeMemoryPolicyCommand): Promise<NativeMemoryPolicyCommandResult>;
+  advanceDelegationGrant(input: NativeDelegationGrantCommand): Promise<NativeDelegationGrantCommandResult>;
+  revokeDelegationGrant(input: NativeDelegationGrantRevocationCommand): Promise<NativeDelegationGrantCommandResult>;
+  getDelegationGrantLineage(grantId: string): Promise<NativeDelegationGrantLineage>;
+  assertDelegationGrantPathUsable(input: { readonly grantRef: DelegationGrantRevisionV1["ref"]; readonly at: number }): Promise<void>;
   getMemoryPolicyLineage(memoryPolicyId: string): Promise<NativeMemoryPolicyLineage>;
   listMemoryPolicyHeads(input: { readonly tenantId: string }): Promise<readonly MemoryPolicyHeadV1[]>;
   createMemoryRecord(input: NativeMemoryRecordCommand): Promise<NativeMemoryRecordCommandResult>;
@@ -414,6 +432,14 @@ export class NativeMemoryRecordIntegrityError extends Error {
   constructor(readonly memoryId: string, detail: string) {
     super(`native Memory Record integrity failure for ${memoryId}: ${detail}`);
     this.name = "NativeMemoryRecordIntegrityError";
+  }
+}
+
+export class NativeDelegationGrantIntegrityError extends Error {
+  readonly code = "ACS_NATIVE_DELEGATION_GRANT_INTEGRITY";
+  constructor(readonly grantId: string, detail: string) {
+    super(`native Delegation Grant integrity failure for ${grantId}: ${detail}`);
+    this.name = "NativeDelegationGrantIntegrityError";
   }
 }
 
@@ -575,6 +601,8 @@ async function query<R extends QueryResultRow = QueryResultRow>(
       || error instanceof NativeIntegrationLineageIntegrityError
       || error instanceof NativeMemoryPolicyIntegrityError
       || error instanceof NativeMemoryRecordIntegrityError
+      || error instanceof NativeDelegationGrantIntegrityError
+      || error instanceof DelegationResolutionError
       || error instanceof MemoryCryptoUnavailableError
       || error instanceof NativeWorkforceLineageIntegrityError
       || error instanceof NativeWorkforceReferenceError
@@ -627,6 +655,7 @@ function streamScope(event: EventStreamIdentity): string {
   if (event.subject_type === "integration_channel" && event.subject_id) return `integration-channel:${event.subject_id}`;
   if (event.subject_type === "memory_policy" && event.subject_id) return `memory-policy:${event.subject_id}`;
   if (event.subject_type === "memory_record" && event.subject_id) return `memory-record:${event.subject_id}`;
+  if (event.subject_type === "delegation_grant" && event.subject_id) return `delegation-grant:${event.subject_id}`;
   if (event.workforce_id && !event.run_id && !event.task_id) return `workforce:${event.workforce_id}`;
   if (event.event_type === "execution.intent_compiled" && event.run_id) return `run:${event.run_id}`;
   if (event.agent_id) return `agent:${event.agent_id}`;
@@ -1028,6 +1057,71 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       const outbox = await this.insertOutbox(durableEvent.event.event_id, input.outboxId, input.deliveryKind, event.timestamp);
       return { lineage: await this.getMemoryPolicyLineage(head.memory_policy_id), event: durableEvent, outbox };
     });
+  }
+
+  async advanceDelegationGrant(input: NativeDelegationGrantCommand): Promise<NativeDelegationGrantCommandResult> {
+    const head = validateDelegationGrantHeadV1(input.head); const revision = validateDelegationGrantRevisionV1(input.revision); const event = validateEventEnvelopeV2(input.event); validateIdempotency(input.idempotency);
+    if (head.grant_id !== revision.ref.grant_id || head.tenant_id !== revision.ref.tenant_id || head.current_revision !== revision.ref.revision || head.current_fingerprint !== revision.ref.fingerprint || head.lifecycle !== "active" || input.expectedHead !== revision.ref.revision - 1 || event.tenant_id !== head.tenant_id || event.subject_type !== "delegation_grant" || event.subject_id !== head.grant_id || event.idempotency_key !== input.idempotency.key || event.run_id !== undefined || event.task_id !== undefined || event.workforce_id !== undefined) throw new NativeDelegationGrantIntegrityError(head.grant_id, "head, revision, Event, Tenant, or execution boundary is invalid");
+    if (input.idempotency.scope !== `delegation.grant:${head.tenant_id}:${head.grant_id}`) throw new NativeDelegationGrantIntegrityError(head.grant_id, "idempotency scope must be Tenant-qualified and aggregate-specific");
+    return this.idempotent(input.idempotency, "native.delegation.grant.advance", async () => {
+      await query(this.db, "lock Delegation Grant head", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`delegation-grant:${head.grant_id}`]);
+      const existing = await query<HeadRow & QueryResultRow>(this.db, "read Delegation Grant head", "SELECT current_revision AS revision,current_fingerprint AS native_fingerprint,payload FROM acs_delegation_grants WHERE grant_id=$1 FOR UPDATE", [head.grant_id]);
+      const current = existing.rows[0] ? Number(existing.rows[0].revision) : 0;
+      if (current !== input.expectedHead || (current > 0 && existing.rows[0]?.native_fingerprint !== input.expectedFingerprint)) throw new RevisionConflictError(`delegation-grant:${head.grant_id}`, input.expectedHead, current);
+      if (current > 0 && decode<DelegationGrantHeadV1>(existing.rows[0]!.payload).lifecycle !== "active") throw new NativeDelegationGrantIntegrityError(head.grant_id, "revoked or superseded Grant cannot receive a successor");
+      if (revision.parent_grant_ref) await this.assertDelegationParentForNewRevision(revision);
+      const durableEvent = await this.appendEvent(event);
+      if (current === 0) await query(this.db, "create Delegation Grant head", `INSERT INTO acs_delegation_grants (grant_id,tenant_id,current_revision,current_fingerprint,lifecycle,valid_from,expires_at,payload,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,to_timestamp($6/1000.0),to_timestamp($7/1000.0),$8::jsonb,to_timestamp($9/1000.0),to_timestamp($10/1000.0))`, [head.grant_id,head.tenant_id,head.current_revision,head.current_fingerprint,head.lifecycle,head.valid_from,head.expires_at,serialize(head),head.created_at,head.updated_at]);
+      else await query(this.db, "advance Delegation Grant head", `UPDATE acs_delegation_grants SET current_revision=$2,current_fingerprint=$3,lifecycle=$4,valid_from=to_timestamp($5/1000.0),expires_at=to_timestamp($6/1000.0),payload=$7::jsonb,updated_at=to_timestamp($8/1000.0) WHERE grant_id=$1`, [head.grant_id,head.current_revision,head.current_fingerprint,head.lifecycle,head.valid_from,head.expires_at,serialize(head),head.updated_at]);
+      await query(this.db, "append immutable Delegation Grant revision", `INSERT INTO acs_delegation_grant_revisions (grant_id,tenant_id,revision,fingerprint,delegator_agent_id,delegator_agent_revision,delegator_agent_fingerprint,delegate_agent_id,delegate_agent_revision,delegate_agent_fingerprint,authority_bounds,governing_authority_refs,governing_policy_refs,approval_refs,provenance_refs,parent_grant_id,parent_tenant_id,parent_revision,parent_fingerprint,ancestry,ancestry_digest,depth,onward_delegation_allowed,max_delegation_depth,valid_from,expires_at,issued_by,issued_at,reason,correlation_id,event_id,payload) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb,$14::jsonb,$15::jsonb,$16,$17,$18,$19,$20::jsonb,$21,$22,$23,$24,to_timestamp($25/1000.0),to_timestamp($26/1000.0),$27,to_timestamp($28/1000.0),$29,$30,$31,$32::jsonb)`, [head.grant_id,head.tenant_id,revision.ref.revision,revision.ref.fingerprint,revision.delegator.agent_id,revision.delegator.revision_ref.revision,revision.delegator.revision_ref.fingerprint,revision.delegate.agent_id,revision.delegate.revision_ref.revision,revision.delegate.revision_ref.fingerprint,serialize(revision.authority_bounds),serialize(revision.governing_authority_refs),serialize(revision.governing_policy_refs),serialize(revision.approval_refs),serialize(revision.provenance_refs),revision.parent_grant_ref?.grant_id ?? null,revision.parent_grant_ref?.tenant_id ?? null,revision.parent_grant_ref?.revision ?? null,revision.parent_grant_ref?.fingerprint ?? null,serialize(revision.ancestry_grant_refs),sha256Hex(serialize(revision.ancestry_grant_refs)),revision.depth,revision.onward_delegation_allowed,revision.max_delegation_depth,revision.valid_from,revision.expires_at,revision.issued_by,revision.issued_at,revision.reason,event.correlation_id,event.event_id,serialize(revision)]);
+      const evidence = input.evidence ? await this.recordEvidence(validateEvidenceRecordV2(input.evidence)) : undefined;
+      const outbox = await this.insertOutbox(durableEvent.event.event_id,input.outboxId,input.deliveryKind,event.timestamp);
+      return { lineage: await this.getDelegationGrantLineage(head.grant_id), event: durableEvent, ...(evidence ? { evidence } : {}), outbox };
+    });
+  }
+
+  async revokeDelegationGrant(input: NativeDelegationGrantRevocationCommand): Promise<NativeDelegationGrantCommandResult> {
+    const head=validateDelegationGrantHeadV1(input.head); const revocation=validateDelegationGrantRevocationV1(input.revocation); const event=validateEventEnvelopeV2(input.event); validateIdempotency(input.idempotency);
+    if (head.lifecycle!=="revoked" || head.grant_id!==revocation.grant_ref.grant_id || head.tenant_id!==revocation.grant_ref.tenant_id || head.current_revision!==revocation.grant_ref.revision || head.current_fingerprint!==revocation.grant_ref.fingerprint || head.revoked_at!==revocation.revoked_at || event.subject_type!=="delegation_grant" || event.subject_id!==head.grant_id || event.tenant_id!==head.tenant_id || event.run_id!==undefined || event.task_id!==undefined || event.workforce_id!==undefined) throw new NativeDelegationGrantIntegrityError(head.grant_id,"revocation head, exact reference, Event, or execution boundary is invalid");
+    if (input.idempotency.scope!==`delegation.grant.revoke:${head.tenant_id}:${head.grant_id}`) throw new NativeDelegationGrantIntegrityError(head.grant_id,"revocation idempotency scope must be Tenant-qualified and aggregate-specific");
+    return this.idempotent(input.idempotency,"native.delegation.grant.revoke",async()=>{
+      await query(this.db,"lock Delegation Grant revocation","SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",[`delegation-grant:${head.grant_id}`]);
+      const existing=await query<HeadRow & QueryResultRow>(this.db,"read Delegation Grant revocation head","SELECT current_revision AS revision,current_fingerprint AS native_fingerprint,payload FROM acs_delegation_grants WHERE grant_id=$1 FOR UPDATE",[head.grant_id]);
+      if (!existing.rows[0] || Number(existing.rows[0].revision)!==input.expectedHead || existing.rows[0].native_fingerprint!==input.expectedFingerprint) throw new RevisionConflictError(`delegation-grant:${head.grant_id}`,input.expectedHead,existing.rows[0]?Number(existing.rows[0].revision):0);
+      const prior=validateDelegationGrantHeadV1(decode(existing.rows[0].payload)); if (prior.lifecycle!=="active") throw new NativeDelegationGrantIntegrityError(head.grant_id,"only an active Grant may be revoked");
+      const durableEvent=await this.appendEvent(event);
+      await query(this.db,"append Delegation Grant revocation",`INSERT INTO acs_delegation_grant_revocations (revocation_id,grant_id,tenant_id,revision,fingerprint,revoked_at,revoked_by,reason,governing_authority_refs,approval_refs,provenance_refs,correlation_id,event_id,payload) VALUES ($1,$2,$3,$4,$5,to_timestamp($6/1000.0),$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb)`,[revocation.revocation_id,head.grant_id,head.tenant_id,revocation.grant_ref.revision,revocation.grant_ref.fingerprint,revocation.revoked_at,revocation.revoked_by,revocation.reason,serialize(revocation.governing_authority_refs),serialize(revocation.approval_refs),serialize(revocation.provenance_refs),event.correlation_id,event.event_id,serialize(revocation)]);
+      await query(this.db,"revoke Delegation Grant head",`UPDATE acs_delegation_grants SET lifecycle='revoked',revoked_at=to_timestamp($2/1000.0),revocation_reason=$3,payload=$4::jsonb,updated_at=to_timestamp($5/1000.0) WHERE grant_id=$1`,[head.grant_id,head.revoked_at,head.revocation_reason,serialize(head),head.updated_at]);
+      const evidence=input.evidence?await this.recordEvidence(validateEvidenceRecordV2(input.evidence)):undefined; const outbox=await this.insertOutbox(durableEvent.event.event_id,input.outboxId,input.deliveryKind,event.timestamp);
+      return {lineage:await this.getDelegationGrantLineage(head.grant_id),event:durableEvent,...(evidence?{evidence}:{}),outbox};
+    });
+  }
+
+  async getDelegationGrantLineage(grantId: string): Promise<NativeDelegationGrantLineage> {
+    const h=await query<PayloadRow>(this.db,"get Delegation Grant head","SELECT payload FROM acs_delegation_grants WHERE grant_id=$1",[grantId]); const r=await query<PayloadRow>(this.db,"get Delegation Grant revisions","SELECT payload FROM acs_delegation_grant_revisions WHERE grant_id=$1 ORDER BY revision",[grantId]); const x=await query<PayloadRow>(this.db,"get Delegation Grant revocations","SELECT payload FROM acs_delegation_grant_revocations WHERE grant_id=$1 ORDER BY revoked_at",[grantId]);
+    if(!h.rows[0]||r.rows.length===0) throw new NativeDelegationGrantIntegrityError(grantId,"canonical head or immutable history is missing"); const head=validateDelegationGrantHeadV1(decode(h.rows[0].payload)); const revisions=r.rows.map(row=>validateDelegationGrantRevisionV1(decode(row.payload))); const current=revisions.at(-1); if(!current||head.current_revision!==current.ref.revision||head.current_fingerprint!==current.ref.fingerprint) throw new NativeDelegationGrantIntegrityError(grantId,"head diverges from immutable revisions"); revisions.forEach((item,index)=>{if(item.ref.grant_id!==grantId||item.ref.revision!==index+1)throw new NativeDelegationGrantIntegrityError(grantId,"revision history is not contiguous");}); return {head,revisions,revocations:x.rows.map(row=>validateDelegationGrantRevocationV1(decode(row.payload)))};
+  }
+
+  async assertDelegationGrantPathUsable(input: { readonly grantRef: DelegationGrantRevisionV1["ref"]; readonly at: number }): Promise<void> {
+    const seen=new Set<string>(); let ref=input.grantRef; while(true){ const row=await query<PayloadRow>(this.db,"read Delegation Grant path revision","SELECT payload FROM acs_delegation_grant_revisions WHERE grant_id=$1 AND tenant_id=$2 AND revision=$3 AND fingerprint=$4",[ref.grant_id,ref.tenant_id,ref.revision,ref.fingerprint]); if(!row.rows[0])throw new NativeDelegationGrantIntegrityError(ref.grant_id,"exact path revision is unavailable"); const revision=validateDelegationGrantRevisionV1(decode(row.rows[0].payload)); const head=await query<PayloadRow>(this.db,"read Delegation Grant path head","SELECT payload FROM acs_delegation_grants WHERE grant_id=$1",[ref.grant_id]); if(!head.rows[0])throw new NativeDelegationGrantIntegrityError(ref.grant_id,"path head is unavailable"); const current=validateDelegationGrantHeadV1(decode(head.rows[0].payload)); if(current.lifecycle!=="active"||current.current_revision!==ref.revision||current.current_fingerprint!==ref.fingerprint||input.at<revision.valid_from||input.at>=revision.expires_at)throw new NativeDelegationGrantIntegrityError(ref.grant_id,"path is not usable for a new authority use"); if(seen.has(revision.delegate.agent_id))throw new NativeDelegationGrantIntegrityError(ref.grant_id,"path repeats canonical Agent identity"); seen.add(revision.delegate.agent_id); if(!revision.parent_grant_ref)return; ref=revision.parent_grant_ref; }
+  }
+
+  private async assertDelegationParentForNewRevision(revision: DelegationGrantRevisionV1): Promise<void> {
+    const parent=revision.parent_grant_ref!;
+    await this.assertDelegationGrantPathUsable({grantRef:parent,at:revision.issued_at});
+    const parentChain: DelegationGrantRevisionV1[]=[];
+    let ref: DelegationGrantRevisionV1["ref"]|undefined=parent;
+    while(ref){
+      const row=await query<PayloadRow>(this.db,"read exact Delegation parent","SELECT payload FROM acs_delegation_grant_revisions WHERE grant_id=$1 AND tenant_id=$2 AND revision=$3 AND fingerprint=$4",[ref.grant_id,ref.tenant_id,ref.revision,ref.fingerprint]);
+      if(!row.rows[0]) throw new NativeDelegationGrantIntegrityError(revision.ref.grant_id,"exact parent revision is unavailable");
+      const parentRevision=validateDelegationGrantRevisionV1(decode(row.rows[0].payload)); parentChain.push(parentRevision); ref=parentRevision.parent_grant_ref;
+    }
+    const immediate=parentChain[0]!;
+    if(revision.delegator.agent_id!==immediate.delegate.agent_id||!immediate.onward_delegation_allowed||revision.depth!==immediate.depth+1||revision.depth>immediate.max_delegation_depth||revision.ancestry_grant_refs.length!==immediate.ancestry_grant_refs.length+1)throw new NativeDelegationGrantIntegrityError(revision.ref.grant_id,"parent, depth, onward-delegation, or ancestry is invalid");
+    if(revision.ancestry_grant_refs.some(entry=>entry.grant_id===revision.ref.grant_id)||revision.ancestry_grant_refs.some(entry=>entry.grant_id===immediate.ref.grant_id&&entry.revision!==immediate.ref.revision))throw new NativeDelegationGrantIntegrityError(revision.ref.grant_id,"Grant ancestry contains a cycle");
+    const ordered=parentChain.reverse(); const agents=[ordered[0]!.delegator.agent_id,...ordered.map(item=>item.delegate.agent_id),revision.delegate.agent_id];
+    if(new Set(agents).size!==agents.length) throw new NativeDelegationGrantIntegrityError(revision.ref.grant_id,"Delegation chain repeats a canonical Agent identity");
+    assertDelegationAuthorityAttenuationV1(revision.authority_bounds,immediate.authority_bounds); if(revision.valid_from<immediate.valid_from||revision.expires_at>immediate.expires_at||revision.max_delegation_depth>immediate.max_delegation_depth)throw new NativeDelegationGrantIntegrityError(revision.ref.grant_id,"child expands parent validity or depth");
   }
 
   async getMemoryPolicyLineage(memoryPolicyId: string): Promise<NativeMemoryPolicyLineage> {

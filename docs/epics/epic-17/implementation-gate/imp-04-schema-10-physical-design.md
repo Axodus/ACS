@@ -56,6 +56,7 @@ CREATE TABLE acs_delegation_grants (
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ,
   revocation_reason TEXT,
+  payload JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   UNIQUE (grant_id, tenant_id),
@@ -100,6 +101,7 @@ CREATE TABLE acs_delegation_grant_revisions (
   reason TEXT NOT NULL,
   correlation_id TEXT NOT NULL,
   event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+  payload JSONB NOT NULL,
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   PRIMARY KEY (grant_id, revision),
   UNIQUE (grant_id, tenant_id, revision, fingerprint),
@@ -143,6 +145,7 @@ CREATE TABLE acs_delegation_grant_revocations (
   provenance_refs JSONB NOT NULL CHECK (jsonb_typeof(provenance_refs) = 'array'),
   correlation_id TEXT NOT NULL,
   event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+  payload JSONB NOT NULL,
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   UNIQUE (grant_id, tenant_id, revision, fingerprint),
   FOREIGN KEY (grant_id, tenant_id, revision, fingerprint)
@@ -160,7 +163,7 @@ CREATE INDEX acs_delegation_grant_parent_idx
   WHERE parent_grant_id IS NOT NULL;
 ~~~
 
-The actual revision row must serialize the accepted Slice 1 contract canonically. JSONB is reserved for bounded typed arrays/objects such as authority bounds and immutable reference sets; it is not a universal permission registry or a secret-bearing document store.
+The `payload` columns canonically serialize the accepted Slice 1 head, revision, or revocation contract for deterministic reconstruction. JSONB is otherwise reserved for bounded typed arrays/objects such as authority bounds and immutable reference sets; it is not a universal permission registry or a secret-bearing document store.
 
 ## Head/revision coherence, CAS and immutability
 

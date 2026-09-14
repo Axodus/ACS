@@ -84,6 +84,7 @@ import {
 import {
   NativeFencingError,
   NativeIdempotencyConflictError,
+  NativeDelegationGrantIntegrityError,
   NativeMemoryPolicyIntegrityError,
   NativeMemoryRecordIntegrityError,
   NativeMemberSlotNotFoundError,
@@ -99,6 +100,7 @@ import {
   type AsyncNativeCoreRepository,
 } from "./native-core-durable.js";
 import { NativeContractValidationError } from "../../native-core/primitives.js";
+import { DelegationResolutionError } from "../../native-core/delegation.js";
 import { MemoryCryptoUnavailableError, type MemoryCryptoProviderV1 } from "../../native-core/memory-crypto.js";
 import {
   SHARED_STATE_MIGRATIONS,
@@ -149,6 +151,8 @@ function mapRepositoryError(operation: string, error: unknown): Error {
     || error instanceof RuntimeStateConflictError
     || error instanceof RuntimeWorkerIdentityError
     || error instanceof NativeIdempotencyConflictError
+    || error instanceof NativeDelegationGrantIntegrityError
+    || error instanceof DelegationResolutionError
     || error instanceof NativeMemoryPolicyIntegrityError
     || error instanceof NativeMemoryRecordIntegrityError
     || error instanceof MemoryCryptoUnavailableError
@@ -1504,6 +1508,10 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
         (tx) => tx.nativeCore.recordAuthenticatedIntegrationIngress(input),
       ),
       advanceMemoryPolicy: (input) => this.withTransaction("advance Memory Policy", (tx) => tx.nativeCore.advanceMemoryPolicy(input)),
+      advanceDelegationGrant: (input) => this.withTransaction("advance Delegation Grant", (tx) => tx.nativeCore.advanceDelegationGrant(input)),
+      revokeDelegationGrant: (input) => this.withTransaction("revoke Delegation Grant", (tx) => tx.nativeCore.revokeDelegationGrant(input)),
+      getDelegationGrantLineage: (grantId) => this.withTransaction("read Delegation Grant lineage", (tx) => tx.nativeCore.getDelegationGrantLineage(grantId)),
+      assertDelegationGrantPathUsable: (input) => this.withTransaction("validate Delegation Grant path", (tx) => tx.nativeCore.assertDelegationGrantPathUsable(input)),
       getMemoryPolicyLineage: (memoryPolicyId) => this.withTransaction("read Memory Policy lineage", (tx) => tx.nativeCore.getMemoryPolicyLineage(memoryPolicyId)),
       listMemoryPolicyHeads: (input) => this.withTransaction("list Memory Policy heads", (tx) => tx.nativeCore.listMemoryPolicyHeads(input)),
       createMemoryRecord: (input) => this.withTransaction("create encrypted Memory Record", (tx) => tx.nativeCore.createMemoryRecord(input)),

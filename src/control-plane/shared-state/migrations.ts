@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 9;
+export const SHARED_STATE_SCHEMA_VERSION = 10;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -785,6 +785,114 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
       `CREATE CONSTRAINT TRIGGER acs_memory_content_tombstone_exclusive_from_tombstone
         AFTER INSERT OR UPDATE ON acs_memory_tombstones DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
         EXECUTE FUNCTION acs_assert_memory_content_tombstone_exclusive()`,
+    ],
+  },
+  {
+    version: 10,
+    name: "delegation_grant_immutable_history_and_revocation",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_delegation_grants (
+        grant_id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES acs_tenants(tenant_id),
+        current_revision INTEGER NOT NULL CHECK (current_revision > 0),
+        current_fingerprint TEXT NOT NULL,
+        lifecycle TEXT NOT NULL CHECK (lifecycle IN ('active', 'revoked', 'superseded')),
+        valid_from TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ,
+        revocation_reason TEXT,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (grant_id, tenant_id),
+        UNIQUE (grant_id, tenant_id, current_revision, current_fingerprint),
+        CHECK (expires_at > valid_from),
+        CHECK ((lifecycle = 'revoked' AND revoked_at IS NOT NULL AND revocation_reason IS NOT NULL)
+          OR (lifecycle <> 'revoked' AND revoked_at IS NULL AND revocation_reason IS NULL))
+      )`,
+      `CREATE TABLE IF NOT EXISTS acs_delegation_grant_revisions (
+        grant_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        fingerprint TEXT NOT NULL,
+        delegator_agent_id TEXT NOT NULL,
+        delegator_agent_revision INTEGER NOT NULL CHECK (delegator_agent_revision > 0),
+        delegator_agent_fingerprint TEXT NOT NULL,
+        delegate_agent_id TEXT NOT NULL,
+        delegate_agent_revision INTEGER NOT NULL CHECK (delegate_agent_revision > 0),
+        delegate_agent_fingerprint TEXT NOT NULL,
+        authority_bounds JSONB NOT NULL CHECK (jsonb_typeof(authority_bounds) = 'object'),
+        governing_authority_refs JSONB NOT NULL CHECK (jsonb_typeof(governing_authority_refs) = 'array'),
+        governing_policy_refs JSONB NOT NULL CHECK (jsonb_typeof(governing_policy_refs) = 'array'),
+        approval_refs JSONB NOT NULL CHECK (jsonb_typeof(approval_refs) = 'array'),
+        provenance_refs JSONB NOT NULL CHECK (jsonb_typeof(provenance_refs) = 'array'),
+        parent_grant_id TEXT,
+        parent_tenant_id TEXT,
+        parent_revision INTEGER,
+        parent_fingerprint TEXT,
+        ancestry JSONB NOT NULL CHECK (jsonb_typeof(ancestry) = 'array'),
+        ancestry_digest TEXT NOT NULL,
+        depth INTEGER NOT NULL CHECK (depth > 0),
+        onward_delegation_allowed BOOLEAN NOT NULL,
+        max_delegation_depth INTEGER NOT NULL CHECK (max_delegation_depth > 0),
+        valid_from TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        issued_by TEXT NOT NULL,
+        issued_at TIMESTAMPTZ NOT NULL,
+        reason TEXT NOT NULL,
+        correlation_id TEXT NOT NULL,
+        event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+        payload JSONB NOT NULL,
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        PRIMARY KEY (grant_id, revision),
+        UNIQUE (grant_id, tenant_id, revision, fingerprint),
+        UNIQUE (grant_id, fingerprint),
+        FOREIGN KEY (grant_id, tenant_id) REFERENCES acs_delegation_grants(grant_id, tenant_id),
+        FOREIGN KEY (parent_grant_id, parent_tenant_id, parent_revision, parent_fingerprint)
+          REFERENCES acs_delegation_grant_revisions(grant_id, tenant_id, revision, fingerprint) DEFERRABLE INITIALLY DEFERRED,
+        CHECK (delegator_agent_id <> delegate_agent_id),
+        CHECK (expires_at > valid_from),
+        CHECK (depth <= max_delegation_depth),
+        CHECK ((parent_grant_id IS NULL AND parent_tenant_id IS NULL AND parent_revision IS NULL AND parent_fingerprint IS NULL AND depth = 1 AND ancestry = '[]'::jsonb)
+          OR (parent_grant_id IS NOT NULL AND parent_tenant_id = tenant_id AND parent_revision IS NOT NULL AND parent_fingerprint IS NOT NULL AND depth > 1))
+      )`,
+      `ALTER TABLE acs_delegation_grants ADD CONSTRAINT acs_delegation_grant_head_fk
+        FOREIGN KEY (grant_id, tenant_id, current_revision, current_fingerprint)
+        REFERENCES acs_delegation_grant_revisions(grant_id, tenant_id, revision, fingerprint) DEFERRABLE INITIALLY DEFERRED`,
+      `CREATE TABLE IF NOT EXISTS acs_delegation_grant_revocations (
+        revocation_id TEXT PRIMARY KEY,
+        grant_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        fingerprint TEXT NOT NULL,
+        revoked_at TIMESTAMPTZ NOT NULL,
+        revoked_by TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        governing_authority_refs JSONB NOT NULL CHECK (jsonb_typeof(governing_authority_refs) = 'array'),
+        approval_refs JSONB NOT NULL CHECK (jsonb_typeof(approval_refs) = 'array'),
+        provenance_refs JSONB NOT NULL CHECK (jsonb_typeof(provenance_refs) = 'array'),
+        correlation_id TEXT NOT NULL,
+        event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+        payload JSONB NOT NULL,
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        UNIQUE (grant_id, tenant_id, revision, fingerprint),
+        FOREIGN KEY (grant_id, tenant_id, revision, fingerprint)
+          REFERENCES acs_delegation_grant_revisions(grant_id, tenant_id, revision, fingerprint)
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_delegation_grant_head_tenant_idx ON acs_delegation_grants (tenant_id, lifecycle, expires_at, grant_id)`,
+      `CREATE INDEX IF NOT EXISTS acs_delegation_grant_delegator_idx ON acs_delegation_grant_revisions (tenant_id, delegator_agent_id, issued_at, grant_id)`,
+      `CREATE INDEX IF NOT EXISTS acs_delegation_grant_delegate_idx ON acs_delegation_grant_revisions (tenant_id, delegate_agent_id, issued_at, grant_id)`,
+      `CREATE INDEX IF NOT EXISTS acs_delegation_grant_parent_idx ON acs_delegation_grant_revisions (parent_grant_id, parent_revision) WHERE parent_grant_id IS NOT NULL`,
+      `ALTER TABLE acs_native_events DROP CONSTRAINT IF EXISTS acs_native_event_subject_type_check`,
+      `ALTER TABLE acs_native_events ADD CONSTRAINT acs_native_event_subject_type_check
+        CHECK (subject_type IS NULL OR subject_type IN ('agent', 'workforce', 'run', 'task', 'integration_connection', 'integration_channel', 'memory_policy', 'memory_record', 'delegation_grant'))`,
+      `CREATE FUNCTION acs_reject_delegation_immutable_row_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN RAISE EXCEPTION 'immutable Delegation row cannot be updated or deleted'; END;
+      $$`,
+      `CREATE TRIGGER acs_delegation_grant_revision_immutable BEFORE UPDATE OR DELETE ON acs_delegation_grant_revisions
+        FOR EACH ROW EXECUTE FUNCTION acs_reject_delegation_immutable_row_mutation()`,
+      `CREATE TRIGGER acs_delegation_grant_revocation_immutable BEFORE UPDATE OR DELETE ON acs_delegation_grant_revocations
+        FOR EACH ROW EXECUTE FUNCTION acs_reject_delegation_immutable_row_mutation()`,
     ],
   },
 ];
