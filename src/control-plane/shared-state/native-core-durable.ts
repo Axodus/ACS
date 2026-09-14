@@ -1676,6 +1676,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       workforce_revision: input.workforce_revision,
       run: input.run,
       authority_decision_ref: input.authority_decision_ref,
+      delegated_authority_snapshot: input.delegated_authority_snapshot,
       admitted_at: input.admitted_at,
     }));
     const idempotency = { ...input.idempotency, request_hash: requestHash };
@@ -1775,6 +1776,7 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
           workforce_revision_fingerprint: workforceRevision.ref.fingerprint,
           snapshot_id: snapshotId,
           member_count: members.length,
+          ...(input.delegated_authority_snapshot ? { delegated_authority_snapshot: input.delegated_authority_snapshot } : {}),
         },
       });
       const durableEvent = await this.appendEvent(event);

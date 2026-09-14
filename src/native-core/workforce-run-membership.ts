@@ -15,6 +15,7 @@ import {
   ValidationIssue,
 } from "./primitives.js";
 import { validateRunV2, type RunV2 } from "./runtime.js";
+import { validateDelegatedAuthoritySnapshotV1, type DelegatedAuthoritySnapshotV1 } from "./delegation.js";
 
 export type WorkforceRunResolutionMode = "pinned" | "current_head_at_admission";
 
@@ -41,6 +42,7 @@ export interface WorkforceRunAdmissionRequest {
   readonly workforce_revision?: number;
   readonly idempotency: Idempotency;
   readonly authority_decision_ref?: EntityRef;
+  readonly delegated_authority_snapshot?: DelegatedAuthoritySnapshotV1;
   readonly admitted_at: number;
 }
 
@@ -87,6 +89,7 @@ export function validateWorkforceRunAdmissionRequest(value: WorkforceRunAdmissio
   if (value.workforce_revision !== undefined && (!Number.isSafeInteger(value.workforce_revision) || value.workforce_revision < 1)) issues.push(issue("workforce_revision", "INVALID_INTEGER", "workforce_revision must be >= 1"));
   if (!Number.isSafeInteger(value.admitted_at) || value.admitted_at < 0) issues.push(issue("admitted_at", "INVALID_TIMESTAMP", "admitted_at must be a non-negative safe integer"));
   if (value.authority_decision_ref !== undefined) try { validateEntityRef(value.authority_decision_ref, "authority_decision_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
+  if (value.delegated_authority_snapshot !== undefined) try { validateDelegatedAuthoritySnapshotV1(value.delegated_authority_snapshot); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   if (issues.length) throw new NativeContractValidationError("invalid Workforce Run admission request", issues);
 }
 

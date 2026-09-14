@@ -139,6 +139,16 @@ export interface DelegationGrantAdmissionUseV1 {
   readonly head: DelegationGrantHeadV1;
 }
 
+/** Immutable, secret-free authority evidence captured at successful admission. */
+export interface DelegatedAuthoritySnapshotV1 {
+  readonly authority_basis_ref: DelegationGrantRevisionRefV1;
+  readonly chain_refs: readonly DelegationGrantRevisionRefV1[];
+  readonly effective_authority_bounds: DelegationAuthorityBoundsV1;
+  readonly governing_authority_refs: readonly EntityRef[];
+  readonly governing_policy_refs: readonly RevisionRef[];
+  readonly admitted_at: number;
+}
+
 function issue(path: string, code: string, message: string): ValidationIssue {
   return { path, code, message };
 }
@@ -330,6 +340,21 @@ export function validateDelegationGrantHeadV1(value: unknown): DelegationGrantHe
   if (head.revocation_reason !== undefined) requireString(head.revocation_reason, "revocation_reason", issues);
   assertNoSecretMaterial(value);
   return assertValid(head as DelegationGrantHeadV1, issues);
+}
+
+export function validateDelegatedAuthoritySnapshotV1(value: unknown): DelegatedAuthoritySnapshotV1 {
+  const issues: ValidationIssue[] = [];
+  const snapshot = object(value, "$", issues) as Partial<DelegatedAuthoritySnapshotV1>;
+  let basis: DelegationGrantRevisionRefV1 | undefined;
+  try { basis = validateDelegationGrantRevisionRefV1(snapshot.authority_basis_ref, "authority_basis_ref"); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
+  const chain = grantRefList(snapshot.chain_refs, "chain_refs", issues);
+  const authority = validateAuthorityBounds(snapshot.effective_authority_bounds, "effective_authority_bounds", issues);
+  const governingAuthority = entityList(snapshot.governing_authority_refs, "governing_authority_refs", issues);
+  const governingPolicy = revisionList(snapshot.governing_policy_refs, "governing_policy_refs", issues);
+  requireSafeInteger(snapshot.admitted_at, "admitted_at", issues, 0);
+  if (!basis || chain.length === 0 || !chain.some((entry) => entry.grant_id === basis?.grant_id && entry.revision === basis?.revision && entry.fingerprint === basis?.fingerprint)) issues.push(issue("chain_refs", "INVALID_AUTHORITY_BASIS", "Snapshot chain must contain the exact authority basis"));
+  assertNoSecretMaterial(value);
+  return assertValid({ authority_basis_ref: basis, chain_refs: chain, effective_authority_bounds: authority, governing_authority_refs: governingAuthority, governing_policy_refs: governingPolicy, admitted_at: snapshot.admitted_at } as DelegatedAuthoritySnapshotV1, issues);
 }
 
 export function validateDelegationGrantRevocationV1(value: unknown): DelegationGrantRevocationV1 {
