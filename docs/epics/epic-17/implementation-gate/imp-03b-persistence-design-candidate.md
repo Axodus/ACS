@@ -52,7 +52,7 @@ A changed remembered content creates a new `memory_id` with a Tenant-bound prede
 
 The physical design uses `acs_memory_contents` as the only candidate raw-content residence. It is keyed by the exact immutable `memory_id` and Tenant, holds protected bytes, digest and encryption-key reference, and must not serialize through normal domain/event/evidence/API/log paths.
 
-The schema-9 proposal fixes the content residence as protected PostgreSQL bytes in `acs_memory_contents`. ADR-023 must still select the governed encryption-key owner and backup/WAL erasure policy before migration. Neither may make an internal content relation or key reference a reusable read credential.
+The schema-9 proposal fixes the content residence as protected PostgreSQL bytes in `acs_memory_contents`. The [ADR-023 package](imp-03b-adr-023-encryption-erasure.md) recommends the governed encryption-key owner, opaque protection metadata and truthful backup/WAL erasure posture required before migration. Neither may make an internal content relation or key reference a reusable read credential.
 
 Deletion deletes the content row. Immutable Record metadata retains neither a content reference nor a digest; the content-free tombstone retains a digest only when the exact Policy permits it. The implementation must also clear raw content from derived/index persistence and reject any attempt to recover deleted content through an internal relation or backup path outside the approved erasure policy.
 

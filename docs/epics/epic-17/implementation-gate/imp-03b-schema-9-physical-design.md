@@ -1,11 +1,13 @@
 # EPIC-17-IMP-03B — Schema 9 Physical Persistence Design
 
-**Status:** COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED; ADR-023 REQUIRED BEFORE MIGRATION
+**Status:** COMPLETE / CTO ACCEPTED / PUBLISHED; ADR-023 COMPLETE / CTO ACCEPTED
 **Baseline:** ef759def3746ca7d87ce283b10837e0d7269ae51
 **Current schema:** 8
 **Candidate target:** 9
-**Migration execution:** HOLD — ADR-023 REQUIRED
-**Slice 2:** HOLD — ADR-023 REQUIRED
+**Migration execution:** AUTHORIZED — schema 8 -> 9 only
+**Slice 2:** AUTHORIZED / GO
+
+**ADR-023 package:** [Memory protection, deletion and reconstruction](imp-03b-adr-023-encryption-erasure.md), `COMPLETE / CTO ACCEPTED`
 
 ## Decisions frozen by Slice 1 and CTO
 
@@ -219,6 +221,33 @@ CREATE TRIGGER acs_memory_tombstone_immutable
   BEFORE UPDATE OR DELETE ON acs_memory_tombstones
   FOR EACH ROW EXECUTE FUNCTION acs_reject_memory_immutable_row_mutation();
 
+CREATE FUNCTION acs_assert_memory_content_tombstone_exclusive()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+      FROM acs_memory_contents AS content
+      JOIN acs_memory_tombstones AS tombstone
+        ON tombstone.memory_id = content.memory_id
+       AND tombstone.tenant_id = content.tenant_id
+     WHERE content.memory_id = NEW.memory_id
+       AND content.tenant_id = NEW.tenant_id
+  ) THEN
+    RAISE EXCEPTION 'active Memory content and tombstone cannot coexist';
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER acs_memory_content_tombstone_exclusive_from_content
+  AFTER INSERT OR UPDATE ON acs_memory_contents
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+  EXECUTE FUNCTION acs_assert_memory_content_tombstone_exclusive();
+CREATE CONSTRAINT TRIGGER acs_memory_content_tombstone_exclusive_from_tombstone
+  AFTER INSERT OR UPDATE ON acs_memory_tombstones
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+  EXECUTE FUNCTION acs_assert_memory_content_tombstone_exclusive();
+
 CREATE INDEX acs_memory_policy_head_tenant_idx
   ON acs_memory_policies (tenant_id, current_lifecycle, memory_policy_id);
 CREATE INDEX acs_memory_record_scope_idx
@@ -241,6 +270,16 @@ repository convention alone. It is design-only until a migration is authorized.
 Policy contract and provenance are typed, secret-free Native Core contracts.
 They are not content escape hatches. No metadata table includes content bytes,
 content references, embeddings, credentials, secrets, or authorization headers.
+
+### ADR-023 amendment pending CTO decision
+
+The `acs_memory_contents` snippet above shows the pre-ADR placeholder
+`encryption_key_ref`. The pending ADR-023 recommendation replaces it with the
+opaque `encryption_backend`, `encryption_key_ref`, `encryption_key_version`,
+`cipher_suite` and `encryption_context_digest` fields, plus a content-row guard
+that permits only security rewraps and explicit retention deletion. It does not
+add a table or change the five-table ownership shape. See the
+[ADR-023 package](imp-03b-adr-023-encryption-erasure.md).
 
 ## Tenant integrity and scope constraints
 
@@ -273,7 +312,9 @@ must stop for CTO review.
 Before deletion, immutable metadata exists in acs_memory_records and exactly one
 raw-content row exists in acs_memory_contents. After deletion, the metadata
 still exists, content is physically absent, and one tombstone supplies the
-current tombstoned projection.
+current tombstoned projection. The deferred cross-table constraint triggers
+allow the explicit transaction to insert a tombstone and remove content in either
+order, but reject a commit where both rows remain.
 
 ~~~text
 lock memory_id and verify active content plus exact Policy decision

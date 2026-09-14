@@ -26,6 +26,7 @@ remains none.
 - [IMP-03B Memory charter](imp-03b-charter.md)
 - [IMP-03B persistence and migration design candidate](imp-03b-persistence-design-candidate.md)
 - [IMP-03B schema 9 physical design](imp-03b-schema-9-physical-design.md)
+- [ADR-023 Memory protection and deletion package](imp-03b-adr-023-encryption-erasure.md)
 
 ## Current disposition
 
@@ -47,6 +48,7 @@ remains none.
 | IMP-03B Slice 1 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Native contracts and tests only; schema 9, durable Store, runtime and Product API remain prohibited. |
 | IMP-03B Slice 1 report | `READY FOR CTO REVIEW` | [Focused contract, regression and causal evidence](imp-03b-slice-1-report.md). |
 | IMP-03B schema 9 physical design | `COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED` | Tables, constraints, transaction and deployment design accepted; schema 9 remains held on ADR-023. |
+| IMP-03B ADR-023 | `COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED` | External key-protection boundary, active-store deletion guarantee and schema-9 crypto metadata accepted. |
 
 ## Current implementation boundary
 
@@ -54,6 +56,6 @@ The accepted PostgreSQL schema v8 and functional IMP-03A are closed.
 Development SQLite data remains disposable: no preservation, import, backfill
 or compatibility path is required. IMP-03B has no functional, schema, migration,
 runtime or Product API authority. Its candidate schema 9 is documentation only.
-The physical schema-9 design is accepted and publication is authorized. Migration,
-Memory Store implementation, IMP-03B Slice 2+, and IMP-04+ remain unauthorized
-until ADR-023 closes and a separate CTO GO is issued.
+Schema 9 and IMP-03B Slice 2 are authorized. Slice 3+, IMP-04+, runtime,
+Product API and User Context Memory remain unauthorized. Production Memory
+enablement remains blocked until a validated external KMS/Transit integration.

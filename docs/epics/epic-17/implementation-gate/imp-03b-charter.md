@@ -1,9 +1,9 @@
 # EPIC-17-IMP-03B — Memory Policy & Memory Store Gate Charter
 
-**Status:** `SLICE 1 / COMPLETE / CTO ACCEPTED / PUBLISHED; SCHEMA-9 PHYSICAL DESIGN / COMPLETE / CTO ACCEPTED; ADR-023 REQUIRED`
+**Status:** `SLICE 1 / COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL DESIGN / COMPLETE / CTO ACCEPTED / PUBLISHED; ADR-023 / COMPLETE / CTO ACCEPTED; SLICE 2 / AUTHORIZED / GO`
 **Gate preparation:** `COMPLETE / CTO ACCEPTED`
-**Implementation authority:** none beyond the closed Slice 1; ADR-023 and schema-document reconciliation only
-**Migration authority:** none
+**Implementation authority:** Slice 2 Durable Memory Store only
+**Migration authority:** schema 8 -> 9 only
 **Predecessor:** IMP-03A `COMPLETE / CTO ACCEPTED / CLOSED`
 
 ## Canonical assignment
@@ -84,7 +84,7 @@ Raw Memory content is prohibited from effective-configuration snapshots, Events,
 | `E17-R06-B01` | No canonical versioned Policy owner/history | `OPEN` | Slice 1 / migration gate | Typed policy, resolver and historical revision proof. |
 | `E17-R06-B02` | No Record/Store contract or persistence | `OPEN` | Slice 2 | Canonical Tenant-safe Store/repository. |
 | `E17-R06-B03` | No human identity, consent or privacy-deletion authority | `OPEN / HARD BOUNDARY` | User Context Memory only | Separate owning-domain decision; no inference. |
-| `E17-R06-B04` | Deletion can conflict with reproducible history | `PARTIALLY REDUCED / OPEN` | ADR-023 before Slice 2; enforce Slice 2/4 | Approved content/tombstone shape; encryption/backup guarantee and non-recovery proof remain pending. |
+| `E17-R06-B04` | Deletion can conflict with reproducible history | `PARTIALLY REDUCED / OPEN` | Enforce Slice 2/4 | ADR-023 accepts active-store deletion only; implementation proof and advanced retention remain pending. |
 | `E17-R06-B05` | Workforce deliberately has no Memory field | `OPEN` | Slice 1 / Slice 3 | Companion refs/access without Workforce change. |
 | `E17-R06-B06` | IMP-02 snapshot has primitives but no typed Memory refs/results | `OPEN / PARTIALLY REDUCED` | Slice 3 | Exact policy/result refs; no raw content. |
 
@@ -159,9 +159,9 @@ Durable work requires `npm run acceptance:postgres`. Listener acceptance applies
 
 ## Gate report
 
-**Status:** `GATE PREPARATION COMPLETE / CTO ACCEPTED; SLICE 1 COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL SCHEMA-9 DESIGN COMPLETE / CTO ACCEPTED; ADR-023 REQUIRED`
+**Status:** `GATE PREPARATION COMPLETE / CTO ACCEPTED; SLICE 1 COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL SCHEMA-9 DESIGN COMPLETE / CTO ACCEPTED / PUBLISHED; ADR-023 COMPLETE / CTO ACCEPTED; SLICE 2 AUTHORIZED / GO`
 **Blockers:** six open; B03 is a hard User Context boundary.
 **Deltas:** CD01–CD07 candidate IMP-03B work; CD08 deferred to REQ-10.
 **ADRs:** 020/022 decided; 021 decided for Slice 1; 023 partially decided and required before migration; 024 deferred to Slice 3.
-**Migration:** candidate schema 9 required for durable Store; not authorized.
-**CTO decisions required:** ADR-023 must close encryption-key ownership, rotation and deletion guarantees across active storage, backups and WAL before separate schema-9 migration and Slice-2 GO. External canonical-owner validation and immutable-row triggers are accepted.
+**Migration:** schema 8 -> 9 additive migration is authorized; no legacy import or backfill.
+**CTO decisions required:** none before Slice 2. A validated external KMS/Transit integration remains required before production Memory enablement.
