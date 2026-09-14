@@ -84,6 +84,8 @@ import {
 import {
   NativeFencingError,
   NativeIdempotencyConflictError,
+  NativeMemoryPolicyIntegrityError,
+  NativeMemoryRecordIntegrityError,
   NativeMemberSlotNotFoundError,
   NativeCoordinationConflictError,
   NativeRunAdmissionError,
@@ -97,6 +99,7 @@ import {
   type AsyncNativeCoreRepository,
 } from "./native-core-durable.js";
 import { NativeContractValidationError } from "../../native-core/primitives.js";
+import { MemoryCryptoUnavailableError, type MemoryCryptoProviderV1 } from "../../native-core/memory-crypto.js";
 import {
   SHARED_STATE_MIGRATIONS,
   SHARED_STATE_SCHEMA_VERSION,
@@ -146,6 +149,9 @@ function mapRepositoryError(operation: string, error: unknown): Error {
     || error instanceof RuntimeStateConflictError
     || error instanceof RuntimeWorkerIdentityError
     || error instanceof NativeIdempotencyConflictError
+    || error instanceof NativeMemoryPolicyIntegrityError
+    || error instanceof NativeMemoryRecordIntegrityError
+    || error instanceof MemoryCryptoUnavailableError
     || error instanceof NativeFencingError
     || error instanceof NativeMemberSlotNotFoundError
     || error instanceof NativeCoordinationConflictError
@@ -1346,7 +1352,7 @@ class PostgresSharedStateSession implements SharedAuthoritativeStateSession {
   readonly rateLimits: AsyncRateLimitRepository;
   readonly nativeCore: AsyncNativeCoreRepository;
 
-  constructor(db: Queryable) {
+  constructor(db: Queryable, memoryCryptoProvider?: MemoryCryptoProviderV1) {
     this.accountIdentity = new PostgresAccountIdentityStore(db);
     this.tenants = new PostgresTenantRepository(db);
     this.memberships = new PostgresMembershipRepository(db);
@@ -1358,7 +1364,7 @@ class PostgresSharedStateSession implements SharedAuthoritativeStateSession {
     this.economics = new PostgresEconomicRepository(db);
     this.runtime = new PostgresRuntimeRepository(db);
     this.rateLimits = new PostgresRateLimitRepository(db);
-    this.nativeCore = new PostgresNativeCoreRepository(db);
+    this.nativeCore = new PostgresNativeCoreRepository(db, { memoryCryptoProvider });
   }
 }
 
@@ -1368,6 +1374,8 @@ export interface PostgresSharedAuthoritativeStateOptions {
   readonly connectionTimeoutMs?: number;
   readonly statementTimeoutMs?: number;
   readonly tls?: boolean;
+  /** Optional cryptographic boundary. Omission fail-closes raw Memory content writes. */
+  readonly memoryCryptoProvider?: MemoryCryptoProviderV1;
 }
 
 export class PostgresSharedAuthoritativeState implements SharedAuthoritativeState {
@@ -1393,6 +1401,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
   readonly rateLimits: AsyncRateLimitRepository;
   readonly nativeCore: AsyncNativeCoreRepository;
   readonly #pool: Pool;
+  readonly #memoryCryptoProvider?: MemoryCryptoProviderV1;
   #lastPoolErrorAt: number | undefined;
 
   constructor(options: PostgresSharedAuthoritativeStateOptions) {
@@ -1407,6 +1416,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       ...(options.tls ? { ssl: { rejectUnauthorized: true } } : {}),
     };
     this.#pool = new Pool(config);
+    this.#memoryCryptoProvider = options.memoryCryptoProvider;
     // pg emits idle-client failures on the Pool itself. Without a listener,
     // Node treats a dependency outage as an uncaught error and terminates the
     // Control Plane. Authority remains fail-closed at query boundaries while
@@ -1414,7 +1424,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
     this.#pool.on("error", () => {
       this.#lastPoolErrorAt = Date.now();
     });
-    const session = new PostgresSharedStateSession(this.#pool);
+    const session = new PostgresSharedStateSession(this.#pool, options.memoryCryptoProvider);
     this.accountIdentity = session.accountIdentity;
     this.tenants = session.tenants;
     this.memberships = {
@@ -1493,6 +1503,11 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
         "record authenticated integration ingress",
         (tx) => tx.nativeCore.recordAuthenticatedIntegrationIngress(input),
       ),
+      advanceMemoryPolicy: (input) => this.withTransaction("advance Memory Policy", (tx) => tx.nativeCore.advanceMemoryPolicy(input)),
+      getMemoryPolicyLineage: (memoryPolicyId) => this.withTransaction("read Memory Policy lineage", (tx) => tx.nativeCore.getMemoryPolicyLineage(memoryPolicyId)),
+      createMemoryRecord: (input) => this.withTransaction("create encrypted Memory Record", (tx) => tx.nativeCore.createMemoryRecord(input)),
+      getMemoryRecordState: (memoryId) => this.withTransaction("read Memory Record state", (tx) => tx.nativeCore.getMemoryRecordState(memoryId)),
+      tombstoneMemoryRecord: (input) => this.withTransaction("tombstone Memory Record", (tx) => tx.nativeCore.tombstoneMemoryRecord(input)),
       advanceWorkforceLineage: (input) => this.withTransaction(
         "advance native workforce lineage",
         (tx) => tx.nativeCore.advanceWorkforceLineage(input),
@@ -1628,7 +1643,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
     const client = await this.#pool.connect().catch((error: unknown) => { throw mapRepositoryError(operation, error); });
     try {
       await query(client, operation, "BEGIN");
-      const session = new PostgresSharedStateSession(client);
+      const session = new PostgresSharedStateSession(client, this.#memoryCryptoProvider);
       Object.defineProperty(session, "__client", { value: client, enumerable: false });
       const result = await fn(session);
       await query(client, operation, "COMMIT");

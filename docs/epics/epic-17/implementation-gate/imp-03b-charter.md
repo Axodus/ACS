@@ -2,7 +2,7 @@
 
 **Status:** `SLICE 1 / COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL DESIGN / COMPLETE / CTO ACCEPTED / PUBLISHED; ADR-023 / COMPLETE / CTO ACCEPTED; SLICE 2 / AUTHORIZED / GO`
 **Gate preparation:** `COMPLETE / CTO ACCEPTED`
-**Implementation authority:** Slice 2 Durable Memory Store only
+**Implementation authority:** Slice 3 Governed Write & Retrieval only
 **Migration authority:** schema 8 -> 9 only
 **Predecessor:** IMP-03A `COMPLETE / CTO ACCEPTED / CLOSED`
 
@@ -84,7 +84,7 @@ Raw Memory content is prohibited from effective-configuration snapshots, Events,
 | `E17-R06-B01` | No canonical versioned Policy owner/history | `OPEN` | Slice 1 / migration gate | Typed policy, resolver and historical revision proof. |
 | `E17-R06-B02` | No Record/Store contract or persistence | `OPEN` | Slice 2 | Canonical Tenant-safe Store/repository. |
 | `E17-R06-B03` | No human identity, consent or privacy-deletion authority | `OPEN / HARD BOUNDARY` | User Context Memory only | Separate owning-domain decision; no inference. |
-| `E17-R06-B04` | Deletion can conflict with reproducible history | `PARTIALLY REDUCED / OPEN` | Enforce Slice 2/4 | ADR-023 accepts active-store deletion only; implementation proof and advanced retention remain pending. |
+| `E17-R06-B04` | Deletion can conflict with reproducible history | `PARTIALLY RESOLVED` | Slice 4 | Slice 2 validates transactionally atomic tombstone/content exclusion and `ACTIVE_STORE_DELETED`; cryptographic and backup erasure remain unclaimed. |
 | `E17-R06-B05` | Workforce deliberately has no Memory field | `OPEN` | Slice 1 / Slice 3 | Companion refs/access without Workforce change. |
 | `E17-R06-B06` | IMP-02 snapshot has primitives but no typed Memory refs/results | `OPEN / PARTIALLY REDUCED` | Slice 3 | Exact policy/result refs; no raw content. |
 
@@ -115,7 +115,7 @@ No blocker is resolved by documentation. B03 does not block the four candidate c
 
 ## Persistence, Event and migration candidates
 
-The repository is at schema 8. Existing Agent, Workforce, Runtime, Event/Evidence/outbox and Integration tables cannot own Memory without dual authority. A durable Store therefore needs a candidate additive schema 9, but **schema 9 is not authorized**. The accepted logical candidate is reconciled in [persistence and migration candidate](imp-03b-persistence-design-candidate.md); the physical table, constraint and transaction proposal is [schema-9 physical persistence design](imp-03b-schema-9-physical-design.md).
+The repository is at schema 9. Existing Agent, Workforce, Runtime, Event/Evidence/outbox and Integration tables do not own Memory; the additive durable Store preserves one canonical Memory owner. The accepted logical candidate is reconciled in [persistence and migration candidate](imp-03b-persistence-design-candidate.md); the physical table, constraint and transaction proposal is [schema-9 physical persistence design](imp-03b-schema-9-physical-design.md).
 
 Derived candidate positions:
 

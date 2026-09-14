@@ -119,8 +119,8 @@ test("IMP-03A endpoint identity is scoped by stable Connection, never globally b
   assert.doesNotMatch(source, /r\.endpoint_kind = \$2 AND r\.endpoint_uri = \$3/);
 });
 
-test("IMP-03A schema version 8 adds exactly the four additive Integration tables", () => {
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 8);
+test("IMP-03A schema version 8 remains additive when later schema 9 extends Memory", () => {
+  assert.equal(SHARED_STATE_SCHEMA_VERSION, 9);
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 8);
   assert.ok(migration);
   const sql = migration.statements.join("\n");

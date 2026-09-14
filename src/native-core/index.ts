@@ -11,3 +11,4 @@ export * from "./effective-configuration.js";
 export * from "./integration.js";
 export * from "./integration-ingress.js";
 export * from "./memory.js";
+export * from "./memory-crypto.js";

@@ -36,6 +36,21 @@ import {
   type AuthenticatedIntegrationIngressReferenceV1,
 } from "../../native-core/integration-ingress.js";
 import {
+  validateMemoryPolicyHeadV1,
+  validateMemoryPolicyRevisionV1,
+  validateMemoryRecordV1,
+  validateMemoryTombstoneV1,
+  type MemoryPolicyHeadV1,
+  type MemoryPolicyRevisionV1,
+  type MemoryRecordV1,
+  type MemoryTombstoneV1,
+} from "../../native-core/memory.js";
+import {
+  memoryEncryptionContextDigestV1,
+  MemoryCryptoUnavailableError,
+  type MemoryCryptoProviderV1,
+} from "../../native-core/memory-crypto.js";
+import {
   validateWorkforceDefinitionV2,
   validateWorkforceRevisionV2,
   type WorkforceDefinitionV2,
@@ -210,6 +225,15 @@ export interface NativeIntegrationLineageCommandResult<T> {
   readonly outbox: NativeOutboxRecord;
 }
 
+export interface NativeMemoryPolicyLineage { readonly head: MemoryPolicyHeadV1; readonly revisions: readonly MemoryPolicyRevisionV1[]; }
+export interface NativeMemoryPolicyCommand { readonly head: MemoryPolicyHeadV1; readonly revision: MemoryPolicyRevisionV1; readonly expectedHead: number; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly outboxId?: string; readonly deliveryKind?: string; }
+export interface NativeMemoryPolicyCommandResult { readonly lineage: NativeMemoryPolicyLineage; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
+export interface NativeMemoryRecordCommand { readonly record: MemoryRecordV1; readonly plaintext: string; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly outboxId?: string; readonly deliveryKind?: string; }
+export interface NativeMemoryRecordCommandResult { readonly record: MemoryRecordV1; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
+export interface NativeMemoryTombstoneCommand { readonly tombstone: MemoryTombstoneV1; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly outboxId?: string; readonly deliveryKind?: string; }
+export interface NativeMemoryTombstoneCommandResult { readonly tombstone: MemoryTombstoneV1; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
+export interface NativeMemoryRecordState { readonly record?: MemoryRecordV1; readonly tombstone?: MemoryTombstoneV1; }
+
 export interface NativeAuthenticatedIntegrationIngressCommand {
   readonly reference: AuthenticatedIntegrationIngressReferenceV1;
   readonly event: EventEnvelopeV2;
@@ -303,6 +327,11 @@ export interface AsyncNativeCoreRepository {
   getIntegrationChannelLineage(channelId: string): Promise<NativeIntegrationChannelLineage>;
   listIntegrationChannelDefinitions(input: { readonly tenantId: string }): Promise<readonly IntegrationChannelDefinitionV1[]>;
   recordAuthenticatedIntegrationIngress(input: NativeAuthenticatedIntegrationIngressCommand): Promise<NativeAuthenticatedIntegrationIngressResult>;
+  advanceMemoryPolicy(input: NativeMemoryPolicyCommand): Promise<NativeMemoryPolicyCommandResult>;
+  getMemoryPolicyLineage(memoryPolicyId: string): Promise<NativeMemoryPolicyLineage>;
+  createMemoryRecord(input: NativeMemoryRecordCommand): Promise<NativeMemoryRecordCommandResult>;
+  getMemoryRecordState(memoryId: string): Promise<NativeMemoryRecordState | undefined>;
+  tombstoneMemoryRecord(input: NativeMemoryTombstoneCommand): Promise<NativeMemoryTombstoneCommandResult>;
   advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult>;
   getWorkforceLineage(workforceId: string): Promise<NativeWorkforceLineage>;
   listWorkforceDefinitions(): Promise<readonly WorkforceDefinitionV2[]>;
@@ -361,6 +390,22 @@ export class NativeIntegrationLineageIntegrityError extends Error {
   constructor(readonly entityId: string, detail: string) {
     super(`native integration lineage integrity failure for ${entityId}: ${detail}`);
     this.name = "NativeIntegrationLineageIntegrityError";
+  }
+}
+
+export class NativeMemoryPolicyIntegrityError extends Error {
+  readonly code = "ACS_NATIVE_MEMORY_POLICY_INTEGRITY";
+  constructor(readonly memoryPolicyId: string, detail: string) {
+    super(`native Memory Policy integrity failure for ${memoryPolicyId}: ${detail}`);
+    this.name = "NativeMemoryPolicyIntegrityError";
+  }
+}
+
+export class NativeMemoryRecordIntegrityError extends Error {
+  readonly code = "ACS_NATIVE_MEMORY_RECORD_INTEGRITY";
+  constructor(readonly memoryId: string, detail: string) {
+    super(`native Memory Record integrity failure for ${memoryId}: ${detail}`);
+    this.name = "NativeMemoryRecordIntegrityError";
   }
 }
 
@@ -512,6 +557,10 @@ async function query<R extends QueryResultRow = QueryResultRow>(
   } catch (error) {
     if (error instanceof NativeIdempotencyConflictError
       || error instanceof NativeLineageIntegrityError
+      || error instanceof NativeIntegrationLineageIntegrityError
+      || error instanceof NativeMemoryPolicyIntegrityError
+      || error instanceof NativeMemoryRecordIntegrityError
+      || error instanceof MemoryCryptoUnavailableError
       || error instanceof NativeWorkforceLineageIntegrityError
       || error instanceof NativeWorkforceReferenceError
       || error instanceof NativeGovernedRoleHistoryError
@@ -547,11 +596,22 @@ function requireOutboxFailureCode(value: string): void {
   }
 }
 
+function memoryScopeColumns(record: MemoryRecordV1): { readonly ownerId: string; readonly ownerRevision: number | null; readonly ownerFingerprint: string | null; readonly runId: string | null } {
+  const scope = record.scope;
+  if (scope.kind === "working" && scope.run_ref) return { ownerId: scope.run_ref.ref.id, ownerRevision: null, ownerFingerprint: null, runId: scope.run_ref.ref.id };
+  if (scope.kind === "agent" && scope.agent_ref) return { ownerId: scope.agent_ref.ref.id, ownerRevision: null, ownerFingerprint: null, runId: null };
+  if (scope.kind === "workforce_shared" && scope.workforce_revision_ref) return { ownerId: scope.workforce_revision_ref.ref.entity_id, ownerRevision: scope.workforce_revision_ref.ref.revision, ownerFingerprint: scope.workforce_revision_ref.ref.fingerprint, runId: null };
+  if (scope.kind === "knowledge_backed" && scope.knowledge_ref?.ref.revision !== undefined && scope.knowledge_fingerprint) return { ownerId: scope.knowledge_ref.ref.id, ownerRevision: scope.knowledge_ref.ref.revision, ownerFingerprint: scope.knowledge_fingerprint, runId: null };
+  throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "scope cannot be represented by the closed durable scope columns");
+}
+
 type EventStreamIdentity = Pick<EventEnvelopeV2, "event_type" | "agent_id" | "workforce_id" | "run_id" | "task_id" | "subject_type" | "subject_id">;
 
 function streamScope(event: EventStreamIdentity): string {
   if (event.subject_type === "integration_connection" && event.subject_id) return `integration-connection:${event.subject_id}`;
   if (event.subject_type === "integration_channel" && event.subject_id) return `integration-channel:${event.subject_id}`;
+  if (event.subject_type === "memory_policy" && event.subject_id) return `memory-policy:${event.subject_id}`;
+  if (event.subject_type === "memory_record" && event.subject_id) return `memory-record:${event.subject_id}`;
   if (event.workforce_id && !event.run_id && !event.task_id) return `workforce:${event.workforce_id}`;
   if (event.event_type === "execution.intent_compiled" && event.run_id) return `run:${event.run_id}`;
   if (event.agent_id) return `agent:${event.agent_id}`;
@@ -560,7 +620,7 @@ function streamScope(event: EventStreamIdentity): string {
   throw new NativeContractValidationError("native event requires a stream subject", [{
     path: "event",
     code: "MISSING_STREAM_SUBJECT",
-    message: "Canonical event must identify Agent, Workforce, Run, Task, Integration Connection, or Integration Channel ownership",
+    message: "Canonical event must identify Agent, Workforce, Run, Task, Integration, or Memory ownership",
   }]);
 }
 
@@ -695,7 +755,7 @@ export function validateNativeAccountingCommand(input: NativeAccountingCommand):
 }
 
 export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
-  constructor(private readonly db: NativeCoreQueryable) {}
+  constructor(private readonly db: NativeCoreQueryable, private readonly options: { readonly memoryCryptoProvider?: MemoryCryptoProviderV1 } = {}) {}
 
   async advanceAgentLineage(input: NativeAgentLineageCommand): Promise<NativeAgentLineageCommandResult> {
     validateNativeAgentLineageCommand(input);
@@ -923,6 +983,113 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     const persistedEvidence = await this.recordEvidence(evidence);
     const outbox = await this.insertOutbox(durableEvent.event.event_id, input.outboxId, input.deliveryKind, event.timestamp);
     return { reference, event: durableEvent, evidence: persistedEvidence, outbox };
+  }
+
+  async advanceMemoryPolicy(input: NativeMemoryPolicyCommand): Promise<NativeMemoryPolicyCommandResult> {
+    const head = validateMemoryPolicyHeadV1(input.head);
+    const revision = validateMemoryPolicyRevisionV1(input.revision);
+    const event = validateEventEnvelopeV2(input.event);
+    validateIdempotency(input.idempotency);
+    if (head.memory_policy_id !== revision.ref.entity_id || head.tenant_id !== revision.tenant_id
+      || head.current_revision !== revision.ref.revision || head.current_fingerprint !== revision.ref.fingerprint
+      || head.lifecycle !== revision.lifecycle || input.expectedHead !== revision.ref.revision - 1
+      || event.tenant_id !== head.tenant_id || event.subject_type !== "memory_policy" || event.subject_id !== head.memory_policy_id
+      || event.idempotency_key !== input.idempotency.key || event.payload.revision !== revision.ref.revision || event.payload.fingerprint !== revision.ref.fingerprint) {
+      throw new NativeMemoryPolicyIntegrityError(head.memory_policy_id, "head, revision, Event, Tenant, or expected CAS revision is invalid");
+    }
+    if (input.idempotency.scope !== `memory.policy:${head.memory_policy_id}`) throw new NativeMemoryPolicyIntegrityError(head.memory_policy_id, "idempotency scope must be policy-specific");
+    return this.idempotent(input.idempotency, "native.memory.policy.advance", async () => {
+      await query(this.db, "lock Memory Policy lineage", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`memory-policy:${head.memory_policy_id}`]);
+      const existing = await query<HeadRow>(this.db, "read Memory Policy head", "SELECT current_revision AS revision, current_fingerprint AS native_fingerprint, payload FROM acs_memory_policies WHERE memory_policy_id=$1 FOR UPDATE", [head.memory_policy_id]);
+      const current = existing.rows[0] ? Number(existing.rows[0].revision) : 0;
+      if (current !== input.expectedHead) throw new RevisionConflictError(`memory-policy:${head.memory_policy_id}`, input.expectedHead, current);
+      if (current === 0) {
+        await query(this.db, "create Memory Policy head", `INSERT INTO acs_memory_policies (memory_policy_id,tenant_id,current_revision,current_fingerprint,current_lifecycle,payload,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6::jsonb,to_timestamp($7/1000.0),to_timestamp($8/1000.0))`, [head.memory_policy_id,head.tenant_id,head.current_revision,head.current_fingerprint,head.lifecycle,serialize(head),head.created_at,head.updated_at]);
+      } else {
+        await query(this.db, "advance Memory Policy head", `UPDATE acs_memory_policies SET current_revision=$2,current_fingerprint=$3,current_lifecycle=$4,payload=$5::jsonb,updated_at=to_timestamp($6/1000.0) WHERE memory_policy_id=$1`, [head.memory_policy_id,head.current_revision,head.current_fingerprint,head.lifecycle,serialize(head),head.updated_at]);
+      }
+      const durableEvent = await this.appendEvent(event);
+      await query(this.db, "append immutable Memory Policy revision", `INSERT INTO acs_memory_policy_revisions (memory_policy_id,tenant_id,revision,fingerprint,supersedes_revision,lifecycle,policy_contract,payload,created_by,committed_at,change_reason,correlation_id,event_id) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,to_timestamp($10/1000.0),$11,$12,$13)`, [head.memory_policy_id,head.tenant_id,revision.ref.revision,revision.ref.fingerprint,revision.supersedes_revision ?? null,revision.lifecycle,serialize({allowed_memory_types:revision.allowed_memory_types,allowed_scope_kinds:revision.allowed_scope_kinds,allowed_operations:revision.allowed_operations,retention:revision.retention}),serialize(revision),revision.created_by,revision.created_at,revision.change_reason,event.correlation_id,event.event_id]);
+      const outbox = await this.insertOutbox(durableEvent.event.event_id, input.outboxId, input.deliveryKind, event.timestamp);
+      return { lineage: await this.getMemoryPolicyLineage(head.memory_policy_id), event: durableEvent, outbox };
+    });
+  }
+
+  async getMemoryPolicyLineage(memoryPolicyId: string): Promise<NativeMemoryPolicyLineage> {
+    const headResult = await query<PayloadRow>(this.db, "get Memory Policy head", "SELECT payload FROM acs_memory_policies WHERE memory_policy_id=$1", [memoryPolicyId]);
+    const revisionResult = await query<PayloadRow>(this.db, "get Memory Policy revisions", "SELECT payload FROM acs_memory_policy_revisions WHERE memory_policy_id=$1 ORDER BY revision", [memoryPolicyId]);
+    if (!headResult.rows[0] || revisionResult.rows.length === 0) throw new NativeMemoryPolicyIntegrityError(memoryPolicyId, "canonical head or immutable history is missing");
+    const head = validateMemoryPolicyHeadV1(decode<MemoryPolicyHeadV1>(headResult.rows[0].payload));
+    const revisions = revisionResult.rows.map((row) => validateMemoryPolicyRevisionV1(decode<MemoryPolicyRevisionV1>(row.payload)));
+    const current = revisions.at(-1);
+    if (!current || head.current_revision !== current.ref.revision || head.current_fingerprint !== current.ref.fingerprint || head.lifecycle !== current.lifecycle) throw new NativeMemoryPolicyIntegrityError(memoryPolicyId, "head diverges from immutable revisions");
+    revisions.forEach((item, index) => { if (item.ref.entity_id !== memoryPolicyId || item.ref.revision !== index + 1 || (index === 0 ? item.supersedes_revision !== undefined : item.supersedes_revision !== index)) throw new NativeMemoryPolicyIntegrityError(memoryPolicyId, "revision history is not contiguous"); });
+    return { head, revisions };
+  }
+
+  async createMemoryRecord(input: NativeMemoryRecordCommand): Promise<NativeMemoryRecordCommandResult> {
+    const record = validateMemoryRecordV1(input.record);
+    const event = validateEventEnvelopeV2(input.event);
+    validateIdempotency(input.idempotency);
+    if (!this.options.memoryCryptoProvider) throw new MemoryCryptoUnavailableError();
+    if (sha256Hex(input.plaintext) !== record.content.content_digest) throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "plaintext digest does not match immutable content reference");
+    if (input.idempotency.scope !== `memory.record:${record.ref.memory_id}` || event.tenant_id !== record.ref.tenant_id || event.subject_type !== "memory_record" || event.subject_id !== record.ref.memory_id || event.idempotency_key !== input.idempotency.key || event.payload.fingerprint !== record.ref.fingerprint || event.payload.policy_fingerprint !== record.policy_ref.ref.fingerprint || JSON.stringify(event.payload).match(/plaintext|ciphertext|secret|token|key_ref|authorization/i)) throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "unsafe or inconsistent Record Event");
+    return this.idempotent(input.idempotency, "native.memory.record.create", async () => {
+      await query(this.db, "lock Memory Record", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`memory-record:${record.ref.memory_id}`]);
+      const policy = await query<PayloadRow>(this.db, "validate exact Memory Policy reference", "SELECT payload FROM acs_memory_policy_revisions WHERE memory_policy_id=$1 AND tenant_id=$2 AND revision=$3 AND fingerprint=$4", [record.policy_ref.ref.entity_id,record.ref.tenant_id,record.policy_ref.ref.revision,record.policy_ref.ref.fingerprint]);
+      if (!policy.rows[0]) throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "exact Memory Policy revision is unavailable or cross-tenant");
+      const policyRevision = validateMemoryPolicyRevisionV1(decode<MemoryPolicyRevisionV1>(policy.rows[0].payload));
+      if (policyRevision.lifecycle !== "active" || !policyRevision.allowed_memory_types.includes(record.memory_type) || !policyRevision.allowed_scope_kinds.includes(record.scope.kind as Exclude<typeof record.scope.kind, "user_context">) || !policyRevision.allowed_operations.includes("write")) throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "Memory Policy does not permit this durable write");
+      if (record.predecessor_ref) {
+        const predecessor = await query<{ readonly tenant_id: string } & QueryResultRow>(this.db, "validate Memory predecessor", "SELECT tenant_id FROM acs_memory_records WHERE memory_id=$1 AND tenant_id=$2 AND fingerprint=$3", [record.predecessor_ref.memory_id,record.predecessor_ref.tenant_id,record.predecessor_ref.fingerprint]);
+        if (!predecessor.rows[0] || predecessor.rows[0].tenant_id !== record.ref.tenant_id) throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "predecessor is unavailable or cross-tenant");
+      }
+      const protectedContent = await this.options.memoryCryptoProvider!.protect({ plaintext: input.plaintext, context: { tenant_id:record.ref.tenant_id,memory_ref:record.ref,policy_ref:record.policy_ref,purpose:"acs.memory.content" } });
+      if (protectedContent.encryption_context_digest !== memoryEncryptionContextDigestV1({tenant_id:record.ref.tenant_id,memory_ref:record.ref,policy_ref:record.policy_ref,purpose:"acs.memory.content"})) throw new NativeMemoryRecordIntegrityError(record.ref.memory_id, "crypto provider returned an invalid context binding");
+      const durableEvent = await this.appendEvent(event);
+      const scope = memoryScopeColumns(record);
+      const metadata = { ...record, content: undefined };
+      await query(this.db, "create immutable Memory Record", `INSERT INTO acs_memory_records (memory_id,tenant_id,fingerprint,memory_type,scope_kind,scope_owner_id,scope_owner_revision,scope_owner_fingerprint,scope_run_id,policy_id,policy_revision,policy_fingerprint,predecessor_memory_id,predecessor_tenant_id,predecessor_fingerprint,payload,created_by,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17,to_timestamp($18/1000.0))`, [record.ref.memory_id,record.ref.tenant_id,record.ref.fingerprint,record.memory_type,record.scope.kind,scope.ownerId,scope.ownerRevision,scope.ownerFingerprint,scope.runId,record.policy_ref.ref.entity_id,record.policy_ref.ref.revision,record.policy_ref.ref.fingerprint,record.predecessor_ref?.memory_id ?? null,record.predecessor_ref?.tenant_id ?? null,record.predecessor_ref?.fingerprint ?? null,serialize(metadata),record.created_by,record.created_at]);
+      await query(this.db, "persist encrypted Memory content", `INSERT INTO acs_memory_contents (content_id,memory_id,tenant_id,content_ciphertext,media_type,content_digest,encryption_backend,encryption_key_ref,encryption_key_version,cipher_suite,encryption_context_digest,created_at) VALUES ($1,$2,$3,$4::bytea,$5,$6,$7,$8,$9,$10,$11,to_timestamp($12/1000.0))`, [`memory-content:${record.ref.memory_id}`,record.ref.memory_id,record.ref.tenant_id,Buffer.from(protectedContent.ciphertext,"base64"),record.content.media_type,record.content.content_digest,protectedContent.encryption_backend,protectedContent.encryption_key_ref,protectedContent.encryption_key_version,protectedContent.cipher_suite,protectedContent.encryption_context_digest,record.created_at]);
+      const outbox = await this.insertOutbox(durableEvent.event.event_id,input.outboxId,input.deliveryKind,event.timestamp);
+      return { record, event:durableEvent, outbox };
+    });
+  }
+
+  async getMemoryRecordState(memoryId: string): Promise<NativeMemoryRecordState | undefined> {
+    const base = await query<PayloadRow>(this.db, "get Memory Record metadata", "SELECT payload FROM acs_memory_records WHERE memory_id=$1", [memoryId]);
+    if (!base.rows[0]) return undefined;
+    const tombstoneResult = await query<PayloadRow>(this.db, "get Memory tombstone", "SELECT payload FROM acs_memory_tombstones WHERE memory_id=$1", [memoryId]);
+    const contentResult = await query<{ readonly content_digest: string; readonly media_type: string } & QueryResultRow>(this.db, "get Memory content metadata", "SELECT content_digest,media_type FROM acs_memory_contents WHERE memory_id=$1", [memoryId]);
+    if (tombstoneResult.rows[0] && contentResult.rows[0]) throw new NativeMemoryRecordIntegrityError(memoryId, "content and tombstone coexist");
+    if (tombstoneResult.rows[0]) return { tombstone: validateMemoryTombstoneV1(decode<MemoryTombstoneV1>(tombstoneResult.rows[0].payload)) };
+    const metadata = decode<Record<string, unknown>>(base.rows[0].payload);
+    const content = contentResult.rows[0];
+    if (!content) throw new NativeMemoryRecordIntegrityError(memoryId, "active Record has no encrypted content");
+    return { record: validateMemoryRecordV1({ ...metadata, content: { content_ref:`memory-content:${memoryId}`,content_digest:content.content_digest,media_type:content.media_type } }) };
+  }
+
+  async tombstoneMemoryRecord(input: NativeMemoryTombstoneCommand): Promise<NativeMemoryTombstoneCommandResult> {
+    const tombstone = validateMemoryTombstoneV1(input.tombstone);
+    const event = validateEventEnvelopeV2(input.event);
+    validateIdempotency(input.idempotency);
+    const memoryId = tombstone.memory_ref.memory_id;
+    if (input.idempotency.scope !== `memory.retention:${memoryId}` || event.tenant_id !== tombstone.memory_ref.tenant_id || event.subject_type !== "memory_record" || event.subject_id !== memoryId || event.idempotency_key !== input.idempotency.key || JSON.stringify(event.payload).match(/plaintext|ciphertext|secret|token|key_ref|authorization/i)) throw new NativeMemoryRecordIntegrityError(memoryId, "unsafe or inconsistent tombstone Event");
+    return this.idempotent(input.idempotency, "native.memory.record.tombstone", async () => {
+      await query(this.db, "lock Memory tombstone", "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`memory-record:${memoryId}`]);
+      const state = await this.getMemoryRecordState(memoryId);
+      if (!state?.record) throw new NativeMemoryRecordIntegrityError(memoryId, "only an active content-bearing Record can be tombstoned");
+      if (state.record.ref.tenant_id !== tombstone.memory_ref.tenant_id || state.record.ref.fingerprint !== tombstone.memory_ref.fingerprint || state.record.memory_type !== tombstone.memory_type || serialize(state.record.scope) !== serialize(tombstone.scope)) throw new NativeMemoryRecordIntegrityError(memoryId, "tombstone does not match the active immutable Record");
+      const policy = await query<PayloadRow>(this.db, "validate tombstone Policy", "SELECT payload FROM acs_memory_policy_revisions WHERE memory_policy_id=$1 AND tenant_id=$2 AND revision=$3 AND fingerprint=$4", [tombstone.policy_ref.ref.entity_id,tombstone.memory_ref.tenant_id,tombstone.policy_ref.ref.revision,tombstone.policy_ref.ref.fingerprint]);
+      if (!policy.rows[0]) throw new NativeMemoryRecordIntegrityError(memoryId, "tombstone Policy revision is unavailable");
+      const policyRevision = validateMemoryPolicyRevisionV1(decode<MemoryPolicyRevisionV1>(policy.rows[0].payload));
+      if (!policyRevision.allowed_operations.includes(tombstone.deletion_reason === "retention_expired" ? "expire" : "forget") || (tombstone.digest_retention === "policy_permitted") !== policyRevision.retention.retain_content_digest) throw new NativeMemoryRecordIntegrityError(memoryId, "tombstone retention semantics are not permitted by the exact Policy");
+      const durableEvent = await this.appendEvent(event);
+      await query(this.db, "create content-free Memory tombstone", `INSERT INTO acs_memory_tombstones (memory_id,tenant_id,deleted_at,deletion_reason,policy_id,policy_revision,policy_fingerprint,digest_retention,retained_content_digest,payload,event_id) VALUES ($1,$2,to_timestamp($3/1000.0),$4,$5,$6,$7,$8,$9,$10::jsonb,$11)`, [memoryId,tombstone.memory_ref.tenant_id,tombstone.deleted_at,tombstone.deletion_reason,tombstone.policy_ref.ref.entity_id,tombstone.policy_ref.ref.revision,tombstone.policy_ref.ref.fingerprint,tombstone.digest_retention,tombstone.retained_content_digest ?? null,serialize(tombstone),event.event_id]);
+      await query(this.db, "physically delete encrypted Memory content", "DELETE FROM acs_memory_contents WHERE memory_id=$1 AND tenant_id=$2", [memoryId,tombstone.memory_ref.tenant_id]);
+      const outbox = await this.insertOutbox(durableEvent.event.event_id,input.outboxId,input.deliveryKind,event.timestamp);
+      return { tombstone,event:durableEvent,outbox };
+    });
   }
 
   async advanceWorkforceLineage(input: NativeWorkforceLineageCommand): Promise<NativeWorkforceLineageCommandResult> {
@@ -1826,16 +1993,17 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
       INSERT INTO acs_native_events (
         event_id, stream_scope, sequence, event_type, schema_version, occurred_at,
         organization_id, product_domain, tenant_id, agent_id, workforce_id, run_id, task_id, attempt,
-        correlation_id, causation_id, idempotency_key, actor, source, payload
+        subject_type, subject_id, correlation_id, causation_id, idempotency_key, actor, source, payload
       ) VALUES (
         $1, $2, $3, $4, $5, to_timestamp($6 / 1000.0),
         $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18::jsonb, $19, $20::jsonb
+        $15, $16, $17, $18, $19, $20::jsonb, $21, $22::jsonb
       )
     `, [
       event.event_id, scope, event.sequence, event.event_type, event.schema_version, event.timestamp,
       event.organization_id, event.product_domain, event.tenant_id ?? null, event.agent_id ?? null,
-      event.workforce_id ?? null, event.run_id ?? null, event.task_id ?? null, event.attempt ?? null, event.correlation_id,
+      event.workforce_id ?? null, event.run_id ?? null, event.task_id ?? null, event.attempt ?? null,
+      event.subject_type ?? null, event.subject_id ?? null, event.correlation_id,
       event.causation_id ?? null, event.idempotency_key ?? null, serialize(event.actor), event.source,
       serialize(event),
     ]);

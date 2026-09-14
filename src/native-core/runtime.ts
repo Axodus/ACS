@@ -193,8 +193,8 @@ export interface EventEnvelopeV2 {
   readonly agent_id?: string;
   readonly workforce_id?: string;
   readonly workflow_id?: string;
-  /** Additive vocabulary for canonical Integration aggregate event streams. */
-  readonly subject_type?: "integration_connection" | "integration_channel";
+  /** Closed vocabulary for canonical aggregate event streams. */
+  readonly subject_type?: "integration_connection" | "integration_channel" | "memory_policy" | "memory_record";
   readonly subject_id?: string;
   readonly actor: {
     readonly kind: "system" | "human" | "service" | "executor" | "provider" | "planner" | "tool";
@@ -577,8 +577,8 @@ export function validateEventEnvelopeV2(value: unknown): EventEnvelopeV2 {
   if (!["acs", "executor", "provider", "planner", "tool", "product", "human"].includes(event.source ?? "")) issues.push({ path: "source", code: "INVALID_ENUM", message: "Invalid event source" });
   if (!event.payload || typeof event.payload !== "object" || Array.isArray(event.payload)) issues.push({ path: "payload", code: "INVALID_OBJECT", message: "payload must be an object" });
   if (event.attempt !== undefined && (!Number.isSafeInteger(event.attempt) || event.attempt < 1)) issues.push({ path: "attempt", code: "INVALID_INTEGER", message: "attempt must be >= 1" });
-  if ((event.subject_type === undefined) !== (event.subject_id === undefined)) issues.push({ path: "subject", code: "INCOMPLETE_INTEGRATION_SUBJECT", message: "subject_type and subject_id must be supplied together" });
-  if (event.subject_type !== undefined && !["integration_connection", "integration_channel"].includes(event.subject_type)) issues.push({ path: "subject_type", code: "INVALID_ENUM", message: "Invalid canonical Integration subject type" });
+  if ((event.subject_type === undefined) !== (event.subject_id === undefined)) issues.push({ path: "subject", code: "INCOMPLETE_CANONICAL_SUBJECT", message: "subject_type and subject_id must be supplied together" });
+  if (event.subject_type !== undefined && !["integration_connection", "integration_channel", "memory_policy", "memory_record"].includes(event.subject_type)) issues.push({ path: "subject_type", code: "INVALID_ENUM", message: "Invalid canonical subject type" });
   if (event.subject_id !== undefined && (typeof event.subject_id !== "string" || event.subject_id.trim().length === 0)) issues.push({ path: "subject_id", code: "REQUIRED_STRING", message: "A non-empty string is required when supplied" });
   assertNoSecretMaterial(value);
   return assertValid(event as EventEnvelopeV2, issues);

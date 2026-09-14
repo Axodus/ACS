@@ -1,4 +1,4 @@
-export const SHARED_STATE_SCHEMA_VERSION = 8;
+export const SHARED_STATE_SCHEMA_VERSION = 9;
 
 export interface SharedStateMigration {
   readonly version: number;
@@ -622,6 +622,169 @@ export const SHARED_STATE_MIGRATIONS: readonly SharedStateMigration[] = [
         ON acs_integration_channels (tenant_id, current_lifecycle, channel_id)`,
       `CREATE INDEX IF NOT EXISTS acs_integration_channel_connection_idx
         ON acs_integration_channel_revisions (connection_id, tenant_id, connection_revision, channel_id)`,
+    ],
+  },
+  {
+    version: 9,
+    name: "memory_policy_store_encrypted_content_and_tombstones",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS acs_memory_policies (
+        memory_policy_id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES acs_tenants(tenant_id),
+        current_revision INTEGER NOT NULL CHECK (current_revision > 0),
+        current_fingerprint TEXT NOT NULL,
+        current_lifecycle TEXT NOT NULL CHECK (current_lifecycle IN ('draft', 'active', 'disabled', 'archived')),
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (memory_policy_id, tenant_id),
+        UNIQUE (memory_policy_id, tenant_id, current_revision, current_fingerprint)
+      )`,
+      `CREATE TABLE IF NOT EXISTS acs_memory_policy_revisions (
+        memory_policy_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        fingerprint TEXT NOT NULL,
+        supersedes_revision INTEGER,
+        lifecycle TEXT NOT NULL CHECK (lifecycle IN ('draft', 'active', 'disabled', 'archived')),
+        policy_contract JSONB NOT NULL CHECK (jsonb_typeof(policy_contract) = 'object'),
+        payload JSONB NOT NULL,
+        created_by TEXT NOT NULL,
+        committed_at TIMESTAMPTZ NOT NULL,
+        change_reason TEXT NOT NULL,
+        correlation_id TEXT NOT NULL,
+        event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        PRIMARY KEY (memory_policy_id, revision),
+        UNIQUE (memory_policy_id, tenant_id, revision, fingerprint),
+        UNIQUE (memory_policy_id, fingerprint),
+        FOREIGN KEY (memory_policy_id, tenant_id) REFERENCES acs_memory_policies(memory_policy_id, tenant_id),
+        FOREIGN KEY (memory_policy_id, supersedes_revision) REFERENCES acs_memory_policy_revisions(memory_policy_id, revision),
+        CHECK ((revision = 1 AND supersedes_revision IS NULL) OR (revision > 1 AND supersedes_revision = revision - 1))
+      )`,
+      `ALTER TABLE acs_memory_policies ADD CONSTRAINT acs_memory_policy_head_fk
+        FOREIGN KEY (memory_policy_id, tenant_id, current_revision, current_fingerprint)
+        REFERENCES acs_memory_policy_revisions(memory_policy_id, tenant_id, revision, fingerprint)
+        DEFERRABLE INITIALLY DEFERRED`,
+      `CREATE INDEX IF NOT EXISTS acs_memory_policy_head_tenant_idx
+        ON acs_memory_policies (tenant_id, current_lifecycle, memory_policy_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_memory_records (
+        memory_id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES acs_tenants(tenant_id),
+        fingerprint TEXT NOT NULL,
+        memory_type TEXT NOT NULL CHECK (memory_type IN ('working', 'agent', 'workforce_shared', 'knowledge_backed')),
+        scope_kind TEXT NOT NULL CHECK (scope_kind IN ('working', 'agent', 'workforce_shared', 'knowledge_backed')),
+        scope_owner_id TEXT NOT NULL,
+        scope_owner_revision INTEGER,
+        scope_owner_fingerprint TEXT,
+        scope_run_id TEXT,
+        policy_id TEXT NOT NULL,
+        policy_revision INTEGER NOT NULL CHECK (policy_revision > 0),
+        policy_fingerprint TEXT NOT NULL,
+        predecessor_memory_id TEXT,
+        predecessor_tenant_id TEXT,
+        predecessor_fingerprint TEXT,
+        payload JSONB NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (memory_id, tenant_id),
+        UNIQUE (memory_id, tenant_id, fingerprint),
+        FOREIGN KEY (policy_id, tenant_id, policy_revision, policy_fingerprint)
+          REFERENCES acs_memory_policy_revisions(memory_policy_id, tenant_id, revision, fingerprint),
+        FOREIGN KEY (predecessor_memory_id, predecessor_tenant_id, predecessor_fingerprint)
+          REFERENCES acs_memory_records(memory_id, tenant_id, fingerprint)
+          DEFERRABLE INITIALLY DEFERRED,
+        CHECK ((predecessor_memory_id IS NULL AND predecessor_tenant_id IS NULL AND predecessor_fingerprint IS NULL)
+          OR (predecessor_memory_id IS NOT NULL AND predecessor_tenant_id = tenant_id
+            AND predecessor_fingerprint IS NOT NULL AND predecessor_memory_id <> memory_id)),
+        CHECK (
+          (scope_kind = 'working' AND scope_run_id IS NOT NULL AND scope_owner_id = scope_run_id AND scope_owner_revision IS NULL AND scope_owner_fingerprint IS NULL)
+          OR (scope_kind = 'agent' AND scope_run_id IS NULL AND scope_owner_revision IS NULL AND scope_owner_fingerprint IS NULL)
+          OR (scope_kind IN ('workforce_shared', 'knowledge_backed') AND scope_owner_revision IS NOT NULL AND scope_owner_revision > 0 AND scope_owner_fingerprint IS NOT NULL AND scope_run_id IS NULL)
+        )
+      )`,
+      `CREATE INDEX IF NOT EXISTS acs_memory_record_scope_idx
+        ON acs_memory_records (tenant_id, memory_type, scope_kind, created_at, memory_id)`,
+      `CREATE TABLE IF NOT EXISTS acs_memory_contents (
+        content_id TEXT PRIMARY KEY,
+        memory_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        content_ciphertext BYTEA NOT NULL CHECK (octet_length(content_ciphertext) > 0),
+        media_type TEXT NOT NULL CHECK (char_length(media_type) > 0),
+        content_digest TEXT NOT NULL CHECK (char_length(content_digest) = 64),
+        encryption_backend TEXT NOT NULL CHECK (char_length(encryption_backend) > 0),
+        encryption_key_ref TEXT NOT NULL CHECK (char_length(encryption_key_ref) > 0),
+        encryption_key_version TEXT NOT NULL CHECK (char_length(encryption_key_version) > 0),
+        cipher_suite TEXT NOT NULL CHECK (char_length(cipher_suite) > 0),
+        encryption_context_digest TEXT NOT NULL CHECK (char_length(encryption_context_digest) = 64),
+        created_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (memory_id),
+        UNIQUE (memory_id, tenant_id),
+        FOREIGN KEY (memory_id, tenant_id) REFERENCES acs_memory_records(memory_id, tenant_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS acs_memory_tombstones (
+        memory_id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        deleted_at TIMESTAMPTZ NOT NULL,
+        deletion_reason TEXT NOT NULL CHECK (deletion_reason IN ('retention_expired', 'policy_forget', 'administrative_deletion')),
+        policy_id TEXT NOT NULL,
+        policy_revision INTEGER NOT NULL CHECK (policy_revision > 0),
+        policy_fingerprint TEXT NOT NULL,
+        digest_retention TEXT NOT NULL CHECK (digest_retention IN ('not_retained', 'policy_permitted')),
+        retained_content_digest TEXT,
+        payload JSONB NOT NULL,
+        event_id TEXT NOT NULL UNIQUE REFERENCES acs_native_events(event_id) DEFERRABLE INITIALLY DEFERRED,
+        CHECK ((digest_retention = 'not_retained' AND retained_content_digest IS NULL)
+          OR (digest_retention = 'policy_permitted' AND retained_content_digest IS NOT NULL)),
+        FOREIGN KEY (memory_id, tenant_id) REFERENCES acs_memory_records(memory_id, tenant_id),
+        FOREIGN KEY (policy_id, tenant_id, policy_revision, policy_fingerprint)
+          REFERENCES acs_memory_policy_revisions(memory_policy_id, tenant_id, revision, fingerprint)
+      )`,
+      `ALTER TABLE acs_native_events ADD COLUMN IF NOT EXISTS subject_type TEXT`,
+      `ALTER TABLE acs_native_events ADD COLUMN IF NOT EXISTS subject_id TEXT`,
+      `ALTER TABLE acs_native_events ADD CONSTRAINT acs_native_event_subject_pair_check
+        CHECK ((subject_type IS NULL) = (subject_id IS NULL))`,
+      `ALTER TABLE acs_native_events ADD CONSTRAINT acs_native_event_subject_type_check
+        CHECK (subject_type IS NULL OR subject_type IN ('agent', 'workforce', 'run', 'task', 'integration_connection', 'integration_channel', 'memory_policy', 'memory_record'))`,
+      `CREATE INDEX IF NOT EXISTS acs_native_event_subject_idx
+        ON acs_native_events (tenant_id, subject_type, subject_id, sequence) WHERE subject_type IS NOT NULL`,
+      `CREATE FUNCTION acs_reject_memory_immutable_row_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN RAISE EXCEPTION 'immutable Memory row cannot be updated or deleted'; END;
+      $$`,
+      `CREATE TRIGGER acs_memory_policy_revision_immutable BEFORE UPDATE OR DELETE ON acs_memory_policy_revisions
+        FOR EACH ROW EXECUTE FUNCTION acs_reject_memory_immutable_row_mutation()`,
+      `CREATE TRIGGER acs_memory_record_immutable BEFORE UPDATE OR DELETE ON acs_memory_records
+        FOR EACH ROW EXECUTE FUNCTION acs_reject_memory_immutable_row_mutation()`,
+      `CREATE TRIGGER acs_memory_tombstone_immutable BEFORE UPDATE OR DELETE ON acs_memory_tombstones
+        FOR EACH ROW EXECUTE FUNCTION acs_reject_memory_immutable_row_mutation()`,
+      `CREATE FUNCTION acs_guard_memory_content_rewrap() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          IF NEW.content_id IS DISTINCT FROM OLD.content_id OR NEW.memory_id IS DISTINCT FROM OLD.memory_id OR NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+            OR NEW.content_digest IS DISTINCT FROM OLD.content_digest OR NEW.media_type IS DISTINCT FROM OLD.media_type
+            OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+            RAISE EXCEPTION 'Memory content rewrap cannot change semantic content fields';
+          END IF;
+          RETURN NEW;
+        END;
+      $$`,
+      `CREATE TRIGGER acs_memory_content_rewrap_guard BEFORE UPDATE ON acs_memory_contents
+        FOR EACH ROW EXECUTE FUNCTION acs_guard_memory_content_rewrap()`,
+      `CREATE FUNCTION acs_assert_memory_content_tombstone_exclusive() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM acs_memory_contents content
+            JOIN acs_memory_tombstones tombstone ON tombstone.memory_id = content.memory_id AND tombstone.tenant_id = content.tenant_id
+            WHERE content.memory_id = NEW.memory_id AND content.tenant_id = NEW.tenant_id
+          ) THEN RAISE EXCEPTION 'active Memory content and tombstone cannot coexist'; END IF;
+          RETURN NULL;
+        END;
+      $$`,
+      `CREATE CONSTRAINT TRIGGER acs_memory_content_tombstone_exclusive_from_content
+        AFTER INSERT OR UPDATE ON acs_memory_contents DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+        EXECUTE FUNCTION acs_assert_memory_content_tombstone_exclusive()`,
+      `CREATE CONSTRAINT TRIGGER acs_memory_content_tombstone_exclusive_from_tombstone
+        AFTER INSERT OR UPDATE ON acs_memory_tombstones DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+        EXECUTE FUNCTION acs_assert_memory_content_tombstone_exclusive()`,
     ],
   },
 ];

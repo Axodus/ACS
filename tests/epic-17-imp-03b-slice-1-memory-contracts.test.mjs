@@ -142,13 +142,14 @@ test("IMP-03B policy/access decisions are provenance only and cannot grant capab
   assert.throws(() => api.validateMemoryPolicyAccessDecisionV1({ ...decision, credential_ref: "forbidden" }), api.NativeContractValidationError);
 });
 
-test("IMP-03B Slice 1 remains contract-only with no persistence, runtime, Product API, or Event-envelope changes", async () => {
+test("IMP-03B contracts remain isolated from runtime and Product API even when later authorized persistence exists", async () => {
   const sources = await Promise.all([
     readFile(new URL("../src/native-core/memory.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/native-core/runtime.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/control-plane/shared-state/migrations.ts", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(sources[0], /postgres|repository|shared-state|product-api|RuntimeExecutionIntentV2/i);
-  assert.doesNotMatch(sources[1], /memory_policy|memory_record/);
-  assert.doesNotMatch(sources[2], /acs_memory_/);
+  assert.match(sources[1], /memory_policy|memory_record/);
+  assert.match(sources[2], /acs_memory_/);
+  assert.doesNotMatch(sources[0], /RuntimeExecutionIntentV2/i);
 });

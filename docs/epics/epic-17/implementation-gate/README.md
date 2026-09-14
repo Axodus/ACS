@@ -2,9 +2,9 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-03B — SLICE 1 / IMPLEMENTED / ACCEPTANCE PENDING`
-**Authorized implementation:** IMP-03B Slice 1 contracts only
-**Implementation authority:** IMP-03B Slice 1 contracts only
+**Gate status:** `EPIC-17-IMP-03B — SLICE 2 / COMPLETE / CTO ACCEPTED`
+**Authorized implementation:** IMP-03B Slice 3 governed write and retrieval only
+**Implementation authority:** IMP-03B Slice 3 only
 **Migration authority:** none
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
@@ -46,9 +46,11 @@ remains none.
 | IMP-03A Slice 4 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Read-only Product API head projections and closure validation accepted; IMP-03A is closed. |
 | IMP-03B gate preparation | `COMPLETE / CTO ACCEPTED` | REQ-06 ownership, B01–B06, deltas, ADRs, persistence candidate and migration gate accepted. |
 | IMP-03B Slice 1 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Native contracts and tests only; schema 9, durable Store, runtime and Product API remain prohibited. |
-| IMP-03B Slice 1 report | `READY FOR CTO REVIEW` | [Focused contract, regression and causal evidence](imp-03b-slice-1-report.md). |
+| IMP-03B Slice 1 report | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Focused contract, regression and causal evidence](imp-03b-slice-1-report.md). |
 | IMP-03B schema 9 physical design | `COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED` | Tables, constraints, transaction and deployment design accepted; schema 9 remains held on ADR-023. |
 | IMP-03B ADR-023 | `COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED` | External key-protection boundary, active-store deletion guarantee and schema-9 crypto metadata accepted. |
+| IMP-03B Slice 2 | `COMPLETE / CTO ACCEPTED` | Schema 9, encrypted durable Store, immutable Policy revisions, Record successors, tombstones, canonical Events/outbox and PostgreSQL conformance. |
+| IMP-03B Slice 2 report | `COMPLETE / CTO ACCEPTED` | [Durable Store validation, causal classification and B04 status](imp-03b-slice-2-report.md). |
 
 ## Current implementation boundary
 
@@ -56,6 +58,6 @@ The accepted PostgreSQL schema v8 and functional IMP-03A are closed.
 Development SQLite data remains disposable: no preservation, import, backfill
 or compatibility path is required. IMP-03B has no functional, schema, migration,
 runtime or Product API authority. Its candidate schema 9 is documentation only.
-Schema 9 and IMP-03B Slice 2 are authorized. Slice 3+, IMP-04+, runtime,
+Schema 9 is implemented and validated. IMP-03B Slice 3 is authorized. Slice 4+, IMP-04+, runtime,
 Product API and User Context Memory remain unauthorized. Production Memory
 enablement remains blocked until a validated external KMS/Transit integration.
