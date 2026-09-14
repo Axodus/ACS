@@ -30,6 +30,7 @@ import {
 } from "../native-core/primitives.js";
 import type { NativeAgentLineage, NativeAgentLineageCommand, NativeDelegationGrantLineage, NativeIntegrationChannelLineage, NativeIntegrationConnectionLineage, NativeMemoryPolicyLineage, NativeMemoryRecordState } from "./shared-state/native-core-durable.js";
 import type { MemoryPolicyRevisionV1, MemoryRecordV1, MemoryScopeV1 } from "../native-core/memory.js";
+import type { AutomationRevisionV1 } from "../native-core/automation.js";
 import type { DeploymentService, DeploymentRecord, DeploymentRequest, DeploymentLifecycleStatus } from "./deployment-service.js";
 import type { ProductionGovernanceEvidence, ProductionReadinessDecision } from "./production-deployment-readiness.js";
 import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord, StartRuntimeServiceRequest } from "./runtime-lifecycle-service.js";
@@ -946,6 +947,8 @@ export interface MemoryRecordProjection {
   readonly tombstone?: { readonly deletedAt: number; readonly deletionReason: string; readonly deletionGuarantee: "ACTIVE_STORE_DELETED" };
 }
 
+export interface AutomationProjection { readonly automationId:string; readonly tenantId:string; readonly lifecycle:string; readonly currentRevision:number; readonly fingerprint:string; readonly targetMode:string; readonly pinnedTarget?: { readonly entityKind:string; readonly entityId:string; readonly revision:number; readonly fingerprint:string }; readonly resolutionPolicy?: { readonly policyId:string; readonly revision:number; readonly fingerprint:string; readonly selector:string; readonly parameters:Readonly<Record<string,unknown>> }; readonly definitions: readonly { readonly kind:string; readonly key:string; readonly configuration:Readonly<Record<string,unknown>> }[]; readonly references:{ readonly agents:readonly string[]; readonly workforces:readonly string[]; readonly workflows:readonly string[]; readonly delegationRequirements:readonly {readonly grantId:string;readonly revision:number;readonly fingerprint:string}[] }; readonly updatedAt:number; }
+
 export interface DelegationReferenceProjection {
   readonly kind: string;
   readonly id: string;
@@ -1812,6 +1815,10 @@ export class ProductApiClient {
     const projections = await Promise.all(heads.map(async (head) => this.#delegationGrantProjection(await this.#nativeCore!.getDelegationGrantLineage(head.grant_id))));
     return projections.filter((projection) => projection.tenantId === tenantId);
   }
+
+  async listAutomations(tenantId: string): Promise<readonly AutomationProjection[]> { if (!this.#nativeCore) return []; const heads=await this.#nativeCore.listAutomationHeads({tenantId}); return Promise.all(heads.map(async(head)=>this.#automationProjection(await this.#nativeCore!.getAutomationLineage(head.automation_id)))); }
+
+  async getAutomation(automationId: string, tenantId: string): Promise<AutomationProjection | undefined> { if (!this.#nativeCore) return undefined; try { const lineage=await this.#nativeCore.getAutomationLineage(automationId); return lineage.head.tenant_id===tenantId ? this.#automationProjection(lineage) : undefined; } catch { return undefined; } }
 
   async getDelegationGrant(grantId: string, tenantId: string): Promise<DelegationGrantProjection | undefined> {
     if (!this.#nativeCore) return undefined;
@@ -3075,6 +3082,8 @@ export class ProductApiClient {
     const tombstone = state.tombstone;
     return { memoryId:metadata.ref.memory_id,tenantId:metadata.ref.tenant_id,lifecycle:tombstone ? "tombstoned" : "active",memoryType:metadata.memory_type,scope:this.#memoryScopeProjection(metadata.scope),policyRef:{policyId:metadata.policy_ref.ref.entity_id,revision:metadata.policy_ref.ref.revision,fingerprint:metadata.policy_ref.ref.fingerprint},fingerprint:metadata.ref.fingerprint,...(metadata.predecessor_ref ? {predecessorRef:{memoryId:metadata.predecessor_ref.memory_id,fingerprint:metadata.predecessor_ref.fingerprint}} : {}),...(metadata.scope.knowledge_ref ? {knowledgeRef:{id:metadata.scope.knowledge_ref.ref.id,...(metadata.scope.knowledge_fingerprint ? {fingerprint:metadata.scope.knowledge_fingerprint} : {})}} : {}),provenanceRefs:metadata.provenance_refs.map((reference) => ({kind:reference.kind,id:reference.id})),sensitivity:metadata.sensitivity,createdAt:metadata.created_at,...(tombstone ? {tombstone:{deletedAt:tombstone.deleted_at,deletionReason:tombstone.deletion_reason,deletionGuarantee:"ACTIVE_STORE_DELETED" as const}} : {}) };
   }
+
+  #automationProjection(lineage: import("./shared-state/native-core-durable.js").NativeAutomationLineage): AutomationProjection { const r=lineage.revisions.at(-1)!; return {automationId:lineage.head.automation_id,tenantId:lineage.head.tenant_id,lifecycle:lineage.head.lifecycle,currentRevision:r.ref.revision,fingerprint:r.ref.fingerprint,targetMode:r.target_mode,...(r.pinned_target?{pinnedTarget:{entityKind:r.pinned_target.target_ref.entity_kind,entityId:r.pinned_target.target_ref.entity_id,revision:r.pinned_target.target_ref.revision,fingerprint:r.pinned_target.target_ref.fingerprint}}:{}),...(r.resolution_policy?{resolutionPolicy:{policyId:r.resolution_policy.policy_ref.entity_id,revision:r.resolution_policy.policy_ref.revision,fingerprint:r.resolution_policy.policy_ref.fingerprint,selector:r.resolution_policy.selector,parameters:r.resolution_policy.parameters}}:{}),definitions:r.definitions.map(d=>({kind:d.kind,key:d.definition_key,configuration:d.configuration})),references:{agents:r.external_refs.agent_refs.map(x=>x.entity_id),workforces:r.external_refs.workforce_refs.map(x=>x.entity_id),workflows:r.external_refs.workflow_refs.map(x=>x.entity_id),delegationRequirements:r.delegation_requirement_refs.map(x=>({grantId:x.grant_id,revision:x.revision,fingerprint:x.fingerprint}))},updatedAt:lineage.head.updated_at}; }
 
   #delegationReferenceProjection(reference: { readonly kind?: string; readonly entity_kind?: string; readonly id?: string; readonly entity_id?: string; readonly revision?: number; readonly fingerprint?: string }): DelegationReferenceProjection {
     return { kind: reference.kind ?? reference.entity_kind!, id: reference.id ?? reference.entity_id!, ...(reference.revision !== undefined ? { revision: reference.revision } : {}), ...(reference.fingerprint ? { fingerprint: reference.fingerprint } : {}) };

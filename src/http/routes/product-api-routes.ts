@@ -763,6 +763,10 @@ export async function routeProductApiRequest(
     }
     if (apiPath.startsWith("memory/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
 
+    if (apiPath === "automations" && request.method === "GET") { assertAllowedQueryParams(url, []); return { status: 200, body: ok(await api.listAutomations(context.isolation.scope.tenantId), [], options.correlationId, routeMeta) }; }
+    if (segments[2] === "automations" && segments[3] && segments.length === 4 && request.method === "GET") { assertAllowedQueryParams(url, []); const automation=await api.getAutomation(readPathSegment(segments,3,"automationId"),context.isolation.scope.tenantId); return automation ? {status:200,body:ok(automation,[],options.correlationId,routeMeta)} : fail("Automation not found",404,"not_found",options.correlationId,undefined,routeMeta,"automation_not_found"); }
+    if (apiPath.startsWith("automations")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
+
     if (apiPath === "delegation/grants" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
       return { status: 200, body: ok(await api.listDelegationGrants(context.isolation.scope.tenantId), [], options.correlationId, routeMeta) };

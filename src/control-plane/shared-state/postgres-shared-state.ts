@@ -1513,6 +1513,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       advanceAutomationRevision: (input) => this.withTransaction("advance Automation revision", (tx) => tx.nativeCore.advanceAutomationRevision(input)),
       transitionAutomationLifecycle: (input) => this.withTransaction("transition Automation lifecycle", (tx) => tx.nativeCore.transitionAutomationLifecycle(input)),
       getAutomationLineage: (automationId) => this.withTransaction("read Automation lineage", (tx) => tx.nativeCore.getAutomationLineage(automationId)),
+      listAutomationHeads: (input) => this.withTransaction("list Automation heads", (tx) => tx.nativeCore.listAutomationHeads(input)),
       advanceDelegationGrant: (input) => this.withTransaction("advance Delegation Grant", (tx) => tx.nativeCore.advanceDelegationGrant(input)),
       revokeDelegationGrant: (input) => this.withTransaction("revoke Delegation Grant", (tx) => tx.nativeCore.revokeDelegationGrant(input)),
       getDelegationGrantLineage: (grantId) => this.withTransaction("read Delegation Grant lineage", (tx) => tx.nativeCore.getDelegationGrantLineage(grantId)),

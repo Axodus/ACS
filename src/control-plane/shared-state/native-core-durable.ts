@@ -363,6 +363,7 @@ export interface AsyncNativeCoreRepository {
   advanceAutomationRevision(input: NativeAutomationRevisionCommand): Promise<NativeAutomationCommandResult>;
   transitionAutomationLifecycle(input: NativeAutomationLifecycleCommand): Promise<NativeAutomationCommandResult>;
   getAutomationLineage(automationId: string): Promise<NativeAutomationLineage>;
+  listAutomationHeads(input: { readonly tenantId: string }): Promise<readonly AutomationHeadV1[]>;
   advanceDelegationGrant(input: NativeDelegationGrantCommand): Promise<NativeDelegationGrantCommandResult>;
   revokeDelegationGrant(input: NativeDelegationGrantRevocationCommand): Promise<NativeDelegationGrantCommandResult>;
   getDelegationGrantLineage(grantId: string): Promise<NativeDelegationGrantLineage>;
@@ -1095,6 +1096,11 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
   }
 
   async getAutomationLineage(automationId: string): Promise<NativeAutomationLineage> { const h=await query<PayloadRow>(this.db,"get Automation head","SELECT payload FROM acs_automations WHERE automation_id=$1",[automationId]); const r=await query<PayloadRow>(this.db,"get Automation revisions","SELECT payload FROM acs_automation_revisions WHERE automation_id=$1 ORDER BY revision",[automationId]); const l=await query<PayloadRow>(this.db,"get Automation lifecycle","SELECT payload FROM acs_automation_lifecycle_events WHERE automation_id=$1 ORDER BY lifecycle_sequence",[automationId]); if(!h.rows[0]||!r.rows.length||!l.rows.length) throw new NativeAutomationIntegrityError(automationId,"canonical head, revision, or lifecycle history is missing"); const head=validateAutomationHeadV1(decode(h.rows[0].payload)); const revisions=r.rows.map(x=>validateAutomationRevisionV1(decode(x.payload))); const lifecycleEvents=l.rows.map(x=>validateAutomationLifecycleEventV1(decode(x.payload))); const current=revisions.at(-1); const currentLife=lifecycleEvents.at(-1); if(!current||!currentLife||head.current_revision!==current.ref.revision||head.current_fingerprint!==current.ref.fingerprint||head.lifecycle!==currentLife.to_lifecycle||head.lifecycle_sequence!==currentLife.sequence) throw new NativeAutomationIntegrityError(automationId,"head diverges from immutable history"); revisions.forEach((x,i)=>{if(x.ref.automation_id!==automationId||x.ref.revision!==i+1)throw new NativeAutomationIntegrityError(automationId,"revision history is not contiguous")}); return {head,revisions,lifecycleEvents}; }
+
+  async listAutomationHeads(input: { readonly tenantId: string }): Promise<readonly AutomationHeadV1[]> {
+    const result=await query<PayloadRow>(this.db,"list Automation heads for Product API projection","SELECT payload FROM acs_automations WHERE tenant_id=$1 ORDER BY updated_at DESC, automation_id",[input.tenantId]);
+    return result.rows.map((row)=>validateAutomationHeadV1(decode(row.payload)));
+  }
 
   async advanceDelegationGrant(input: NativeDelegationGrantCommand): Promise<NativeDelegationGrantCommandResult> {
     const head = validateDelegationGrantHeadV1(input.head); const revision = validateDelegationGrantRevisionV1(input.revision); const event = validateEventEnvelopeV2(input.event); validateIdempotency(input.idempotency);
