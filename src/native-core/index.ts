@@ -14,3 +14,4 @@ export * from "./memory.js";
 export * from "./memory-crypto.js";
 export * from "./delegation.js";
 export * from "./automation.js";
+export * from "./activation.js";
