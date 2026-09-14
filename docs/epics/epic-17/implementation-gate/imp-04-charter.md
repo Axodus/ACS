@@ -3,8 +3,8 @@
 **Status:** COMPLETE / CTO ACCEPTED
 **Gate preparation:** COMPLETE / CTO ACCEPTED
 **Implementation authority:** none
-**Migration authority:** none
-**Schema:** 9 / CANONICAL; schema 10 is CANDIDATE / HOLD
+**Migration authority:** schema 9 -> 10 authorized for Slice 2 only
+**Schema:** 10 / REQUIRED; physical design COMPLETE / CTO ACCEPTED
 
 ## Mission, scope and non-goals
 
@@ -160,6 +160,6 @@ Future positive and negative acceptance covers Grant identity/history, Tenant is
 
 ## Remaining CTO decisions and gate result
 
-CTO must decide ADR-025 through ADR-028; approve the recommended identity/revision/head model, authority dimensions and source contracts, ancestry/lifecycle representation, and admission snapshot interface without changing Workforce or Runtime ownership. Schema 10 and Product API work require separate authority.
+Slice 1 is complete and accepted in commit e6db696. Schema 10 physical design is complete and CTO accepted. Migration 9 -> 10 and Slice 2 durable Grant persistence are authorized. Admission integration, Runtime authority consumption, Product API, Workforce mutation, credential resolution and Memory access execution remain separately unauthorized.
 
-**Gate result:** EPIC-17-IMP-04 — COMPLETE / CTO ACCEPTED. Functional implementation has not started. No functional Slice 1, schema, migration, persistence, admission, Runtime or Product API work is authorized; schema 10 remains CANDIDATE / HOLD.
+**Gate result:** EPIC-17-IMP-04 — COMPLETE / CTO ACCEPTED. Slice 1 is COMPLETE / CTO ACCEPTED / PUBLISHED. Schema 10 physical design is COMPLETE / CTO ACCEPTED. Slice 2 and migration 9 -> 10 are AUTHORIZED / GO; later slices remain on hold.

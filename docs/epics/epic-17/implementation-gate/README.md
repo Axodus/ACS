@@ -3,9 +3,9 @@
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
 **Gate status:** `EPIC-17-IMP-04 — COMPLETE / CTO ACCEPTED`
-**Authorized implementation:** none
-**Implementation authority:** none
-**Migration authority:** schema 9 is canonical; no further schema change is authorized
+**Authorized implementation:** IMP-04 Slice 2 — Durable Delegation Grant Persistence
+**Implementation authority:** Slice 1 `COMPLETE / CTO ACCEPTED / PUBLISHED`; Slice 2 `AUTHORIZED / GO`
+**Migration authority:** schema 10 `AUTHORIZED`; migration 9 -> 10 only
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
 configuration, immutable fingerprinted snapshots, Tenant binding,
@@ -29,6 +29,7 @@ projection are complete. No schema change beyond v9 is authorized.
 - [ADR-023 Memory protection and deletion package](imp-03b-adr-023-encryption-erasure.md)
 - [IMP-03B closure and REQ-12 next-milestone reconciliation](imp-03b-closure-and-next-milestone.md)
 - [IMP-04 Delegation Grant & Authority Boundary charter](imp-04-charter.md)
+- [IMP-04 schema 10 physical-design candidate](imp-04-schema-10-physical-design.md)
 
 ## Current disposition
 
@@ -57,16 +58,19 @@ projection are complete. No schema change beyond v9 is authorized.
 | IMP-03B Slice 3 report | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Governed operation validation and boundary closure](imp-03b-slice-3-report.md). |
 | IMP-03B Slice 4 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Governed retention/deletion closure package](imp-03b-slice-4-report.md); B04 is resolved for `ACTIVE_STORE_DELETED`. |
 | IMP-03B Slice 5 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Read-only Product API projections and final conformance package](imp-03b-slice-5-report.md); no new domain owner, Runtime integration or User Context Memory. |
-| IMP-04 Delegation gate preparation | `COMPLETE / CTO ACCEPTED` | [Delegation Grant & Authority Boundary charter](imp-04-charter.md) reconciles REQ-07 blockers, deltas, ADRs and proposed slices. Functional implementation has not started; schema 10 remains `CANDIDATE / HOLD`. |
+| IMP-04 Delegation gate preparation | `COMPLETE / CTO ACCEPTED` | [Delegation Grant & Authority Boundary charter](imp-04-charter.md) reconciles REQ-07 blockers, deltas, ADRs and proposed slices. Slice 1 is published; schema 10 is `REQUIRED / HOLD`. |
+| IMP-04 Slice 1 — Delegation Contracts & Authority Model | `COMPLETE / CTO ACCEPTED` | Commit `e6db696` adds native contracts, attenuation, chain validation, typed failures and the approved Event subject. Slice 2 remains unauthorized. |
+| IMP-04 schema 10 physical design | `COMPLETE / CTO ACCEPTED` | [Physical design](imp-04-schema-10-physical-design.md) is accepted; schema 10 migration and Slice 2 durable persistence are authorized. |
 
 ## Current implementation boundary
 
 The accepted PostgreSQL schema v8 and functional IMP-03A are closed.
 Development SQLite data remains disposable: no preservation, import, backfill
 or compatibility path is required. Schema 9 is implemented and validated.
-IMP-03B is closed. `EPIC-17-IMP-04` gate preparation is
-`COMPLETE / CTO ACCEPTED`. Functional implementation has not started; schema 10
-is `CANDIDATE / HOLD`. No Slice 1, migration, persistence, Runtime or admission
-integration, Product API change, or User Context Memory work is authorized.
+IMP-03B is closed. `EPIC-17-IMP-04` gate preparation and Slice 1 are
+`COMPLETE / CTO ACCEPTED`. Schema 10 physical design is `COMPLETE / CTO ACCEPTED`.
+Migration 9 -> 10 and Slice 2 durable Delegation persistence are authorized.
+Runtime/admission integration, Product API change, Workforce mutation, and User
+Context Memory work remain unauthorized.
 Production Memory enablement remains blocked until a validated external
 KMS/Transit integration.
