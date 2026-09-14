@@ -3,6 +3,7 @@
 **IMP-04 status:** `COMPLETE / CTO ACCEPTED / PUBLISHED`
 **Schema:** `10 / CANONICAL`
 **Next functional implementation authority:** `NONE`
+**Slice 5 implementation commit:** `c8c653b`
 
 ## Closure
 

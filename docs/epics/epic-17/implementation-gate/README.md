@@ -66,7 +66,7 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 | IMP-04 Slice 2 — Durable Delegation Grant Persistence | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Schema 10 persistence, CAS, revocation and PostgreSQL evidence](imp-04-slice-2-report.md). Commit `bee28c6`. |
 | IMP-04 Slice 3 — Authority Resolution & Delegation Usability | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `e830edb` supplies exact-chain resolution, attenuation and current usability. |
 | IMP-04 Slice 4 — Admission Integration & Authority Snapshot | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `9aa37d5` resolves Delegation before admission and embeds a redacted immutable snapshot. |
-| IMP-04 Slice 5 — Product API / Administration & Conformance | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [GET-only Tenant-bound Grant projections and conformance package](imp-04-slice-5-report.md); PostgreSQL schema 10 acceptance: `22 pass / 0 fail / 0 skip`. |
+| IMP-04 Slice 5 — Product API / Administration & Conformance | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [GET-only Tenant-bound Grant projections and conformance package](imp-04-slice-5-report.md); implementation commit `c8c653b`; PostgreSQL schema 10 acceptance: `22 pass / 0 fail / 0 skip`. |
 
 ## Current implementation boundary
 

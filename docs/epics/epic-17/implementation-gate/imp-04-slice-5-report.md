@@ -3,6 +3,7 @@
 **Status:** COMPLETE / CTO ACCEPTED / PUBLISHED
 **Schema:** 10 / CANONICAL
 **Scope:** safe administrative projection and conformance only
+**Implementation commit:** `c8c653b`
 
 ## Delivered boundary
 
