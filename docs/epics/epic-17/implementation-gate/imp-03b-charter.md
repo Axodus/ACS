@@ -1,8 +1,8 @@
 # EPIC-17-IMP-03B — Memory Policy & Memory Store Gate Charter
 
-**Status:** `SLICE 1 / IMPLEMENTED / ACCEPTANCE PENDING`
+**Status:** `SLICE 1 / COMPLETE / CTO ACCEPTED / PUBLISHED; SCHEMA-9 PHYSICAL DESIGN / COMPLETE / CTO ACCEPTED; ADR-023 REQUIRED`
 **Gate preparation:** `COMPLETE / CTO ACCEPTED`
-**Implementation authority:** Slice 1 contracts only
+**Implementation authority:** none beyond the closed Slice 1; ADR-023 and schema-document reconciliation only
 **Migration authority:** none
 **Predecessor:** IMP-03A `COMPLETE / CTO ACCEPTED / CLOSED`
 
@@ -84,7 +84,7 @@ Raw Memory content is prohibited from effective-configuration snapshots, Events,
 | `E17-R06-B01` | No canonical versioned Policy owner/history | `OPEN` | Slice 1 / migration gate | Typed policy, resolver and historical revision proof. |
 | `E17-R06-B02` | No Record/Store contract or persistence | `OPEN` | Slice 2 | Canonical Tenant-safe Store/repository. |
 | `E17-R06-B03` | No human identity, consent or privacy-deletion authority | `OPEN / HARD BOUNDARY` | User Context Memory only | Separate owning-domain decision; no inference. |
-| `E17-R06-B04` | Deletion can conflict with reproducible history | `OPEN` | Freeze before Slice 2; enforce Slice 4 | Tombstone/digest/provenance and non-recovery proof. |
+| `E17-R06-B04` | Deletion can conflict with reproducible history | `PARTIALLY REDUCED / OPEN` | ADR-023 before Slice 2; enforce Slice 2/4 | Approved content/tombstone shape; encryption/backup guarantee and non-recovery proof remain pending. |
 | `E17-R06-B05` | Workforce deliberately has no Memory field | `OPEN` | Slice 1 / Slice 3 | Companion refs/access without Workforce change. |
 | `E17-R06-B06` | IMP-02 snapshot has primitives but no typed Memory refs/results | `OPEN / PARTIALLY REDUCED` | Slice 3 | Exact policy/result refs; no raw content. |
 
@@ -115,12 +115,12 @@ No blocker is resolved by documentation. B03 does not block the four candidate c
 
 ## Persistence, Event and migration candidates
 
-The repository is at schema 8. Existing Agent, Workforce, Runtime, Event/Evidence/outbox and Integration tables cannot own Memory without dual authority. A durable Store therefore needs a candidate additive schema 9, but **schema 9 is not authorized**. See [persistence and migration candidate](imp-03b-persistence-design-candidate.md).
+The repository is at schema 8. Existing Agent, Workforce, Runtime, Event/Evidence/outbox and Integration tables cannot own Memory without dual authority. A durable Store therefore needs a candidate additive schema 9, but **schema 9 is not authorized**. The accepted logical candidate is reconciled in [persistence and migration candidate](imp-03b-persistence-design-candidate.md); the physical table, constraint and transaction proposal is [schema-9 physical persistence design](imp-03b-schema-9-physical-design.md).
 
 Derived candidate positions:
 
 - Memory Policy requires its own immutable durable revision lineage because exact Agent references must resolve historically.
-- Memory Record requires immutable successor semantics; a current head is justified only for lifecycle and bounded current reads.
+- Memory Record requires immutable successor semantics. It has no revision lineage or current head; active versus tombstoned state is derived from content/tombstone presence for that exact immutable identity.
 - Retention/deletion mechanics must be frozen before migration. A tombstone preserves content-free identity, digest, decision and provenance while content is removed from every authorized residence.
 - The CTO accepted closed `memory_policy` and `memory_record` Event subjects. Envelope/store changes remain deferred until a slice emits canonical Memory Events; no synthetic Agent, Workforce, Run or Task subject is permitted.
 
@@ -128,7 +128,7 @@ Derived candidate positions:
 
 | Slice | Scope | Preconditions / closure |
 | --- | --- | --- |
-| 1 — Contracts & Policy | Taxonomy, Policy/Record contracts, scope semantics, typed errors and ADR closure | No schema. |
+| 1 — Contracts & Policy | Taxonomy, Policy/Record contracts, scope semantics, typed errors and ADR closure | `COMPLETE / CTO ACCEPTED / PUBLISHED`; no schema. |
 | 2 — Durable Store | Authorized schema, Policy lineage, immutable Record successors, Tenant isolation, idempotency, Event/outbox, tombstone-capable storage | Separate migration GO. |
 | 3 — Governed operations | Effective Policy resolution, bounded write/retrieval, exact snapshot refs, Knowledge refs and provenance | No vector platform. |
 | 4 — Retention & deletion | Enforce expiry/forget/delete, content deletion, tombstone and redacted proof | Storage mechanics must precede Slice 2. |
@@ -142,7 +142,7 @@ Future tests must prove Tenant isolation; scope/Agent/Workforce substitution rej
 
 After admission, change the current policy or add record successors and reconstruct the earlier snapshot: it must retain the original exact policy and result ref/digest. After deletion, prove raw content is absent from records, history, Event/Evidence/outbox payloads and diagnostics while content-free proof remains.
 
-Durable work requires `npm run acceptance:postgres`. Listener acceptance applies only to later HTTP/process surfaces. Full regression requires `A = 0` and `D = 0`; inherited `B = 3`, `C = 9` remain non-blocking only when their accepted baseline signature is unchanged.
+Durable work requires `npm run acceptance:postgres`. Listener acceptance applies only to later HTTP/process surfaces. Slice 1 established a current regression baseline of `127 passed / 10 failed`, with `A = 0`, `B = 0`, `C = 10`, `D = 0`; the ten failures reached listener `EPERM` before tested logic. Future durable work must classify against its actual baseline and keep `A = 0` and `D = 0`.
 
 ### Gate acceptance criteria
 
@@ -159,9 +159,9 @@ Durable work requires `npm run acceptance:postgres`. Listener acceptance applies
 
 ## Gate report
 
-**Status:** `GATE PREPARATION COMPLETE / CTO ACCEPTED; SLICE 1 AUTHORIZED`
+**Status:** `GATE PREPARATION COMPLETE / CTO ACCEPTED; SLICE 1 COMPLETE / CTO ACCEPTED / PUBLISHED; PHYSICAL SCHEMA-9 DESIGN COMPLETE / CTO ACCEPTED; ADR-023 REQUIRED`
 **Blockers:** six open; B03 is a hard User Context boundary.
 **Deltas:** CD01–CD07 candidate IMP-03B work; CD08 deferred to REQ-10.
 **ADRs:** 020/022 decided; 021 decided for Slice 1; 023 partially decided and required before migration; 024 deferred to Slice 3.
 **Migration:** candidate schema 9 required for durable Store; not authorized.
-**CTO decisions required:** physical content residence under ADR-023 before migration, then separate schema-9 and Slice-2 GO.
+**CTO decisions required:** ADR-023 must close encryption-key ownership, rotation and deletion guarantees across active storage, backups and WAL before separate schema-9 migration and Slice-2 GO. External canonical-owner validation and immutable-row triggers are accepted.
