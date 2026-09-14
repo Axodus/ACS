@@ -42,3 +42,19 @@ service, database, table, index engine, vector store, endpoint or UI.
 
 The blockers do not prevent REQ-06 architectural closure. They block future
 implementation until REQ-12 assigns accepted contract work and validation.
+
+## IMP-03B implementation reconciliation
+
+**Status:** `COMPLETE / CTO ACCEPTED / PUBLISHED`.
+
+| Item | Slice disposition | Remaining boundary |
+| --- | --- | --- |
+| `E17-R06-B01` | `RESOLVED FOR IMP-03B` — Governance-owned Policy head and immutable revisions are durable and reconstructible. | None for the Memory domain. |
+| `E17-R06-B02` | `RESOLVED FOR IMP-03B` — Memory Domain owns encrypted content-bearing records, successors and tombstones. | No second owner is permitted. |
+| `E17-R06-B03` | `OPEN / DEFERRED` — User Context Memory remains absent. | Explicit human identity, consent and privacy owner. |
+| `E17-R06-B04` | `RESOLVED FOR ACTIVE_STORE_DELETED` — exact Policy decision, tombstone, active-content removal, rollback and retrieval denial are proven. | `CRYPTOGRAPHIC_ERASURE` and `BACKUP_ERASURE` remain unclaimed infrastructure capabilities. |
+| `E17-R06-B05` | `RESOLVED FOR IMP-03B` — Workforce Shared Memory uses exact companion references and governed access without a Workforce-owned store. | Workforce model remains unchanged. |
+| `E17-R06-B06` | `RESOLVED FOR IMP-03B` — typed exact Policy and Memory Record/result references are available to the governed Memory boundary. | Runtime injection/admission remains a later boundary. |
+| `E17-R06-CD01`–`CD07` | `IMPLEMENTED` across Slices 1–4. | No Runtime or RAG expansion. |
+| `E17-R06-CD08` | `IMPLEMENTED` in Slice 5 as safe, Tenant-scoped Product API projection. | Product API remains a projection, not a Memory owner. |
+| `ADR-17-020`–`ADR-17-024` | `DECIDED / IMPLEMENTED` within the accepted Memory boundary. | Production KMS/Transit validation remains a production-readiness dependency. |

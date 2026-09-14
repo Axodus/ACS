@@ -28,7 +28,8 @@ import {
   stableStringify,
   type RevisionRef,
 } from "../native-core/primitives.js";
-import type { NativeAgentLineage, NativeAgentLineageCommand, NativeIntegrationChannelLineage, NativeIntegrationConnectionLineage } from "./shared-state/native-core-durable.js";
+import type { NativeAgentLineage, NativeAgentLineageCommand, NativeIntegrationChannelLineage, NativeIntegrationConnectionLineage, NativeMemoryPolicyLineage, NativeMemoryRecordState } from "./shared-state/native-core-durable.js";
+import type { MemoryPolicyRevisionV1, MemoryRecordV1, MemoryScopeV1 } from "../native-core/memory.js";
 import type { DeploymentService, DeploymentRecord, DeploymentRequest, DeploymentLifecycleStatus } from "./deployment-service.js";
 import type { ProductionGovernanceEvidence, ProductionReadinessDecision } from "./production-deployment-readiness.js";
 import type { ExecutionRunRecord, RuntimeLifecycleService, RuntimeInstanceRecord, StartRuntimeServiceRequest } from "./runtime-lifecycle-service.js";
@@ -905,6 +906,46 @@ export interface IntegrationChannelProjection {
   readonly updatedAt: number;
 }
 
+export interface MemoryPolicyProjection {
+  readonly memoryPolicyId: string;
+  readonly tenantId: string;
+  readonly lifecycle: string;
+  readonly currentRevision: number;
+  readonly fingerprint: string;
+  readonly allowedMemoryTypes: readonly string[];
+  readonly allowedScopeKinds: readonly string[];
+  readonly allowedOperations: readonly string[];
+  readonly maxRetrievalResults: number;
+  readonly retention: { readonly maxAgeMs: number; readonly deletionAction: "tombstone"; readonly retainsContentDigest: boolean };
+  readonly provenanceRequired: boolean;
+  readonly evidenceRequired: boolean;
+  readonly updatedAt: number;
+}
+
+export interface MemoryScopeProjection {
+  readonly kind: string;
+  readonly agentRef?: { readonly id: string };
+  readonly workforceRevisionRef?: { readonly id: string; readonly revision: number; readonly fingerprint: string };
+  readonly knowledgeRef?: { readonly id: string; readonly fingerprint?: string };
+  readonly workingRunRef?: { readonly id: string };
+}
+
+export interface MemoryRecordProjection {
+  readonly memoryId: string;
+  readonly tenantId: string;
+  readonly lifecycle: "active" | "tombstoned";
+  readonly memoryType: string;
+  readonly scope: MemoryScopeProjection;
+  readonly policyRef: { readonly policyId: string; readonly revision: number; readonly fingerprint: string };
+  readonly fingerprint: string;
+  readonly predecessorRef?: { readonly memoryId: string; readonly fingerprint: string };
+  readonly knowledgeRef?: { readonly id: string; readonly fingerprint?: string };
+  readonly provenanceRefs: readonly { readonly kind: string; readonly id: string }[];
+  readonly sensitivity: "internal" | "restricted";
+  readonly createdAt: number;
+  readonly tombstone?: { readonly deletedAt: number; readonly deletionReason: string; readonly deletionGuarantee: "ACTIVE_STORE_DELETED" };
+}
+
 export interface AgentRevisionSummary {
   readonly revisionId: string;
   readonly revisionNumber: number;
@@ -1696,6 +1737,31 @@ export class ProductApiClient {
   async getIntegrationChannel(channelId: string, tenantId: string): Promise<IntegrationChannelProjection | undefined> {
     if (!this.#nativeCore) return undefined;
     try { const lineage = await this.#nativeCore.getIntegrationChannelLineage(channelId); return lineage.definition.tenant_id === tenantId ? this.#integrationChannelProjection(lineage) : undefined; } catch { return undefined; }
+  }
+
+  async listMemoryPolicies(tenantId: string): Promise<readonly MemoryPolicyProjection[]> {
+    if (!this.#nativeCore) return [];
+    const heads = await this.#nativeCore.listMemoryPolicyHeads({ tenantId });
+    return Promise.all(heads.map(async (head) => this.#memoryPolicyProjection(await this.#nativeCore!.getMemoryPolicyLineage(head.memory_policy_id))));
+  }
+
+  async getMemoryPolicy(memoryPolicyId: string, tenantId: string): Promise<MemoryPolicyProjection | undefined> {
+    if (!this.#nativeCore) return undefined;
+    try { const lineage = await this.#nativeCore.getMemoryPolicyLineage(memoryPolicyId); return lineage.head.tenant_id === tenantId ? this.#memoryPolicyProjection(lineage) : undefined; } catch { return undefined; }
+  }
+
+  async listMemoryRecordMetadata(tenantId: string): Promise<readonly MemoryRecordProjection[]> {
+    if (!this.#nativeCore) return [];
+    const states = await this.#nativeCore.listMemoryRecordStates({ tenantId });
+    return states.map((state) => this.#memoryRecordProjection(state));
+  }
+
+  async getMemoryRecordMetadata(memoryId: string, tenantId: string): Promise<MemoryRecordProjection | undefined> {
+    if (!this.#nativeCore) return undefined;
+    try {
+      const state = await this.#nativeCore.getMemoryRecordState(memoryId);
+      return state && state.metadata.ref.tenant_id === tenantId ? this.#memoryRecordProjection(state) : undefined;
+    } catch { return undefined; }
   }
 
   async getExecutionIntent(intentId: string): Promise<RuntimeExecutionIntentV2 | undefined> {
@@ -2931,6 +2997,26 @@ export class ProductApiClient {
   #integrationChannelProjection(lineage: NativeIntegrationChannelLineage): IntegrationChannelProjection {
     const revision = lineage.revisions.at(-1)!;
     return { channelId: lineage.definition.channel_id, tenantId: lineage.definition.tenant_id, lifecycle: lineage.definition.lifecycle, currentRevision: revision.ref.revision, fingerprint: revision.ref.fingerprint, connectionRevisionRef: { connectionId: revision.connection_revision_ref.entity_id, revision: revision.connection_revision_ref.revision, fingerprint: revision.connection_revision_ref.fingerprint }, direction: revision.direction, endpoint: { kind: revision.endpoint.kind, uri: revision.endpoint.uri }, updatedAt: lineage.definition.updated_at };
+  }
+
+  #memoryPolicyProjection(lineage: NativeMemoryPolicyLineage): MemoryPolicyProjection {
+    const revision = lineage.revisions.at(-1)!;
+    return { memoryPolicyId:lineage.head.memory_policy_id,tenantId:lineage.head.tenant_id,lifecycle:lineage.head.lifecycle,currentRevision:revision.ref.revision,fingerprint:revision.ref.fingerprint,allowedMemoryTypes:revision.allowed_memory_types,allowedScopeKinds:revision.allowed_scope_kinds,allowedOperations:revision.allowed_operations,maxRetrievalResults:revision.max_retrieval_results,retention:{maxAgeMs:revision.retention.max_age_ms,deletionAction:revision.retention.deletion_action,retainsContentDigest:revision.retention.retain_content_digest},provenanceRequired:revision.provenance_required,evidenceRequired:revision.evidence_required,updatedAt:lineage.head.updated_at };
+  }
+
+  #memoryScopeProjection(scope: MemoryScopeV1): MemoryScopeProjection {
+    return { kind:scope.kind,
+      ...(scope.agent_ref ? {agentRef:{id:scope.agent_ref.ref.id}} : {}),
+      ...(scope.workforce_revision_ref ? {workforceRevisionRef:{id:scope.workforce_revision_ref.ref.entity_id,revision:scope.workforce_revision_ref.ref.revision,fingerprint:scope.workforce_revision_ref.ref.fingerprint}} : {}),
+      ...(scope.knowledge_ref ? {knowledgeRef:{id:scope.knowledge_ref.ref.id,...(scope.knowledge_fingerprint ? {fingerprint:scope.knowledge_fingerprint} : {})}} : {}),
+      ...(scope.run_ref ? {workingRunRef:{id:scope.run_ref.ref.id}} : {}),
+    };
+  }
+
+  #memoryRecordProjection(state: NativeMemoryRecordState): MemoryRecordProjection {
+    const metadata = state.metadata;
+    const tombstone = state.tombstone;
+    return { memoryId:metadata.ref.memory_id,tenantId:metadata.ref.tenant_id,lifecycle:tombstone ? "tombstoned" : "active",memoryType:metadata.memory_type,scope:this.#memoryScopeProjection(metadata.scope),policyRef:{policyId:metadata.policy_ref.ref.entity_id,revision:metadata.policy_ref.ref.revision,fingerprint:metadata.policy_ref.ref.fingerprint},fingerprint:metadata.ref.fingerprint,...(metadata.predecessor_ref ? {predecessorRef:{memoryId:metadata.predecessor_ref.memory_id,fingerprint:metadata.predecessor_ref.fingerprint}} : {}),...(metadata.scope.knowledge_ref ? {knowledgeRef:{id:metadata.scope.knowledge_ref.ref.id,...(metadata.scope.knowledge_fingerprint ? {fingerprint:metadata.scope.knowledge_fingerprint} : {})}} : {}),provenanceRefs:metadata.provenance_refs.map((reference) => ({kind:reference.kind,id:reference.id})),sensitivity:metadata.sensitivity,createdAt:metadata.created_at,...(tombstone ? {tombstone:{deletedAt:tombstone.deleted_at,deletionReason:tombstone.deletion_reason,deletionGuarantee:"ACTIVE_STORE_DELETED" as const}} : {}) };
   }
 
   #nativeListItem(definition: AgentDefinitionV2, checkedAt: number): AgentListItem {

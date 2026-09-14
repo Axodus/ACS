@@ -106,3 +106,24 @@ test("Slice 4 PostgreSQL retention is governed, idempotent, content-free, and at
     assert.equal((await pool.query("SELECT count(*)::int AS count FROM acs_memory_tombstones WHERE memory_id='memory-retention-rollback'")).rows[0].count,0);
   });
 });
+
+test("Slice 5 PostgreSQL Product API projects Tenant-bound Memory metadata without content or crypto material", {skip:process.env.ACS_SH_DATABASE_URL?false:"ACS_SH_DATABASE_URL is not configured"}, async () => {
+  await isolated(async(state,_noCrypto) => {
+    await state.nativeCore.advanceMemoryPolicy(policyCommand(1,"projection-policy"));
+    const active=record("memory-projection-active");
+    const deleted=record("memory-projection-deleted",active.ref);
+    await state.nativeCore.createMemoryRecord(recordCommand(active,"projection-active",1));
+    await state.nativeCore.createMemoryRecord(recordCommand(deleted,"projection-deleted",1));
+    const deletedTombstone=api.createMemoryTombstoneV1({memory_ref:deleted.ref,memory_type:deleted.memory_type,scope:deleted.scope,policy_ref:deleted.policy_ref,deleted_at:20,deletion_reason:"policy_forget",digest_retention:"policy_permitted",retained_content_digest:deleted.content.content_digest,provenance_refs:[]});
+    await state.nativeCore.tombstoneMemoryRecord({tombstone:deletedTombstone,idempotency:{scope:"memory.retention:memory-projection-deleted",key:"projection-delete",request_hash:hash("e")},event:{...event("projection-delete",2,"memory_record",deleted.ref.memory_id,{fingerprint:deleted.ref.fingerprint,assurance:"ACTIVE_STORE_DELETED"}),idempotency_key:"projection-delete"},outboxId:"outbox-projection-delete"});
+    const product=new api.ProductApiClient({nativeCore:state.nativeCore});
+    const policies=await product.listMemoryPolicies("tenant-m");
+    const records=await product.listMemoryRecordMetadata("tenant-m");
+    const tombstoned=await product.getMemoryRecordMetadata(deleted.ref.memory_id,"tenant-m");
+    assert.equal(policies.length,1); assert.equal(records.length,2); assert.equal(tombstoned.lifecycle,"tombstoned");
+    assert.equal(tombstoned.predecessorRef.memoryId,active.ref.memory_id); assert.equal(tombstoned.tombstone.deletionGuarantee,"ACTIVE_STORE_DELETED");
+    assert.equal(await product.getMemoryRecordMetadata(active.ref.memory_id,"tenant-other"),undefined);
+    const serialized=JSON.stringify({policies,records,tombstoned});
+    for (const forbidden of ["content:memory-projection-active","content:memory-projection-deleted","content_ref","ciphertext","encryption_key_ref","encryptionKeyRef","key_version"]) assert.equal(serialized.includes(forbidden),false,forbidden);
+  });
+});

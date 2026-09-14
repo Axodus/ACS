@@ -232,7 +232,9 @@ export interface NativeMemoryRecordCommand { readonly record: MemoryRecordV1; re
 export interface NativeMemoryRecordCommandResult { readonly record: MemoryRecordV1; readonly event: NativeDurableEvent; readonly outbox: NativeOutboxRecord; }
 export interface NativeMemoryTombstoneCommand { readonly tombstone: MemoryTombstoneV1; readonly idempotency: Idempotency; readonly event: EventEnvelopeV2; readonly evidence?: EvidenceRecordV2; readonly outboxId?: string; readonly deliveryKind?: string; }
 export interface NativeMemoryTombstoneCommandResult { readonly tombstone: MemoryTombstoneV1; readonly event: NativeDurableEvent; readonly evidence?: EvidenceRecordV2; readonly outbox: NativeOutboxRecord; }
-export interface NativeMemoryRecordState { readonly record?: MemoryRecordV1; readonly tombstone?: MemoryTombstoneV1; }
+/** Content-free canonical metadata used for safe application projections. */
+export interface NativeMemoryRecordMetadata extends Omit<MemoryRecordV1, "content"> {}
+export interface NativeMemoryRecordState { readonly metadata: NativeMemoryRecordMetadata; readonly record?: MemoryRecordV1; readonly tombstone?: MemoryTombstoneV1; }
 export interface NativeMemoryContentRead { readonly record: MemoryRecordV1; readonly plaintext: string; }
 export interface NativeMemoryRecordQuery { readonly tenantId: string; readonly policyRef: MemoryRecordV1["policy_ref"]; readonly scope: MemoryRecordV1["scope"]; readonly limit: number; }
 
@@ -331,8 +333,10 @@ export interface AsyncNativeCoreRepository {
   recordAuthenticatedIntegrationIngress(input: NativeAuthenticatedIntegrationIngressCommand): Promise<NativeAuthenticatedIntegrationIngressResult>;
   advanceMemoryPolicy(input: NativeMemoryPolicyCommand): Promise<NativeMemoryPolicyCommandResult>;
   getMemoryPolicyLineage(memoryPolicyId: string): Promise<NativeMemoryPolicyLineage>;
+  listMemoryPolicyHeads(input: { readonly tenantId: string }): Promise<readonly MemoryPolicyHeadV1[]>;
   createMemoryRecord(input: NativeMemoryRecordCommand): Promise<NativeMemoryRecordCommandResult>;
   getMemoryRecordState(memoryId: string): Promise<NativeMemoryRecordState | undefined>;
+  listMemoryRecordStates(input: { readonly tenantId: string }): Promise<readonly NativeMemoryRecordState[]>;
   listMemoryRecords(input: NativeMemoryRecordQuery): Promise<readonly MemoryRecordV1[]>;
   readMemoryRecordContent(input: { readonly memoryRef: MemoryRecordV1["ref"]; readonly policyRef: MemoryRecordV1["policy_ref"] }): Promise<NativeMemoryContentRead>;
   tombstoneMemoryRecord(input: NativeMemoryTombstoneCommand): Promise<NativeMemoryTombstoneCommandResult>;
@@ -1038,6 +1042,11 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
     return { head, revisions };
   }
 
+  async listMemoryPolicyHeads(input: { readonly tenantId: string }): Promise<readonly MemoryPolicyHeadV1[]> {
+    const result = await query<PayloadRow>(this.db, "list Memory Policy heads for Product API projection", "SELECT payload FROM acs_memory_policies WHERE tenant_id=$1 ORDER BY updated_at DESC, memory_policy_id", [input.tenantId]);
+    return result.rows.map((row) => validateMemoryPolicyHeadV1(decode<MemoryPolicyHeadV1>(row.payload)));
+  }
+
   async createMemoryRecord(input: NativeMemoryRecordCommand): Promise<NativeMemoryRecordCommandResult> {
     const record = validateMemoryRecordV1(input.record);
     const event = validateEventEnvelopeV2(input.event);
@@ -1070,14 +1079,22 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
   async getMemoryRecordState(memoryId: string): Promise<NativeMemoryRecordState | undefined> {
     const base = await query<PayloadRow>(this.db, "get Memory Record metadata", "SELECT payload FROM acs_memory_records WHERE memory_id=$1", [memoryId]);
     if (!base.rows[0]) return undefined;
+    const decodedMetadata = decode<NativeMemoryRecordMetadata & { readonly content?: unknown }>(base.rows[0].payload);
+    if (decodedMetadata.ref.memory_id !== memoryId || decodedMetadata.content !== undefined) throw new NativeMemoryRecordIntegrityError(memoryId, "content-free Record metadata is invalid");
+    const { content: _content, ...metadata } = decodedMetadata;
     const tombstoneResult = await query<PayloadRow>(this.db, "get Memory tombstone", "SELECT payload FROM acs_memory_tombstones WHERE memory_id=$1", [memoryId]);
     const contentResult = await query<{ readonly content_digest: string; readonly media_type: string } & QueryResultRow>(this.db, "get Memory content metadata", "SELECT content_digest,media_type FROM acs_memory_contents WHERE memory_id=$1", [memoryId]);
     if (tombstoneResult.rows[0] && contentResult.rows[0]) throw new NativeMemoryRecordIntegrityError(memoryId, "content and tombstone coexist");
-    if (tombstoneResult.rows[0]) return { tombstone: validateMemoryTombstoneV1(decode<MemoryTombstoneV1>(tombstoneResult.rows[0].payload)) };
-    const metadata = decode<Record<string, unknown>>(base.rows[0].payload);
+    if (tombstoneResult.rows[0]) return { metadata, tombstone: validateMemoryTombstoneV1(decode<MemoryTombstoneV1>(tombstoneResult.rows[0].payload)) };
     const content = contentResult.rows[0];
     if (!content) throw new NativeMemoryRecordIntegrityError(memoryId, "active Record has no encrypted content");
-    return { record: validateMemoryRecordV1({ ...metadata, content: { content_ref:`memory-content:${memoryId}`,content_digest:content.content_digest,media_type:content.media_type } }) };
+    return { metadata, record: validateMemoryRecordV1({ ...metadata, content: { content_ref:`memory-content:${memoryId}`,content_digest:content.content_digest,media_type:content.media_type } }) };
+  }
+
+  async listMemoryRecordStates(input: { readonly tenantId: string }): Promise<readonly NativeMemoryRecordState[]> {
+    const result = await query<{ readonly memory_id: string } & QueryResultRow>(this.db, "list bounded Memory Record metadata for Product API projection", "SELECT memory_id FROM acs_memory_records WHERE tenant_id=$1 ORDER BY created_at DESC, memory_id LIMIT 1000", [input.tenantId]);
+    const states = await Promise.all(result.rows.map((row) => this.getMemoryRecordState(row.memory_id)));
+    return states.filter((state): state is NativeMemoryRecordState => state !== undefined);
   }
 
   async listMemoryRecords(input: NativeMemoryRecordQuery): Promise<readonly MemoryRecordV1[]> {

@@ -743,6 +743,26 @@ export async function routeProductApiRequest(
     }
     if (apiPath.startsWith("integrations/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
 
+    if (apiPath === "memory/policies" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(await api.listMemoryPolicies(context.isolation.scope.tenantId), [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "memory" && segments[3] === "policies" && segments[4] && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const policy = await api.getMemoryPolicy(readPathSegment(segments, 4, "memoryPolicyId"), context.isolation.scope.tenantId);
+      return policy ? { status: 200, body: ok(policy, [], options.correlationId, routeMeta) } : fail("Memory Policy not found", 404, "not_found", options.correlationId, undefined, routeMeta, "memory_policy_not_found");
+    }
+    if (apiPath === "memory/records" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(await api.listMemoryRecordMetadata(context.isolation.scope.tenantId), [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "memory" && segments[3] === "records" && segments[4] && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      const record = await api.getMemoryRecordMetadata(readPathSegment(segments, 4, "memoryId"), context.isolation.scope.tenantId);
+      return record ? { status: 200, body: ok(record, [], options.correlationId, routeMeta) } : fail("Memory Record not found", 404, "not_found", options.correlationId, undefined, routeMeta, "memory_record_not_found");
+    }
+    if (apiPath.startsWith("memory/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
+
     // Agent inventory (read-only list with governed search/filter/sort)
     if (segments[2] === "agents" && segments.length === 3 && request.method === "GET") {
       assertAllowedQueryParams(url, ["search", "status", "environment", "sort"]);
