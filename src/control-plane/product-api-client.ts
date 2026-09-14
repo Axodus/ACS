@@ -28,7 +28,7 @@ import {
   stableStringify,
   type RevisionRef,
 } from "../native-core/primitives.js";
-import type { NativeAgentLineage, NativeAgentLineageCommand, NativeIntegrationChannelLineage, NativeIntegrationConnectionLineage, NativeMemoryPolicyLineage, NativeMemoryRecordState } from "./shared-state/native-core-durable.js";
+import type { NativeAgentLineage, NativeAgentLineageCommand, NativeDelegationGrantLineage, NativeIntegrationChannelLineage, NativeIntegrationConnectionLineage, NativeMemoryPolicyLineage, NativeMemoryRecordState } from "./shared-state/native-core-durable.js";
 import type { MemoryPolicyRevisionV1, MemoryRecordV1, MemoryScopeV1 } from "../native-core/memory.js";
 import type { DeploymentService, DeploymentRecord, DeploymentRequest, DeploymentLifecycleStatus } from "./deployment-service.js";
 import type { ProductionGovernanceEvidence, ProductionReadinessDecision } from "./production-deployment-readiness.js";
@@ -946,6 +946,48 @@ export interface MemoryRecordProjection {
   readonly tombstone?: { readonly deletedAt: number; readonly deletionReason: string; readonly deletionGuarantee: "ACTIVE_STORE_DELETED" };
 }
 
+export interface DelegationReferenceProjection {
+  readonly kind: string;
+  readonly id: string;
+  readonly revision?: number;
+  readonly fingerprint?: string;
+}
+
+export interface DelegationGrantProjection {
+  readonly grantId: string;
+  readonly tenantId: string;
+  readonly lifecycle: "active" | "revoked" | "superseded";
+  readonly currentRevision: number;
+  readonly fingerprint: string;
+  readonly delegator: { readonly agentId: string; readonly revision: number; readonly fingerprint: string };
+  readonly delegate: { readonly agentId: string; readonly revision: number; readonly fingerprint: string };
+  readonly authorityBounds: {
+    readonly actions: readonly string[];
+    readonly capabilityRefs: readonly DelegationReferenceProjection[];
+    readonly resourceRefs: readonly DelegationReferenceProjection[];
+    readonly toolRefs: readonly DelegationReferenceProjection[];
+    readonly modelRefs: readonly DelegationReferenceProjection[];
+    readonly connectionRefs: readonly DelegationReferenceProjection[];
+    readonly credentialPurposes: readonly string[];
+    readonly memoryScopeRefs: readonly string[];
+    readonly memoryOperations: readonly string[];
+  };
+  readonly validFrom: number;
+  readonly expiresAt: number;
+  readonly onwardDelegationAllowed: boolean;
+  readonly maxDelegationDepth: number;
+  readonly parentGrantRef?: { readonly grantId: string; readonly revision: number; readonly fingerprint: string };
+  readonly ancestryGrantRefs: readonly { readonly grantId: string; readonly revision: number; readonly fingerprint: string }[];
+  readonly depth: number;
+  readonly governingAuthorityRefs: readonly DelegationReferenceProjection[];
+  readonly governingPolicyRefs: readonly DelegationReferenceProjection[];
+  readonly approvalRefs: readonly DelegationReferenceProjection[];
+  readonly provenanceRefs: readonly DelegationReferenceProjection[];
+  readonly revokedAt?: number;
+  readonly revocationCount: number;
+  readonly updatedAt: number;
+}
+
 export interface AgentRevisionSummary {
   readonly revisionId: string;
   readonly revisionNumber: number;
@@ -1761,6 +1803,21 @@ export class ProductApiClient {
     try {
       const state = await this.#nativeCore.getMemoryRecordState(memoryId);
       return state && state.metadata.ref.tenant_id === tenantId ? this.#memoryRecordProjection(state) : undefined;
+    } catch { return undefined; }
+  }
+
+  async listDelegationGrants(tenantId: string): Promise<readonly DelegationGrantProjection[]> {
+    if (!this.#nativeCore) return [];
+    const heads = await this.#nativeCore.listDelegationGrantHeads({ tenantId });
+    const projections = await Promise.all(heads.map(async (head) => this.#delegationGrantProjection(await this.#nativeCore!.getDelegationGrantLineage(head.grant_id))));
+    return projections.filter((projection) => projection.tenantId === tenantId);
+  }
+
+  async getDelegationGrant(grantId: string, tenantId: string): Promise<DelegationGrantProjection | undefined> {
+    if (!this.#nativeCore) return undefined;
+    try {
+      const lineage = await this.#nativeCore.getDelegationGrantLineage(grantId);
+      return lineage.head.tenant_id === tenantId ? this.#delegationGrantProjection(lineage) : undefined;
     } catch { return undefined; }
   }
 
@@ -3017,6 +3074,27 @@ export class ProductApiClient {
     const metadata = state.metadata;
     const tombstone = state.tombstone;
     return { memoryId:metadata.ref.memory_id,tenantId:metadata.ref.tenant_id,lifecycle:tombstone ? "tombstoned" : "active",memoryType:metadata.memory_type,scope:this.#memoryScopeProjection(metadata.scope),policyRef:{policyId:metadata.policy_ref.ref.entity_id,revision:metadata.policy_ref.ref.revision,fingerprint:metadata.policy_ref.ref.fingerprint},fingerprint:metadata.ref.fingerprint,...(metadata.predecessor_ref ? {predecessorRef:{memoryId:metadata.predecessor_ref.memory_id,fingerprint:metadata.predecessor_ref.fingerprint}} : {}),...(metadata.scope.knowledge_ref ? {knowledgeRef:{id:metadata.scope.knowledge_ref.ref.id,...(metadata.scope.knowledge_fingerprint ? {fingerprint:metadata.scope.knowledge_fingerprint} : {})}} : {}),provenanceRefs:metadata.provenance_refs.map((reference) => ({kind:reference.kind,id:reference.id})),sensitivity:metadata.sensitivity,createdAt:metadata.created_at,...(tombstone ? {tombstone:{deletedAt:tombstone.deleted_at,deletionReason:tombstone.deletion_reason,deletionGuarantee:"ACTIVE_STORE_DELETED" as const}} : {}) };
+  }
+
+  #delegationReferenceProjection(reference: { readonly kind?: string; readonly entity_kind?: string; readonly id?: string; readonly entity_id?: string; readonly revision?: number; readonly fingerprint?: string }): DelegationReferenceProjection {
+    return { kind: reference.kind ?? reference.entity_kind!, id: reference.id ?? reference.entity_id!, ...(reference.revision !== undefined ? { revision: reference.revision } : {}), ...(reference.fingerprint ? { fingerprint: reference.fingerprint } : {}) };
+  }
+
+  #delegationGrantProjection(lineage: NativeDelegationGrantLineage): DelegationGrantProjection {
+    const revision = lineage.revisions.at(-1)!;
+    const ref = (value: { readonly grant_id: string; readonly revision: number; readonly fingerprint: string }) => ({ grantId: value.grant_id, revision: value.revision, fingerprint: value.fingerprint });
+    const entity = (value: { readonly kind: string; readonly id: string }) => this.#delegationReferenceProjection(value);
+    const revisionRef = (value: RevisionRef) => this.#delegationReferenceProjection(value);
+    return {
+      grantId: lineage.head.grant_id, tenantId: lineage.head.tenant_id, lifecycle: lineage.head.lifecycle, currentRevision: revision.ref.revision, fingerprint: revision.ref.fingerprint,
+      delegator: { agentId: revision.delegator.agent_id, revision: revision.delegator.revision_ref.revision, fingerprint: revision.delegator.revision_ref.fingerprint },
+      delegate: { agentId: revision.delegate.agent_id, revision: revision.delegate.revision_ref.revision, fingerprint: revision.delegate.revision_ref.fingerprint },
+      authorityBounds: { actions: revision.authority_bounds.actions, capabilityRefs: revision.authority_bounds.capability_refs.map(entity), resourceRefs: revision.authority_bounds.resource_refs.map(revisionRef), toolRefs: revision.authority_bounds.tool_refs.map(revisionRef), modelRefs: revision.authority_bounds.model_refs.map(entity), connectionRefs: revision.authority_bounds.connection_refs.map(entity), credentialPurposes: revision.authority_bounds.credential_purposes, memoryScopeRefs: revision.authority_bounds.memory_scope_refs, memoryOperations: revision.authority_bounds.memory_operations },
+      validFrom: revision.valid_from, expiresAt: revision.expires_at, onwardDelegationAllowed: revision.onward_delegation_allowed, maxDelegationDepth: revision.max_delegation_depth,
+      ...(revision.parent_grant_ref ? { parentGrantRef: ref(revision.parent_grant_ref) } : {}), ancestryGrantRefs: revision.ancestry_grant_refs.map(ref), depth: revision.depth,
+      governingAuthorityRefs: revision.governing_authority_refs.map(entity), governingPolicyRefs: revision.governing_policy_refs.map(revisionRef), approvalRefs: revision.approval_refs.map(entity), provenanceRefs: revision.provenance_refs.map(entity),
+      ...(lineage.head.revoked_at !== undefined ? { revokedAt: lineage.head.revoked_at } : {}), revocationCount: lineage.revocations.length, updatedAt: lineage.head.updated_at,
+    };
   }
 
   #nativeListItem(definition: AgentDefinitionV2, checkedAt: number): AgentListItem {

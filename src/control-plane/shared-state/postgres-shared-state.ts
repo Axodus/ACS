@@ -1511,6 +1511,7 @@ export class PostgresSharedAuthoritativeState implements SharedAuthoritativeStat
       advanceDelegationGrant: (input) => this.withTransaction("advance Delegation Grant", (tx) => tx.nativeCore.advanceDelegationGrant(input)),
       revokeDelegationGrant: (input) => this.withTransaction("revoke Delegation Grant", (tx) => tx.nativeCore.revokeDelegationGrant(input)),
       getDelegationGrantLineage: (grantId) => this.withTransaction("read Delegation Grant lineage", (tx) => tx.nativeCore.getDelegationGrantLineage(grantId)),
+      listDelegationGrantHeads: (input) => this.withTransaction("list Delegation Grant heads", (tx) => tx.nativeCore.listDelegationGrantHeads(input)),
       assertDelegationGrantPathUsable: (input) => this.withTransaction("validate Delegation Grant path", (tx) => tx.nativeCore.assertDelegationGrantPathUsable(input)),
       getMemoryPolicyLineage: (memoryPolicyId) => this.withTransaction("read Memory Policy lineage", (tx) => tx.nativeCore.getMemoryPolicyLineage(memoryPolicyId)),
       listMemoryPolicyHeads: (input) => this.withTransaction("list Memory Policy heads", (tx) => tx.nativeCore.listMemoryPolicyHeads(input)),

@@ -47,7 +47,7 @@ test("IMP-03B rejects unresolved or malformed snapshot semantics", () => {
 });
 
 test("IMP-03B migration adds immutable Run binding and snapshot tables", () => {
-  assert.equal(SHARED_STATE_SCHEMA_VERSION, 9);
+  assert.equal(SHARED_STATE_SCHEMA_VERSION, 10);
   const migration = SHARED_STATE_MIGRATIONS.find((entry) => entry.version === 5);
   assert.ok(migration);
   const schema = migration.statements.join("\n");

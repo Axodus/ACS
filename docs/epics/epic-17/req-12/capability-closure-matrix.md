@@ -44,10 +44,10 @@ implementation column is a candidate dependency only.
 | `E17-C33` | User/context Memory | `NEW` | `REQ-06` | `DEFERRED WITH EXPLICIT BLOCKER` | No implementation until the missing contract/owner is accepted in `IMP-03B`. |
 | `E17-C34` | Knowledge Memory | `ADAPT` | `REQ-06` | `SPECIFIED BY ACCEPTED REQ` | Candidate work in `IMP-03B` after its specific blockers and CTO gate. |
 | `E17-C35` | Historical/episodic Memory as an alias for Evidence/history | `REJECT` | `REQ-06` | `REJECTED` | No IMP; preserve fail-closed prohibition. |
-| `E17-C36` | Agent-to-Agent delegation | `NEW` | `REQ-07` | `DEFERRED WITH EXPLICIT BLOCKER` | No implementation until the missing contract/owner is accepted in `IMP-04`. |
-| `E17-C37` | Delegation permissions | `NEW` | `REQ-07` | `DEFERRED WITH EXPLICIT BLOCKER` | No implementation until the missing contract/owner is accepted in `IMP-04`. |
-| `E17-C38` | Depth/recursion policy | `NEW` | `REQ-07` | `DEFERRED WITH EXPLICIT BLOCKER` | No implementation until the missing contract/owner is accepted in `IMP-04`. |
-| `E17-C39` | Delegation history | `ADAPT` | `REQ-07` | `SPECIFIED BY ACCEPTED REQ` | Candidate work in `IMP-04` after its specific blockers and CTO gate. |
+| `E17-C36` | Agent-to-Agent delegation | `NEW` | `REQ-07` | `IMPLEMENTED / IMP-04 PUBLISHED` | Canonical Grant to canonical Agent; no SubAgent identity. |
+| `E17-C37` | Delegation permissions | `NEW` | `REQ-07` | `IMPLEMENTED / IMP-04 PUBLISHED` | Single-basis intersection-only attenuation with fail-closed resolution. |
+| `E17-C38` | Depth/recursion policy | `NEW` | `REQ-07` | `IMPLEMENTED / IMP-04 PUBLISHED` | Exact parent/ancestry, depth and cycle rejection. |
+| `E17-C39` | Delegation history | `ADAPT` | `REQ-07` | `IMPLEMENTED / IMP-04 PUBLISHED` | Immutable revisions, revocations and admission snapshots reconstruct history. |
 | `E17-C40` | Sub-Agent identity | `REJECT` | `REQ-07` | `REJECTED` | No IMP; preserve fail-closed prohibition. |
 | `E17-C41` | Workforce | `REUSE` | `REQ-07` | `SATISFIED BY EXISTING SYSTEM` | Reverify existing owner/conformance in `IMP-04`; create no new owner. |
 | `E17-C42` | Workforce membership and Run admission | `REUSE` | `REQ-07` | `SATISFIED BY EXISTING SYSTEM` | Reverify existing owner/conformance in `IMP-04`; create no new owner. |

@@ -349,6 +349,7 @@ export interface AsyncNativeCoreRepository {
   advanceDelegationGrant(input: NativeDelegationGrantCommand): Promise<NativeDelegationGrantCommandResult>;
   revokeDelegationGrant(input: NativeDelegationGrantRevocationCommand): Promise<NativeDelegationGrantCommandResult>;
   getDelegationGrantLineage(grantId: string): Promise<NativeDelegationGrantLineage>;
+  listDelegationGrantHeads(input: { readonly tenantId: string }): Promise<readonly DelegationGrantHeadV1[]>;
   assertDelegationGrantPathUsable(input: { readonly grantRef: DelegationGrantRevisionV1["ref"]; readonly at: number }): Promise<void>;
   getMemoryPolicyLineage(memoryPolicyId: string): Promise<NativeMemoryPolicyLineage>;
   listMemoryPolicyHeads(input: { readonly tenantId: string }): Promise<readonly MemoryPolicyHeadV1[]>;
@@ -1100,6 +1101,11 @@ export class PostgresNativeCoreRepository implements AsyncNativeCoreRepository {
   async getDelegationGrantLineage(grantId: string): Promise<NativeDelegationGrantLineage> {
     const h=await query<PayloadRow>(this.db,"get Delegation Grant head","SELECT payload FROM acs_delegation_grants WHERE grant_id=$1",[grantId]); const r=await query<PayloadRow>(this.db,"get Delegation Grant revisions","SELECT payload FROM acs_delegation_grant_revisions WHERE grant_id=$1 ORDER BY revision",[grantId]); const x=await query<PayloadRow>(this.db,"get Delegation Grant revocations","SELECT payload FROM acs_delegation_grant_revocations WHERE grant_id=$1 ORDER BY revoked_at",[grantId]);
     if(!h.rows[0]||r.rows.length===0) throw new NativeDelegationGrantIntegrityError(grantId,"canonical head or immutable history is missing"); const head=validateDelegationGrantHeadV1(decode(h.rows[0].payload)); const revisions=r.rows.map(row=>validateDelegationGrantRevisionV1(decode(row.payload))); const current=revisions.at(-1); if(!current||head.current_revision!==current.ref.revision||head.current_fingerprint!==current.ref.fingerprint) throw new NativeDelegationGrantIntegrityError(grantId,"head diverges from immutable revisions"); revisions.forEach((item,index)=>{if(item.ref.grant_id!==grantId||item.ref.revision!==index+1)throw new NativeDelegationGrantIntegrityError(grantId,"revision history is not contiguous");}); return {head,revisions,revocations:x.rows.map(row=>validateDelegationGrantRevocationV1(decode(row.payload)))};
+  }
+
+  async listDelegationGrantHeads(input: { readonly tenantId: string }): Promise<readonly DelegationGrantHeadV1[]> {
+    const result = await query<PayloadRow>(this.db, "list Delegation Grant heads for Product API projection", "SELECT payload FROM acs_delegation_grants WHERE tenant_id=$1 ORDER BY updated_at DESC, grant_id", [input.tenantId]);
+    return result.rows.map((row) => validateDelegationGrantHeadV1(decode(row.payload)));
   }
 
   async assertDelegationGrantPathUsable(input: { readonly grantRef: DelegationGrantRevisionV1["ref"]; readonly at: number }): Promise<void> {

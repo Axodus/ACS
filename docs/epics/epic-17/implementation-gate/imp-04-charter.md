@@ -1,10 +1,10 @@
 # EPIC-17-IMP-04 — Delegation Grant & Authority Boundary Gate Charter
 
-**Status:** COMPLETE / CTO ACCEPTED
+**Status:** COMPLETE / CTO ACCEPTED / PUBLISHED
 **Gate preparation:** COMPLETE / CTO ACCEPTED
-**Implementation authority:** none
-**Migration authority:** schema 9 -> 10 authorized for Slice 2 only
-**Schema:** 10 / REQUIRED; physical design COMPLETE / CTO ACCEPTED
+**Implementation authority:** none; IMP-05 remains a separate CTO gate
+**Migration authority:** schema 10 is canonical; no schema 11 authority
+**Schema:** 10 / CANONICAL
 
 ## Mission, scope and non-goals
 
@@ -30,7 +30,7 @@ The core invariant is authority(delegate) subset-of authority(delegator). Delega
 | Connections, credentials and secrets | Integration opaque credential refs; CredentialConnectionRegistry, CredentialProvider.resolve, CredentialLease and SecretStore | REUSE; Grant supplies bounded opaque reference/purpose only, never material or lease ownership. |
 | Memory | Memory Policy lineage in src/native-core/memory.ts and GovernedMemoryService | REUSE; Grant bounds a request and cannot bypass exact Policy or expose user_context. |
 | Evidence, Event, outbox and idempotency | EventEnvelopeV2, Evidence and atomic durable commands/outbox in native-core-durable.ts | ADAPT; reuse transaction, redaction and idempotency conventions. Current subject vocabulary lacks Delegation. |
-| Product API | existing closed-domain routes and projections | REJECT in IMP-04; any read-only projection waits for separate authority. |
+| Product API | existing closed-domain routes and projections | IMPLEMENTED in Slice 5 as a Tenant-bound, GET-only projection; it remains non-authoritative. |
 | Delegation | no native/control-plane Grant, resolver, chain/history or subject | NEW; gap classification only. |
 
 ## Delegation Grant semantic contract
@@ -87,13 +87,13 @@ Workforce v1 is unchanged. A Grant cannot create membership, slots, revisions, A
 
 | ID | Exact REQ-07 concern; evidence; owner | Gap and classification | Earliest slice | Acceptance evidence |
 | --- | --- | --- | --- | --- |
-| E17-R07-B01 | No canonical Grant/reference/durable history under native-core/control-plane; no owner | Grant identity/head/revision/history absent; NEW | 1, 2 | exact identity/revision/fingerprint and deterministic lookup |
-| E17-R07-B02 | No typed authority-set/intersection resolver; effective config has generic provenance | Delegation proof absent; Governance/effective-config EXTEND | 1 | subset proof and typed denials for every expansion/unknown |
-| E17-R07-B03 | No chain/depth/cycle contract; no owner | parent/ancestry/depth validation absent; NEW | 1 | self/cycle/depth/onward rejection and reconstruction |
-| E17-R07-B04 | Revocation/expiry semantics for admission, retry and active work absent; Runtime owns transition/cancellation policy | lifecycle facts/admission integration absent; ADAPT | 3, 4 | new-admission denial, immutable snapshot, explicit active-work outcome |
-| E17-R07-B05 | Event/Evidence lack Delegation subject and chain correlation; Event/Evidence/outbox own infrastructure | closed vocabulary lacks Grant; EXTEND | 2 | atomic redacted Event/Evidence/outbox and chain proof |
-| E17-R07-B06 | legacy canSpawnSubAgents/subAgentScope can be mistaken for authority | active translation prohibited; REJECT | 1 | legacy metadata never creates or authorizes a Grant |
-| E17-R07-B07 | no cross-Tenant Delegation contract; Tenant Governance owns boundary | existing fail-closed enforcement reusable; REUSE | 1 | all cross-Tenant refs and authority sources reject |
+| E17-R07-B01 | No canonical Grant/reference/durable history under native-core/control-plane; no owner | `RESOLVED` by schema-10 head, immutable revisions and exact lineage | 1, 2 | PostgreSQL history/CAS/reconstruction acceptance passes |
+| E17-R07-B02 | No typed authority-set/intersection resolver; effective config has generic provenance | `RESOLVED` by single-basis durable resolver and per-hop attenuation | 1, 3 | expansion, unavailable owner and no-union tests pass |
+| E17-R07-B03 | No chain/depth/cycle contract; no owner | `RESOLVED` by exact parent, ancestry, depth and cycle validation | 1, 2, 3 | self/cycle/depth/onward and fingerprint tests pass |
+| E17-R07-B04 | Revocation/expiry semantics for admission, retry and active work absent; Runtime owns transition/cancellation policy | `RESOLVED` for new-use/admission fail-closed and immutable historical snapshots; live external reauthorization remains at its owner | 3, 4 | revoked/expired ancestor rejects new admission; prior snapshot remains reconstructable |
+| E17-R07-B05 | Event/Evidence lack Delegation subject and chain correlation; Event/Evidence/outbox own infrastructure | `RESOLVED` by approved `delegation_grant` Event subject and atomic durable Event/Evidence/outbox commands | 1, 2 | PostgreSQL atomicity and redacted Event acceptance passes |
+| E17-R07-B06 | legacy canSpawnSubAgents/subAgentScope can be mistaken for authority | `RESOLVED / REJECTED-BY-DESIGN`; no compatibility path can create a Grant | 1 | native Grant contract has canonical Agent endpoints only |
+| E17-R07-B07 | no cross-Tenant Delegation contract; Tenant Governance owns boundary | `RESOLVED` as a fail-closed boundary; no cross-Tenant Grant is introduced | 1, 2, 3, 5 | contract, resolver, persistence and Product API isolation tests pass |
 
 IMP-02, IMP-03A and IMP-03B provide seams only. They do not resolve Delegation semantics.
 
@@ -101,25 +101,25 @@ IMP-02, IMP-03A and IMP-03B provide seams only. They do not resolve Delegation s
 
 | Delta | Current state -> target semantics | Owner | Classification | Dependency/persistence | Acceptance evidence |
 | --- | --- | --- | --- | --- | --- |
-| CD01 | no Grant identity/history -> stable identity, immutable revision, CAS head, Tenant endpoints | Delegation under Governance | NEW | 1 -> 2; schema 10 candidate | exact history/version/fingerprint |
-| CD02 | generic refs -> typed action/resource/purpose/exclusion bounds | Governance and resource owners | NEW | 1 | no source-authority expansion |
-| CD03 | generic provenance -> deterministic attenuation and fingerprint | Governance resolver | EXTEND | 1 | repeatable result and typed failures |
-| CD04 | no parent chain -> immutable parent/ancestry/depth/onward/cycle rules | Delegation | NEW | 1 -> 2 | cycle/depth/parent mismatch rejection |
-| CD05 | no lifecycle -> issued/active/expired/revoked/superseded facts | Delegation with Evidence | NEW | 2 -> 3 | lifecycle history without snapshot mutation |
-| CD06 | generic runtime authority context -> exact Delegation admission/snapshot | admission/Runtime retains ownership | EXTEND | 4 | admission and snapshot reconstruction |
-| CD07 | opaque credential and governed Memory owners -> bounded purpose/scope handoff | credential and Memory owners | ADAPT | 1 -> 4 | independent revalidation and no secret/content leak |
-| CD08 | Event/outbox/Evidence lack Grant subject -> safe correlation vocabulary | Event/Evidence owners | EXTEND | 2 | atomic redacted facts |
-| CD09 | legacy sub-Agent metadata -> non-authoritative compatibility | legacy seam | REJECT | 1 | cannot create identity or authority |
-| CD10 | no Grant projection -> reserved redacted read model | Product API/Admin | REJECT in IMP-04 | later 5 and separate API GO | Tenant-safe metadata projection |
+| CD01 | stable identity, immutable revision, CAS head and Tenant endpoints | Delegation under Governance | `IMPLEMENTED` | schema 10 | exact history/version/fingerprint |
+| CD02 | typed action/resource/purpose/scope bounds | Governance and resource owners | `IMPLEMENTED` | Slice 1 contracts | no source-authority expansion |
+| CD03 | deterministic attenuation and fingerprint | Governance resolver | `IMPLEMENTED` | Slice 3 resolver | repeatable result and typed failures |
+| CD04 | immutable parent/ancestry/depth/onward/cycle rules | Delegation | `IMPLEMENTED` | schema 10 and Slice 3 | cycle/depth/parent mismatch rejection |
+| CD05 | issued/active/expired/revoked/superseded facts | Delegation with Evidence | `IMPLEMENTED` | schema 10 | lifecycle history without snapshot mutation |
+| CD06 | exact Delegation admission/snapshot | admission retains ownership | `IMPLEMENTED` | Slice 4 | admission and snapshot reconstruction |
+| CD07 | bounded opaque credential purpose and Memory scope handoff | credential and Memory owners | `IMPLEMENTED` | contracts and snapshot metadata only | independent revalidation and no secret/content leak |
+| CD08 | Grant Event/outbox/Evidence correlation vocabulary | Event/Evidence owners | `IMPLEMENTED` | schema 10 commands | atomic redacted facts |
+| CD09 | legacy sub-Agent metadata is non-authoritative | legacy seam | `REJECTED` | none | cannot create identity or authority |
+| CD10 | redacted Tenant-safe Grant read model | Product API/Admin | `IMPLEMENTED` | Slice 5 | GET-only metadata projection |
 
 ## ADR-17-025 through ADR-17-029
 
 | ADR | Status | CTO review boundary |
 | --- | --- | --- |
-| ADR-17-025 Grant owner and physical representation | REQUIRED BEFORE FUNCTIONAL WORK | authority ownership and historical semantics |
-| ADR-17-026 attenuation algorithm and explicit authority basis | REQUIRED BEFORE FUNCTIONAL WORK | admission authority semantics |
-| ADR-17-027 depth, onward delegation and cycle prevention | REQUIRED BEFORE FUNCTIONAL WORK | authority and history |
-| ADR-17-028 expiry/revocation with admission, retry and active Runs | REQUIRED BEFORE FUNCTIONAL WORK | Runtime/admission-owner agreement |
+| ADR-17-025 Grant owner and physical representation | DECIDED | stable CAS head, immutable revisions and append-only revocations in schema 10 |
+| ADR-17-026 attenuation algorithm and explicit authority basis | DECIDED | single authority basis; deterministic intersection-only attenuation |
+| ADR-17-027 depth, onward delegation and cycle prevention | DECIDED | exact parent refs, stored-plus-derived depth and repeated-Agent rejection |
+| ADR-17-028 expiry/revocation with admission, retry and active Runs | DECIDED | current new-use/admission fails closed; admitted snapshot is immutable; external owners retain live reauthorization |
 | ADR-17-029 legacy sub-Agent compatibility/deprecation | DECIDED | REQ-07 accepts non-authoritative metadata and no auto-Grant |
 
 ADR-025 through ADR-028 require explicit CTO review. Any proposal affecting Agent identity, Workforce/admission semantics, credential ownership, Memory authority, Runtime authority, Tenant security or historical execution also requires CTO review.
@@ -158,8 +158,8 @@ Idempotency scopes must be Tenant-qualified and aggregate-safe, such as delegati
 
 Future positive and negative acceptance covers Grant identity/history, Tenant isolation, delegator proof, every attenuation dimension, cross-Tenant/self/cycle/depth/onward rejection, expiry/revocation, historical reconstruction, credential/Memory bounds, Workforce non-interference, admission/snapshot behavior, idempotency, Event/outbox, typed failures and Product API redaction.
 
-## Remaining CTO decisions and gate result
+## Closure and next dependency
 
-Slice 1 is complete and accepted in commit e6db696. Schema 10 physical design is complete and CTO accepted. Migration 9 -> 10 and Slice 2 durable Grant persistence are authorized. Admission integration, Runtime authority consumption, Product API, Workforce mutation, credential resolution and Memory access execution remain separately unauthorized.
+Slices 1 through 5 are complete. Slice 5 supplies the read-only Product API projection and PostgreSQL schema-10 acceptance (`22 passed / 0 failed / 0 skipped`). No schema 11, Workforce mutation, credential/Memory execution, direct Grant-to-Run path or new admission owner was introduced.
 
-**Gate result:** EPIC-17-IMP-04 — COMPLETE / CTO ACCEPTED. Slice 1 is COMPLETE / CTO ACCEPTED / PUBLISHED. Schema 10 physical design is COMPLETE / CTO ACCEPTED. Slice 2 and migration 9 -> 10 are AUTHORIZED / GO; later slices remain on hold.
+**Gate result:** EPIC-17-IMP-04 — COMPLETE / CTO ACCEPTED / PUBLISHED. The next dependency node is `EPIC-17-IMP-05 — Automation identity/history`, `CANDIDATE / READY FOR CTO GATE PREPARATION`; it has no implementation, migration or Product API authority.

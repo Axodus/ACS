@@ -15,8 +15,8 @@ deletes an inherited blocker.
 | `E17-R12-C02` Effective configuration and resource history | Typed deterministic snapshot, fingerprint relation and per-resource durable history/observations are incomplete. | 13 | `IMP-02` | `BLOCKS SPECIFIC IMP` |
 | `E17-R12-C03` Integration definition and Channel | Connector/MCP/Connection/Credential/Channel separation, history and ingress causation are unimplemented. | 6 | `IMP-03A` | `BLOCKS SPECIFIC IMP` |
 | `E17-R12-C04` Memory policy/store | Policy resolution, records/store, consent/deletion, shared references and snapshot integration are absent. | 6 | `IMP-03B` | `BLOCKS SPECIFIC IMP` |
-| `E17-R12-C05` Delegation authority | Grant history, attenuation resolver, chain/cycle, revocation and legacy metadata treatment are absent. | 6 | `IMP-04` | `BLOCKS SPECIFIC IMP` |
-| `E17-R12-C06` Automation identity/history | Canonical identity/revision/lifecycle/CAS/target and authority handoff contracts are absent. | 7 | `IMP-05` | `BLOCKS SPECIFIC IMP` |
+| `E17-R12-C05` Delegation authority | Grant history, attenuation resolver, chain/cycle, revocation and legacy metadata treatment are now implemented. | 6 | `IMP-04` | `RESOLVED / IMP-04 PUBLISHED` |
+| `E17-R12-C06` Automation identity/history | Canonical identity/revision/lifecycle/CAS/target and authority handoff contracts are absent. | 7 | `IMP-05` | `NEXT GATE / READY FOR CTO GATE PREPARATION` |
 | `E17-R12-C07` Activation and admission | Occurrence identity/claims, schedule recovery, authority/config resolution and recoverable admission handoff are absent. | 11 | `IMP-06` | `BLOCKS SPECIFIC IMP` |
 | `E17-R12-C08` Evidence and economic correlation | New subjects/correlation for Delegation, Automation, Activation and verification are incomplete; existing ledgers remain authoritative. | 5 | owning IMP plus `IMP-10` | `BLOCKS SPECIFIC IMP` |
 | `E17-R12-C09` Product API and Administration | Common projection metadata, owner-routed actions, domain routes and source-faithful views are absent. | 6 | `IMP-07` | `BLOCKS SPECIFIC IMP` |
