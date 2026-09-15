@@ -15,10 +15,10 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `IMP-10 — READINESS / FINAL CONFORMANCE ASSESSMENT COMPLETE / PENDING CTO REVIEW`
-**Current implementation state:** IMP-09 is `COMPLETE / CTO ACCEPTED / CLOSED / PUBLISHED`; IMP-10 identifies one test-only conformance gap before final EPIC closure.
+**Current gate:** `IMP-10 S2 — FINAL CONFORMANCE COMPLETE / PENDING CTO FINAL CLOSURE REVIEW`
+**Current implementation state:** IMP-01 through IMP-10 have completed their accepted scope; final EPIC-17 closure is pending CTO review of the conformance record.
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
-**Scope:** architecture accepted; IMP-01 through IMP-09 closed; IMP-10 readiness identifies a bounded test-conformance gap only
+**Scope:** architecture accepted; IMP-01 through IMP-10 complete; no active conformance gap remains
 **Implementation authority:** no further implementation is authorized by this reconciliation
 **Migration authority:** Schema 12 canonical; Schema 13 not required or authorized
 **Public contract changes:** none
@@ -186,7 +186,7 @@ list did not determine the count or sequence.
 complete and accepted. The [gate package](implementation-gate/README.md) records IMP-01 through
 IMP-08 as complete and closed. IMP-09 is complete, CTO accepted, closed and
 published; its [S5 conformance package](implementation-gate/imp-09-final-conformance.md)
-is accepted. [IMP-10 readiness](implementation-gate/imp-10-readiness-and-final-conformance-gate.md)
-identifies one bounded test-conformance gap before final EPIC closure. Schema 12
-remains canonical; Schema 13, database expansion and production authority remain
-outside this gate.
+is accepted. IMP-10 S1 closed its test-only gap and the
+[final conformance record](implementation-gate/imp-10-final-conformance.md)
+recommends EPIC-17 closure pending CTO final review. Schema 12 remains canonical;
+Schema 13, database expansion and production authority remain outside this gate.

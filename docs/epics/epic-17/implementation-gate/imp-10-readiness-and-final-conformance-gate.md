@@ -1,9 +1,11 @@
 # EPIC-17 / IMP-10 — Readiness and Final Cross-Domain Conformance Gate
 
 **Date:** 2026-09-15
-**Status:** `COMPLETE / PENDING CTO REVIEW`
+**Status:** `COMPLETE / CTO ACCEPTED`
 **Assessment authority:** readiness and final-conformance assessment only
 **Implementation performed:** `NONE`
+
+**Subsequent disposition:** IMP-10 S1 resolved `IMP10-GAP-01` in `574f093`; the final current record is [IMP-10 final conformance](imp-10-final-conformance.md). This readiness record preserves the earlier gap evidence.
 
 ## EPIC-17 readiness
 

@@ -2,8 +2,8 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `IMP-10 — READINESS / FINAL CONFORMANCE ASSESSMENT COMPLETE / PENDING CTO REVIEW`
-**Current work:** IMP-09 is complete, CTO accepted, closed and published. IMP-10 readiness identifies one bounded test-only conformance gap before final EPIC closure.
+**Gate status:** `IMP-10 S2 — FINAL CONFORMANCE COMPLETE / PENDING CTO FINAL CLOSURE REVIEW`
+**Current work:** IMP-10 S1 closed the bounded test-only gap. S2 records final cross-domain conformance and recommends EPIC-17 closure pending CTO review.
 **Implementation authority:** none beyond separately accepted milestones; this reconciliation grants no functional authority.
 **Migration authority:** Schema 12 is canonical; Schema 13 is not required or authorized
 
@@ -62,6 +62,7 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 - [IMP-08 final conformance and closure](imp-08-final-conformance.md)
 - [IMP-09 Control Plane IA charter](imp-09-control-plane-ia-charter.md)
 - [IMP-09 final conformance and closure recommendation](imp-09-final-conformance.md)
+- [IMP-10 final cross-domain conformance](imp-10-final-conformance.md)
 - [ACS-WORKSPACE-REQ-01 reconciliation report](acs-workspace-req-01-reconciliation.md)
 
 ## Current disposition
@@ -124,7 +125,8 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 | IMP-08 S5 — final conformance | `COMPLETE / CTO ACCEPTED / CLOSED` | [Cross-domain closure](imp-08-final-conformance.md) records exact-history, Tenant, disclosure, persistence and regression causality evidence. |
 | IMP-09 S1–S4 | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Eight-domain IA, System/Governance decomposition, domain projections, and interaction-state hardening are accepted. |
 | IMP-09 S5 | `COMPLETE / CTO ACCEPTED / CLOSED / PUBLISHED` | [Final conformance](imp-09-final-conformance.md) resolves B14/C12 and retains the environmental root-suite evidence. |
-| IMP-10 | `READINESS ASSESSMENT COMPLETE / PENDING CTO REVIEW` | [Final assessment](imp-10-readiness-and-final-conformance-gate.md) finds one test-only conformance gap; implementation remains unauthorized. |
+| IMP-10 S1 — test conformance | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `574f093`; canonical Workforce context locator reaches PostgreSQL acceptance `28/28`. |
+| IMP-10 S2 — final conformance | `COMPLETE / PENDING CTO FINAL CLOSURE REVIEW` | [Final conformance](imp-10-final-conformance.md) recommends EPIC-17 closure; no implementation remains. |
 
 ## Current implementation boundary
 
@@ -139,8 +141,8 @@ IMP-08 are `COMPLETE / CTO ACCEPTED / CLOSED`. IMP-08 S3 is `SKIPPED / NOT
 REQUIRED`; S4 is published and S5 records final conformance. Scheduler runtime,
 admission invocation, Run/Workflow creation, OpenClaw execution, Schema 13 and
 all IMP-08 persistence remain unauthorized. IMP-09 is `COMPLETE / CTO
-ACCEPTED / CLOSED / PUBLISHED`. IMP-10 readiness is complete and pending CTO
-review; no IMP-10 implementation is authorized until its bounded test-only
-conformance gap receives a separate CTO decision.
+ACCEPTED / CLOSED / PUBLISHED`. IMP-10 S1 is `COMPLETE / CTO ACCEPTED /
+PUBLISHED`; S2 final conformance is complete and pending CTO final closure
+review. No further implementation is authorized by this gate.
 Production Memory enablement remains blocked until a validated external
 KMS/Transit integration.
