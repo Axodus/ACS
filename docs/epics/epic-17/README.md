@@ -15,11 +15,11 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `EPIC-17-IMP-05 — SLICE 1 COMPLETE / CTO ACCEPTED / PUBLISHED; SLICE 2 AUTHORIZED / GO`
+**Current gate:** `POST-IMP-06 DEPENDENCY GATE — COMPLETE / READY FOR CTO REVIEW`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
-**Scope:** architecture accepted; IMP-01 through IMP-04 closed; IMP-05 gate and Schema 11 physical design accepted; Slice 1 contracts accepted and published; Slice 2 Schema 11 migration/durable persistence authorized
-**Implementation authority:** IMP-05 Slice 2 only
-**Migration authority:** schema 10 canonical; Schema 11 migration authorized for IMP-05 Slice 2 only
+**Scope:** architecture accepted; IMP-01 through IMP-06 complete and accepted; documentation-only reconciliation selects IMP-07 as the next candidate
+**Implementation authority:** none
+**Migration authority:** Schema 12 canonical; Schema 13 not authorized
 **Public contract changes:** none
 **Database changes:** none
 
@@ -86,7 +86,7 @@ implementation authority.
 | [REQ-10 — Product API, Administration & Control Plane](req-10/README.md) | Domain projections, owner-routed actions, class-owned settings and Control Plane information architecture. |
 | [REQ-11 — Genome Traits, Assets & Verification](req-11/README.md) | Descriptive traits, presentation assets, Evidence-backed verification and performance-view boundaries. |
 | [REQ-12 — Cross-Domain Conformance & IMP Readiness](req-12/README.md) | Canonical ownership audit, 76-disposition closure, blocker consolidation and dependency-ordered candidate IMP plan. |
-| [CTO Implementation Gate](implementation-gate/README.md) | Accepted IMP-01 through IMP-04 closure and IMP-05 Automation Identity & History gate preparation. |
+| [CTO Implementation Gate](implementation-gate/README.md) | Accepted IMP-01 through IMP-06 closure and the Post-IMP-06 dependency/milestone reconciliation. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -183,6 +183,7 @@ list did not determine the count or sequence.
 
 `EPIC-17-REQ-01` through `REQ-12` and the architecture/specification phase are
 complete and accepted. The [gate package](implementation-gate/README.md)
-records the accepted pre-IMP dispositions and bounded IMP-01 authorization.
-Later IMPs and migration, schema, database or production authority remain
-outside this gate.
+records the accepted IMP-01 through IMP-06 closures and the documentation-only
+selection of IMP-07 as the next candidate. IMP-07 still requires a concrete
+charter and separate CTO implementation GO. Migration, Schema 13, database and
+production authority remain outside this gate.

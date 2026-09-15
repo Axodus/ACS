@@ -2,9 +2,9 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-06 — COMPLETE / CTO ACCEPTED / CLOSED`
-**Current work:** IMP-06 Slices 1–5 and final conformance are published; no further required functional implementation remains.
-**Implementation authority:** no further IMP-06 functional slice is authorized; later milestones require REQ-12 and dependency-graph review.
+**Gate status:** `POST-IMP-06 DEPENDENCY GATE — COMPLETE / READY FOR CTO REVIEW`
+**Current work:** documentation-only reconciliation selects IMP-07 as the next canonical candidate; no functional work is authorized.
+**Implementation authority:** none; IMP-07 requires a separate concrete charter and CTO implementation GO.
 **Migration authority:** Schema 12 is canonical; no Schema 13 authority
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
@@ -49,6 +49,7 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 - [IMP-06 post-S4 closure reconciliation](imp-06-post-s4-closure-reconciliation.md)
 - [IMP-06 S5 external adapter boundary report](imp-06-s5-report.md)
 - [IMP-06 final conformance and closure gate](imp-06-final-conformance.md)
+- [Post-IMP-06 dependency and milestone gate](post-imp-06-dependency-and-milestone-gate.md)
 
 ## Current disposition
 
@@ -99,6 +100,7 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 | IMP-06 post-S4 closure reconciliation | `COMPLETE / CTO ACCEPTED` | [S5 is required by the frozen mapping for provider-neutral external observation](imp-06-post-s4-closure-reconciliation.md). |
 | IMP-06 S5 External Adapter Boundary & Safe Product Projection | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `764d458`; [provider-neutral normalization, canonical Activation ingress and metadata-safe projection contract](imp-06-s5-report.md). |
 | IMP-06 final conformance and closure gate | `COMPLETE / CTO ACCEPTED / CLOSED` | [B01–B13, CD01–CD14, ADR-17-035..042, REQ-09 and REQ-12 final reconciliation](imp-06-final-conformance.md); no further required implementation. |
+| Post-IMP-06 dependency and milestone gate | `COMPLETE / READY FOR CTO REVIEW` | [REQ-12 mapping selects IMP-07 Product API and Administration Contracts](post-imp-06-dependency-and-milestone-gate.md); dependencies satisfied, schema impact none, functional authority none. |
 
 ## Current implementation boundary
 
@@ -108,8 +110,10 @@ or compatibility path is required. Schema 9 is implemented and validated.
 IMP-03B is closed. `EPIC-17-IMP-04` Slices 1 through 5 are
 `COMPLETE / CTO ACCEPTED / PUBLISHED`; schema 10 is canonical and IMP-04 is
 closed. Its Product API projection is read-only and Tenant-bound. IMP-05 is
-closed and Schema 11 is superseded by canonical Schema 12. IMP-06 Slices 1
-through 3 are published. Scheduler runtime, admission invocation, Run/Workflow
-creation, OpenClaw execution and Schema 13 remain unauthorized.
+closed and Schema 11 is superseded by canonical Schema 12. IMP-06 is
+`COMPLETE / CTO ACCEPTED / CLOSED`. IMP-07 is the next candidate and is only
+`READY FOR CTO IMPLEMENTATION GATE`; its Product API routes remain on hold.
+Scheduler runtime, admission invocation, Run/Workflow creation, OpenClaw
+execution and Schema 13 remain unauthorized.
 Production Memory enablement remains blocked until a validated external
 KMS/Transit integration.
