@@ -114,6 +114,7 @@ const domainDefs: readonly DomainDef[] = [
     { label: "Overview", to: "/operations" },
     { label: "Executions", to: "/executions" },
     { label: "Workers", to: "/workers" },
+    { label: "Automations", to: "/operations#operations-automations", kind: "canonical" },
     { label: "Operational execution", to: "/operational-execution", kind: "compatibility" },
     { label: "Runtime", to: "/runtime", kind: "compatibility" },
   ] },
@@ -132,6 +133,7 @@ const domainDefs: readonly DomainDef[] = [
   { id: "Economics", icon: <Icons.CurrencyDollar size={18} weight="duotone" />, to: "/economics", description: "Operational usage and cost visibility with explicit financial boundaries.", children: [{ label: "Overview", to: "/economics" }, { label: "Reservations & settlement", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Boundary reports", to: "/system/billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Boundaries" }] },
   { id: "Governance", icon: <Icons.Scales size={18} weight="duotone" />, to: "/governance", description: "Tenant governance, delegation and authority boundaries.", children: [
     { label: "Governance overview", to: "/governance" },
+    { label: "Delegations", to: "/governance#governance-delegations", kind: "canonical" },
     { label: "Tenant administration", to: Api.productApiConfig.tenantAdministrationUrl, external: true },
     { label: "Delegation & authority", to: "/administration", kind: "compatibility" },
     { label: "Legacy Administration", to: "/administration", kind: "legacy" },
@@ -595,6 +597,7 @@ function EntityContextNav({ pathname, workforceContext }: { pathname: string; wo
       { label: "Revisions", to: `/agents/${agentId}/revisions` },
       { label: "Evidence", to: `/agents/${agentId}/evidence` },
       { label: "Usage & Cost", to: `/agents/${agentId}/usage-cost` },
+      { label: "Genome", to: `/agents/${agentId}/genome` },
       { label: "Advanced", to: `/agents/${agentId}/advanced` },
     ]} />;
   }

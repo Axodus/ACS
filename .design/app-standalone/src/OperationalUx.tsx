@@ -235,8 +235,47 @@ export function OperationsStatusPage() {
     <PageHeader domain="Runtime" title="Operations" description="Liveness, workload readiness, dependencies, worker capacity, recovery and external telemetry." actions={<button className="secondary" type="button" onClick={resource.refresh}>Run checks</button>} />
     {resource.error && <StateMessage loading={false} error={resource.error} />}
     {resource.loading && !status ? <StateMessage loading error={null} /> : status ? <OperationsStatus status={status} /> : null}
+    <OperationsAutomationsEvidence />
     <OperationsEconomicEvidence />
   </>;
+}
+
+function projectionValue(value: unknown): string {
+  if (Array.isArray(value)) return value.join(", ");
+  if (value === null) return "null";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+function OperationsAutomationsEvidence() {
+  const loader = useCallback(async () => {
+    const automations = await productApi.listAutomations();
+    const activationIds = [...new Set(automations.flatMap(automation => Object.values(automation.references).flatMap(reference => (Array.isArray(reference) ? reference : [reference]).filter(item => item.kind === "activation").map(item => item.id))))];
+    const activationResults = await Promise.allSettled(activationIds.map(activationId => productApi.getActivation(activationId)));
+    return {
+      automations,
+      activations: activationResults.flatMap((result, index) => result.status === "fulfilled" ? [{ activationId: activationIds[index], projection: result.value }] : []),
+      activationErrors: activationResults.flatMap((result, index) => result.status === "rejected" ? [{ activationId: activationIds[index], error: errorMessage(result.reason) }] : []),
+    };
+  }, []);
+  const resource = usePolling(loader, 8_000);
+  const data = resource.data;
+
+  return <section className="ops-panel wide" id="operations-automations" aria-label="Automation and activation projections">
+    <div className="ops-panel-head"><div><h2>Automation & activation</h2><p>Read-only operational projections from the Product API. Activation state is shown only when an authoritative automation reference identifies it.</p></div><button className="secondary" type="button" onClick={resource.refresh}>Refresh automation</button></div>
+    {resource.loading && !data ? <StateMessage loading error={null} /> : <>
+      {resource.error && <StateMessage loading={false} error={resource.error} />}
+      <div className="ops-card-grid">
+        <article className="ops-panel">
+          <div className="ops-panel-head"><div><h2>Automations</h2><p>Existing Automation projections</p></div><StatusPill value={data?.automations.length ? String(data.automations.length) + " items" : "EMPTY"} /></div>
+          {data?.automations.length ? <ul className="ops-list">{data.automations.map((automation, index) => <li key={[automation.metadata.source.stable_id, index].join(":")}><b>{automation.metadata.source.stable_id}</b><span>{automation.metadata.freshness} · {automation.metadata.source.addressing}</span><small>{automation.metadata.canonical_owner}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No Automations reported by the Product API." />}
+        </article>
+        <article className="ops-panel">
+          <div className="ops-panel-head"><div><h2>Activations</h2><p>Activation projections referenced by Automations</p></div><StatusPill value={data?.activations.length ? String(data.activations.length) + " items" : data?.activationErrors.length ? "UNAVAILABLE" : "EMPTY"} /></div>
+          {data?.activations.length ? <ul className="ops-list">{data.activations.map(({ activationId, projection }) => <li key={activationId}><b>{activationId}</b><span>{projection.metadata.freshness} · {projection.metadata.source.addressing}</span><small>{Object.entries(projection.fields).map(([name, value]) => [name, projectionValue(value)].join(": ")).join(" · ") || "No activation fields reported."}</small></li>)}</ul> : data?.activationErrors.length ? <ul className="ops-list">{data.activationErrors.map(({ activationId, error }) => <li key={activationId}><b>{activationId}</b><small>{error}</small></li>)}</ul> : <StateMessage loading={false} error={null} empty="No Activation references were reported by the Automation projections." />}
+        </article>
+      </div>
+    </>}
+  </section>;
 }
 
 function formatEconomicValue(value: unknown, unit?: string): string {

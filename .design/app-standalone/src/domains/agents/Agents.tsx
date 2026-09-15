@@ -607,6 +607,11 @@ export function AgentDetail() {
         <p className="panel-note">Technical bindings remain available without redefining this Agent by provider, model or runtime.</p>
         <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${detail.agentId}/advanced`}>Open Advanced</Router.Link><Router.Link className="detail-link" to={`/agents/${detail.agentId}/composition`}>Composition detail</Router.Link></div>
       </section>
+      <section className="panel overview-secondary">
+        <div className="panel-head"><div><h2>Genome & trait context</h2><p>Descriptive projections and trait assertions from Product API</p></div><Shared.Badge tone="muted">descriptive</Shared.Badge></div>
+        <p className="panel-note">Genome projections provide descriptive trait and asset references. Genome has no write or mutation authority in this surface.</p>
+        <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${detail.agentId}/genome`}>View Agent Genome</Router.Link></div>
+      </section>
     </div>
     {duplicateOpen && detail && (
       <section className="panel duplicate-form">
@@ -837,6 +842,130 @@ function AgentEvidenceContent({ agentId, offset, onPage }: { agentId: string; of
       {evidence.data && (evidence.data.length > 0 || offset > 0) && <AgentOperationalPagination offset={offset} returned={evidence.data.length} onPage={onPage} />}
       <p className="panel-note">Evidence is distinct from Events, Audit, and Runtime Events. Source, correlation, and entity references are shown only when supplied by the Product API; no provenance or integrity claim is synthesized.</p>
       <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/runs`}>Open Agent Runs</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/usage-cost`}>Open Usage & Cost</Router.Link></div>
+    </section>
+  </>;
+}
+
+export function AgentGenomeView() {
+  const { agentId } = Router.useParams();
+  const [searchParams] = Router.useSearchParams();
+  if (!agentId) return <Router.Navigate to="/agents" replace />;
+  const revision = searchParams.get("revision") ? Number(searchParams.get("revision")) : undefined;
+  const fingerprint = searchParams.get("fingerprint") ?? undefined;
+  return <AgentGenomeContent key={`${agentId}:${revision ?? "current"}:${fingerprint ?? "current"}`} agentId={agentId} revision={revision} fingerprint={fingerprint} />;
+}
+
+function AgentGenomeContent({ agentId, revision, fingerprint }: { agentId: string; revision?: number; fingerprint?: string }) {
+  const genome = Shared.useOperationalSummary<readonly Api.AdministrativeProjectionV1[]>(
+    () => Api.productApi.getAgentGenome(agentId, revision !== undefined && fingerprint !== undefined ? { revision, fingerprint } : undefined),
+    "Unable to load Agent Genome projections from Product API",
+    () => false,
+  );
+
+  return <>
+    <AgentLocalHeader agentId={agentId} title="Genome" description="Descriptive Genome projections and trait assertions for this Agent." />
+    <div className="guardrail-banner" role="note">
+      <span>Inspection mode</span>
+      <span>Product API read seam</span>
+      <span>No trait mutation / Genome write UI</span>
+      <span>Descriptive only</span>
+    </div>
+    <section className="panel">
+      <div className="panel-head">
+        <div>
+          <h2>Genome Projections</h2>
+          <p>Descriptive projections from Product API: GET /api/v1/genomes/agents/:agentId. Missing or redacted values are shown as reported; no state is synthesized.</p>
+        </div>
+        <button
+          className="secondary"
+          disabled={genome.loadState === "loading" || genome.loadState === "refreshing"}
+          onClick={genome.refresh}
+        >
+          {genome.loadState === "refreshing" ? "Refreshing" : "Refresh"}
+        </button>
+      </div>
+      {genome.loadError && genome.data && <Shared.ErrorBanner error={genome.loadError} />}
+      {genome.loadState === "loading" && !genome.data
+        ? <div className="state-line">Loading Agent Genome projections...</div>
+        : genome.data?.length
+          ? <div className="catalog-list">
+            {genome.data.map((projection, index) => {
+              const meta = projection.metadata;
+              const source = meta.source;
+              const isGap = meta.reconstruction_state === "GAP";
+              return <article className="catalog-row operational-record" key={`${source.stable_id}:${source.addressing}:${index}`}>
+                <div className="catalog-row-main">
+                  <div className="operational-record-title">
+                    <b>{source.stable_id}</b>
+                    <Shared.Badge tone={meta.freshness === "CURRENT" ? "good" : meta.freshness === "UNAVAILABLE" ? "warn" : "muted"}>
+                      {meta.freshness}
+                    </Shared.Badge>
+                    <Shared.Badge tone="muted">{source.addressing}</Shared.Badge>
+                    {isGap && <Shared.Badge tone="warn">RECONSTRUCTION GAP</Shared.Badge>}
+                  </div>
+                  <small className="mono">
+                    Owner: {meta.canonical_owner} · Contract v{meta.contract_version} · Projected <Shared.Time value={meta.projected_at} />
+                  </small>
+                  {source.addressing === "EXACT" && (
+                    <small className="mono">
+                      Revision: r{source.revision} · Fingerprint: {source.fingerprint}
+                    </small>
+                  )}
+                  {isGap && (
+                    <div className="warning-banner" role="alert">
+                      Historical reconstruction gap: Some assertions or associations could not be fully reconstructed from authoritative lineage.
+                    </div>
+                  )}
+                  <div className="summary-list" style={{ marginTop: "0.5rem" }}>
+                    {Object.entries(projection.fields).map(([fieldName, fieldValue]) => (
+                      <Shared.SummaryRow
+                        key={fieldName}
+                        label={fieldName}
+                        value={
+                          Array.isArray(fieldValue)
+                            ? fieldValue.join(", ")
+                            : fieldValue === null
+                              ? "null"
+                              : typeof fieldValue === "object"
+                                ? JSON.stringify(fieldValue)
+                                : String(fieldValue)
+                        }
+                        tone={fieldName.includes("status") && String(fieldValue).includes("unavailable") ? "warn" : undefined}
+                      />
+                    ))}
+                  </div>
+                  {meta.redacted_fields.length > 0 && (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <Shared.IdList label="Redacted fields (preserved non-disclosure)" ids={meta.redacted_fields} />
+                    </div>
+                  )}
+                </div>
+                <div className="catalog-badges operational-correlation">
+                  {Object.entries(projection.references).map(([refKey, refValue]) => {
+                    const refsArray = Array.isArray(refValue) ? refValue : [refValue];
+                    return refsArray.map((refItem, refIdx) => (
+                      <span className="tag mono" key={`${refKey}-${refItem.kind}-${refItem.id}-${refIdx}`}>
+                        {refItem.kind}: {refItem.id}
+                      </span>
+                    ));
+                  })}
+                </div>
+              </article>;
+            })}
+          </div>
+          : <Shared.PanelStateLine
+            state={genome.loadState}
+            error={genome.loadError}
+            emptyMessage="No Genome projections reported for this Agent."
+          />}
+      <p className="panel-note">
+        Genome projections provide descriptive trait assertions, verification references, and presentation associations. The Genome read seam does not introduce Genome writes, mutation endpoints, economics, or runtime authority.
+      </p>
+      <div className="panel-actions">
+        <Router.Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Router.Link>
+        <Router.Link className="detail-link" to={`/agents/${agentId}/revisions`}>Open Revisions</Router.Link>
+        <Router.Link className="detail-link" to={`/agents/${agentId}/evidence`}>Open Evidence</Router.Link>
+      </div>
     </section>
   </>;
 }

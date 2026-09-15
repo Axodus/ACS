@@ -70,6 +70,11 @@ export function GovernanceView() {
     "Unable to load EPIC-11 acceptance report from Product API",
     () => false,
   );
+  const delegations = Shared.useOperationalSummary<readonly Api.DelegationGrantProjection[]>(
+    () => Api.productApi.listDelegationGrants(),
+    "Unable to load delegation grants from Product API",
+    () => false,
+  );
   const governanceBoundary = Shared.useOperationalSummary<Api.GovernanceBoundaryReport>(
     () => Api.productApi.getGovernanceBoundaryReport(),
     "Unable to load governance boundary from Product API",
@@ -84,15 +89,38 @@ export function GovernanceView() {
     administration.refresh();
     tenants.refresh();
     acceptance.refresh();
+    delegations.refresh();
     governanceBoundary.refresh();
   };
 
   return <>
     <Shared.DomainHeader domain="Governance" title="Control Plane Boundaries" description="Guardrails, policy and configuration visibility. Tenant administration is represented through governed Product API projections." actions={<button className="secondary" onClick={refreshAll}>Refresh all</button>} />
-    <Shared.ReportSectionNav sections={[{ id: "governance-guardrails", label: "Guardrails" }, { id: "governance-readiness", label: "Readiness" }, { id: "governance-access", label: "Access boundary" }, { id: "governance-admin", label: "Administration" }, { id: "governance-tenants", label: "Tenants & isolation" }, { id: "governance-policies", label: "Policies" }, { id: "governance-configuration", label: "Configuration" }, { id: "governance-acceptance", label: "Acceptance" }, { id: "governance-caveats", label: "Caveats" }]} />
+    <Shared.ReportSectionNav sections={[{ id: "governance-guardrails", label: "Guardrails" }, { id: "governance-delegations", label: "Delegations" }, { id: "governance-readiness", label: "Readiness" }, { id: "governance-access", label: "Access boundary" }, { id: "governance-admin", label: "Administration" }, { id: "governance-tenants", label: "Tenants & isolation" }, { id: "governance-policies", label: "Policies" }, { id: "governance-configuration", label: "Configuration" }, { id: "governance-acceptance", label: "Acceptance" }, { id: "governance-caveats", label: "Caveats" }]} />
     <Shared.CrossLinks links={[{ to: "/system/operational-reliability", label: "Open operational reliability" }]} />
     {Shared.staleBanner(guardrails, "system guardrails")}
     {Shared.staleBanner(governanceBoundary, "governance boundary")}
+    <div className="flow-group" id="governance-delegations">
+      <div className="flow-group-head"><h2>Delegation grants</h2><p>Tenant-scoped delegation and authority references, projected by the Product API.</p></div>
+      <section className="panel">
+        <div className="panel-head"><div><h2>Delegations</h2><p>Read-only grant projections. Redaction and reconstruction status remain as reported.</p></div><button className="secondary" onClick={delegations.refresh}>Refresh</button></div>
+        {delegations.data?.length ? <div className="catalog-list">
+          {delegations.data.map((grant, index) => {
+            const source = grant.metadata.source;
+            const metadata = grant.metadata;
+            return <article className="catalog-row operational-record" key={[grant.grantId, index].join(":")}>
+              <div className="catalog-row-main">
+                <div className="operational-record-title"><b>{grant.grantId}</b><Shared.Badge tone={metadata.freshness === "CURRENT" ? "good" : "muted"}>{metadata.freshness}</Shared.Badge><Shared.Badge tone="muted">{source.addressing}</Shared.Badge>{metadata.reconstruction_state === "GAP" && <Shared.Badge tone="warn">RECONSTRUCTION GAP</Shared.Badge>}</div>
+                <small className="mono">Tenant: {source.tenant_id} · Owner: {metadata.canonical_owner} · Projected <Shared.Time value={metadata.projected_at} /></small>
+                <div className="summary-list">{Object.entries(grant.fields).map(([name, value]) => <Shared.SummaryRow key={name} label={name} value={Array.isArray(value) ? value.join(", ") : value === null ? "null" : typeof value === "object" ? JSON.stringify(value) : String(value)} />)}</div>
+                {metadata.redacted_fields.length > 0 && <Shared.IdList label="Redacted fields" ids={metadata.redacted_fields} />}
+              </div>
+              <div className="catalog-badges operational-correlation">{Object.entries(grant.references).flatMap(([kind, reference]) => (Array.isArray(reference) ? reference : [reference]).map((item, refIndex) => <span className="tag mono" key={[kind, item.kind, item.id, refIndex].join(":")}>{item.kind}: {item.id}</span>))}</div>
+            </article>;
+          })}
+        </div> : <Shared.PanelStateLine state={delegations.loadState} error={delegations.loadError} emptyMessage="No delegation grants reported by the Product API." />}
+        {delegations.loadState === "error" && <Shared.ErrorBanner error={delegations.loadError} />}
+      </section>
+    </div>
     <div className="flow-group" id="governance-guardrails">
       <div className="flow-group-head"><h2>System guardrails</h2><p>Operational mode reported by the Product API — never inferred by this surface.</p></div>
       <div className="dashboard-grid execution-grid">

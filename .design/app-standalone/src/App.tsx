@@ -6,7 +6,7 @@ import { AccountControl } from "./auth/AccountControl";
 import { CredentialsPage, ExecutionDetailPage, ExecutionsPage, OperationsStatusPage, WorkerDetailPage, WorkersPage } from "./OperationalUx";
 import * as Shared from "./shared";
 import { Readiness, CustomerDashboard } from "./domains/dashboard/Dashboard";
-import { AgentInventory, AgentCreate, AgentEdit, AgentConfigurationView, AgentValidateView, AgentRunsView, AgentRevisionsView, AgentEvidenceView, AgentUsageCostView, AgentAdvancedView, AgentDetail, OperationalExecution } from "./domains/agents/Agents";
+import { AgentInventory, AgentCreate, AgentEdit, AgentConfigurationView, AgentValidateView, AgentRunsView, AgentRevisionsView, AgentEvidenceView, AgentUsageCostView, AgentGenomeView, AgentAdvancedView, AgentDetail, OperationalExecution } from "./domains/agents/Agents";
 import { WorkforceCreate, WorkforceDetail, WorkforceInventory, WorkforceMembers, WorkforceOperations, WorkforceRevisionCreate, WorkforceRevisions, WorkforceRuns } from "./domains/workforces/Workforces";
 import { AgentCompositionView, CompositionOverview, RoleCatalog, RoleDetail, ProfileCatalog, ProfileDetail, CapabilityCatalog, CapabilityDetail, SkillCatalog, SkillDetail, ToolsPluginsCatalog, ToolDetail, PluginDetail, EngineCatalog, EngineDetail, ProviderDetail } from "./domains/composition/Composition";
 import { GenericView, Runtime, Logs, EvidenceView, AuditView } from "./domains/runtime/Runtime";
@@ -169,6 +169,7 @@ export default function App() {
             <Route path="/agents/:agentId/runs" element={<AgentRunsView />} />
             <Route path="/agents/:agentId/revisions" element={<AgentRevisionsView />} />
             <Route path="/agents/:agentId/evidence" element={<AgentEvidenceView />} />
+            <Route path="/agents/:agentId/genome" element={<AgentGenomeView />} />
             <Route
               path="/agents/:agentId/usage-cost"
               element={<AgentUsageCostView />}

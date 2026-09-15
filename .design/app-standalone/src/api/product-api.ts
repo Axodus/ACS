@@ -2721,6 +2721,95 @@ async function request<T>(path: string, options: RequestInit = {}, authenticatio
   return json?.data as T;
 }
 
+
+export type AdministrativeResourceKindV1 =
+  | "agent"
+  | "agent_revision"
+  | "profile"
+  | "persona"
+  | "effective_configuration"
+  | "governed_resource"
+  | "capability"
+  | "connector"
+  | "connection"
+  | "credential"
+  | "channel"
+  | "memory_policy"
+  | "memory_metadata"
+  | "delegation"
+  | "automation"
+  | "automation_revision"
+  | "activation"
+  | "schedule"
+  | "external_observation"
+  | "event"
+  | "evidence"
+  | "settings";
+
+export type AdministrativeProjectionFreshnessV1 = "CURRENT" | "HISTORICAL" | "OBSERVED" | "UNAVAILABLE" | "PARTIAL";
+export type AdministrativeCompatibilityV1 = "CANONICAL" | "COMPATIBILITY" | "LOSSY";
+
+export interface AdministrativeCurrentRefV1 {
+  readonly addressing: "CURRENT";
+  readonly resource_kind: AdministrativeResourceKindV1;
+  readonly stable_id: string;
+  readonly tenant_id: string;
+}
+
+export interface AdministrativeHistoricalRefV1 {
+  readonly addressing: "EXACT";
+  readonly resource_kind: AdministrativeResourceKindV1;
+  readonly stable_id: string;
+  readonly tenant_id: string;
+  readonly revision: number;
+  readonly fingerprint: string;
+}
+
+export interface AdministrativeObservationRefV1 {
+  readonly addressing: "OBSERVED";
+  readonly resource_kind: AdministrativeResourceKindV1;
+  readonly stable_id: string;
+  readonly tenant_id: string;
+  readonly observation_digest: string;
+}
+
+export type AdministrativeResourceRefV1 =
+  | AdministrativeCurrentRefV1
+  | AdministrativeHistoricalRefV1
+  | AdministrativeObservationRefV1;
+
+export interface AdministrativeProjectionMetadataV1 {
+  readonly contract_version: "1.0";
+  readonly source: AdministrativeResourceRefV1;
+  readonly canonical_owner: string;
+  readonly projected_at: number;
+  readonly freshness: AdministrativeProjectionFreshnessV1;
+  readonly compatibility: AdministrativeCompatibilityV1;
+  readonly reconstruction_state: "COMPLETE" | "GAP" | "NOT_APPLICABLE";
+  readonly redacted_fields: readonly string[];
+}
+
+export type AdministrativeSafeScalarV1 = string | number | boolean | null;
+export type AdministrativeSafeValueV1 =
+  | AdministrativeSafeScalarV1
+  | readonly AdministrativeSafeScalarV1[]
+  | Readonly<Record<string, AdministrativeSafeScalarV1 | readonly AdministrativeSafeScalarV1[]>>;
+
+export interface AdministrativeEntityRefV1 {
+  readonly kind: string;
+  readonly id: string;
+}
+
+export interface AdministrativeProjectionV1 {
+  readonly metadata: AdministrativeProjectionMetadataV1;
+  readonly fields: Readonly<Record<string, AdministrativeSafeValueV1>>;
+  readonly references: Readonly<Record<string, AdministrativeEntityRefV1 | readonly AdministrativeEntityRefV1[]>>;
+}
+
+export interface DelegationGrantProjection extends AdministrativeProjectionV1 {
+  readonly grantId: string;
+}
+
 export const productApi = {
   async createSiwxNonce() {
     return request<{ nonce: string; expiresAt: number }>("/auth/siwx/nonce", { method: "POST" }, "omit");
@@ -3234,5 +3323,30 @@ export const productApi = {
 
   async getFinancialAuditBoundaryReport() {
     return request<FinancialAuditBoundaryReport>("/system/financial-audit");
+  },
+
+  async getAgentGenome(agentId: string, params?: { revision?: number; fingerprint?: string }) {
+    const query = new URLSearchParams();
+    if (params?.revision !== undefined) query.set("revision", String(params.revision));
+    if (params?.fingerprint !== undefined) query.set("fingerprint", params.fingerprint);
+    const queryString = query.toString();
+    const endpoint = `/genomes/agents/${encodeURIComponent(agentId)}${queryString ? `?${queryString}` : ""}`;
+    return request<readonly AdministrativeProjectionV1[]>(endpoint);
+  },
+
+  async listAutomations() {
+    return request<readonly AdministrativeProjectionV1[]>("/automations");
+  },
+
+  async listDelegationGrants() {
+    return request<readonly DelegationGrantProjection[]>("/delegation/grants");
+  },
+
+  async getActivation(activationId: string, params?: { observationDigest?: string }) {
+    const query = new URLSearchParams();
+    if (params?.observationDigest !== undefined) query.set("observationDigest", params.observationDigest);
+    const queryString = query.toString();
+    const endpoint = `/activations/${encodeURIComponent(activationId)}${queryString ? `?${queryString}` : ""}`;
+    return request<AdministrativeProjectionV1>(endpoint);
   },
 };
