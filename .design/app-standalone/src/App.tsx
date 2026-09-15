@@ -183,6 +183,7 @@ export default function App() {
             <Route path="/workforces/:workforceId/operations" element={<WorkforceOperations />} />
             <Route path="/workforces/:workforceId" element={<WorkforceDetail />} />
             <Route path="/composition" element={<CompositionOverview />} />
+            <Route path="/capabilities" element={<CompositionOverview />} />
             <Route path="/roles" element={<RoleCatalog />} />
             <Route path="/roles/:roleId" element={<RoleDetail />} />
             <Route path="/profiles" element={<ProfileCatalog />} />
@@ -203,6 +204,7 @@ export default function App() {
             <Route path="/operational-evidence" element={<EvidenceView />} />
             <Route path="/audit" element={<AuditView />} />
             <Route path="/economics" element={<EconomicsView />} />
+            <Route path="/governance" element={<GovernanceView />} />
             <Route path="/system/billing-boundary" element={<BillingBoundaryView />} />
             <Route path="/system/payment-rails-boundary" element={<PaymentRailsBoundaryView />} />
             <Route path="/system/pricing-invoice-boundary" element={<PricingInvoiceBoundaryView />} />

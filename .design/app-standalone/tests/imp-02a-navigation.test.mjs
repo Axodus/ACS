@@ -22,22 +22,46 @@ function sectionBetween(startMarker, endMarker) {
   return appSource.slice(start, end);
 }
 
-test("IMP-02A defines the frozen global navigation order", () => {
+test("IMP-09 S1 defines the canonical eight-domain navigation order", () => {
   const domainSource = sectionBetween("const domainDefs", "const domainByPath");
   const labels = [...domainSource.matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(labels, ["Dashboard", "Agents", "Workforces", "Runs", "Evidence", "Usage & Cost", "Runtime", "Administration"]);
-  for (const legacyLabel of ["Executions", "Workers", "Financial Operations", "Customers", "Operations"]) {
+  assert.deepEqual(labels, ["Overview", "Agents", "Operations", "Capabilities", "Evidence", "Economics", "Governance", "System"]);
+  assert.doesNotMatch(domainSource, /id: "Administration"/);
+  for (const legacyLabel of ["Dashboard", "Workforces", "Runs", "Runtime", "Administration", "Executions", "Workers", "Financial Operations", "Customers"]) {
     assert.doesNotMatch(domainSource, new RegExp(`id: "${legacyLabel}"`));
   }
 });
 
-test("global routes retain their canonical domains", () => {
+test("canonical domains retain route compatibility and map legacy paths", () => {
   const routingSource = sectionBetween("const domainByPath", "const viewOfPath");
-  assert.match(routingSource, /executions.*return "Runs"/);
-  assert.match(routingSource, /workforces.*return "Workforces"/);
+  assert.match(routingSource, /path === "\/"\) return "Overview"/);
+  assert.match(routingSource, /executions.*return "Operations"/);
+  assert.match(routingSource, /workforces.*return "Agents"/);
   assert.match(routingSource, /operational-evidence.*return "Evidence"/);
-  assert.match(routingSource, /economics.*return "Usage & Cost"/);
-  assert.match(routingSource, /runtime.*return "Runtime"/);
+  assert.match(routingSource, /economics.*return "Economics"/);
+  assert.match(routingSource, /runtime.*return "Operations"/);
+  assert.match(routingSource, /administration.*return "Governance"/);
+  assert.match(routingSource, /readiness.*return "System"/);
+});
+
+test("each primary domain has a valid route and the new shell routes are registered", () => {
+  const domainSource = sectionBetween("const domainDefs", "const domainByPath");
+  const routeSource = appSource;
+  for (const [domain, route] of [
+    ["Overview", "/"],
+    ["Agents", "/agents"],
+    ["Operations", "/operations"],
+    ["Capabilities", "/capabilities"],
+    ["Evidence", "/operational-evidence"],
+    ["Economics", "/economics"],
+    ["Governance", "/governance"],
+    ["System", "/system"],
+  ]) {
+    assert.match(domainSource, new RegExp(`id: "${domain}"[\\s\\S]*?to: "${route.replaceAll("/", "\\/")}"`));
+  }
+  assert.match(routeSource, /path="\/capabilities" element=\{<CompositionOverview \/>\}/);
+  assert.match(routeSource, /path="\/governance" element=\{<GovernanceView \/>\}/);
+  assert.match(routeSource, /path="\/administration" element=\{<AdministrationOverview \/>\}/);
 });
 
 test("Agent-local navigation exposes the frozen labels and direct targets", () => {

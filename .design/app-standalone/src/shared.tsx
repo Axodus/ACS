@@ -4,6 +4,7 @@ import * as Icons from "@phosphor-icons/react";
 import * as Api from "./api/product-api";
 
 type View =
+  | "Overview"
   | "Dashboard"
   | "Administration Overview"
   | "Operational Execution"
@@ -33,11 +34,13 @@ type View =
   | "Receipts, Settlement & Reconciliation"
   | "Financial Audit & Compliance"
   | "Billing UX & Operator Acceptance"
+  | "Governance"
+  | "System"
   | "Governance & System"
   | "Settings";
 
-type PrimaryDomain = "Dashboard" | "Agents" | "Workforces" | "Runs" | "Evidence" | "Usage & Cost" | "Runtime" | "Administration";
-type Domain = PrimaryDomain | "Executions" | "Workers" | "Financial Operations" | "Customers" | "Operations" | "Capabilities" | "Composition" | "Economics" | "Governance" | "System";
+type PrimaryDomain = "Overview" | "Agents" | "Operations" | "Capabilities" | "Evidence" | "Economics" | "Governance" | "System";
+type Domain = PrimaryDomain | "Dashboard" | "Workforces" | "Runs" | "Runtime" | "Administration" | "Executions" | "Workers" | "Financial Operations" | "Customers" | "Operations" | "Capabilities" | "Composition" | "Economics" | "Governance" | "System";
 
 type DomainChild = {
   readonly label: string;
@@ -63,6 +66,7 @@ type ConnectivityState =
   | { status: "error"; health: null; error: string };
 
 const viewPaths: Record<View, string> = {
+  Overview: "/",
   Dashboard: "/",
   "Administration Overview": "/administration",
   "Operational Execution": "/operational-execution",
@@ -92,36 +96,66 @@ const viewPaths: Record<View, string> = {
   "Receipts, Settlement & Reconciliation": "/system/settlement-reconciliation",
   "Financial Audit & Compliance": "/system/financial-audit",
   "Billing UX & Operator Acceptance": "/system/billing-acceptance",
+  Governance: "/governance",
+  System: "/system",
   "Governance & System": "/system",
   Settings: "/settings",
 };
 
 const domainDefs: readonly DomainDef[] = [
-  { id: "Dashboard", icon: <Icons.Gauge size={18} weight="duotone" />, to: "/", description: "Global attention, readiness and recent activity.", children: [] },
-  { id: "Agents", icon: <Icons.Robot size={18} weight="duotone" />, to: "/agents", description: "Governed Agent identity, lifecycle, revisions and configuration.", children: [{ label: "All Agents", to: "/agents" }, { label: "Create Agent", to: "/agents/new" }, { label: "Credential references", to: "/credentials", kind: "compatibility" }] },
-  { id: "Workforces", icon: <Icons.UsersThree size={18} weight="duotone" />, to: "/workforces", description: "Reusable Agent composition with canonical revision and admission semantics.", children: [
-    { label: "Overview / List", to: "/workforces" },
-    { label: "Members", to: "/workforces", available: false, note: "Select a Workforce" },
-    { label: "Revisions", to: "/workforces", available: false, note: "Select a Workforce" },
-    { label: "Runs", to: "/workforces", available: false, note: "Select a Workforce" },
-    { label: "Operations", to: "/workforces", available: false, note: "Select a Workforce" },
+  { id: "Overview", icon: <Icons.Gauge size={18} weight="duotone" />, to: "/", description: "Global attention, readiness and recent activity.", children: [] },
+  { id: "Agents", icon: <Icons.Robot size={18} weight="duotone" />, to: "/agents", description: "Governed Agent identity, lifecycle, revisions and configuration.", children: [
+    { label: "All Agents", to: "/agents" },
+    { label: "Create Agent", to: "/agents/new" },
+    { label: "Workforces", to: "/workforces", kind: "compatibility" },
+    { label: "Credential references", to: "/credentials", kind: "compatibility" },
   ] },
-  { id: "Runs", icon: <Icons.PlayCircle size={18} weight="duotone" />, to: "/executions", description: "Cross-Agent execution history and governed planning.", children: [{ label: "All Runs", to: "/executions" }, { label: "Execution planning", to: "/operational-execution", kind: "compatibility" }] },
-  { id: "Evidence", icon: <Icons.Pulse size={18} weight="duotone" />, to: "/operational-evidence", description: "Cross-Agent evidence, audit and operational activity.", children: [{ label: "Evidence", to: "/operational-evidence" }, { label: "Audit", to: "/audit" }, { label: "Logs", to: "/logs", kind: "compatibility" }] },
-  { id: "Usage & Cost", icon: <Icons.CurrencyDollar size={18} weight="duotone" />, to: "/economics", description: "Operational usage and cost visibility with explicit financial boundaries.", children: [{ label: "Overview", to: "/economics" }, { label: "Reservations & settlement", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Boundary reports", to: "/system/billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Boundaries" }] },
-  { id: "Runtime", icon: <Icons.HardDrives size={18} weight="duotone" />, to: "/runtime", description: "Runtime, workers, deployments and operational support.", children: [{ label: "Runtime", to: "/runtime" }, { label: "Operations status", to: "/operations", kind: "compatibility" }, { label: "Deployments", to: "/operational-execution", kind: "compatibility" }, { label: "Workers", to: "/workers", kind: "compatibility" }, { label: "Diagnostics", to: "/logs", kind: "compatibility" }] },
-  { id: "Administration", icon: <Icons.ShieldCheck size={18} weight="duotone" />, to: "/administration", description: "Organization access, governance, catalogs, readiness and settings.", children: [{ label: "Overview", to: "/administration" }, { label: "Readiness", to: "/readiness" }, { label: "Organizations", to: Api.productApiConfig.tenantAdministrationUrl, external: true }, { label: "Identity & access", to: "/credentials" }, { label: "Governance", to: "/system" }, { label: "Providers & catalogs", to: "/engines" }, { label: "Capabilities", to: "/composition" }, { label: "System reliability", to: "/system/operational-reliability" }, { label: "Settings", to: "/settings" }] },
+  { id: "Operations", icon: <Icons.PlayCircle size={18} weight="duotone" />, to: "/operations", description: "Execution, worker and runtime operations.", children: [
+    { label: "Overview", to: "/operations" },
+    { label: "Executions", to: "/executions" },
+    { label: "Workers", to: "/workers" },
+    { label: "Operational execution", to: "/operational-execution", kind: "compatibility" },
+    { label: "Runtime", to: "/runtime", kind: "compatibility" },
+  ] },
+  { id: "Capabilities", icon: <Icons.CirclesFour size={18} weight="duotone" />, to: "/capabilities", description: "Composition, resources and capability catalogs.", children: [
+    { label: "Composition overview", to: "/composition" },
+    { label: "Roles", to: "/roles" },
+    { label: "Profiles", to: "/profiles" },
+    { label: "Capabilities", to: "/capabilities" },
+    { label: "Skills", to: "/skills" },
+    { label: "Tools & Plugins", to: "/plugins" },
+    { label: "Engines", to: "/engines" },
+    { label: "Providers", to: "/engines", kind: "compatibility" },
+    { label: "Memory", to: "/memory", kind: "compatibility" },
+  ] },
+  { id: "Evidence", icon: <Icons.Pulse size={18} weight="duotone" />, to: "/operational-evidence", description: "Operational evidence, logs and audit history.", children: [{ label: "Evidence", to: "/operational-evidence" }, { label: "Audit", to: "/audit" }, { label: "Logs", to: "/logs", kind: "compatibility" }] },
+  { id: "Economics", icon: <Icons.CurrencyDollar size={18} weight="duotone" />, to: "/economics", description: "Operational usage and cost visibility with explicit financial boundaries.", children: [{ label: "Overview", to: "/economics" }, { label: "Reservations & settlement", to: "/system/settlement-reconciliation", kind: "compatibility" }, { label: "Financial audit", to: "/system/financial-audit", kind: "compatibility" }, { label: "Boundary reports", to: "/system/billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Pricing & invoice", to: "/system/pricing-invoice-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Payment rails", to: "/system/payment-rails-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Tenant accountability", to: "/system/tenant-billing-boundary", kind: "compatibility", group: "Boundaries" }, { label: "Acceptance & claims", to: "/system/billing-acceptance", kind: "compatibility", group: "Boundaries" }] },
+  { id: "Governance", icon: <Icons.Scales size={18} weight="duotone" />, to: "/governance", description: "Tenant governance, delegation and authority boundaries.", children: [
+    { label: "Governance overview", to: "/governance" },
+    { label: "Tenant administration", to: Api.productApiConfig.tenantAdministrationUrl, external: true },
+    { label: "Delegation & authority", to: "/administration", kind: "compatibility" },
+    { label: "Legacy Administration", to: "/administration", kind: "legacy" },
+  ] },
+  { id: "System", icon: <Icons.GearSix size={18} weight="duotone" />, to: "/system", description: "Readiness, settings, topology and system diagnostics.", children: [
+    { label: "System overview", to: "/system" },
+    { label: "Readiness", to: "/readiness" },
+    { label: "Settings", to: "/settings" },
+    { label: "Operational reliability", to: "/system/operational-reliability", kind: "compatibility" },
+  ] },
 ];
 
 const domainByPath = (path: string): PrimaryDomain => {
-  if (path === "/") return "Dashboard";
+  if (path === "/") return "Overview";
   if (path.startsWith("/agents")) return "Agents";
-  if (path.startsWith("/workforces")) return "Workforces";
-  if (path.startsWith("/executions")) return "Runs";
-  if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Usage & Cost";
+  if (path.startsWith("/workforces")) return "Agents";
+  if (path.startsWith("/executions") || path.startsWith("/operational-execution") || path.startsWith("/workers") || path.startsWith("/operations") || path.startsWith("/runtime")) return "Operations";
+  if (path.startsWith("/composition") || path.startsWith("/roles") || path.startsWith("/profiles") || path.startsWith("/capabilities") || path.startsWith("/skills") || path.startsWith("/plugins") || path.startsWith("/tools") || path.startsWith("/engines") || path.startsWith("/providers") || path.startsWith("/memory") || path.startsWith("/credentials")) return "Capabilities";
   if (path.startsWith("/operational-evidence") || path.startsWith("/audit")) return "Evidence";
-  if (path.startsWith("/operational-execution") || path.startsWith("/runtime") || path.startsWith("/operations") || path.startsWith("/workers") || path.startsWith("/logs")) return "Runtime";
-  return "Administration";
+  if (path.startsWith("/logs")) return "Evidence";
+  if (path.startsWith("/economics") || path.startsWith("/system/billing-boundary") || path.startsWith("/system/pricing-invoice-boundary") || path.startsWith("/system/payment-rails-boundary") || path.startsWith("/system/tenant-billing-boundary") || path.startsWith("/system/settlement-reconciliation") || path.startsWith("/system/financial-audit") || path.startsWith("/system/billing-acceptance")) return "Economics";
+  if (path.startsWith("/governance") || path.startsWith("/administration")) return "Governance";
+  if (path.startsWith("/system") || path.startsWith("/readiness") || path.startsWith("/settings")) return "System";
+  return "Overview";
 };
 
 function childActive(pathname: string, to: string) {
@@ -516,22 +550,15 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate, collapsed, work
   return <nav className="sidebar-navigation" aria-label="Control Plane navigation">
     {domainDefs.map(domain => {
       const expanded = domain.id === activeDomain;
-      const visibleChildren = domain.id === "Workforces" && workforceContext
-        ? domain.children.filter(child => child.to === "/workforces" && child.available !== false)
-        : domain.children;
+      const visibleChildren = domain.children;
       const groups = visibleChildren.reduce<Record<string, DomainChild[]>>((acc, child) => {
         const group = child.group ?? "";
         (acc[group] ??= []).push(child);
         return acc;
       }, {});
-      if (domain.id === "Workforces" && workforceContext) {
+      if (domain.id === "Agents" && workforceContext) {
         groups[`Workforce: ${workforceContext.name ?? workforceContext.workforceId}`] = [...workforceContextChildren(workforceContext.workforceId)];
       }
-      const activeWorkforceChild = domain.id === "Workforces" && workforceContext
-        ? [...workforceContextChildren(workforceContext.workforceId)]
-          .sort((left, right) => right.to.length - left.to.length)
-          .find(child => childActive(pathname, child.to))?.to
-        : undefined;
       return <section className={`sidebar-domain ${expanded ? "expanded" : ""}`} key={domain.id}>
         <Router.Link className={`domain-link ${expanded ? "active" : ""}`} to={domain.to} onClick={onNavigate} aria-current={expanded ? "page" : undefined} title={collapsed ? domain.id : undefined}>
           <span aria-hidden="true">{domain.icon}</span><span className="domain-label">{domain.id}</span><i className="sidebar-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</i>
@@ -540,11 +567,7 @@ function SidebarNavigation({ pathname, activeDomain, onNavigate, collapsed, work
           {Object.entries(groups).map(([group, children]) => <div className="sidebar-child-group" key={group || "root"}>
             {group && <span className="sidebar-group-label">{group}</span>}
             {children.map(child => {
-              const active = domain.id === "Workforces"
-                ? child.to === "/workforces"
-                  ? pathname === child.to
-                  : child.to === activeWorkforceChild
-                : childActive(pathname, child.to);
+              const active = childActive(pathname, child.to);
               return child.available === false
                 ? <span key={child.label} className="sidebar-child-link unavailable" aria-disabled="true">{child.label}<small>{child.note ?? "Select a Workforce"}</small></span>
                 : child.external

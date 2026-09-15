@@ -58,11 +58,11 @@ test("Administration Overview preserves profile-aware readiness semantics", () =
   assert.match(administration, /title="Global caveats"/);
 });
 
-test("navigation keeps supported customer and administration destinations reachable", () => {
-  for (const label of ["Dashboard", "Agents", "Runs", "Evidence", "Usage & Cost", "Runtime", "Administration"]) {
+test("navigation keeps supported customer and compatibility destinations reachable", () => {
+  for (const label of ["Overview", "Agents", "Operations", "Capabilities", "Evidence", "Economics", "Governance", "System"]) {
     assert.match(appSource, new RegExp(`id: "${label.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}"`));
   }
-  for (const legacyLabel of ["Executions", "Workers", "Financial Operations", "Customers", "Operations"]) {
+  for (const legacyLabel of ["Dashboard", "Workforces", "Runs", "Runtime", "Administration", "Executions", "Workers", "Financial Operations", "Customers"]) {
     assert.doesNotMatch(appSource, new RegExp(`id: "${legacyLabel.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}"`));
   }
   for (const path of ["/agents", "/executions", "/workers", "/economics", "/operations", "/administration", "/readiness", "/composition", "/system"]) {
