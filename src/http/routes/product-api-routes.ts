@@ -157,7 +157,7 @@ export async function routeProductApiRequest(
     },
   });
   const workforceApi = context.nativeCore ? createWorkforceProductApi(context.nativeCore) : undefined;
-  const administrativeQuery = context.nativeCore ? new AdministrativeQueryService(context.nativeCore) : undefined;
+  const administrativeQuery = context.nativeCore ? new AdministrativeQueryService(context.nativeCore, context.genomeAdministrativeSource) : undefined;
 
   const segments = path.split("/").filter(Boolean);
 
@@ -807,6 +807,23 @@ export async function routeProductApiRequest(
       return projection ? { status: 200, body: ok(projection, [], options.correlationId, routeMeta) } : fail("Activation not found", 404, "not_found", options.correlationId, undefined, routeMeta, "activation_not_found");
     }
     if (apiPath.startsWith("activations/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
+
+    if (segments[2] === "genomes" && segments[3] === "agents" && segments[4] && segments.length === 5 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["revision", "fingerprint"]);
+      const agentId = readPathSegment(segments, 4, "agentId"); const revision = url.searchParams.get("revision"); const fingerprint = url.searchParams.get("fingerprint");
+      if (Boolean(revision) !== Boolean(fingerprint)) throw new AcsHttpValidationError("revision and fingerprint must be supplied together", "invalid_query");
+      const reference = revision
+        ? createAdministrativeHistoricalRefV1({ resource_kind: "agent_revision", stable_id: agentId, tenant_id: context.isolation.scope.tenantId, revision: Number(revision), fingerprint: fingerprint! })
+        : createAdministrativeCurrentRefV1({ resource_kind: "agent", stable_id: agentId, tenant_id: context.isolation.scope.tenantId });
+      try {
+        const projections = administrativeQuery ? await administrativeQuery.getGenome(context.isolation.scope.tenantId, reference) : undefined;
+        return projections ? { status: 200, body: ok(projections, [], options.correlationId, routeMeta) } : fail("Genome not found", 404, "not_found", options.correlationId, undefined, routeMeta, "genome_not_found");
+      } catch (error) {
+        if (error instanceof AdministrativeQueryError && error.code === "ADMINISTRATIVE_NOT_FOUND") return fail("Genome not found", 404, "not_found", options.correlationId, undefined, routeMeta, "genome_not_found");
+        throw error;
+      }
+    }
+    if (apiPath.startsWith("genomes/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
 
     // Agent inventory (read-only list with governed search/filter/sort)
     if (segments[2] === "agents" && segments.length === 3 && request.method === "GET") {

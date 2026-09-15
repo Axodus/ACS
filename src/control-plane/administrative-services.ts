@@ -16,7 +16,9 @@ import type {
   NativeAutomationLineage,
   NativeDelegationGrantLineage,
 } from "./shared-state/native-core-durable.js";
+import type { EntityRef } from "../native-core/primitives.js";
 import { sha256Hex, stableStringify } from "../native-core/primitives.js";
+import type { GenomeSubjectV1, PresentationAssetAssociationV1, TraitAssertionV1 } from "../native-core/genome.js";
 
 export type AdministrativeQueryErrorCode =
   | "ADMINISTRATIVE_NOT_FOUND"
@@ -37,6 +39,24 @@ export type AdministrativeAutomationCreateCommandV1 = Parameters<GovernedAutomat
 export type AdministrativeAutomationRevisionCommandV1 = Parameters<GovernedAutomationService["revise"]>[0];
 export type AdministrativeAutomationLifecycleCommandV1 = Parameters<GovernedAutomationService["transition"]>[0];
 
+/**
+ * Read port supplied by the existing canonical Genome owner. It neither owns
+ * storage nor creates a Genome repository; S4 only projects supplied S1/S2
+ * source contracts through the established administrative seam.
+ */
+export interface GenomeAdministrativeReadSourceV1 {
+  getGenomeSubject(input: { readonly tenant_id: string; readonly subject: GenomeSubjectV1 }): Promise<GenomeAdministrativeSubjectSnapshotV1 | undefined>;
+}
+
+export interface GenomeAdministrativeSubjectSnapshotV1 {
+  readonly subject: GenomeSubjectV1;
+  readonly trait_assertions: readonly TraitAssertionV1[];
+  readonly presentation_associations: readonly PresentationAssetAssociationV1[];
+  readonly canonical_owner: string;
+  readonly projected_at: number;
+  readonly reconstruction_state: "COMPLETE" | "GAP";
+}
+
 function notFound(): never {
   throw new AdministrativeQueryError("ADMINISTRATIVE_NOT_FOUND", "administrative resource not found");
 }
@@ -51,6 +71,102 @@ function assertKind(reference: AdministrativeResourceRefV1, ...allowed: readonly
   if (!allowed.includes(reference.resource_kind)) {
     throw new AdministrativeQueryError("UNSUPPORTED_ADDRESSING", "administrative reference kind is not supported by this query");
   }
+}
+
+function genomeSubjectFor(reference: AdministrativeResourceRefV1, lineage: Awaited<ReturnType<AsyncNativeCoreRepository["getAgentLineage"]>>): GenomeSubjectV1 {
+  if (reference.addressing === "OBSERVED") throw new AdministrativeQueryError("UNSUPPORTED_ADDRESSING", "Genome does not support observed addressing");
+  if (lineage.definition.scope.tenant_id !== reference.tenant_id) return notFound();
+  if (reference.addressing === "CURRENT") {
+    return { addressing: "CURRENT", agent_ref: { kind: "agent", id: lineage.definition.agent_id } } as GenomeSubjectV1;
+  }
+  const exact = lineage.revisions.find((entry) => entry.ref.revision === reference.revision);
+  if (!exact) return { addressing: "EXACT", agent_revision_ref: { entity_kind: "agent", entity_id: lineage.definition.agent_id, revision: reference.revision, fingerprint: reference.fingerprint } };
+  if (exact.ref.fingerprint !== reference.fingerprint) throw new AdministrativeQueryError("FINGERPRINT_MISMATCH", "requested Agent fingerprint does not match the exact revision");
+  return { addressing: "EXACT", agent_revision_ref: exact.ref } as GenomeSubjectV1;
+}
+
+function sameGenomeSubject(left: GenomeSubjectV1, right: GenomeSubjectV1): boolean {
+  if (left.addressing !== right.addressing) return false;
+  return left.addressing === "CURRENT"
+    ? left.agent_ref.kind === (right as Extract<GenomeSubjectV1, { addressing: "CURRENT" }>).agent_ref.kind && left.agent_ref.id === (right as Extract<GenomeSubjectV1, { addressing: "CURRENT" }>).agent_ref.id
+    : left.agent_revision_ref.entity_kind === (right as Extract<GenomeSubjectV1, { addressing: "EXACT" }>).agent_revision_ref.entity_kind
+      && left.agent_revision_ref.entity_id === (right as Extract<GenomeSubjectV1, { addressing: "EXACT" }>).agent_revision_ref.entity_id
+      && left.agent_revision_ref.revision === (right as Extract<GenomeSubjectV1, { addressing: "EXACT" }>).agent_revision_ref.revision
+      && left.agent_revision_ref.fingerprint === (right as Extract<GenomeSubjectV1, { addressing: "EXACT" }>).agent_revision_ref.fingerprint;
+}
+
+function referenceKey(prefix: string, index: number): string { return `${prefix}_${index + 1}`; }
+
+function projectGenomeSnapshot(snapshot: GenomeAdministrativeSubjectSnapshotV1, source: AdministrativeCurrentRefV1 | AdministrativeHistoricalRefV1): readonly AdministrativeProjectionV1[] {
+  const associationsByAssertion = new Map<string, readonly PresentationAssetAssociationV1[]>();
+  for (const association of snapshot.presentation_associations) {
+    if (!sameGenomeSubject(association.subject, snapshot.subject)) continue;
+    const existing = associationsByAssertion.get(association.assertion_ref.assertion_id) ?? [];
+    associationsByAssertion.set(association.assertion_ref.assertion_id, [...existing, association]);
+  }
+  return snapshot.trait_assertions.map((assertion) => {
+    if (!sameGenomeSubject(assertion.subject, snapshot.subject)) throw new AdministrativeQueryError("ADMINISTRATIVE_NOT_FOUND", "Genome source returned an assertion for a different subject");
+    const associations = associationsByAssertion.get(assertion.assertion_id) ?? [];
+    const references: Record<string, EntityRef | readonly EntityRef[]> = {
+      evidence_refs: assertion.evidence_refs,
+      verification_refs: assertion.verification_refs.map((entry) => entry.verification_ref),
+      verification_evidence_refs: assertion.verification_refs.flatMap((entry) => entry.evidence_refs),
+      presentation_artifact_refs: associations.map((entry) => ({ kind: "artifact", id: entry.asset_ref.artifact_ref.artifact_id })),
+      presentation_evidence_refs: associations.flatMap((entry) => entry.evidence_refs),
+    };
+    for (const [index, entry] of assertion.verification_refs.entries()) if (entry.decision_ref) references[referenceKey("verification_decision", index)] = entry.decision_ref;
+    return createAdministrativeProjectionV1({
+      metadata: {
+        contract_version: "1.0",
+        source,
+        canonical_owner: snapshot.canonical_owner,
+        projected_at: snapshot.projected_at,
+        freshness: snapshot.reconstruction_state === "GAP" ? "UNAVAILABLE" : source.addressing === "CURRENT" ? "CURRENT" : "HISTORICAL",
+        compatibility: "CANONICAL",
+        reconstruction_state: snapshot.reconstruction_state,
+        redacted_fields: ["trait_value_json", "provenance_payload", "evidence_content", "artifact_content", "verification_decision_payload", "provider_payload", "credential_material", "runtime_state"],
+      },
+      fields: [
+        { name: "trait_namespace", classification: "ADMIN_SAFE", value: assertion.definition_ref.namespace },
+        { name: "trait_name", classification: "ADMIN_SAFE", value: assertion.definition_ref.name },
+        { name: "trait_definition_version", classification: "ADMIN_SAFE", value: assertion.definition_ref.version },
+        { name: "trait_definition_digest", classification: "ADMIN_SAFE", value: assertion.definition_ref.digest },
+        { name: "trait_assertion_id", classification: "ADMIN_SAFE", value: assertion.assertion_id },
+        { name: "trait_assertion_digest", classification: "ADMIN_SAFE", value: assertion.digest },
+        { name: "trait_state", classification: "ADMIN_SAFE", value: assertion.state },
+        { name: "trait_value_kind", classification: "ADMIN_SAFE", value: assertion.value_kind },
+        { name: "trait_value", classification: "ADMIN_SAFE", value: assertion.value_kind === "json" ? "REDACTED_JSON_VALUE" : assertion.value as string | number | boolean },
+        { name: "observed_at", classification: "ADMIN_SAFE", value: assertion.observed_at },
+        { name: "provenance_reference_count", classification: "ADMIN_SAFE", value: assertion.provenance_refs.length },
+        { name: "evidence_reference_count", classification: "ADMIN_SAFE", value: assertion.evidence_refs.length },
+        { name: "verification_statuses", classification: "ADMIN_SAFE", value: assertion.verification_refs.map((entry) => entry.status) },
+        { name: "presentation_reference_count", classification: "ADMIN_SAFE", value: associations.length },
+        { name: "presentation_availability", classification: "ADMIN_SAFE", value: associations.map((entry) => entry.asset_ref.availability) },
+        { name: "presentation_gap_codes", classification: "ADMIN_SAFE", value: associations.map((entry) => entry.asset_ref.gap_code ?? null) },
+      ],
+      references,
+    });
+  });
+}
+
+function projectGenomeHistoricalGap(source: AdministrativeHistoricalRefV1, projectedAt: number): readonly AdministrativeProjectionV1[] {
+  return [createAdministrativeProjectionV1({
+    metadata: {
+      contract_version: "1.0",
+      source,
+      canonical_owner: "native-agent",
+      projected_at: projectedAt,
+      freshness: "UNAVAILABLE",
+      compatibility: "CANONICAL",
+      reconstruction_state: "GAP",
+      redacted_fields: ["trait_assertions", "provenance_payload", "evidence_content", "artifact_content", "verification_payload", "runtime_state"],
+    },
+    fields: [
+      { name: "historical_subject_status", classification: "ADMIN_SAFE", value: "gap" },
+      { name: "historical_gap_code", classification: "ADMIN_SAFE", value: "GENOME_EXACT_SUBJECT_UNAVAILABLE" },
+      { name: "trait_assertion_count", classification: "ADMIN_SAFE", value: 0 },
+    ],
+  })];
 }
 
 function sourceForAutomation(reference: AdministrativeResourceRefV1, lineage: NativeAutomationLineage) {
@@ -186,7 +302,28 @@ function projectActivation(lineage: NativeActivationLineage, source: Administrat
  */
 export class AdministrativeQueryService {
   constructor(private readonly store: Pick<AsyncNativeCoreRepository,
-    "getAutomationLineage" | "listAutomationHeads" | "getDelegationGrantLineage" | "listDelegationGrantHeads" | "getActivationLineage">) {}
+    "getAutomationLineage" | "listAutomationHeads" | "getDelegationGrantLineage" | "listDelegationGrantHeads" | "getActivationLineage" | "getAgentLineage">,
+    private readonly genomeSource?: GenomeAdministrativeReadSourceV1) {}
+
+  async getGenome(tenantId: string, reference: AdministrativeResourceRefV1): Promise<readonly AdministrativeProjectionV1[]> {
+    assertKind(reference, "agent", "agent_revision");
+    assertTenant(tenantId, reference.tenant_id);
+    if (!this.genomeSource) return notFound();
+    let lineage: Awaited<ReturnType<AsyncNativeCoreRepository["getAgentLineage"]>>;
+    try { lineage = await this.store.getAgentLineage(reference.stable_id); } catch { return notFound(); }
+    if (lineage.definition.scope.tenant_id !== tenantId) return notFound();
+    const subject = genomeSubjectFor(reference, lineage);
+    const source = subject.addressing === "CURRENT"
+      ? createAdministrativeCurrentRefV1({ resource_kind: "agent", stable_id: lineage.definition.agent_id, tenant_id: tenantId })
+      : createAdministrativeHistoricalRefV1({ resource_kind: "agent_revision", stable_id: lineage.definition.agent_id, tenant_id: tenantId, revision: subject.agent_revision_ref.revision, fingerprint: subject.agent_revision_ref.fingerprint });
+    if (subject.addressing === "EXACT" && !lineage.revisions.some((entry) => entry.ref.revision === subject.agent_revision_ref.revision)) {
+      return projectGenomeHistoricalGap(createAdministrativeHistoricalRefV1({ resource_kind: "agent_revision", stable_id: lineage.definition.agent_id, tenant_id: tenantId, revision: subject.agent_revision_ref.revision, fingerprint: subject.agent_revision_ref.fingerprint }), lineage.definition.updated_at);
+    }
+    const snapshot = await this.genomeSource.getGenomeSubject({ tenant_id: tenantId, subject });
+    if (!snapshot) return notFound();
+    if (!sameGenomeSubject(snapshot.subject, subject)) return notFound();
+    return projectGenomeSnapshot(snapshot, source);
+  }
 
   async listAutomations(tenantId: string): Promise<readonly AdministrativeProjectionV1[]> {
     const heads = await this.store.listAutomationHeads({ tenantId });

@@ -98,13 +98,13 @@ export type AdministrativeSafeValueV1 =
 export interface AdministrativeProjectionInputV1 {
   readonly metadata: AdministrativeProjectionMetadataV1;
   readonly fields: readonly AdministrativeProjectionFieldV1[];
-  readonly references?: Readonly<Record<string, EntityRef>>;
+  readonly references?: Readonly<Record<string, EntityRef | readonly EntityRef[]>>;
 }
 
 export interface AdministrativeProjectionV1 {
   readonly metadata: AdministrativeProjectionMetadataV1;
   readonly fields: Readonly<Record<string, AdministrativeSafeValueV1>>;
-  readonly references: Readonly<Record<string, EntityRef>>;
+  readonly references: Readonly<Record<string, EntityRef | readonly EntityRef[]>>;
 }
 
 export type AdministrativeContractErrorCode =
@@ -263,20 +263,27 @@ export function createAdministrativeProjectionV1(input: AdministrativeProjection
     names.add(field.name);
     fields[field.name] = field.value;
   }
-  const references: Record<string, EntityRef> = {};
+  const references: Record<string, EntityRef | readonly EntityRef[]> = {};
   for (const [name, reference] of Object.entries(input.references ?? {})) {
     const issues: ValidationIssue[] = [];
     requireString(name, `references.${name}`, issues);
-    try { references[name] = validateEntityRef(reference, `references.${name}`); }
-    catch (error) {
-      if (error instanceof NativeContractValidationError) issues.push(...error.issues.map((entry) => issue(entry.path, "UNSAFE_PROJECTION_VALUE", entry.message)));
-      else throw error;
+    const entries = Array.isArray(reference) ? reference : [reference];
+    const validated: EntityRef[] = [];
+    for (const [index, entry] of entries.entries()) {
+      try { validated.push(validateEntityRef(entry, `references.${name}${Array.isArray(reference) ? `[${index}]` : ""}`)); }
+      catch (error) {
+        if (error instanceof NativeContractValidationError) issues.push(...error.issues.map((detail) => issue(detail.path, "UNSAFE_PROJECTION_VALUE", detail.message)));
+        else throw error;
+      }
     }
+    references[name] = Array.isArray(reference) ? Object.freeze(validated) : validated[0]!;
     if (issues.length > 0) fail("UNSAFE_PROJECTION_VALUE", "invalid administrative projection reference", issues);
   }
-  for (const reference of Object.values(references)) {
-    if ("tenant_id" in reference && reference.tenant_id !== undefined && reference.tenant_id !== metadata.source.tenant_id) {
-      fail("TENANT_MISMATCH", "administrative projection reference is outside the source Tenant", [issue("references", "TENANT_MISMATCH", "Projection references must remain Tenant-compatible")]);
+  for (const entry of Object.values(references)) {
+    for (const reference of Array.isArray(entry) ? entry : [entry]) {
+      if ("tenant_id" in reference && reference.tenant_id !== undefined && reference.tenant_id !== metadata.source.tenant_id) {
+        fail("TENANT_MISMATCH", "administrative projection reference is outside the source Tenant", [issue("references", "TENANT_MISMATCH", "Projection references must remain Tenant-compatible")]);
+      }
     }
   }
   return Object.freeze({ metadata: Object.freeze(metadata), fields: Object.freeze(fields), references: Object.freeze(references) });

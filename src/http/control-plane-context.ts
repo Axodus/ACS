@@ -127,10 +127,12 @@ import {
 } from "./siwx-artifact.js";
 import { ViemSiwxArtifactVerifier } from "./viem-siwx-artifact-verifier.js";
 import type { AsyncNativeCoreRepository } from "../control-plane/shared-state/native-core-durable.js";
+import type { GenomeAdministrativeReadSourceV1 } from "../control-plane/administrative-services.js";
 import { resolveSiwxRpcUrls } from "./siwx-rpc-configuration.js";
 
 export interface ControlPlaneContext {
   readonly nativeCore?: AsyncNativeCoreRepository;
+  readonly genomeAdministrativeSource?: GenomeAdministrativeReadSourceV1;
   readonly engineRegistry: EngineRegistry;
   readonly engineService: EngineService;
   readonly targetService: ExecutionTargetService;
@@ -235,6 +237,7 @@ const DEV_BILLING_POLICY: BillingPolicy = {
 
 export interface ControlPlaneContextOptions {
   readonly nativeCore?: AsyncNativeCoreRepository;
+  readonly genomeAdministrativeSource?: GenomeAdministrativeReadSourceV1;
   /** Canonical shared-host composition is consumed by createAcsHttpServer. */
   readonly sharedControlPlaneContext?: {
     readonly state: { readonly nativeCore: AsyncNativeCoreRepository };
@@ -983,6 +986,7 @@ export function createControlPlaneContext(options: ControlPlaneContextOptions = 
 
   return {
     nativeCore: options.nativeCore,
+    genomeAdministrativeSource: options.genomeAdministrativeSource,
     engineRegistry,
     engineService: new EngineService(engineRegistry),
     targetService,
