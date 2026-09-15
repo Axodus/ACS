@@ -1,6 +1,7 @@
 # EPIC-17-IMP-06 S4 — Schedule Occurrence & Recovery Machinery
 
-**Status:** `COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED`
+**Status:** `COMPLETE / CTO ACCEPTED / PUBLISHED`
+**Commit:** `f651048563c2c94a0bdaa78b71edfa9de3cc67e2`
 **Baseline:** `7be46f0`
 **Schema:** `12 / CANONICAL`
 **Date:** September 14, 2026
@@ -82,6 +83,6 @@ owner or add a second admission engine.
 
 ## CTO disposition
 
-S4 is accepted for publication. The commit remains limited to the contracts,
-recovery service, canonical Activation ingress, focused/PostgreSQL tests and
-directly associated evidence in this report.
+S4 was published to `origin/dev` in the commit above. Its scope is limited to
+the contracts, recovery service, canonical Activation ingress,
+focused/PostgreSQL tests and directly associated evidence in this report.

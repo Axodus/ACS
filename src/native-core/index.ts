@@ -16,3 +16,4 @@ export * from "./delegation.js";
 export * from "./automation.js";
 export * from "./activation.js";
 export * from "./schedule.js";
+export * from "./external-observation.js";

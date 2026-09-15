@@ -2,9 +2,9 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-06 — S4 COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED`
-**Current work:** IMP-06 Slices 1–3 are published; S4 Schedule Occurrence & Recovery Machinery is CTO accepted without a scheduler runtime.
-**Implementation authority:** S4 commit and push to `origin/dev` authorized
+**Gate status:** `EPIC-17-IMP-06 — S5 COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED`
+**Current work:** IMP-06 Slices 1–4 are published; S5 external observation boundary and safe projection are accepted without runtime expansion.
+**Implementation authority:** S5 commit and push to `origin/dev` authorized; no further functional slice is authorized.
 **Migration authority:** Schema 12 is canonical; no Schema 13 authority
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
@@ -46,6 +46,8 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 - [IMP-06 post-Slice-3 reconciliation](imp-06-post-slice-3-reconciliation.md)
 - [IMP-06 S4 Schedule Semantics Freeze](imp-06-s4-schedule-semantics-freeze.md)
 - [IMP-06 S4 Schedule Occurrence & Recovery report](imp-06-s4-report.md)
+- [IMP-06 post-S4 closure reconciliation](imp-06-post-s4-closure-reconciliation.md)
+- [IMP-06 S5 external adapter boundary report](imp-06-s5-report.md)
 
 ## Current disposition
 
@@ -92,7 +94,9 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 | IMP-06 Slice 3 — target/authority preparation and recoverable handoff | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `7be46f0`; preparation stops before admission and execution. |
 | IMP-06 post-Slice-3 reconciliation | `COMPLETE / CTO ACCEPTED` | [S4 was selected from the frozen mapping](imp-06-post-slice-3-reconciliation.md). |
 | IMP-06 S4 Schedule Semantics Freeze | `COMPLETE / CTO ACCEPTED` | [Typed definition, occurrence identity, missed-work, watermark and recovery semantics](imp-06-s4-schedule-semantics-freeze.md). |
-| IMP-06 S4 Schedule Occurrence & Recovery Machinery | `COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED` | [Deterministic recovery service, canonical Activation ingress, PostgreSQL evidence and exclusions](imp-06-s4-report.md). |
+| IMP-06 S4 Schedule Occurrence & Recovery Machinery | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `f651048`; [deterministic recovery service, canonical Activation ingress, PostgreSQL evidence and exclusions](imp-06-s4-report.md). |
+| IMP-06 post-S4 closure reconciliation | `COMPLETE / CTO ACCEPTED` | [S5 is required by the frozen mapping for provider-neutral external observation](imp-06-post-s4-closure-reconciliation.md). |
+| IMP-06 S5 External Adapter Boundary & Safe Product Projection | `COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED` | [Provider-neutral normalization, canonical Activation ingress and metadata-safe projection contract](imp-06-s5-report.md). |
 
 ## Current implementation boundary
 
