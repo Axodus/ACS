@@ -475,7 +475,7 @@ test("VAL-03 preserves Workforce, Run, coordination, assignment and Attempt hist
       const path = suffix ? `/workforces/${workforceId}/${suffix}` : `/workforces/${workforceId}`;
       await page.goto(`${app.url}${path}`, { waitUntil: "domcontentloaded" });
       await page.getByRole("heading", { name: heading }).waitFor();
-      assert.equal(await page.getByRole("link", { name: "Overview / List" }).getAttribute("aria-current"), null);
+      assert.equal(await page.getByLabel(/^Workforce: /).getByRole("link", { name: "Overview" }).getAttribute("aria-current"), null);
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.getByRole("heading", { name: heading }).waitFor();
     }
