@@ -99,6 +99,7 @@ export function GovernanceView() {
     <Shared.CrossLinks links={[{ to: "/system/operational-reliability", label: "Open operational reliability" }]} />
     {Shared.staleBanner(guardrails, "system guardrails")}
     {Shared.staleBanner(governanceBoundary, "governance boundary")}
+    {Shared.staleBanner(delegations, "delegation grants")}
     <div className="flow-group" id="governance-delegations">
       <div className="flow-group-head"><h2>Delegation grants</h2><p>Tenant-scoped delegation and authority references, projected by the Product API.</p></div>
       <section className="panel">
@@ -110,15 +111,15 @@ export function GovernanceView() {
             return <article className="catalog-row operational-record" key={[grant.grantId, index].join(":")}>
               <div className="catalog-row-main">
                 <div className="operational-record-title"><b>{grant.grantId}</b><Shared.Badge tone={metadata.freshness === "CURRENT" ? "good" : "muted"}>{metadata.freshness}</Shared.Badge><Shared.Badge tone="muted">{source.addressing}</Shared.Badge>{metadata.reconstruction_state === "GAP" && <Shared.Badge tone="warn">RECONSTRUCTION GAP</Shared.Badge>}</div>
+                <Shared.ProjectionStateBadges freshness={metadata.freshness} redactedFields={metadata.redacted_fields} reconstructionState={metadata.reconstruction_state} />
                 <small className="mono">Tenant: {source.tenant_id} · Owner: {metadata.canonical_owner} · Projected <Shared.Time value={metadata.projected_at} /></small>
                 <div className="summary-list">{Object.entries(grant.fields).map(([name, value]) => <Shared.SummaryRow key={name} label={name} value={Array.isArray(value) ? value.join(", ") : value === null ? "null" : typeof value === "object" ? JSON.stringify(value) : String(value)} />)}</div>
-                {metadata.redacted_fields.length > 0 && <Shared.IdList label="Redacted fields" ids={metadata.redacted_fields} />}
+                {metadata.redacted_fields.length > 0 && <><Shared.InteractionStateNotice state="redacted" message="The Product API withheld the listed fields; disclosure is not authorized in this surface." /><Shared.IdList label="Redacted fields" ids={metadata.redacted_fields} /></>}
               </div>
               <div className="catalog-badges operational-correlation">{Object.entries(grant.references).flatMap(([kind, reference]) => (Array.isArray(reference) ? reference : [reference]).map((item, refIndex) => <span className="tag mono" key={[kind, item.kind, item.id, refIndex].join(":")}>{item.kind}: {item.id}</span>))}</div>
             </article>;
           })}
-        </div> : <Shared.PanelStateLine state={delegations.loadState} error={delegations.loadError} emptyMessage="No delegation grants reported by the Product API." />}
-        {delegations.loadState === "error" && <Shared.ErrorBanner error={delegations.loadError} />}
+        </div> : <Shared.PanelStateLine state={delegations.loadState} error={delegations.loadError} unavailable={delegations.unavailable} emptyMessage="No delegation grants reported by the Product API." />}
       </section>
     </div>
     <div className="flow-group" id="governance-guardrails">

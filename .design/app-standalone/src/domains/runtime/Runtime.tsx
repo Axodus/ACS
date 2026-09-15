@@ -55,7 +55,7 @@ export function Runtime() {
 }
 
 export function Logs() {
-  const { data: events, loadState, loadError, stale, refresh } = Shared.useOperationalSummary<Api.EventRecord[]>(
+  const { data: events, loadState, loadError, stale, unavailable, refresh } = Shared.useOperationalSummary<Api.EventRecord[]>(
     () => Api.productApi.listEvents(),
     "Unable to load events from Product API",
     () => false,
@@ -63,26 +63,26 @@ export function Logs() {
   return <>
     <Shared.DomainHeader domain="Evidence" title="Events & Logs" description="System and agent event inventory from the Product API. Logs remain diagnostic evidence, not primary operational state." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span><span>Not billing</span></div>
-    {stale && <div className="stale-banner" role="status">Showing a stale evidence snapshot.</div>}
-    {loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing evidence...</div>}
-    {loadError && <div className="error-banner" role="alert">{loadError}</div>}
+    {Shared.staleBanner({ stale, loadState, loadError, unavailable }, "events and logs")}
     <Shared.CrossLinks links={[{ to: "/operational-evidence", label: "Operational evidence" }, { to: "/audit", label: "Audit trail" }, { to: "/economics", label: "Economics" }]} />
     <section className="panel">
       <div className="panel-head"><div><h2>Events</h2><p>System and agent event inventory</p></div><Shared.Badge tone="muted">{events?.length ?? 0}</Shared.Badge></div>
       <div className="panel-body">
-        <Shared.TimelineList limit={10} items={(events ?? []).map(event => ({ id: event.eventId, title: event.type, meta: `${event.severity} · ${event.source} · ${new Date(event.createdAt).toLocaleTimeString()}`, detail: event.message, tone: event.severity === "error" || event.severity === "critical" ? "warn" : undefined }))} />
+        {events?.length
+          ? <Shared.TimelineList limit={10} items={events.map(event => ({ id: event.eventId, title: event.type, meta: [event.severity, event.source, new Date(event.createdAt).toLocaleTimeString()].join(" · "), detail: event.message, tone: event.severity === "error" || event.severity === "critical" ? "warn" : undefined }))} />
+          : <Shared.PanelStateLine state={loadState} error={loadError} unavailable={unavailable} emptyMessage="No events reported by the Product API." />}
       </div>
     </section>
   </>;
 }
 
 export function EvidenceView() {
-  const { data: evidence, loadState, loadError, stale, refresh } = Shared.useOperationalSummary<Api.EvidenceRecord[]>(
+  const { data: evidence, loadState, loadError, stale, unavailable, refresh } = Shared.useOperationalSummary<Api.EvidenceRecord[]>(
     () => Api.productApi.listEvidence(),
     "Unable to load evidence from Product API",
     () => false,
   );
-  const { data: diagnostics } = Shared.useOperationalSummary<Api.DiagnosticReport[]>(
+  const { data: diagnostics, loadState: diagnosticsLoadState, loadError: diagnosticsLoadError, unavailable: diagnosticsUnavailable } = Shared.useOperationalSummary<Api.DiagnosticReport[]>(
     () => Api.productApi.listDiagnostics(),
     "Unable to load diagnostics from Product API",
     () => false,
@@ -90,19 +90,23 @@ export function EvidenceView() {
   return <>
     <Shared.DomainHeader domain="Evidence" title="Operational Evidence" description="Evidence records and diagnostic findings reported by the Product API. Evidence truth is never recomputed in the UI." actions={<button className="secondary" disabled={loadState === "loading" || loadState === "refreshing"} onClick={refresh}>Refresh</button>} />
     <div className="guardrail-banner" role="note"><span>Inspection mode</span><span>Sandbox only</span><span>Production ready = false</span><span>Evidence governed by Product API</span></div>
-    {Shared.staleBanner({ stale, loadState, loadError }, "evidence")}
+    {Shared.staleBanner({ stale, loadState, loadError, unavailable }, "evidence")}
     <Shared.CrossLinks links={[{ to: "/logs", label: "Events & logs" }, { to: "/audit", label: "Audit trail" }, { to: "/economics", label: "Economics" }]} />
     <div className="dashboard-grid evidence-grid">
       <section className="panel">
         <div className="panel-head"><div><h2>Evidence records</h2><p>Operational evidence inventory</p></div><Shared.Badge tone="muted">{evidence?.length ?? 0}</Shared.Badge></div>
         <div className="panel-body">
-          <Shared.TimelineList limit={10} items={(evidence ?? []).map(item => ({ id: item.evidenceId, title: item.title, meta: `${item.kind} · ${item.source} · ${new Date(item.createdAt).toLocaleTimeString()}`, detail: item.summary }))} />
+          {evidence?.length
+            ? <Shared.TimelineList limit={10} items={evidence.map(item => ({ id: item.evidenceId, title: item.title, meta: [item.kind, item.source, new Date(item.createdAt).toLocaleTimeString()].join(" · "), detail: item.summary }))} />
+            : <Shared.PanelStateLine state={loadState} error={loadError} unavailable={unavailable} emptyMessage="No Evidence records reported by the Product API." />}
         </div>
       </section>
       <section className="panel">
         <div className="panel-head"><div><h2>Diagnostics</h2><p>Readiness diagnostics and recommended actions</p></div><Shared.Badge tone="muted">{diagnostics?.length ?? 0}</Shared.Badge></div>
         <div className="panel-body">
-          <Shared.TimelineList limit={10} items={(diagnostics ?? []).map(item => ({ id: item.diagnosticId, title: item.status, meta: new Date(item.createdAt).toLocaleTimeString(), detail: item.summary, tone: item.status === "pass" ? "good" : item.status === "fail" || item.status === "error" ? "warn" : "muted" }))} />
+          {diagnostics?.length
+            ? <Shared.TimelineList limit={10} items={diagnostics.map(item => ({ id: item.diagnosticId, title: item.status, meta: new Date(item.createdAt).toLocaleTimeString(), detail: item.summary, tone: item.status === "pass" ? "good" : item.status === "fail" || item.status === "error" ? "warn" : "muted" }))} />
+            : <Shared.PanelStateLine state={diagnosticsLoadState} error={diagnosticsLoadError} unavailable={diagnosticsUnavailable} emptyMessage="No diagnostics reported by the Product API." />}
         </div>
       </section>
       <section className="panel">

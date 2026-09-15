@@ -820,6 +820,7 @@ function AgentEvidenceContent({ agentId, offset, onPage }: { agentId: string; of
 
   return <>
     <AgentLocalHeader agentId={agentId} title="Evidence" description="Bounded operational Evidence for this Agent." />
+    {Shared.staleBanner(evidence, "Agent Evidence")}
     <section className="panel">
       <div className="panel-head"><div><h2>Agent Evidence</h2><p>Up to {AGENT_OPERATIONAL_PAGE_LIMIT} Evidence records in Product API order: created time descending, then Evidence ID descending.</p></div><button className="secondary" disabled={evidence.loadState === "loading" || evidence.loadState === "refreshing"} onClick={evidence.refresh}>{evidence.loadState === "refreshing" ? "Refreshing" : "Refresh"}</button></div>
       {evidence.loadError && evidence.data && <Shared.ErrorBanner error={evidence.loadError} />}
@@ -838,7 +839,7 @@ function AgentEvidenceContent({ agentId, offset, onPage }: { agentId: string; of
               {record.correlationId && <span className="tag mono">Correlation {record.correlationId}</span>}
             </div>
           </article>)}</div>
-          : <Shared.PanelStateLine state={evidence.loadState} error={evidence.loadError} emptyMessage={offset === 0 ? "No Evidence has been recorded for this Agent." : "No Evidence was returned for this page. Use Previous to return to earlier records."} />}
+          : <Shared.PanelStateLine state={evidence.loadState} error={evidence.loadError} unavailable={evidence.unavailable} emptyMessage={offset === 0 ? "No Evidence has been recorded for this Agent." : "No Evidence was returned for this page. Use Previous to return to earlier records."} />}
       {evidence.data && (evidence.data.length > 0 || offset > 0) && <AgentOperationalPagination offset={offset} returned={evidence.data.length} onPage={onPage} />}
       <p className="panel-note">Evidence is distinct from Events, Audit, and Runtime Events. Source, correlation, and entity references are shown only when supplied by the Product API; no provenance or integrity claim is synthesized.</p>
       <div className="panel-actions"><Router.Link className="secondary action-link" to={`/agents/${agentId}`}>View Agent overview</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/runs`}>Open Agent Runs</Router.Link><Router.Link className="detail-link" to={`/agents/${agentId}/usage-cost`}>Open Usage & Cost</Router.Link></div>
@@ -870,6 +871,7 @@ function AgentGenomeContent({ agentId, revision, fingerprint }: { agentId: strin
       <span>No trait mutation / Genome write UI</span>
       <span>Descriptive only</span>
     </div>
+    {Shared.staleBanner(genome, "Genome projections")}
     <section className="panel">
       <div className="panel-head">
         <div>
@@ -884,7 +886,6 @@ function AgentGenomeContent({ agentId, revision, fingerprint }: { agentId: strin
           {genome.loadState === "refreshing" ? "Refreshing" : "Refresh"}
         </button>
       </div>
-      {genome.loadError && genome.data && <Shared.ErrorBanner error={genome.loadError} />}
       {genome.loadState === "loading" && !genome.data
         ? <div className="state-line">Loading Agent Genome projections...</div>
         : genome.data?.length
@@ -903,6 +904,7 @@ function AgentGenomeContent({ agentId, revision, fingerprint }: { agentId: strin
                     <Shared.Badge tone="muted">{source.addressing}</Shared.Badge>
                     {isGap && <Shared.Badge tone="warn">RECONSTRUCTION GAP</Shared.Badge>}
                   </div>
+                  <Shared.ProjectionStateBadges freshness={meta.freshness} redactedFields={meta.redacted_fields} reconstructionState={meta.reconstruction_state} />
                   <small className="mono">
                     Owner: {meta.canonical_owner} · Contract v{meta.contract_version} · Projected <Shared.Time value={meta.projected_at} />
                   </small>
@@ -930,12 +932,12 @@ function AgentGenomeContent({ agentId, revision, fingerprint }: { agentId: strin
                                 ? JSON.stringify(fieldValue)
                                 : String(fieldValue)
                         }
-                        tone={fieldName.includes("status") && String(fieldValue).includes("unavailable") ? "warn" : undefined}
                       />
                     ))}
                   </div>
                   {meta.redacted_fields.length > 0 && (
                     <div style={{ marginTop: "0.5rem" }}>
+                      <Shared.InteractionStateNotice state="redacted" message="The Product API withheld the listed fields; redaction does not mean the fields are missing or invalid." />
                       <Shared.IdList label="Redacted fields (preserved non-disclosure)" ids={meta.redacted_fields} />
                     </div>
                   )}
@@ -956,6 +958,7 @@ function AgentGenomeContent({ agentId, revision, fingerprint }: { agentId: strin
           : <Shared.PanelStateLine
             state={genome.loadState}
             error={genome.loadError}
+            unavailable={genome.unavailable}
             emptyMessage="No Genome projections reported for this Agent."
           />}
       <p className="panel-note">

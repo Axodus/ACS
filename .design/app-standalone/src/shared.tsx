@@ -184,6 +184,12 @@ function apiErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "An unexpected API error occurred";
 }
 
+function isApiUnavailable(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const status = (error as { status?: unknown }).status;
+  return status === 503 || status === 504;
+}
+
 function isApiConflict(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && (error as { status?: unknown }).status === 409);
 }
@@ -227,6 +233,7 @@ function Metric({ label, value, note }: { label: string; value: string; note: st
 
 type DashboardLoadState = "loading" | "refreshing" | "ready" | "error";
 type DashboardCardState = DashboardLoadState | "empty";
+type InteractionState = "loading" | "empty" | "ready" | "warning" | "blocked" | "error" | "pending" | "recovering" | "stale" | "unavailable" | "redacted";
 
 function useOperationalSummary<T>(
   fetcher: () => Promise<T>,
@@ -238,6 +245,7 @@ function useOperationalSummary<T>(
   const [loadState, setLoadState] = React.useState<DashboardLoadState>("loading");
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [stale, setStale] = React.useState(false);
+  const [unavailable, setUnavailable] = React.useState(false);
   const hasDataRef = React.useRef(false);
   const fetcherRef = React.useRef(fetcher);
   const isStaleRef = React.useRef(isStale);
@@ -249,6 +257,7 @@ function useOperationalSummary<T>(
   React.useEffect(() => {
     let cancelled = false;
     setLoadError(null);
+    setUnavailable(false);
     setLoadState(hasDataRef.current ? "refreshing" : "loading");
     fetcherRef.current()
       .then(next => {
@@ -256,11 +265,13 @@ function useOperationalSummary<T>(
           hasDataRef.current = true;
           setData(next);
           setStale(isStaleRef.current(next));
+          setUnavailable(false);
           setLoadState("ready");
         }
       })
-      .catch(() => {
+      .catch(error => {
         if (!cancelled) {
+          setUnavailable(isApiUnavailable(error));
           if (hasDataRef.current) {
             setStale(true);
             setLoadState("ready");
@@ -281,6 +292,7 @@ function useOperationalSummary<T>(
     loadState,
     loadError,
     stale,
+    unavailable,
     refresh: () => setRefreshKey(k => k + 1),
   };
 }
@@ -383,14 +395,17 @@ function FindingRow({ finding }: { finding: Api.DashboardFinding }) {
  * Milestone F — shared operational state patterns
  * ------------------------------------------------------------------------- */
 
-function PanelStateLine({ state, error, emptyMessage }: {
+function PanelStateLine({ state, error, emptyMessage, unavailable = false }: {
   state: DashboardLoadState;
   error: string | null;
   emptyMessage?: string;
+  unavailable?: boolean;
 }) {
-  if (state === "loading") return <div className="state-line">Loading operational state...</div>;
-  if (state === "error") return <div className="state-line error">{error ?? "Unable to load this surface from the Product API."}</div>;
-  return <div className="state-line empty">{emptyMessage ?? "No data available"}</div>;
+  if (state === "loading") return <InteractionStateNotice state="loading" message="Loading Product API state..." />;
+  if (state === "refreshing") return <InteractionStateNotice state="recovering" message="Refreshing Product API state..." />;
+  if (unavailable) return <InteractionStateNotice state="unavailable" message={error ?? "The Product API source is temporarily unavailable."} />;
+  if (state === "error") return <InteractionStateNotice state="error" message={error ?? "Unable to load this surface from the Product API."} />;
+  return <InteractionStateNotice state="empty" message={emptyMessage ?? "No data available"} />;
 }
 
 function ErrorBanner({ error }: { error: string | null }) {
@@ -400,6 +415,27 @@ function ErrorBanner({ error }: { error: string | null }) {
 
 function EmptyState({ message, children }: { message: string; children?: React.ReactNode }) {
   return <div className="state-line empty">{message}{children}</div>;
+}
+
+function InteractionStateNotice({ state, message }: { state: InteractionState; message: string }) {
+  const tone = state === "error" || state === "blocked" || state === "unavailable" ? "error" : state === "empty" ? "empty" : "";
+  const role = state === "error" || state === "blocked" || state === "unavailable" ? "alert" : "status";
+  return <div className={["state-line", tone, "interaction-state-" + state].filter(Boolean).join(" ")} role={role}>
+    <StateBadge label={state} dimension="Presentation state" /> {message}
+  </div>;
+}
+
+function ProjectionStateBadges({ freshness, redactedFields, reconstructionState }: {
+  freshness: string;
+  redactedFields: readonly string[];
+  reconstructionState: string;
+}) {
+  if (freshness !== "UNAVAILABLE" && redactedFields.length === 0 && reconstructionState !== "GAP") return null;
+  return <div className="catalog-badges projection-state-badges">
+    {freshness === "UNAVAILABLE" && <StateBadge label="unavailable" dimension="Product API source" />}
+    {redactedFields.length > 0 && <StateBadge label="redacted" dimension="Product API disclosure" />}
+    {reconstructionState === "GAP" && <StateBadge label="reconstruction gap" dimension="Product API reconstruction" />}
+  </div>;
 }
 
 function SummaryCard({ title, meta, state, emptyMessage, children }: {
@@ -764,11 +800,12 @@ function ReadinessFlagCard({ title, meta, flag, state }: {
 }
 
 
-function staleBanner(state: { stale: boolean; loadState: DashboardLoadState; loadError: string | null }, subject: string) {
+function staleBanner(state: { stale: boolean; loadState: DashboardLoadState; loadError: string | null; unavailable?: boolean }, subject: string) {
   return <>
     {state.stale && <div className="stale-banner" role="status">Showing a stale {subject} snapshot. Refresh to recover live state.</div>}
-    {state.loadState === "refreshing" && <div className="refresh-banner" role="status">Refreshing {subject}...</div>}
-    {state.loadError && <div className="error-banner" role="alert">{state.loadError}</div>}
+    {state.loadState === "refreshing" && <InteractionStateNotice state="recovering" message={"Refreshing " + subject + "..."} />}
+    {state.unavailable && state.loadError && <InteractionStateNotice state="unavailable" message={state.loadError} />}
+    {!state.unavailable && state.loadError && <div className="error-banner" role="alert">{state.loadError}</div>}
   </>;
 }
 
@@ -778,5 +815,5 @@ function IdList({ label, ids }: { label: string; ids: readonly string[] }) {
 }
 
 
-export {domainDefs, domainByPath, viewOfPath, childActive, SAFE_IDENTIFIER, apiErrorMessage, isApiConflict, statusTone, Status, Badge, StateBadge, FindingSeverity, ReadinessBadge, Time, Metric, useOperationalSummary, OperationalModeNotice, AgentGuardrailBanner, DashboardCard, CockpitPanel, DashboardMetric, SummaryRow, FindingRow, PanelStateLine, ErrorBanner, EmptyState, SummaryCard, BlockedPanel, UnsupportedPanel, TimelineList, EntityRefList, CrossLinks, SectionDisclosure, DomainHeader, ContextTabs, SidebarNavigation, EntityContextNav, CompositionCard, CatalogPage, CatalogLoading, CatalogError, CapabilityBadges, UnsupportedActionsPanel, CompositionFindingRow, FindingSection, SourceMap, ReadinessStatus, ReadinessFindingRow, ReadinessFlagCard, staleBanner, IdList};
-export type {DashboardLoadState, DashboardCardState, View, PrimaryDomain, Domain, DomainChild, DomainDef, ConnectivityState, TimelineItem};
+export {domainDefs, domainByPath, viewOfPath, childActive, SAFE_IDENTIFIER, apiErrorMessage, isApiConflict, statusTone, Status, Badge, StateBadge, FindingSeverity, ReadinessBadge, Time, Metric, useOperationalSummary, OperationalModeNotice, AgentGuardrailBanner, DashboardCard, CockpitPanel, DashboardMetric, SummaryRow, FindingRow, PanelStateLine, ErrorBanner, EmptyState, InteractionStateNotice, ProjectionStateBadges, SummaryCard, BlockedPanel, UnsupportedPanel, TimelineList, EntityRefList, CrossLinks, SectionDisclosure, DomainHeader, ContextTabs, SidebarNavigation, EntityContextNav, CompositionCard, CatalogPage, CatalogLoading, CatalogError, CapabilityBadges, UnsupportedActionsPanel, CompositionFindingRow, FindingSection, SourceMap, ReadinessStatus, ReadinessFindingRow, ReadinessFlagCard, staleBanner, IdList};
+export type {DashboardLoadState, DashboardCardState, InteractionState, View, PrimaryDomain, Domain, DomainChild, DomainDef, ConnectivityState, TimelineItem};
