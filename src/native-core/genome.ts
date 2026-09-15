@@ -15,7 +15,7 @@ import {
   validateRevisionRef,
   ValidationIssue,
 } from "./primitives.js";
-import { SourceReferenceV2, validateSourceReferenceV2 } from "./evidence.js";
+import { ArtifactReferenceV2, SourceReferenceV2, validateArtifactReferenceV2, validateSourceReferenceV2 } from "./evidence.js";
 
 export type TraitValueKindV1 = "string" | "number" | "boolean" | "json";
 export type TraitAssertionStateV1 = "active" | "superseded" | "retracted";
@@ -74,6 +74,24 @@ export interface TraitVerificationReferenceV1 {
   readonly status: TraitVerificationStatusV1;
   readonly evidence_refs: readonly EntityRef[];
   readonly decision_ref?: EntityRef;
+}
+
+export type PresentationAssetAvailabilityV1 = "available" | "unavailable";
+export type PresentationAssetGapCodeV1 = "PRESENTATION_REFERENCE_UNAVAILABLE" | "PRESENTATION_REPRESENTATION_UNAVAILABLE";
+
+export interface PresentationAssetReferenceV1 {
+  readonly artifact_ref: ArtifactReferenceV2;
+  readonly availability: PresentationAssetAvailabilityV1;
+  readonly gap_code?: PresentationAssetGapCodeV1;
+}
+
+export interface PresentationAssetAssociationV1 {
+  readonly subject: GenomeSubjectV1;
+  readonly assertion_ref: TraitAssertionReferenceV1;
+  readonly presentation_role: string;
+  readonly asset_ref: PresentationAssetReferenceV1;
+  readonly provenance_refs: readonly SourceReferenceV2[];
+  readonly evidence_refs: readonly EntityRef[];
 }
 
 export interface TraitAssertionV1 {
@@ -198,6 +216,47 @@ export function validateTraitVerificationReferenceV1(value: unknown, path = "ver
   if (verification.decision_ref !== undefined) try { validateEntityRef(verification.decision_ref, `${path}.decision_ref`); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
   assertNoSecretMaterial(value);
   return assertValid(freezeNative({ ...verification, assertion_ref: assertionRef, evidence_refs: evidenceRefs } as TraitVerificationReferenceV1), issues);
+}
+
+export function validatePresentationAssetReferenceV1(value: unknown, path = "asset_ref"): PresentationAssetReferenceV1 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) invalidObject("PresentationAssetReference");
+  const reference = value as Partial<PresentationAssetReferenceV1>;
+  const issues: ValidationIssue[] = [];
+  let artifactRef: ArtifactReferenceV2 | undefined;
+  try { artifactRef = validateArtifactReferenceV2(reference.artifact_ref); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
+  if (!["available", "unavailable"].includes(reference.availability ?? "")) issues.push({ path: `${path}.availability`, code: "INVALID_ENUM", message: "Invalid presentation asset availability" });
+  if (reference.availability === "unavailable" && !["PRESENTATION_REFERENCE_UNAVAILABLE", "PRESENTATION_REPRESENTATION_UNAVAILABLE"].includes(reference.gap_code ?? "")) {
+    issues.push({ path: `${path}.gap_code`, code: "PRESENTATION_GAP_CODE_REQUIRED", message: "Unavailable presentation assets require an explicit gap code" });
+  }
+  if (reference.availability === "available" && reference.gap_code !== undefined) issues.push({ path: `${path}.gap_code`, code: "PRESENTATION_GAP_CODE_FORBIDDEN", message: "Available presentation assets cannot carry a gap code" });
+  assertNoSecretMaterial(value);
+  return assertValid(freezeNative({ ...reference, ...(artifactRef ? { artifact_ref: artifactRef } : {}) } as PresentationAssetReferenceV1), issues);
+}
+
+export function createPresentationAssetReferenceV1(input: PresentationAssetReferenceV1): PresentationAssetReferenceV1 {
+  return validatePresentationAssetReferenceV1(freezeNative(input));
+}
+
+export function validatePresentationAssetAssociationV1(value: unknown): PresentationAssetAssociationV1 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) invalidObject("PresentationAssetAssociation");
+  const association = value as Partial<PresentationAssetAssociationV1>;
+  const issues: ValidationIssue[] = [];
+  let subject: GenomeSubjectV1 | undefined;
+  try { subject = validateGenomeSubjectV1(association.subject); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
+  const assertionRef = validateDigestReference(association.assertion_ref, "assertion_ref", issues);
+  requireString(association.presentation_role, "presentation_role", issues);
+  let assetRef: PresentationAssetReferenceV1 | undefined;
+  try { assetRef = validatePresentationAssetReferenceV1(association.asset_ref); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues); }
+  const provenanceRefs = !Array.isArray(association.provenance_refs) ? (issues.push({ path: "provenance_refs", code: "INVALID_LIST", message: "An array is required" }), []) : association.provenance_refs.map((entry, index) => {
+    try { return validateSourceReferenceV2(entry); } catch (error) { if (error instanceof NativeContractValidationError) issues.push(...error.issues.map((issue) => ({ ...issue, path: `provenance_refs[${index}].${issue.path}` }))); return entry as SourceReferenceV2; }
+  });
+  const evidenceRefs = validateEntityRefList(association.evidence_refs, "evidence_refs", issues);
+  assertNoSecretMaterial(value);
+  return assertValid(freezeNative({ ...association, ...(subject ? { subject } : {}), assertion_ref: assertionRef, ...(assetRef ? { asset_ref: assetRef } : {}), provenance_refs: provenanceRefs, evidence_refs: evidenceRefs } as PresentationAssetAssociationV1), issues);
+}
+
+export function createPresentationAssetAssociationV1(input: PresentationAssetAssociationV1): PresentationAssetAssociationV1 {
+  return validatePresentationAssetAssociationV1(freezeNative(input));
 }
 
 function validateDefinitionReference(value: unknown, path: string, issues: ValidationIssue[]): TraitDefinitionReferenceV1 {
