@@ -122,8 +122,18 @@ REQ-10: COMPLETE / ACCEPTED
 REQ-11: COMPLETE / ACCEPTED
 REQ-12: COMPLETE / ACCEPTED
 ARCHITECTURE/SPECIFICATION: COMPLETE / ACCEPTED
-IMP-01 through IMP-06: COMPLETE / CTO ACCEPTED / PUBLISHED OR CLOSED
-POST-IMP-06 DEPENDENCY GATE: COMPLETE / READY FOR CTO REVIEW
-IMP-07: CANDIDATE / READY FOR CTO IMPLEMENTATION GATE
-Implementation authority: NONE
+IMP-01 through IMP-07: COMPLETE / CTO ACCEPTED / PUBLISHED OR CLOSED
+IMP-08 Architecture & Semantic Freeze: COMPLETE / CTO ACCEPTED
+IMP-08 S1 — Genome trait contracts: COMPLETE / CTO ACCEPTED / PUBLISHED
+IMP-08 S2 charter: COMPLETE / CTO ACCEPTED
+IMP-08 S2 implementation — presentation asset references: COMPLETE / CTO ACCEPTED / PUBLISHED
+IMP-08: IN PROGRESS
+  -> S3: CONDITIONAL / HOLD; expected SKIPPED / NOT REQUIRED unless durable need is proven
+  -> S4: HOLD; depends on accepted source contracts and the IMP-07 administration/Product API chain
+  -> S5: HOLD; final conformance and closure
+IMP-09: DEPENDENCY-GATED / BLOCKED by IMP-08 closure
+IMP-10: DEPENDENCY-GATED / BLOCKED by IMP-09 and IMP-08 closure
+Schema 12: CURRENT CANONICAL
+Schema 13: NOT REQUIRED / NOT AUTHORIZED
+Implementation authority: NONE beyond separately accepted milestones
 ```

@@ -5,8 +5,8 @@
 **Slice:** S2 — Presentation Assets / Verification
 **Mapped requirement:** EPIC-17-REQ-11
 **Baseline:** `425485ce2b09777a5af997a18726554acbf9236c`
-**Status:** `AUTHORIZED FOR CONTRACT/DESIGN REVIEW`
-**Implementation:** `HOLD PENDING CTO CHARTER ACCEPTANCE`
+**Status:** `COMPLETE / CTO ACCEPTED`
+**Implementation:** `COMPLETE / CTO ACCEPTED / PUBLISHED` (`fd03ee04e0acf32af927864d5c2955cca0cc7ccb`)
 **Persistence impact:** `A — NO PERSISTENCE CHANGE REQUIRED`
 **Schema:** `12 / CANONICAL / UNCHANGED`; Schema 13 `NOT AUTHORIZED`
 
@@ -24,7 +24,7 @@ exact Agent / AgentRevision subject
 No ownership, storage, authority, or execution is implied by any arrow.
 ```
 
-This is contract/design review only. It authorizes neither source changes nor S2 implementation until CTO accepts the charter and gives a separate GO.
+This charter was authored as contract/design review. Its pre-acceptance wording remains historical context. CTO acceptance and the separately published S2 implementation are reconciled by ACS-WORKSPACE-REQ-01; this update does not create a new technical acceptance.
 
 ## 2. Success criteria and exclusions
 
@@ -116,15 +116,15 @@ STOP
 
 No such need is demonstrated. S3 remains conditional and is expected to be `SKIPPED / NOT REQUIRED` unless later evidence proves otherwise.
 
-## 9. CTO review checklist
+## 9. CTO review result
 
-- [ ] Reuse-first mapping accepted.
-- [ ] Presentation association accepted as bounded metadata only.
-- [ ] `ArtifactReferenceV2` remains an immutable external reference, not a catalog or storage owner.
-- [ ] Verification remains an external association without policy or authority.
-- [ ] Unavailable and historical-gap outcomes are explicit and fail closed.
-- [ ] No persistence, schema, API, Runtime, Admission, provider/executor or economic scope enters S2.
-- [ ] S2 implementation and commit require separate CTO GO.
+- [x] Reuse-first mapping accepted.
+- [x] Presentation association accepted as bounded metadata only.
+- [x] `ArtifactReferenceV2` remains an immutable external reference, not a catalog or storage owner.
+- [x] Verification remains an external association without policy or authority.
+- [x] Unavailable and historical-gap outcomes are explicit and fail closed.
+- [x] No persistence, schema, API, Runtime, Admission, provider/executor or economic scope entered S2.
+- [x] S2 implementation is published at `fd03ee04e0acf32af927864d5c2955cca0cc7ccb`.
 
 ## 10. Result
 
@@ -132,8 +132,8 @@ No such need is demonstrated. S3 remains conditional and is expected to be `SKIP
 EPIC-17-IMP-08 S2
 PRESENTATION ASSETS / VERIFICATION CONTRACT BOUNDARY CHARTER
 
-Status: AUTHORIZED FOR CONTRACT/DESIGN REVIEW
-Implementation: HOLD
+Status: COMPLETE / CTO ACCEPTED
+Implementation: COMPLETE / CTO ACCEPTED / PUBLISHED
 Canonical ownership: REUSE Agent, AgentRevision, Source, Evidence, Artifact and Governance owners
 Genome ownership: DESCRIPTIVE ASSOCIATIONS ONLY
 New primitive/aggregate/store: NONE AUTHORIZED
@@ -142,5 +142,5 @@ Schema 12: UNCHANGED
 Schema 13: NOT AUTHORIZED
 Product API / Runtime / Admission: NONE
 Stop condition: PERSISTENCE OR SCHEMA REQUIREMENT -> CTO PHYSICAL-DESIGN REVIEW
-Recommendation: READY FOR CTO CHARTER REVIEW
+Acceptance evidence: Charter commit `7ddd015a736e19f825bb356ae7c288ce5f025c56`; implementation commit `fd03ee04e0acf32af927864d5c2955cca0cc7ccb`
 ```
