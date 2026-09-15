@@ -37,7 +37,7 @@ DTO, UI, service, schema, migration or implementation.
 | `ADR-17-048` | Historical snapshot, reconstruction-gap and redaction semantics | `PROPOSED` |
 | `ADR-17-049` | Control Plane `Flow -> Module -> Screen` hierarchy | `PROPOSED` |
 | `ADR-17-050` | Tenant-safe search/reference/history and write-only credential ingress | `PROPOSED` |
-| `ADR-17-051` | Reconciliation of the Administration IA divergence | `PROPOSED` |
+| `ADR-17-051` | Reconciliation of the Administration IA divergence | `ACCEPTED / IMP-09 S5 PENDING CTO CLOSURE REVIEW` |
 
 ## Implementation blockers
 
