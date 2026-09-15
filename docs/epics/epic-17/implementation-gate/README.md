@@ -57,6 +57,7 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 - [IMP-07 final conformance](imp-07-final-conformance.md)
 - [Post-IMP-07 dependency and milestone gate](post-imp-07-dependency-and-milestone-gate.md)
 - [IMP-08 architecture and semantic freeze](imp-08-architecture-semantic-freeze.md)
+- [IMP-08 S2 presentation assets / verification contract boundary charter](imp-08-s2-contract-boundary-charter.md)
 
 ## Current disposition
 
