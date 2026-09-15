@@ -10,9 +10,9 @@ const [appSource, sharedSource, runtimeSource, operationalSource, compositionSou
   readFile(new URL("../src/domains/composition/Composition.tsx", import.meta.url), "utf8"),
 ]);
 
-const [economicsSource, administrationSource, cssSource] = await Promise.all([
+const [economicsSource, governanceSource, cssSource] = await Promise.all([
   readFile(new URL("../src/domains/economics/Economics.tsx", import.meta.url), "utf8"),
-  readFile(new URL("../src/domains/administration/Administration.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../src/domains/governance/Governance.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src/operational.css", import.meta.url), "utf8"),
 ]);
 
@@ -60,9 +60,9 @@ test("long Governance and Economics reports expose intra-view section navigation
   assert.match(sharedSource, /function ReportSectionNav\(/);
   assert.match(economicsSource, /ReportSectionNav sections=/);
   assert.match(economicsSource, /id="economics-primary"/);
-  assert.match(administrationSource, /ReportSectionNav sections=/);
-  assert.match(administrationSource, /id="governance-guardrails"/);
-  assert.match(administrationSource, /id="governance-configuration"/);
+  assert.match(governanceSource, /ReportSectionNav sections=/);
+  assert.match(governanceSource, /id="governance-guardrails"/);
+  assert.match(governanceSource, /id="governance-configuration"/);
   assert.match(cssSource, /\.report-section-nav/);
   assert.doesNotMatch(economicsSource, /<Router\.Link[^>]+#economics/);
 });

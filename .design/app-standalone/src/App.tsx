@@ -11,7 +11,9 @@ import { WorkforceCreate, WorkforceDetail, WorkforceInventory, WorkforceMembers,
 import { AgentCompositionView, CompositionOverview, RoleCatalog, RoleDetail, ProfileCatalog, ProfileDetail, CapabilityCatalog, CapabilityDetail, SkillCatalog, SkillDetail, ToolsPluginsCatalog, ToolDetail, PluginDetail, EngineCatalog, EngineDetail, ProviderDetail } from "./domains/composition/Composition";
 import { GenericView, Runtime, Logs, EvidenceView, AuditView } from "./domains/runtime/Runtime";
 import { EconomicsView, PaymentRailsBoundaryView, PricingInvoiceBoundaryView, BillingBoundaryView, TenantBillingBoundaryView, SettlementReconciliationBoundaryView, FinancialAuditBoundaryView, BillingUxAcceptanceView } from "./domains/economics/Economics";
-import { AdministrationOverview, GovernanceView, OperationalReliabilityView, Settings } from "./domains/administration/Administration";
+import { AdministrationOverview } from "./domains/administration/Administration";
+import { GovernanceView } from "./domains/governance/Governance";
+import { OperationalReliabilityView, Settings, SystemView } from "./domains/system/System";
 import "./operational.css";
 
 export default function App() {
@@ -212,7 +214,7 @@ export default function App() {
             <Route path="/system/settlement-reconciliation" element={<SettlementReconciliationBoundaryView />} />
             <Route path="/system/financial-audit" element={<FinancialAuditBoundaryView />} />
             <Route path="/system/billing-acceptance" element={<BillingUxAcceptanceView />} />
-            <Route path="/system" element={<GovernanceView />} />
+            <Route path="/system" element={<SystemView />} />
             <Route path="/system/operational-reliability" element={<OperationalReliabilityView />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
