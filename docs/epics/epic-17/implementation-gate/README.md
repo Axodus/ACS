@@ -53,6 +53,7 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 - [IMP-07 architecture and semantic freeze](imp-07-architecture-semantic-freeze.md)
 - [IMP-07 S1 administrative contracts report](imp-07-s1-report.md)
 - [IMP-07 S2 administrative services report](imp-07-s2-report.md)
+- [IMP-07 S3 Product API integration report](imp-07-s3-report.md)
 
 ## Current disposition
 

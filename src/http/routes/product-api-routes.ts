@@ -9,6 +9,8 @@ import {
 } from "../validation.js";
 import type { ControlPlaneContext } from "../control-plane-context.js";
 import { ProductApiClient } from "../../control-plane/product-api-client.js";
+import { AdministrativeQueryError, AdministrativeQueryService } from "../../control-plane/administrative-services.js";
+import { createAdministrativeCurrentRefV1, createAdministrativeHistoricalRefV1, createAdministrativeObservationRefV1 } from "../../control-plane/administrative-contracts.js";
 import { enforceTenantGovernanceMutation, type TenantGovernanceEnforcementDecision } from "../tenant-governance-enforcer.js";
 import type { EconomicAuthorizationDecisionCode } from "../../control-plane/neurons-economic-contract.js";
 import type {
@@ -155,6 +157,7 @@ export async function routeProductApiRequest(
     },
   });
   const workforceApi = context.nativeCore ? createWorkforceProductApi(context.nativeCore) : undefined;
+  const administrativeQuery = context.nativeCore ? new AdministrativeQueryService(context.nativeCore) : undefined;
 
   const segments = path.split("/").filter(Boolean);
 
@@ -763,20 +766,47 @@ export async function routeProductApiRequest(
     }
     if (apiPath.startsWith("memory/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
 
-    if (apiPath === "automations" && request.method === "GET") { assertAllowedQueryParams(url, []); return { status: 200, body: ok(await api.listAutomations(context.isolation.scope.tenantId), [], options.correlationId, routeMeta) }; }
-    if (segments[2] === "automations" && segments[3] && segments.length === 4 && request.method === "GET") { assertAllowedQueryParams(url, []); const automation=await api.getAutomation(readPathSegment(segments,3,"automationId"),context.isolation.scope.tenantId); return automation ? {status:200,body:ok(automation,[],options.correlationId,routeMeta)} : fail("Automation not found",404,"not_found",options.correlationId,undefined,routeMeta,"automation_not_found"); }
+    if (apiPath === "automations" && request.method === "GET") {
+      assertAllowedQueryParams(url, []);
+      return { status: 200, body: ok(administrativeQuery ? await administrativeQuery.listAutomations(context.isolation.scope.tenantId) : [], [], options.correlationId, routeMeta) };
+    }
+    if (segments[2] === "automations" && segments[3] && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["revision", "fingerprint"]);
+      const automationId = readPathSegment(segments, 3, "automationId"); const revision = url.searchParams.get("revision"); const fingerprint = url.searchParams.get("fingerprint");
+      if (Boolean(revision) !== Boolean(fingerprint)) throw new AcsHttpValidationError("revision and fingerprint must be supplied together", "invalid_query");
+      const reference = revision ? createAdministrativeHistoricalRefV1({ resource_kind: "automation", stable_id: automationId, tenant_id: context.isolation.scope.tenantId, revision: Number(revision), fingerprint: fingerprint! }) : createAdministrativeCurrentRefV1({ resource_kind: "automation", stable_id: automationId, tenant_id: context.isolation.scope.tenantId });
+      const projection = administrativeQuery ? await administrativeQuery.getAutomation(context.isolation.scope.tenantId, reference) : undefined;
+      return projection ? { status: 200, body: ok(projection, [], options.correlationId, routeMeta) } : fail("Automation not found", 404, "not_found", options.correlationId, undefined, routeMeta, "automation_not_found");
+    }
     if (apiPath.startsWith("automations")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
 
     if (apiPath === "delegation/grants" && request.method === "GET") {
       assertAllowedQueryParams(url, []);
-      return { status: 200, body: ok(await api.listDelegationGrants(context.isolation.scope.tenantId), [], options.correlationId, routeMeta) };
+      return { status: 200, body: ok((administrativeQuery ? await administrativeQuery.listDelegations(context.isolation.scope.tenantId) : []).map((projection) => ({ ...projection, grantId: projection.metadata.source.stable_id })), [], options.correlationId, routeMeta) };
     }
     if (segments[2] === "delegation" && segments[3] === "grants" && segments[4] && segments.length === 5 && request.method === "GET") {
-      assertAllowedQueryParams(url, []);
-      const grant = await api.getDelegationGrant(readPathSegment(segments, 4, "grantId"), context.isolation.scope.tenantId);
-      return grant ? { status: 200, body: ok(grant, [], options.correlationId, routeMeta) } : fail("Delegation Grant not found", 404, "not_found", options.correlationId, undefined, routeMeta, "delegation_grant_not_found");
+      assertAllowedQueryParams(url, ["revision", "fingerprint"]);
+      const grantId = readPathSegment(segments, 4, "grantId"); const revision = url.searchParams.get("revision"); const fingerprint = url.searchParams.get("fingerprint");
+      if (Boolean(revision) !== Boolean(fingerprint)) throw new AcsHttpValidationError("revision and fingerprint must be supplied together", "invalid_query");
+      const reference = revision ? createAdministrativeHistoricalRefV1({ resource_kind: "delegation", stable_id: grantId, tenant_id: context.isolation.scope.tenantId, revision: Number(revision), fingerprint: fingerprint! }) : createAdministrativeCurrentRefV1({ resource_kind: "delegation", stable_id: grantId, tenant_id: context.isolation.scope.tenantId });
+      try {
+        const projection = administrativeQuery ? await administrativeQuery.getDelegation(context.isolation.scope.tenantId, reference) : undefined;
+        return projection ? { status: 200, body: ok({ ...projection, grantId: projection.metadata.source.stable_id }, [], options.correlationId, routeMeta) } : fail("Delegation Grant not found", 404, "not_found", options.correlationId, undefined, routeMeta, "delegation_grant_not_found");
+      } catch (error) {
+        if (error instanceof AdministrativeQueryError && error.code === "ADMINISTRATIVE_NOT_FOUND") return fail("Delegation Grant not found", 404, "not_found", options.correlationId, undefined, routeMeta, "delegation_grant_not_found");
+        throw error;
+      }
     }
     if (apiPath.startsWith("delegation/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
+
+    if (segments[2] === "activations" && segments[3] && segments.length === 4 && request.method === "GET") {
+      assertAllowedQueryParams(url, ["observationDigest"]);
+      const activationId = readPathSegment(segments, 3, "activationId"); const digest = url.searchParams.get("observationDigest");
+      const reference = digest ? createAdministrativeObservationRefV1({ resource_kind: "activation", stable_id: activationId, tenant_id: context.isolation.scope.tenantId, observation_digest: digest }) : createAdministrativeCurrentRefV1({ resource_kind: "activation", stable_id: activationId, tenant_id: context.isolation.scope.tenantId });
+      const projection = administrativeQuery ? await administrativeQuery.getActivation(context.isolation.scope.tenantId, reference) : undefined;
+      return projection ? { status: 200, body: ok(projection, [], options.correlationId, routeMeta) } : fail("Activation not found", 404, "not_found", options.correlationId, undefined, routeMeta, "activation_not_found");
+    }
+    if (apiPath.startsWith("activations/")) return methodNotAllowed(options.correlationId, routeMeta, "GET");
 
     // Agent inventory (read-only list with governed search/filter/sort)
     if (segments[2] === "agents" && segments.length === 3 && request.method === "GET") {
@@ -3432,6 +3462,10 @@ function safeSession(session: AcsAuthSession): AcsAuthSessionReadModel {
 }
 
 function mapDomainErrorToHttp(error: unknown, correlationId: string | undefined, meta: AcsHttpEnvelopeMeta) {
+  if (error instanceof AdministrativeQueryError) {
+    const status = error.code === "ADMINISTRATIVE_NOT_FOUND" || error.code === "TENANT_MISMATCH" ? 404 : error.code === "REVISION_MISMATCH" || error.code === "FINGERPRINT_MISMATCH" || error.code === "OBSERVATION_MISMATCH" ? 409 : 400;
+    return fail(status === 404 ? "administrative resource not found" : error.message, status, status === 404 ? "not_found" : "administrative_query_error", correlationId, undefined, meta, error.code.toLowerCase(), { retryable: false, severity: "warning" });
+  }
   if (error instanceof SiwxArtifactVerificationError) {
     const status = error.code === "SIWX_VERIFIER_NOT_CONFIGURED" || error.code === "SIWX_PROVIDER_UNAVAILABLE"
       ? 503
