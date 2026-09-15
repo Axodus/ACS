@@ -1,6 +1,6 @@
 # EPIC-17-IMP-09 — Final Conformance & Closure Gate
 
-**Status:** `COMPLETE / PENDING CTO CLOSURE REVIEW`
+**Status:** `COMPLETE / CTO ACCEPTED / CLOSED / PUBLISHED`
 **Type:** validation, reconciliation and documentation only
 **Closure baseline:** `eab6125ad78de02f917a4f11d8f6f52cf0a8199f` (`origin/dev`)
 **Date:** September 15, 2026

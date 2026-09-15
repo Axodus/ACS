@@ -15,10 +15,10 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `IMP-09 S5 — COMPLETE / PENDING CTO CLOSURE REVIEW`
-**Current implementation state:** IMP-09 S1 through S4 are `COMPLETE / CTO ACCEPTED / PUBLISHED`; S5 conformance is complete and pending CTO closure review.
+**Current gate:** `IMP-10 — READINESS / FINAL CONFORMANCE ASSESSMENT COMPLETE / PENDING CTO REVIEW`
+**Current implementation state:** IMP-09 is `COMPLETE / CTO ACCEPTED / CLOSED / PUBLISHED`; IMP-10 identifies one test-only conformance gap before final EPIC closure.
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
-**Scope:** architecture accepted; IMP-01 through IMP-08 closed; IMP-09 S1 through S4 accepted and S5 closure review pending
+**Scope:** architecture accepted; IMP-01 through IMP-09 closed; IMP-10 readiness identifies a bounded test-conformance gap only
 **Implementation authority:** no further implementation is authorized by this reconciliation
 **Migration authority:** Schema 12 canonical; Schema 13 not required or authorized
 **Public contract changes:** none
@@ -87,7 +87,7 @@ implementation authority.
 | [REQ-10 — Product API, Administration & Control Plane](req-10/README.md) | Domain projections, owner-routed actions, class-owned settings and Control Plane information architecture. |
 | [REQ-11 — Genome Traits, Assets & Verification](req-11/README.md) | Descriptive traits, presentation assets, Evidence-backed verification and performance-view boundaries. |
 | [REQ-12 — Cross-Domain Conformance & IMP Readiness](req-12/README.md) | Canonical ownership audit, 76-disposition closure, blocker consolidation and dependency-ordered candidate IMP plan. |
-| [CTO Implementation Gate](implementation-gate/README.md) | Current milestone index and IMP-09 closure review. |
+| [CTO Implementation Gate](implementation-gate/README.md) | Current milestone index and IMP-10 final-conformance assessment. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -184,8 +184,9 @@ list did not determine the count or sequence.
 
 `EPIC-17-REQ-01` through `REQ-12` and the architecture/specification phase are
 complete and accepted. The [gate package](implementation-gate/README.md) records IMP-01 through
-IMP-08 as complete and closed. IMP-09 S1 through S4 are accepted and published;
-its [S5 conformance package](implementation-gate/imp-09-final-conformance.md)
-is complete and pending CTO closure review. IMP-10 is released for evaluation
-only when that closure is accepted. Schema 12 remains canonical; Schema 13,
-database expansion and production authority remain outside this gate.
+IMP-08 as complete and closed. IMP-09 is complete, CTO accepted, closed and
+published; its [S5 conformance package](implementation-gate/imp-09-final-conformance.md)
+is accepted. [IMP-10 readiness](implementation-gate/imp-10-readiness-and-final-conformance-gate.md)
+identifies one bounded test-conformance gap before final EPIC closure. Schema 12
+remains canonical; Schema 13, database expansion and production authority remain
+outside this gate.
