@@ -15,8 +15,8 @@
 **REQ-11:** `COMPLETE / ACCEPTED`
 **REQ-12:** `COMPLETE / ACCEPTED`
 **Architecture/specification:** `COMPLETE / ACCEPTED`
-**Current gate:** `IMP-08 — IN PROGRESS`
-**Current implementation state:** S1 is `COMPLETE / CTO ACCEPTED / PUBLISHED`; the S2 charter is `COMPLETE / CTO ACCEPTED` and its implementation is `COMPLETE / CTO ACCEPTED / PUBLISHED`; S3 is `CONDITIONAL / HOLD`; S4 and S5 are `HOLD`
+**Current gate:** `IMP-08 — COMPLETE / CTO ACCEPTED / CLOSED`
+**Current implementation state:** Freeze, S1, S2 and S4 are `COMPLETE / CTO ACCEPTED / PUBLISHED`; S3 is `SKIPPED / NOT REQUIRED`; S5 final conformance is `COMPLETE / CTO ACCEPTED / CLOSED`
 **Mission decision:** [BR-03](../BR-03_EPIC-17_Mission_Decision.md) — `APPROVE`
 **Scope:** architecture accepted; IMP-01 through IMP-07 complete and accepted; IMP-08 is in progress through accepted S1 and S2 boundaries
 **Implementation authority:** no further implementation is authorized by this reconciliation
@@ -87,7 +87,7 @@ implementation authority.
 | [REQ-10 — Product API, Administration & Control Plane](req-10/README.md) | Domain projections, owner-routed actions, class-owned settings and Control Plane information architecture. |
 | [REQ-11 — Genome Traits, Assets & Verification](req-11/README.md) | Descriptive traits, presentation assets, Evidence-backed verification and performance-view boundaries. |
 | [REQ-12 — Cross-Domain Conformance & IMP Readiness](req-12/README.md) | Canonical ownership audit, 76-disposition closure, blocker consolidation and dependency-ordered candidate IMP plan. |
-| [CTO Implementation Gate](implementation-gate/README.md) | Current milestone index: IMP-01 through IMP-07 closed; IMP-08 in progress with accepted S1 and S2 records. |
+| [CTO Implementation Gate](implementation-gate/README.md) | Current milestone index: IMP-01 through IMP-08 closed; IMP-09 is released for evaluation only. |
 | [Agent instructions](AGENTS.md) | Rules for work under this package. |
 
 ## Required reading order
@@ -184,8 +184,9 @@ list did not determine the count or sequence.
 
 `EPIC-17-REQ-01` through `REQ-12` and the architecture/specification phase are
 complete and accepted. The [gate package](implementation-gate/README.md) records IMP-01 through
-IMP-07 as complete and closed. IMP-08 is in progress: its architecture/semantic
-freeze, S1 trait contracts and S2 presentation-association boundary are accepted
-and published. S3 remains conditional and on hold; S4 and S5 remain on hold.
-IMP-09 and IMP-10 remain dependency-gated. Schema 12 remains canonical; Schema
-13, database expansion and production authority remain outside this gate.
+IMP-07 as complete and closed. IMP-08 is complete and closed: its
+architecture/semantic freeze, S1/S2 contracts, S4 administrative projection and
+S5 final conformance are accepted; S3 is skipped as not required. IMP-09 is
+released for evaluation only and IMP-10 remains dependency-gated. Schema 12
+remains canonical; Schema 13, database expansion and production authority
+remain outside this gate.

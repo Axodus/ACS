@@ -127,11 +127,11 @@ IMP-08 Architecture & Semantic Freeze: COMPLETE / CTO ACCEPTED
 IMP-08 S1 — Genome trait contracts: COMPLETE / CTO ACCEPTED / PUBLISHED
 IMP-08 S2 charter: COMPLETE / CTO ACCEPTED
 IMP-08 S2 implementation — presentation asset references: COMPLETE / CTO ACCEPTED / PUBLISHED
-IMP-08: IN PROGRESS
-  -> S3: CONDITIONAL / HOLD; expected SKIPPED / NOT REQUIRED unless durable need is proven
-  -> S4: HOLD; depends on accepted source contracts and the IMP-07 administration/Product API chain
-  -> S5: HOLD; final conformance and closure
-IMP-09: DEPENDENCY-GATED / BLOCKED by IMP-08 closure
+IMP-08 S3: SKIPPED / NOT REQUIRED
+IMP-08 S4 — Genome administration projection: COMPLETE / CTO ACCEPTED / PUBLISHED (`42ba13e`)
+IMP-08 S5 — final conformance: COMPLETE / CTO ACCEPTED / CLOSED
+IMP-08: COMPLETE / CTO ACCEPTED / CLOSED
+IMP-09: DEPENDENCY GATE RELEASED FOR EVALUATION ONLY; separate implementation authorization required
 IMP-10: DEPENDENCY-GATED / BLOCKED by IMP-09 and IMP-08 closure
 Schema 12: CURRENT CANONICAL
 Schema 13: NOT REQUIRED / NOT AUTHORIZED
