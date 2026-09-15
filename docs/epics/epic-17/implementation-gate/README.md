@@ -2,10 +2,10 @@
 
 **Architecture/specification:** `COMPLETE / ACCEPTED`
 **REQ-01 through REQ-12:** `COMPLETE / ACCEPTED`
-**Gate status:** `EPIC-17-IMP-05 — GATE PREPARATION COMPLETE / CTO ACCEPTED`
-**Current work:** IMP-05 Slice 3 accepted for publication; Slice 4 Product API administration projection authorized after publication
-**Implementation authority:** Slice 4 Product API projection only; Activation, scheduler and runtime remain hold
-**Migration authority:** Schema 11 accepted and promoted with Slice 2 publication; no Schema 12 authority
+**Gate status:** `EPIC-17-IMP-06 — S4 COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED`
+**Current work:** IMP-06 Slices 1–3 are published; S4 Schedule Occurrence & Recovery Machinery is CTO accepted without a scheduler runtime.
+**Implementation authority:** S4 commit and push to `origin/dev` authorized
+**Migration authority:** Schema 12 is canonical; no Schema 13 authority
 
 IMP-01 and IMP-02 are `COMPLETE / CTO ACCEPTED`. IMP-02 closed effective
 configuration, immutable fingerprinted snapshots, Tenant binding,
@@ -38,6 +38,14 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 - [IMP-05 Slice 1 Automation contracts report](imp-05-slice-1-report.md)
 - [IMP-05 Slice 2 durable identity/history report](imp-05-slice-2-report.md)
 - [IMP-05 Slice 3 governed Automation service report](imp-05-slice-3-report.md)
+- [IMP-06 Activation / Causal Occurrence charter](imp-06-charter.md)
+- [IMP-06 Schema 12 physical design](imp-06-schema-12-physical-design.md)
+- [IMP-06 definitive blocker and delta slice mapping](imp-06-slice-mapping.md)
+- [IMP-06 Slice 1 Activation contracts report](imp-06-slice-1-report.md)
+- [IMP-06 Slice 3 target/authority preparation report](imp-06-slice-3-report.md)
+- [IMP-06 post-Slice-3 reconciliation](imp-06-post-slice-3-reconciliation.md)
+- [IMP-06 S4 Schedule Semantics Freeze](imp-06-s4-schedule-semantics-freeze.md)
+- [IMP-06 S4 Schedule Occurrence & Recovery report](imp-06-s4-report.md)
 
 ## Current disposition
 
@@ -79,6 +87,12 @@ projection are complete. Schema 10 is now canonical for Delegation; no schema
 | IMP-05 Slice 2 — Schema 11 and durable Automation identity/history | COMPLETE / CTO ACCEPTED / PUBLISHED | [PostgreSQL 17.6 schema-11 acceptance, CAS, idempotency, immutable history and atomicity package](imp-05-slice-2-report.md); Schema 11 canonical and Schema 10 superseded. |
 | IMP-05 Slice 3 — Governed Automation service | COMPLETE / CTO ACCEPTED / PUBLISHED | [Service, idempotency, lifecycle, scope and proof package](imp-05-slice-3-report.md); no functional change is pending in the documentation package. |
 | IMP-05 Slice 1 — Automation contracts, lifecycle and target semantics | `COMPLETE / CTO ACCEPTED / PUBLISHED` | [Native contract, focused test and full-regression causality package](imp-05-slice-1-report.md); no schema/migration/persistence/runtime expansion. |
+| IMP-06 Slice 1 — Activation contracts, causal identity and state machine | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `116e248`; Activation remains distinct from source observation, admission, Run and execution. |
+| IMP-06 Slice 2 — Schema 12 durable Activation foundations | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `390e960`; Schema 12 is canonical. |
+| IMP-06 Slice 3 — target/authority preparation and recoverable handoff | `COMPLETE / CTO ACCEPTED / PUBLISHED` | Commit `7be46f0`; preparation stops before admission and execution. |
+| IMP-06 post-Slice-3 reconciliation | `COMPLETE / CTO ACCEPTED` | [S4 was selected from the frozen mapping](imp-06-post-slice-3-reconciliation.md). |
+| IMP-06 S4 Schedule Semantics Freeze | `COMPLETE / CTO ACCEPTED` | [Typed definition, occurrence identity, missed-work, watermark and recovery semantics](imp-06-s4-schedule-semantics-freeze.md). |
+| IMP-06 S4 Schedule Occurrence & Recovery Machinery | `COMPLETE / CTO ACCEPTED / PUBLICATION AUTHORIZED` | [Deterministic recovery service, canonical Activation ingress, PostgreSQL evidence and exclusions](imp-06-s4-report.md). |
 
 ## Current implementation boundary
 
@@ -87,10 +101,9 @@ Development SQLite data remains disposable: no preservation, import, backfill
 or compatibility path is required. Schema 9 is implemented and validated.
 IMP-03B is closed. `EPIC-17-IMP-04` Slices 1 through 5 are
 `COMPLETE / CTO ACCEPTED / PUBLISHED`; schema 10 is canonical and IMP-04 is
-closed. Its Product API projection is read-only and Tenant-bound. IMP-05 gate
-preparation and Slice 1 are CTO accepted and published. Slice 2 migration and
-durable persistence are authorized; Workforce
-mutation, credential or Memory execution, and any direct Grant-to-Run path
-remain unauthorized.
+closed. Its Product API projection is read-only and Tenant-bound. IMP-05 is
+closed and Schema 11 is superseded by canonical Schema 12. IMP-06 Slices 1
+through 3 are published. Scheduler runtime, admission invocation, Run/Workflow
+creation, OpenClaw execution and Schema 13 remain unauthorized.
 Production Memory enablement remains blocked until a validated external
 KMS/Transit integration.

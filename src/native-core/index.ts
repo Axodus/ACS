@@ -15,3 +15,4 @@ export * from "./memory-crypto.js";
 export * from "./delegation.js";
 export * from "./automation.js";
 export * from "./activation.js";
+export * from "./schedule.js";
