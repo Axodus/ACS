@@ -856,11 +856,18 @@ export function AgentGenomeView() {
   return <AgentGenomeContent key={`${agentId}:${revision ?? "current"}:${fingerprint ?? "current"}`} agentId={agentId} revision={revision} fingerprint={fingerprint} />;
 }
 
+function isGenomeProjectionUnavailable(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { status?: unknown; code?: unknown };
+  return candidate.code === "genome_not_found" || candidate.status === 503 || candidate.status === 504;
+}
+
 function AgentGenomeContent({ agentId, revision, fingerprint }: { agentId: string; revision?: number; fingerprint?: string }) {
   const genome = Shared.useOperationalSummary<readonly Api.AdministrativeProjectionV1[]>(
     () => Api.productApi.getAgentGenome(agentId, revision !== undefined && fingerprint !== undefined ? { revision, fingerprint } : undefined),
-    "Unable to load Agent Genome projections from Product API",
+    "Agent Genome projections are currently unavailable from the Product API.",
     () => false,
+    isGenomeProjectionUnavailable,
   );
 
   return <>

@@ -239,6 +239,7 @@ function useOperationalSummary<T>(
   fetcher: () => Promise<T>,
   emptyError: string,
   isStale: (data: T) => boolean,
+  isErrorUnavailable: (error: unknown) => boolean = isApiUnavailable,
 ) {
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [data, setData] = React.useState<T | null>(null);
@@ -249,9 +250,11 @@ function useOperationalSummary<T>(
   const hasDataRef = React.useRef(false);
   const fetcherRef = React.useRef(fetcher);
   const isStaleRef = React.useRef(isStale);
+  const isErrorUnavailableRef = React.useRef(isErrorUnavailable);
   const emptyErrorRef = React.useRef(emptyError);
   fetcherRef.current = fetcher;
   isStaleRef.current = isStale;
+  isErrorUnavailableRef.current = isErrorUnavailable;
   emptyErrorRef.current = emptyError;
 
   React.useEffect(() => {
@@ -271,7 +274,7 @@ function useOperationalSummary<T>(
       })
       .catch(error => {
         if (!cancelled) {
-          setUnavailable(isApiUnavailable(error));
+          setUnavailable(isErrorUnavailableRef.current(error));
           if (hasDataRef.current) {
             setStale(true);
             setLoadState("ready");

@@ -18,6 +18,8 @@ test("S4 defines explicit presentation states without conflating loading, empty,
   }
   assert.match(sharedSource, /function isApiUnavailable/);
   assert.match(sharedSource, /status === 503 \|\| status === 504/);
+  assert.match(sharedSource, /isErrorUnavailable: \(error: unknown\) => boolean = isApiUnavailable/);
+  assert.match(sharedSource, /setUnavailable\(isErrorUnavailableRef\.current\(error\)\)/);
   assert.match(sharedSource, /state === "refreshing".*state="recovering"/s);
   assert.match(sharedSource, /if \(unavailable\) return <InteractionStateNotice state="unavailable"/);
   assert.match(sharedSource, /return <InteractionStateNotice state="empty"/);
@@ -28,6 +30,8 @@ test("S4 keeps Genome source truth separate from client presentation", () => {
   assert.match(agentsSource, /Shared\.ProjectionStateBadges freshness=\{meta\.freshness\} redactedFields=\{meta\.redacted_fields\} reconstructionState=\{meta\.reconstruction_state\}/);
   assert.match(agentsSource, /state="redacted" message="The Product API withheld the listed fields/);
   assert.match(agentsSource, /unavailable=\{genome\.unavailable\}/);
+  assert.match(agentsSource, /function isGenomeProjectionUnavailable/);
+  assert.match(agentsSource, /candidate\.code === "genome_not_found" \|\| candidate\.status === 503 \|\| candidate\.status === 504/);
   assert.match(agentsSource, /source\.addressing === "EXACT"/);
   assert.doesNotMatch(agentsSource, /fieldName\.includes\("status"\)/);
 });
