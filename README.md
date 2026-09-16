@@ -37,6 +37,7 @@ This package does not execute real inference, access wallets, settle treasury fl
 
 ## Commands
 
+
 ```bash
 npm install
 npm run build
