@@ -16,8 +16,13 @@ export default defineConfig(({ mode }) => {
     environment === "local" ? DEFAULT_LOCAL_API_BASE_URL : DEFAULT_DEVELOPMENT_API_BASE_URL
   );
   const proxyTarget = env.VITE_ACS_API_PROXY_TARGET?.trim() || apiTarget(baseUrl);
+  const configuredBasePath = env.VITE_BASE_PATH?.trim();
+  const base = configuredBasePath
+    ? `${configuredBasePath.replace(/\/+$/, "")}/`
+    : "/";
 
   return {
+    base,
     plugins: [react()],
     server: {
       host: "0.0.0.0",
