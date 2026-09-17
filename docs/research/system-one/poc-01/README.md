@@ -20,7 +20,12 @@ synthetic cases using the temporary experimental `TYPESAFE_API_KEY`. All six
 provider calls returned parseable judgments with no recorded provider errors or
 timeouts. After CTO authorization of comparator C, Stage B completed the frozen
 240-evaluation Phase-0 run for A, B, and C. The result is recorded as
-`PATTERN VALIDATED / PROVIDER NO-GO`; this is not production adoption.
+`COMPLETE / CTO ACCEPTED / CLOSED / PUBLISHED` with final classification
+`PATTERN VALIDATED / PROVIDER NO-GO`. This is not production adoption.
+
+The conclusion is scoped to System One as an Evidence Judgment provider under
+the frozen POC-01 workload and protocol. It is not a universal rejection of
+other possible System One workloads.
 
 Run the validation checks with:
 
@@ -49,3 +54,7 @@ The final execution report is in `analysis/stage-b-execution-report.md`; the
 Stage A historical report remains in `analysis/execution-report.md`. Sanitized raw
 arm outputs and the derived analysis remain in `results/`. No raw provider
 response body or credential is persisted.
+
+The non-normative architectural lesson is recorded in
+`judgment-principle.md`. It does not create an ACS contract or authorize a new
+provider integration.

@@ -7,11 +7,11 @@
 
 ## STATUS
 
-`STAGE B COMPLETE / CTO FINAL REVIEW REQUIRED`
+`COMPLETE / CTO ACCEPTED / CLOSED / PUBLISHED`
 
 The frozen Phase-0 experiment completed after Stage A acceptance and CTO
-authorization of comparator C. The final classification is
-`PATTERN VALIDATED / PROVIDER NO-GO`.
+authorization of comparator C. The CTO accepted and closed the result. The
+final classification is `PATTERN VALIDATED / PROVIDER NO-GO`.
 
 ## PROTOCOL VERSION / COMMIT
 
@@ -204,12 +204,12 @@ unauthorized.
 
 ## DECISIONS REQUIRED FROM CTO
 
-Review and accept or reject the final classification and the sanitized result
-artifacts. No further execution is requested by this report.
+None. The CTO accepted the classification, artifacts, and closure on September
+17, 2026. Any future experiment requires a separately justified research gate.
 
 ## DECISIONS REQUIRED FROM CEO
 
-None at this stage.
+None.
 
 ## IMPLEMENTATION IMPACT
 
