@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-09-17",
+  "generator": "docs/research/system-one/poc-01/harness/generate-corpus.mjs",
+  "data_classification": "synthetic/fabricated only",
+  "total_evaluations": 240,
+  "unique_cases": 216,
+  "repeat_cases": 24,
+  "family_counts": {
+    "clean_stratified": 214,
+    "ambiguous_insufficient": 9,
+    "conflicting": 9,
+    "partial": 8
+  },
+  "split_counts": {
+    "development": 120,
+    "calibration": 48,
+    "holdout": 48,
+    "repeat": 24
+  },
+  "dimensions": [
+    "relevance",
+    "evidence_quality",
+    "instruction_adherence",
+    "output_completeness"
+  ]
+}

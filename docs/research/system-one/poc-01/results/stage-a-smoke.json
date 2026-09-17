@@ -1,0 +1,587 @@
+{
+  "protocol": "REQ-02B / POC-01",
+  "stage": "A-smoke",
+  "status": "COMPLETED",
+  "external_call_made": true,
+  "data_classification": "synthetic/fabricated only",
+  "corpus": {
+    "total": 240,
+    "unique": 216,
+    "repeats": 24
+  },
+  "selected_case_ids": [
+    "syn-001",
+    "syn-049",
+    "syn-193",
+    "syn-201",
+    "syn-209",
+    "syn-repeat-001"
+  ],
+  "baseline_results": [
+    {
+      "case_id": "syn-001",
+      "result": {
+        "provider": "acs-deterministic-baseline",
+        "result_state": "answered",
+        "judgments": {
+          "relevance": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "evidence_quality": {
+            "level": 1,
+            "label": "weak",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "instruction_adherence": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "output_completeness": {
+            "level": 3,
+            "label": "strong",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          }
+        }
+      }
+    },
+    {
+      "case_id": "syn-049",
+      "result": {
+        "provider": "acs-deterministic-baseline",
+        "result_state": "answered",
+        "judgments": {
+          "relevance": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "evidence_quality": {
+            "level": 1,
+            "label": "weak",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "instruction_adherence": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "output_completeness": {
+            "level": 3,
+            "label": "strong",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          }
+        }
+      }
+    },
+    {
+      "case_id": "syn-193",
+      "result": {
+        "provider": "acs-deterministic-baseline",
+        "result_state": "answered",
+        "judgments": {
+          "relevance": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "evidence_quality": {
+            "level": 1,
+            "label": "weak",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "instruction_adherence": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "output_completeness": {
+            "level": 1,
+            "label": "weak",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          }
+        }
+      }
+    },
+    {
+      "case_id": "syn-201",
+      "result": {
+        "provider": "acs-deterministic-baseline",
+        "result_state": "answered",
+        "judgments": {
+          "relevance": {
+            "level": 3,
+            "label": "strong",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "evidence_quality": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "instruction_adherence": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "output_completeness": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          }
+        }
+      }
+    },
+    {
+      "case_id": "syn-209",
+      "result": {
+        "provider": "acs-deterministic-baseline",
+        "result_state": "answered",
+        "judgments": {
+          "relevance": {
+            "level": 3,
+            "label": "strong",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "evidence_quality": {
+            "level": 3,
+            "label": "strong",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "instruction_adherence": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "output_completeness": {
+            "level": 1,
+            "label": "weak",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          }
+        }
+      }
+    },
+    {
+      "case_id": "syn-repeat-001",
+      "result": {
+        "provider": "acs-deterministic-baseline",
+        "result_state": "answered",
+        "judgments": {
+          "relevance": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "evidence_quality": {
+            "level": 1,
+            "label": "weak",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "instruction_adherence": {
+            "level": 2,
+            "label": "partial",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          },
+          "output_completeness": {
+            "level": 3,
+            "label": "strong",
+            "confidence": null,
+            "probabilities": null,
+            "basis": "deterministic lexical/provenance rule"
+          }
+        }
+      }
+    }
+  ],
+  "provider_results": [
+    {
+      "provider": "typesafe-system-one",
+      "case_id": "syn-001",
+      "status": "ok",
+      "latency_ms": 940,
+      "result": {
+        "judgments": {
+          "relevance": {
+            "level": 0,
+            "label": "fail",
+            "confidence": 0.94,
+            "probabilities": [
+              0.97,
+              0.01,
+              0.01,
+              0.01
+            ]
+          },
+          "evidence_quality": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.5,
+            "probabilities": [
+              0.49,
+              0.51,
+              0,
+              0
+            ]
+          },
+          "instruction_adherence": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0,
+            "probabilities": [
+              0.43,
+              0.28,
+              0.07,
+              0.22
+            ]
+          },
+          "output_completeness": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.18,
+            "probabilities": [
+              0.35,
+              0.39,
+              0.05,
+              0.21
+            ]
+          }
+        }
+      },
+      "error_code": null
+    },
+    {
+      "provider": "typesafe-system-one",
+      "case_id": "syn-049",
+      "status": "ok",
+      "latency_ms": 729,
+      "result": {
+        "judgments": {
+          "relevance": {
+            "level": 0,
+            "label": "fail",
+            "confidence": 0.91,
+            "probabilities": [
+              0.96,
+              0.01,
+              0.01,
+              0.02
+            ]
+          },
+          "evidence_quality": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.51,
+            "probabilities": [
+              0.48,
+              0.51,
+              0.01,
+              0
+            ]
+          },
+          "instruction_adherence": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.03,
+            "probabilities": [
+              0.43,
+              0.33,
+              0.08,
+              0.16
+            ]
+          },
+          "output_completeness": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.32,
+            "probabilities": [
+              0.28,
+              0.5,
+              0.05,
+              0.17
+            ]
+          }
+        }
+      },
+      "error_code": null
+    },
+    {
+      "provider": "typesafe-system-one",
+      "case_id": "syn-193",
+      "status": "ok",
+      "latency_ms": 305,
+      "result": {
+        "judgments": {
+          "relevance": {
+            "level": 0,
+            "label": "fail",
+            "confidence": 0.93,
+            "probabilities": [
+              0.97,
+              0.01,
+              0.01,
+              0.01
+            ]
+          },
+          "evidence_quality": {
+            "level": 0,
+            "label": "fail",
+            "confidence": 0.52,
+            "probabilities": [
+              0.53,
+              0.47,
+              0,
+              0
+            ]
+          },
+          "instruction_adherence": {
+            "level": 0,
+            "label": "fail",
+            "confidence": 0.51,
+            "probabilities": [
+              0.53,
+              0.46,
+              0.01,
+              0
+            ]
+          },
+          "output_completeness": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.95,
+            "probabilities": [
+              0.04,
+              0.96,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "error_code": null
+    },
+    {
+      "provider": "typesafe-system-one",
+      "case_id": "syn-201",
+      "status": "ok",
+      "latency_ms": 302,
+      "result": {
+        "judgments": {
+          "relevance": {
+            "level": 3,
+            "label": "strong",
+            "confidence": 0.93,
+            "probabilities": [
+              0,
+              0,
+              0.06,
+              0.9400000000000001
+            ]
+          },
+          "evidence_quality": {
+            "level": 0,
+            "label": "fail",
+            "confidence": 0.98,
+            "probabilities": [
+              0.99,
+              0,
+              0.01,
+              0
+            ]
+          },
+          "instruction_adherence": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.55,
+            "probabilities": [
+              0.28,
+              0.55,
+              0.17,
+              0
+            ]
+          },
+          "output_completeness": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.86,
+            "probabilities": [
+              0.06,
+              0.86,
+              0.08,
+              0
+            ]
+          }
+        }
+      },
+      "error_code": null
+    },
+    {
+      "provider": "typesafe-system-one",
+      "case_id": "syn-209",
+      "status": "ok",
+      "latency_ms": 286,
+      "result": {
+        "judgments": {
+          "relevance": {
+            "level": 3,
+            "label": "strong",
+            "confidence": 0.91,
+            "probabilities": [
+              0,
+              0,
+              0.07,
+              0.93
+            ]
+          },
+          "evidence_quality": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.33,
+            "probabilities": [
+              0.12,
+              0.42,
+              0.45,
+              0.01
+            ]
+          },
+          "instruction_adherence": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.55,
+            "probabilities": [
+              0.43,
+              0.55,
+              0.02,
+              0
+            ]
+          },
+          "output_completeness": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.95,
+            "probabilities": [
+              0.04,
+              0.96,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "error_code": null
+    },
+    {
+      "provider": "typesafe-system-one",
+      "case_id": "syn-repeat-001",
+      "status": "ok",
+      "latency_ms": 351,
+      "result": {
+        "judgments": {
+          "relevance": {
+            "level": 0,
+            "label": "fail",
+            "confidence": 0.95,
+            "probabilities": [
+              0.97,
+              0.01,
+              0.01,
+              0.01
+            ]
+          },
+          "evidence_quality": {
+            "level": 0,
+            "label": "fail",
+            "confidence": 0.51,
+            "probabilities": [
+              0.52,
+              0.48,
+              0,
+              0
+            ]
+          },
+          "instruction_adherence": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0,
+            "probabilities": [
+              0.43,
+              0.28,
+              0.07,
+              0.22
+            ]
+          },
+          "output_completeness": {
+            "level": 1,
+            "label": "weak",
+            "confidence": 0.16,
+            "probabilities": [
+              0.31,
+              0.4,
+              0.06,
+              0.23
+            ]
+          }
+        }
+      },
+      "error_code": null
+    }
+  ],
+  "provider_preflight": {
+    "ready": true,
+    "model": "jev-latest",
+    "timeout_ms": 15000,
+    "max_retries": 1
+  },
+  "safety_assertions": {
+    "expected_fields_excluded_from_payload": true,
+    "credentials_not_persisted": true,
+    "production_effect": false
+  }
+}
