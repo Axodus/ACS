@@ -124,9 +124,18 @@ production guarantees.
 
 ## COST
 
-No provider price or billable-unit field was returned. Token usage is preserved,
-but dollar cost, cost per judgment, cost per correctly accepted judgment, and
-pipeline cost remain `UNKNOWN`. No economic conclusion is fabricated.
+The TypeSafe dashboard, reviewed after execution, reports **$0.042 per million
+input tokens** and free output. Its aggregate shows 247 requests, 191,830
+tokens, and an estimated total of **$0.01** (unrounded input calculation:
+$0.00805686). This dashboard total includes seven requests outside the 240-row
+Stage B arm and is therefore not treated as an isolated Stage B invoice.
+
+For the isolated Stage B B-arm usage captured by the harness, 170,179 input
+tokens imply an estimated **$0.00714752**, or approximately $0.00002978 per
+request and $0.00000745 per normalized judgment. The comparator C price remains
+unknown, so total pipeline cost and cost per accepted pipeline decision remain
+unknown. These are dashboard-based estimates, not a provider billing
+guarantee.
 
 ## REPEATABILITY
 

@@ -858,13 +858,28 @@
     ]
   },
   "cost": {
-    "type_safe_cost_usd": null,
+    "type_safe_dashboard": {
+      "requests": 247,
+      "input_tokens": 191830,
+      "input_rate_usd_per_mtok": 0.042,
+      "output_pricing": "free",
+      "estimated_total_usd_displayed": 0.01,
+      "estimated_total_usd_unrounded": 0.00805686,
+      "scope_note": "Dashboard aggregate supplied after execution; includes seven requests outside the 240-row Stage B arm."
+    },
+    "stage_b_type_safe_estimate": {
+      "requests": 240,
+      "input_tokens": 170179,
+      "estimated_input_cost_usd": 0.007147518,
+      "estimated_cost_per_request_usd": 0.000029781325,
+      "estimated_cost_per_normalized_judgment_usd": 0.00000744533125
+    },
     "comparator_cost_usd": null,
     "pipeline_cost_usd": null,
     "billable_units": {
       "B": 240,
       "C": 240
     },
-    "note": "No provider price or billable unit was exposed in the captured responses; no cost is fabricated. Usage tokens are preserved where the provider returned them."
+    "note": "TypeSafe cost is a dashboard-based estimate at the reported input rate; comparator and complete pipeline costs remain unknown."
   }
 }
