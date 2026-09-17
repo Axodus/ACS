@@ -61,6 +61,7 @@ All System One statements are classified as one of:
 - [08 — PoC candidates and gates](./08-poc-candidates.md)
 - [09 — Decision matrix and CTO recommendation](./09-decision-matrix-recommendation.md)
 - [REQ-02A — PoC readiness and evaluation design](./req-02a/README.md)
+- [REQ-02B — PoC parameter freeze](./req-02b/README.md)
 
 ## Source register
 
