@@ -18,8 +18,9 @@ normative ACS contract and must remain removable.
 On September 17, 2026, Stage A smoke completed against six representative
 synthetic cases using the temporary experimental `TYPESAFE_API_KEY`. All six
 provider calls returned parseable judgments with no recorded provider errors or
-timeouts. The full Stage B run remains held because the required stronger-
-reasoning comparator C is not configured.
+timeouts. After CTO authorization of comparator C, Stage B completed the frozen
+240-evaluation Phase-0 run for A, B, and C. The result is recorded as
+`PATTERN VALIDATED / PROVIDER NO-GO`; this is not production adoption.
 
 Run the validation checks with:
 
@@ -28,6 +29,8 @@ node docs/research/system-one/poc-01/harness/generate-corpus.mjs
 node docs/research/system-one/poc-01/harness/poc-01.test.mjs
 node docs/research/system-one/poc-01/harness/run-baseline.mjs
 node docs/research/system-one/poc-01/harness/run-smoke.mjs
+node docs/research/system-one/poc-01/harness/run-stage-b.mjs
+node docs/research/system-one/poc-01/harness/analyze-stage-b.mjs
 ```
 
 The external adapter requires an explicitly configured experimental credential
@@ -38,6 +41,11 @@ to the corpus, logs, or result artifacts. No production credential is accepted.
 
 All cases are fabricated. Hidden expected judgments are stored only in the
 synthetic corpus for offline evaluation and are excluded from provider payloads.
-No experiment result changes an ACS decision. Stage B must not begin unless
-Stage A authentication, serialization, parsing, timeout, redaction, persistence,
-and adapter-boundary checks are technically clean.
+No experiment result changes an ACS decision. Stage B began only after Stage A
+authentication, serialization, parsing, timeout, redaction, persistence, and
+adapter-boundary checks were technically clean.
+
+The final execution report is in `analysis/stage-b-execution-report.md`; the
+Stage A historical report remains in `analysis/execution-report.md`. Sanitized raw
+arm outputs and the derived analysis remain in `results/`. No raw provider
+response body or credential is persisted.

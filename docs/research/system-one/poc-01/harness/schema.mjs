@@ -112,7 +112,10 @@ export function normalizeJudgments(raw) {
 
   const judgments = {};
   for (const dimension of DIMENSIONS) {
-    const item = values?.[dimension];
+    const rawItem = values?.[dimension];
+    const item = Number.isFinite(Number(rawItem))
+      ? { level: Number(rawItem) }
+      : rawItem;
     const isScoreAnswer = item?.type === "score" && Number.isFinite(Number(item.score));
     const level = isScoreAnswer ? Math.max(0, Math.min(3, Math.round(Number(item.score)))) : item?.level;
     if (!item || !Number.isInteger(level) || !LEVELS.includes(level)) {

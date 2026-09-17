@@ -1,5 +1,5 @@
 {
-  "protocol": "REQ-02B / POC-01",
+  "protocol": "REQ-02B / POC-01 / Stage B",
   "arm": "A",
   "status": "LOCAL_ONLY",
   "data_classification": "synthetic/fabricated only",
@@ -7,34 +7,6 @@
     "total": 240,
     "unique": 216,
     "repeats": 24
-  },
-  "summary": {
-    "provider": "acs-deterministic-baseline",
-    "total_judgments": 960,
-    "total_correct": 587,
-    "exact_ordinal_accuracy": 0.6114583333333333,
-    "dimensions": {
-      "relevance": {
-        "evaluated": 240,
-        "correct": 53,
-        "accuracy": 0.22083333333333333
-      },
-      "evidence_quality": {
-        "evaluated": 240,
-        "correct": 170,
-        "accuracy": 0.7083333333333334
-      },
-      "instruction_adherence": {
-        "evaluated": 240,
-        "correct": 124,
-        "accuracy": 0.5166666666666667
-      },
-      "output_completeness": {
-        "evaluated": 240,
-        "correct": 240,
-        "accuracy": 1
-      }
-    }
   },
   "results": [
     {

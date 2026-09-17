@@ -1,4 +1,7 @@
-# ACS-RESEARCH-POC-01 — System One Evidence Judgment
+# ACS-RESEARCH-POC-01 — Stage A Preliminary Execution Report
+
+> Historical Stage A record. The final Stage B report is
+> `analysis/stage-b-execution-report.md`.
 
 **Execution date:** September 17, 2026
 **Classification:** Research / non-normative

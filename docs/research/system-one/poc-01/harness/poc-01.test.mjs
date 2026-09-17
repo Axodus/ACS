@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { evaluateWithBaseline } from "./baseline.mjs";
 import { assertSyntheticPayload, createProviderRequest, DIMENSIONS, normalizeJudgments, validateCorpus } from "./schema.mjs";
 import { SystemOneAdapter } from "../provider/typesafe-adapter.mjs";
+import { ReasoningComparatorAdapter } from "../provider/reasoning-comparator-adapter.mjs";
 
 const corpus = (await readFile(new URL("../corpus/phase-0.jsonl", import.meta.url), "utf8"))
   .trim().split("\n").map(JSON.parse);
@@ -49,6 +50,16 @@ test("score answers normalize to ordinal level and preserve probability data", (
   assert.equal(normalized.judgments.relevance.confidence, 0.7);
 });
 
+test("neutral normalization accepts comparator JSON levels", () => {
+  const normalized = normalizeJudgments(Object.fromEntries(DIMENSIONS.map((dimension) => [dimension, 3])));
+  assert.deepEqual(Object.fromEntries(DIMENSIONS.map((dimension) => [dimension, normalized.judgments[dimension].level])), {
+    relevance: 3,
+    evidence_quality: 3,
+    instruction_adherence: 3,
+    output_completeness: 3
+  });
+});
+
 test("adapter serializes the documented System One wire shape", async () => {
   let captured;
   const adapter = new SystemOneAdapter({
@@ -76,4 +87,36 @@ test("adapter serializes the documented System One wire shape", async () => {
   assert.equal(captured.options.headers.authorization, "Bearer synthetic-test-key");
   assert.equal(result.status, "ok");
   assert.equal(result.result.judgments.relevance.level, 2);
+});
+
+test("reasoning comparator keeps provider-specific response parsing behind its adapter", async () => {
+  let captured;
+  const adapter = new ReasoningComparatorAdapter({
+    COMPARATOR_API_TOKEN: "synthetic-comparator-key",
+    COMPARATOR_MODEL: "synthetic-reasoning-model"
+  }, async (_url, options) => {
+    captured = { url: _url, options };
+    return new Response(JSON.stringify({
+      model: "synthetic-reasoning-model",
+      output_text: JSON.stringify({ relevance: 1, evidence_quality: 2, instruction_adherence: 3, output_completeness: 0 }),
+      usage: { input_tokens: 2, output_tokens: 3 }
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const result = await adapter.judge(corpus[0]);
+  const body = JSON.parse(captured.options.body);
+  assert.equal(body.model, "synthetic-reasoning-model");
+  assert.equal(body.reasoning.effort, "low");
+  assert.equal(typeof body.input, "string");
+  assert.equal(body.input.includes("ground_truth"), false);
+  assert.equal(body.input.includes("expected"), false);
+  assert.equal(result.status, "ok");
+  assert.equal(result.result.judgments.relevance.level, 1);
+  assert.deepEqual(result.usage, { input_tokens: 2, output_tokens: 3 });
+});
+
+test("reasoning comparator classifies malformed provider output", async () => {
+  const adapter = new ReasoningComparatorAdapter({ COMPARATOR_API_TOKEN: "synthetic-comparator-key" }, async () => new Response(JSON.stringify({ output_text: "not json" }), { status: 200 }));
+  const result = await adapter.judge(corpus[0]);
+  assert.equal(result.status, "error");
+  assert.equal(result.error_category, "invalid_response");
 });

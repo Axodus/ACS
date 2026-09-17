@@ -1,0 +1,870 @@
+{
+  "protocol": "REQ-02B / POC-01 / Stage B",
+  "data_classification": "synthetic/fabricated only",
+  "corpus": {
+    "total": 240,
+    "unique": 216,
+    "repeats": 24
+  },
+  "arms": {
+    "A": {
+      "provider": "acs-deterministic-baseline",
+      "model": null,
+      "quality": {
+        "dimensions": {
+          "relevance": {
+            "evaluated": 240,
+            "accuracy": 0.22083333333333333,
+            "macro_f1": 0.15056818181818182,
+            "ordinal_agreement": 0.6652777777777771
+          },
+          "evidence_quality": {
+            "evaluated": 240,
+            "accuracy": 0.7083333333333334,
+            "macro_f1": 0.6341415336093041,
+            "ordinal_agreement": 0.816666666666667
+          },
+          "instruction_adherence": {
+            "evaluated": 240,
+            "accuracy": 0.5166666666666667,
+            "macro_f1": 0.3875968992248062,
+            "ordinal_agreement": 0.8388888888888879
+          },
+          "output_completeness": {
+            "evaluated": 240,
+            "accuracy": 1,
+            "macro_f1": 1,
+            "ordinal_agreement": 1
+          }
+        },
+        "exact_ordinal_accuracy": 0.6114583333333333,
+        "ordinal_agreement": 0.830208333333333
+      },
+      "confidence": {
+        "bands": {
+          "high": 0,
+          "intermediate": 0,
+          "low": 0,
+          "unknown": 960
+        },
+        "errors_by_band": {
+          "high": 0,
+          "intermediate": 0,
+          "low": 0,
+          "unknown": 373
+        },
+        "calibration_count": 0,
+        "ece": null,
+        "brier": null,
+        "reliability_bins": [
+          {
+            "bin": 0,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 1,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 2,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 3,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 4,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          }
+        ]
+      },
+      "high_confidence_errors": {
+        "count": 0,
+        "cases": []
+      },
+      "operations": {
+        "count": 240,
+        "ok": 240,
+        "p50_latency_ms": null,
+        "p95_latency_ms": null,
+        "provider_error_rate": 0,
+        "timeout_rate": 0,
+        "invalid_rate": 0,
+        "status_counts": {
+          "ok": 240
+        },
+        "usage_tokens": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "total_tokens": 0
+        }
+      },
+      "repeatability": {
+        "comparisons": 96,
+        "exact_ordinal_stability": 1,
+        "confidence_band_stability": 1,
+        "mean_confidence_delta": null,
+        "threshold_crossings": 0
+      }
+    },
+    "B": {
+      "provider": "typesafe-system-one",
+      "model": "jev-1.13.0",
+      "quality": {
+        "dimensions": {
+          "relevance": {
+            "evaluated": 240,
+            "accuracy": 0.44583333333333336,
+            "macro_f1": 0.3084629186602871,
+            "ordinal_agreement": 0.8152777777777762
+          },
+          "evidence_quality": {
+            "evaluated": 240,
+            "accuracy": 0.21666666666666667,
+            "macro_f1": 0.12604044976635514,
+            "ordinal_agreement": 0.6458333333333335
+          },
+          "instruction_adherence": {
+            "evaluated": 240,
+            "accuracy": 0.44166666666666665,
+            "macro_f1": 0.29927785200738055,
+            "ordinal_agreement": 0.663888888888888
+          },
+          "output_completeness": {
+            "evaluated": 240,
+            "accuracy": 0.2916666666666667,
+            "macro_f1": 0.11290322580645161,
+            "ordinal_agreement": 0.6888888888888887
+          }
+        },
+        "exact_ordinal_accuracy": 0.3489583333333333,
+        "ordinal_agreement": 0.7034722222222215
+      },
+      "confidence": {
+        "bands": {
+          "high": 542,
+          "intermediate": 131,
+          "low": 287,
+          "unknown": 0
+        },
+        "errors_by_band": {
+          "high": 303,
+          "intermediate": 100,
+          "low": 222,
+          "unknown": 0
+        },
+        "calibration_count": 960,
+        "ece": 0.3769166666666672,
+        "brier": 0.35667229166666653,
+        "reliability_bins": [
+          {
+            "bin": 0,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 1,
+            "count": 36,
+            "mean_confidence": 0.3827777777777779,
+            "accuracy": 0
+          },
+          {
+            "bin": 2,
+            "count": 376,
+            "mean_confidence": 0.4934840425531914,
+            "accuracy": 0.2553191489361702
+          },
+          {
+            "bin": 3,
+            "count": 10,
+            "mean_confidence": 0.6839999999999999,
+            "accuracy": 0
+          },
+          {
+            "bin": 4,
+            "count": 538,
+            "mean_confidence": 0.9120260223048337,
+            "accuracy": 0.44423791821561337
+          }
+        ]
+      },
+      "high_confidence_errors": {
+        "count": 303,
+        "cases": [
+          {
+            "case_id": "syn-002",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-002",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.87,
+            "margin": 0.74
+          },
+          {
+            "case_id": "syn-002",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.87,
+            "margin": 0.74
+          },
+          {
+            "case_id": "syn-003",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.84,
+            "margin": 0.7
+          },
+          {
+            "case_id": "syn-004",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.82,
+            "margin": 0.71
+          },
+          {
+            "case_id": "syn-006",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-006",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.91,
+            "margin": 0.8200000000000001
+          },
+          {
+            "case_id": "syn-006",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.87,
+            "margin": 0.74
+          },
+          {
+            "case_id": "syn-007",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.81,
+            "margin": 0.65
+          },
+          {
+            "case_id": "syn-008",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.83,
+            "margin": 0.72
+          },
+          {
+            "case_id": "syn-010",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-010",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.91,
+            "margin": 0.8200000000000001
+          },
+          {
+            "case_id": "syn-010",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.92,
+            "margin": 0.8400000000000001
+          },
+          {
+            "case_id": "syn-011",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.84,
+            "margin": 0.71
+          },
+          {
+            "case_id": "syn-012",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.78,
+            "margin": 0.63
+          },
+          {
+            "case_id": "syn-014",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-014",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.92,
+            "margin": 0.8400000000000001
+          },
+          {
+            "case_id": "syn-014",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.88,
+            "margin": 0.76
+          },
+          {
+            "case_id": "syn-015",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.85,
+            "margin": 0.72
+          },
+          {
+            "case_id": "syn-016",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.82,
+            "margin": 0.69
+          },
+          {
+            "case_id": "syn-018",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-018",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.89,
+            "margin": 0.78
+          },
+          {
+            "case_id": "syn-018",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.9,
+            "margin": 0.8
+          },
+          {
+            "case_id": "syn-019",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.86,
+            "margin": 0.74
+          },
+          {
+            "case_id": "syn-020",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.8,
+            "margin": 0.64
+          },
+          {
+            "case_id": "syn-022",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-022",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.89,
+            "margin": 0.78
+          },
+          {
+            "case_id": "syn-022",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.92,
+            "margin": 0.8400000000000001
+          },
+          {
+            "case_id": "syn-023",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.87,
+            "margin": 0.76
+          },
+          {
+            "case_id": "syn-024",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.83,
+            "margin": 0.71
+          },
+          {
+            "case_id": "syn-026",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.99,
+            "margin": 0.98
+          },
+          {
+            "case_id": "syn-026",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.92,
+            "margin": 0.8400000000000001
+          },
+          {
+            "case_id": "syn-026",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.87,
+            "margin": 0.74
+          },
+          {
+            "case_id": "syn-027",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.85,
+            "margin": 0.72
+          },
+          {
+            "case_id": "syn-028",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.83,
+            "margin": 0.71
+          },
+          {
+            "case_id": "syn-030",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-030",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.91,
+            "margin": 0.8200000000000001
+          },
+          {
+            "case_id": "syn-030",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.9,
+            "margin": 0.8
+          },
+          {
+            "case_id": "syn-031",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.86,
+            "margin": 0.74
+          },
+          {
+            "case_id": "syn-032",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.78,
+            "margin": 0.62
+          },
+          {
+            "case_id": "syn-034",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-034",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.91,
+            "margin": 0.8200000000000001
+          },
+          {
+            "case_id": "syn-034",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.88,
+            "margin": 0.76
+          },
+          {
+            "case_id": "syn-035",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.83,
+            "margin": 0.69
+          },
+          {
+            "case_id": "syn-036",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.81,
+            "margin": 0.6900000000000001
+          },
+          {
+            "case_id": "syn-038",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 0,
+            "expected": 1,
+            "confidence": 0.98,
+            "margin": 0.97
+          },
+          {
+            "case_id": "syn-038",
+            "case_family": "clean_stratified",
+            "dimension": "instruction_adherence",
+            "predicted": 0,
+            "expected": 3,
+            "confidence": 0.91,
+            "margin": 0.8200000000000001
+          },
+          {
+            "case_id": "syn-038",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 0,
+            "confidence": 0.88,
+            "margin": 0.76
+          },
+          {
+            "case_id": "syn-039",
+            "case_family": "clean_stratified",
+            "dimension": "relevance",
+            "predicted": 3,
+            "expected": 2,
+            "confidence": 0.83,
+            "margin": 0.6799999999999999
+          },
+          {
+            "case_id": "syn-040",
+            "case_family": "clean_stratified",
+            "dimension": "output_completeness",
+            "predicted": 1,
+            "expected": 2,
+            "confidence": 0.8,
+            "margin": 0.66
+          }
+        ]
+      },
+      "operations": {
+        "count": 240,
+        "ok": 240,
+        "p50_latency_ms": 306,
+        "p95_latency_ms": 536,
+        "provider_error_rate": 0,
+        "timeout_rate": 0,
+        "invalid_rate": 0,
+        "status_counts": {
+          "ok": 240
+        },
+        "usage_tokens": {
+          "input_tokens": 170179,
+          "output_tokens": 16320,
+          "total_tokens": 186499
+        }
+      },
+      "repeatability": {
+        "comparisons": 96,
+        "exact_ordinal_stability": 0.9479166666666666,
+        "confidence_band_stability": 0.8958333333333334,
+        "mean_confidence_delta": 0.016562499999999994,
+        "threshold_crossings": 10
+      }
+    },
+    "C": {
+      "provider": "reasoning-comparator",
+      "model": "claude-opus-4-6-thinking",
+      "quality": {
+        "dimensions": {
+          "relevance": {
+            "evaluated": 240,
+            "accuracy": 0.5291666666666667,
+            "macro_f1": 0.45354864433811803,
+            "ordinal_agreement": 0.8430555555555537
+          },
+          "evidence_quality": {
+            "evaluated": 240,
+            "accuracy": 0.03333333333333333,
+            "macro_f1": 0.04395604395604396,
+            "ordinal_agreement": 0.5583333333333338
+          },
+          "instruction_adherence": {
+            "evaluated": 240,
+            "accuracy": 0.22916666666666666,
+            "macro_f1": 0.15923028785982477,
+            "ordinal_agreement": 0.647222222222222
+          },
+          "output_completeness": {
+            "evaluated": 240,
+            "accuracy": 0.6125,
+            "macro_f1": 0.5049640534063677,
+            "ordinal_agreement": 0.8
+          }
+        },
+        "exact_ordinal_accuracy": 0.35104166666666664,
+        "ordinal_agreement": 0.7121527777777774
+      },
+      "confidence": {
+        "bands": {
+          "high": 0,
+          "intermediate": 0,
+          "low": 0,
+          "unknown": 960
+        },
+        "errors_by_band": {
+          "high": 0,
+          "intermediate": 0,
+          "low": 0,
+          "unknown": 623
+        },
+        "calibration_count": 0,
+        "ece": null,
+        "brier": null,
+        "reliability_bins": [
+          {
+            "bin": 0,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 1,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 2,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 3,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          },
+          {
+            "bin": 4,
+            "count": 0,
+            "mean_confidence": null,
+            "accuracy": null
+          }
+        ]
+      },
+      "high_confidence_errors": {
+        "count": 0,
+        "cases": []
+      },
+      "operations": {
+        "count": 240,
+        "ok": 240,
+        "p50_latency_ms": 2340,
+        "p95_latency_ms": 3428,
+        "provider_error_rate": 0,
+        "timeout_rate": 0,
+        "invalid_rate": 0,
+        "status_counts": {
+          "ok": 240
+        },
+        "usage_tokens": {
+          "input_tokens": 157894,
+          "output_tokens": 9840,
+          "total_tokens": 167734
+        }
+      },
+      "repeatability": {
+        "comparisons": 96,
+        "exact_ordinal_stability": 0.9270833333333334,
+        "confidence_band_stability": 1,
+        "mean_confidence_delta": 0,
+        "threshold_crossings": 0
+      }
+    }
+  },
+  "escalation": {
+    "rate": 0.7916666666666666,
+    "reason_counts": {
+      "low_or_unknown_confidence": 176,
+      "risk_case_class": 18,
+      "baseline_disagreement_on_risk_case": 18
+    },
+    "total_escalated": 190
+  },
+  "pipelines": {
+    "A only": {
+      "quality": {
+        "evaluated": 240,
+        "exact_ordinal_accuracy": 0.6114583333333333
+      },
+      "calls": {
+        "A": 240,
+        "B": 0,
+        "C": 0
+      }
+    },
+    "A -> B": {
+      "quality": {
+        "evaluated": 240,
+        "exact_ordinal_accuracy": 0.3489583333333333
+      },
+      "calls": {
+        "A": 240,
+        "B": 240,
+        "C": 0
+      }
+    },
+    "A -> C": {
+      "quality": {
+        "evaluated": 240,
+        "exact_ordinal_accuracy": 0.35104166666666664
+      },
+      "calls": {
+        "A": 240,
+        "B": 0,
+        "C": 240
+      }
+    },
+    "A -> B -> C": {
+      "quality": {
+        "evaluated": 240,
+        "exact_ordinal_accuracy": 0.36770833333333336
+      },
+      "calls": {
+        "A": 240,
+        "B": 240,
+        "C": 190
+      }
+    }
+  },
+  "removal_test": {
+    "corpus_unchanged": true,
+    "ground_truth_unchanged": true,
+    "metrics_consumed_only_neutral_results": true,
+    "production_acs_semantics_unchanged": true,
+    "replaceable_adapters": [
+      "typesafe-system-one",
+      "reasoning-comparator"
+    ]
+  },
+  "cost": {
+    "type_safe_cost_usd": null,
+    "comparator_cost_usd": null,
+    "pipeline_cost_usd": null,
+    "billable_units": {
+      "B": 240,
+      "C": 240
+    },
+    "note": "No provider price or billable unit was exposed in the captured responses; no cost is fabricated. Usage tokens are preserved where the provider returned them."
+  }
+}

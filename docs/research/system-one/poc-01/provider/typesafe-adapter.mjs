@@ -72,10 +72,14 @@ export class SystemOneAdapter {
         const raw = await response.json();
         const result = {
           provider: "typesafe-system-one",
+          provider_model: raw.model ?? this.model,
           case_id: record.case_id,
           status: "ok",
           latency_ms: Math.round(performance.now() - started),
-          result: normalizeJudgments(raw)
+          result: normalizeJudgments(raw),
+          usage: raw.usage ?? null,
+          attempts: attempt + 1,
+          error_category: null
         };
         return sanitizeProviderResult(result);
       } catch (error) {
@@ -88,9 +92,12 @@ export class SystemOneAdapter {
 
     return sanitizeProviderResult({
       provider: "typesafe-system-one",
+      provider_model: this.model,
       case_id: record.case_id,
       status: lastError?.message === "TIMEOUT" ? "timeout" : "error",
       latency_ms: Math.round(performance.now() - started),
+      attempts: Math.min(this.maxRetries + 1, (this.maxRetries ?? 0) + 1),
+      error_category: lastError?.message === "TIMEOUT" ? "timeout" : "provider_failure",
       error_code: lastError?.message ?? "PROVIDER_ERROR"
     });
   }
