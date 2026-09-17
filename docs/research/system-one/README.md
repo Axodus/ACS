@@ -60,6 +60,7 @@ All System One statements are classified as one of:
 - [07 — Provider-neutral abstraction research](./07-provider-neutral-abstraction.md)
 - [08 — PoC candidates and gates](./08-poc-candidates.md)
 - [09 — Decision matrix and CTO recommendation](./09-decision-matrix-recommendation.md)
+- [REQ-02A — PoC readiness and evaluation design](./req-02a/README.md)
 
 ## Source register
 
